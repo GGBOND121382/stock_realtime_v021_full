@@ -1,0 +1,33 @@
+# End-to-end pipeline for Pinggao Electric / 平高电气 (600312.SH).
+# This reproduces the known pipeline run and writes all data outputs under:
+#   stock_realtime/saved_data/600312_pipeline_out
+
+title = "600312.SH full next-day pipeline"
+cwd = "{project_dir}"
+
+[[commands]]
+id = "full_pipeline"
+description = "Build data, samples, fundamentals, sector features, model searches and leaderboard."
+args = [
+  "{python}",
+  "pipelines/run_nextday_pipeline.py",
+  "--symbol", "600312.SH",
+  "--sector-symbol", "电网设备",
+  "--start-date", "2018-01-01",
+  "--end-date", "2026-05-08",
+  "--feature-pipeline", "fundamental,sector",
+  "--search-targets", "hit50,hit80,close_profit",
+  "--entry-policies", "vwap_low,all_days",
+  "--groups", "reversal_fundamental_regime,reversal_fundamental_regime_sector,all_no_ak",
+  "--models", "xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4",
+  "--quantiles", "0.5,0.6,0.7,0.8",
+  "--round-trip-cost-bps", "1.7",
+  "--max-missing", "0.35",
+  "--train-rows", "756",
+  "--valid-rows", "126",
+  "--test-rows", "63",
+  "--min-valid-trades", "8",
+  "--min-train-entries", "80",
+  "--resume",
+  "--excel",
+]

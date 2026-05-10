@@ -1,0 +1,32 @@
+# Data collection / base feature refresh for 600312.SH.
+# `pipeline_update_data` uses the same BaoStock bootstrap path as the full
+# pipeline and writes daily/5m bars plus feature caches into saved_data.
+
+title = "600312.SH data collection"
+cwd = "{project_dir}"
+
+[[commands]]
+id = "pipeline_update_data"
+description = "Run only the pipeline update_data stage for BaoStock raw data and base features."
+args = [
+  "{python}",
+  "pipelines/run_nextday_pipeline.py",
+  "--symbol", "600312.SH",
+  "--sector-symbol", "电网设备",
+  "--start-date", "2018-01-01",
+  "--end-date", "2026-05-08",
+  "--only-stages", "update_data",
+  "--resume",
+]
+
+[[commands]]
+id = "raw_cache_refresh"
+description = "Refresh only BaoStock raw daily and 5m cache used by the saved pipeline data."
+args = [
+  "{python}",
+  "data_collection/update_baostock_raw_cache.py",
+  "--symbol", "600312.SH",
+  "--start-date", "2026-05-01",
+  "--end-date", "2026-05-08",
+  "--raw-cache-dir", "saved_data/600312_pipeline_out/00_base/raw_cache",
+]

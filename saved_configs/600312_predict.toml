@@ -1,0 +1,22 @@
+# Predict with the saved 600312.SH artifact.
+# The artifact must exist first. Run 600312_train_save.toml if needed.
+
+title = "600312.SH saved-model prediction"
+cwd = "{project_dir}"
+
+[[commands]]
+id = "predict_latest"
+description = "Score the latest available row, including unlabeled tail rows."
+args = [
+  "{python}",
+  "prediction/predict_saved_nextday_model.py",
+  "--artifact-dir", "saved_models/600312.SH/nextday_close_profit_xgb_d3_reversal_fundamental_regime_v1",
+  "--stock-code", "600312.SH",
+  "--samples", "saved_data/600312_pipeline_out/03_sector/training_samples_with_sector.csv",
+  "--intraday-bars", "saved_data/600312_pipeline_out/00_base/600312_5m.csv",
+  "--target-hit-bps", "50",
+  "--round-trip-cost-bps", "1.7",
+  "--entry-policy", "vwap_low",
+  "--allow-unlabeled",
+  "--out", "saved_data/predictions/600312.SH_nextday_close_profit_xgb_d3_reversal_fundamental_regime_v1_latest_scores.csv",
+]
