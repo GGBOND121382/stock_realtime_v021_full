@@ -1,0 +1,336 @@
+[
+  {
+    "ok": true,
+    "shape": [
+      1,
+      13
+    ],
+    "columns": [
+      "代码",
+      "名称",
+      "最新价",
+      "涨跌幅",
+      "涨跌额",
+      "买入",
+      "卖出",
+      "成交量",
+      "成交额",
+      "今开",
+      "昨收",
+      "最高",
+      "最低"
+    ],
+    "head": [
+      {
+        "代码": "02714",
+        "名称": "牧原股份",
+        "最新价": "42.28",
+        "涨跌幅": "1.2",
+        "涨跌额": "0.5",
+        "买入": "42.28",
+        "卖出": "42.28",
+        "成交量": "1469617.0",
+        "成交额": "61567319.86",
+        "今开": "41.9",
+        "昨收": "41.78",
+        "最高": "42.5",
+        "最低": "41.1"
+      }
+    ],
+    "tail": [
+      {
+        "代码": "02714",
+        "名称": "牧原股份",
+        "最新价": "42.28",
+        "涨跌幅": "1.2",
+        "涨跌额": "0.5",
+        "买入": "42.28",
+        "卖出": "42.28",
+        "成交量": "1469617.0",
+        "成交额": "61567319.86",
+        "今开": "41.9",
+        "昨收": "41.78",
+        "最高": "42.5",
+        "最低": "41.1"
+      }
+    ],
+    "name": "stock_zh_ah_spot_find_muyuan"
+  },
+  {
+    "ok": false,
+    "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+    "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 21, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 94, in test_hk_spot_em\n    df = ak.stock_hk_spot_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_hist_em.py\", line 1246, in stock_hk_spot_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 50, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+    "name": "stock_hk_spot_em_find_muyuan"
+  },
+  {
+    "ok": true,
+    "shape": [
+      59,
+      6
+    ],
+    "columns": [
+      "日期",
+      "开盘",
+      "收盘",
+      "最高",
+      "最低",
+      "成交量"
+    ],
+    "head": [
+      {
+        "日期": "2026-02-06",
+        "开盘": "39.0",
+        "收盘": "40.52",
+        "最高": "41.72",
+        "最低": "38.98",
+        "成交量": "40589241.0"
+      },
+      {
+        "日期": "2026-02-09",
+        "开盘": "40.2",
+        "收盘": "40.04",
+        "最高": "40.92",
+        "最低": "39.54",
+        "成交量": "6867145.0"
+      },
+      {
+        "日期": "2026-02-10",
+        "开盘": "39.8",
+        "收盘": "40.16",
+        "最高": "41.2",
+        "最低": "39.6",
+        "成交量": "3454520.0"
+      },
+      {
+        "日期": "2026-02-11",
+        "开盘": "40.16",
+        "收盘": "40.26",
+        "最高": "40.68",
+        "最低": "39.82",
+        "成交量": "3758200.0"
+      },
+      {
+        "日期": "2026-02-12",
+        "开盘": "40.02",
+        "收盘": "39.2",
+        "最高": "40.34",
+        "最低": "39.0",
+        "成交量": "4839100.0"
+      }
+    ],
+    "tail": [
+      {
+        "日期": "2026-05-04",
+        "开盘": "41.0",
+        "收盘": "41.06",
+        "最高": "41.72",
+        "最低": "40.46",
+        "成交量": "1017502.0"
+      },
+      {
+        "日期": "2026-05-05",
+        "开盘": "41.06",
+        "收盘": "40.88",
+        "最高": "41.32",
+        "最低": "40.5",
+        "成交量": "371312.0"
+      },
+      {
+        "日期": "2026-05-06",
+        "开盘": "41.0",
+        "收盘": "41.34",
+        "最高": "41.98",
+        "最低": "39.52",
+        "成交量": "8213000.0"
+      },
+      {
+        "日期": "2026-05-07",
+        "开盘": "41.34",
+        "收盘": "43.94",
+        "最高": "43.94",
+        "最低": "41.32",
+        "成交量": "4222100.0"
+      },
+      {
+        "日期": "2026-05-08",
+        "开盘": "43.9",
+        "收盘": "41.78",
+        "最高": "43.9",
+        "最低": "41.56",
+        "成交量": "2580236.0"
+      }
+    ],
+    "name": "stock_zh_ah_daily(02714)"
+  },
+  {
+    "ok": false,
+    "error": "KeyError('日期')",
+    "traceback": "Traceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 21, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 108, in fn\n    df = ak.stock_zh_ah_daily(\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_zh_ah_tx.py\", line 253, in stock_zh_ah_daily\n    big_df[\"日期\"] = pd.to_datetime(big_df[\"日期\"], errors=\"coerce\").dt.date\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/frame.py\", line 4113, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/indexes/range.py\", line 417, in get_loc\n    raise KeyError(key)\nKeyError: '日期'\n",
+    "name": "stock_zh_ah_daily(2714)"
+  },
+  {
+    "ok": false,
+    "error": "KeyError('日期')",
+    "traceback": "Traceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 21, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 108, in fn\n    df = ak.stock_zh_ah_daily(\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_zh_ah_tx.py\", line 253, in stock_zh_ah_daily\n    big_df[\"日期\"] = pd.to_datetime(big_df[\"日期\"], errors=\"coerce\").dt.date\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/frame.py\", line 4113, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/indexes/range.py\", line 417, in get_loc\n    raise KeyError(key)\nKeyError: '日期'\n",
+    "name": "stock_zh_ah_daily(HK2714)"
+  },
+  {
+    "ok": false,
+    "error": "KeyError('日期')",
+    "traceback": "Traceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 21, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 108, in fn\n    df = ak.stock_zh_ah_daily(\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_zh_ah_tx.py\", line 253, in stock_zh_ah_daily\n    big_df[\"日期\"] = pd.to_datetime(big_df[\"日期\"], errors=\"coerce\").dt.date\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/frame.py\", line 4113, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/indexes/range.py\", line 417, in get_loc\n    raise KeyError(key)\nKeyError: '日期'\n",
+    "name": "stock_zh_ah_daily(2714.HK)"
+  },
+  {
+    "ok": false,
+    "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+    "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 21, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 122, in fn\n    df = ak.stock_hk_hist(\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_hist_em.py\", line 1430, in stock_hk_hist\n    r = requests.get(url, timeout=15, params=params)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 76, in get\n    return request('get', url, params=params, **kwargs)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 61, in request\n    return session.request(method=method, url=url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+    "name": "stock_hk_hist(02714)"
+  },
+  {
+    "ok": false,
+    "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+    "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 21, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 122, in fn\n    df = ak.stock_hk_hist(\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_hist_em.py\", line 1430, in stock_hk_hist\n    r = requests.get(url, timeout=15, params=params)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 76, in get\n    return request('get', url, params=params, **kwargs)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 61, in request\n    return session.request(method=method, url=url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+    "name": "stock_hk_hist(2714)"
+  },
+  {
+    "ok": false,
+    "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+    "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 21, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 122, in fn\n    df = ak.stock_hk_hist(\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_hist_em.py\", line 1430, in stock_hk_hist\n    r = requests.get(url, timeout=15, params=params)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 76, in get\n    return request('get', url, params=params, **kwargs)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 61, in request\n    return session.request(method=method, url=url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+    "name": "stock_hk_hist(HK2714)"
+  },
+  {
+    "ok": false,
+    "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+    "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 21, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 122, in fn\n    df = ak.stock_hk_hist(\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_hist_em.py\", line 1430, in stock_hk_hist\n    r = requests.get(url, timeout=15, params=params)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 76, in get\n    return request('get', url, params=params, **kwargs)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 61, in request\n    return session.request(method=method, url=url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+    "name": "stock_hk_hist(2714.HK)"
+  },
+  {
+    "ok": true,
+    "shape": [
+      59,
+      7
+    ],
+    "columns": [
+      "date",
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "amount"
+    ],
+    "head": [
+      {
+        "date": "2026-02-06",
+        "open": "39.0",
+        "high": "41.72",
+        "low": "38.98",
+        "close": "40.52",
+        "volume": "40589241.0",
+        "amount": "1630588940.0"
+      },
+      {
+        "date": "2026-02-09",
+        "open": "40.2",
+        "high": "40.92",
+        "low": "39.54",
+        "close": "40.04",
+        "volume": "6867145.0",
+        "amount": "276544361.0"
+      },
+      {
+        "date": "2026-02-10",
+        "open": "39.8",
+        "high": "41.2",
+        "low": "39.6",
+        "close": "40.16",
+        "volume": "3454520.0",
+        "amount": "138719561.0"
+      },
+      {
+        "date": "2026-02-11",
+        "open": "40.16",
+        "high": "40.68",
+        "low": "39.82",
+        "close": "40.26",
+        "volume": "3758200.0",
+        "amount": "151019054.0"
+      },
+      {
+        "date": "2026-02-12",
+        "open": "40.02",
+        "high": "40.34",
+        "low": "39.0",
+        "close": "39.2",
+        "volume": "4839100.0",
+        "amount": "190860608.0"
+      }
+    ],
+    "tail": [
+      {
+        "date": "2026-05-04",
+        "open": "41.0",
+        "high": "41.72",
+        "low": "40.46",
+        "close": "41.06",
+        "volume": "1017502.0",
+        "amount": "41511081.0"
+      },
+      {
+        "date": "2026-05-05",
+        "open": "41.06",
+        "high": "41.32",
+        "low": "40.5",
+        "close": "40.88",
+        "volume": "371312.0",
+        "amount": "15152882.0"
+      },
+      {
+        "date": "2026-05-06",
+        "open": "41.0",
+        "high": "41.98",
+        "low": "39.52",
+        "close": "41.34",
+        "volume": "8213000.0",
+        "amount": "332867726.0"
+      },
+      {
+        "date": "2026-05-07",
+        "open": "41.34",
+        "high": "43.94",
+        "low": "41.32",
+        "close": "43.94",
+        "volume": "4222100.0",
+        "amount": "180045301.0"
+      },
+      {
+        "date": "2026-05-08",
+        "open": "43.9",
+        "high": "43.9",
+        "low": "41.56",
+        "close": "41.78",
+        "volume": "2580236.0",
+        "amount": "108266965.0"
+      }
+    ],
+    "name": "stock_hk_daily(02714)"
+  },
+  {
+    "ok": false,
+    "error": "KeyError('date')",
+    "traceback": "Traceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 21, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 138, in fn\n    df = ak.stock_hk_daily(symbol=code)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_hk_sina.py\", line 127, in stock_hk_daily\n    data_df.index = pd.to_datetime(data_df[\"date\"]).dt.date\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/frame.py\", line 4113, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/indexes/range.py\", line 417, in get_loc\n    raise KeyError(key)\nKeyError: 'date'\n",
+    "name": "stock_hk_daily(2714)"
+  },
+  {
+    "ok": false,
+    "error": "KeyError('date')",
+    "traceback": "Traceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 21, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 138, in fn\n    df = ak.stock_hk_daily(symbol=code)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_hk_sina.py\", line 127, in stock_hk_daily\n    data_df.index = pd.to_datetime(data_df[\"date\"]).dt.date\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/frame.py\", line 4113, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/indexes/range.py\", line 417, in get_loc\n    raise KeyError(key)\nKeyError: 'date'\n",
+    "name": "stock_hk_daily(HK2714)"
+  },
+  {
+    "ok": false,
+    "error": "KeyError('date')",
+    "traceback": "Traceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 21, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/test/test_muyuan_hk_akshare.py\", line 138, in fn\n    df = ak.stock_hk_daily(symbol=code)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_hk_sina.py\", line 127, in stock_hk_daily\n    data_df.index = pd.to_datetime(data_df[\"date\"]).dt.date\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/frame.py\", line 4113, in __getitem__\n    indexer = self.columns.get_loc(key)\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/core/indexes/range.py\", line 417, in get_loc\n    raise KeyError(key)\nKeyError: 'date'\n",
+    "name": "stock_hk_daily(2714.HK)"
+  }
+]

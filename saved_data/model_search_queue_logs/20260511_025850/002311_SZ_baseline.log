@@ -1,0 +1,5 @@
+============================================================
+[START] 2026-05-11 04:43:01 symbol=002311.SZ, sector=饲料, mode=baseline, external=none
+============================================================
+[ERROR] RuntimeError: stage sector failed with returncode=1
+[FAIL] 2026-05-11 04:43:03 symbol=002311.SZ, mode=baseline, returncode=1

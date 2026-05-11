@@ -123,30 +123,74 @@ def fetch_basis(start_date: str, end_date: str) -> Tuple[pd.DataFrame, Dict[str,
     return out.sort_values("date").reset_index(drop=True), errors
 
 
+def _normalize_zijin_hk_frame(raw: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFrame:
+    if raw is None or raw.empty:
+        return pd.DataFrame(columns=["date"])
+    # stock_hk_daily: date/open/high/low/close/volume/amount
+    # stock_hk_hist: 日期/开盘/收盘/最高/最低/成交量/成交额/...
+    rename = {}
+    for c in raw.columns:
+        sc = str(c)
+        if sc in {"date", "日期"}:
+            rename[c] = "date"
+        elif sc in {"open", "开盘", "开盘价"}:
+            rename[c] = "zijin_hk_open"
+        elif sc in {"high", "最高", "最高价"}:
+            rename[c] = "zijin_hk_high"
+        elif sc in {"low", "最低", "最低价"}:
+            rename[c] = "zijin_hk_low"
+        elif sc in {"close", "收盘", "收盘价"}:
+            rename[c] = "zijin_hk_close"
+        elif sc in {"volume", "成交量"}:
+            rename[c] = "zijin_hk_volume"
+        elif sc in {"amount", "成交额"}:
+            rename[c] = "zijin_hk_amount"
+        elif sc in {"涨跌幅", "pct_chg"}:
+            rename[c] = "zijin_hk_pct_chg"
+        elif sc in {"换手率", "turnover"}:
+            rename[c] = "zijin_hk_turnover"
+    out = raw.rename(columns=rename).copy()
+    if "date" not in out.columns or "zijin_hk_close" not in out.columns:
+        return pd.DataFrame(columns=["date"])
+    keep = [c for c in [
+        "date", "zijin_hk_open", "zijin_hk_high", "zijin_hk_low", "zijin_hk_close",
+        "zijin_hk_volume", "zijin_hk_amount", "zijin_hk_pct_chg", "zijin_hk_turnover",
+    ] if c in out.columns]
+    out = out[keep].copy()
+    out["date"] = pd.to_datetime(out["date"], errors="coerce")
+    out = out.dropna(subset=["date"]).sort_values("date")
+    for c in out.columns:
+        if c != "date":
+            out[c] = pd.to_numeric(out[c], errors="coerce")
+    start_dt = pd.to_datetime(start_date, format="%Y%m%d", errors="coerce")
+    end_dt = pd.to_datetime(end_date, format="%Y%m%d", errors="coerce")
+    if pd.notna(start_dt):
+        out = out[out["date"] >= start_dt]
+    if pd.notna(end_dt):
+        out = out[out["date"] <= end_dt]
+    return out.reset_index(drop=True)
+
+
 def fetch_hk(start_date: str, end_date: str) -> Tuple[pd.DataFrame, Dict[str, str]]:
     import akshare as ak
 
-    try:
-        raw = ak.stock_hk_hist(symbol="02899", period="daily", start_date=start_date, end_date=end_date, adjust="")
-        out = to_numeric_frame(
-            raw,
-            "日期",
-            {
-                "日期": "date",
-                "开盘": "zijin_hk_open",
-                "收盘": "zijin_hk_close",
-                "最高": "zijin_hk_high",
-                "最低": "zijin_hk_low",
-                "成交量": "zijin_hk_volume",
-                "成交额": "zijin_hk_amount",
-                "涨跌幅": "zijin_hk_pct_chg",
-                "换手率": "zijin_hk_turnover",
-            },
-        )
-        out = add_ts_features(out, ["zijin_hk_close", "zijin_hk_volume"])
-        return out.reset_index(drop=True), {}
-    except Exception as exc:
-        return pd.DataFrame(columns=["date"]), {"hk_02899": f"{type(exc).__name__}: {exc}"}
+    errors: Dict[str, str] = {}
+    attempts = [
+        ("stock_hk_daily", lambda: ak.stock_hk_daily(symbol="02899")),
+        ("stock_hk_hist_last_resort", lambda: ak.stock_hk_hist(symbol="02899", period="daily", start_date=start_date, end_date=end_date, adjust="")),
+    ]
+    for provider, fn in attempts:
+        try:
+            raw = fn()
+            out = _normalize_zijin_hk_frame(raw, start_date, end_date)
+            if out is not None and not out.empty:
+                out = add_ts_features(out, ["zijin_hk_close", "zijin_hk_volume"])
+                out["zijin_hk_provider"] = provider
+                return out.reset_index(drop=True), errors
+            errors[f"hk_02899_{provider}"] = "empty_or_unusable_schema"
+        except Exception as exc:
+            errors[f"hk_02899_{provider}"] = f"{type(exc).__name__}: {exc}"
+    return pd.DataFrame(columns=["date"]), errors
 
 
 def fetch_sector_indices(start_date: str, end_date: str) -> Tuple[pd.DataFrame, Dict[str, str]]:

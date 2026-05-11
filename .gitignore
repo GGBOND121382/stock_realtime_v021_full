@@ -1,0 +1,10 @@
+# 忽略每个 pipeline_out 下面的所有内容
+saved_data/*_pipeline_out/*
+
+# 但保留 99_summary 文件夹及其所有内容
+!saved_data/*_pipeline_out/99_summary/
+!saved_data/*_pipeline_out/99_summary/**
+
+# 另外保留每个 pipeline_out 根目录下的这两个文件
+!saved_data/*_pipeline_out/pipeline_summary.json
+!saved_data/*_pipeline_out/run.log

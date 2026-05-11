@@ -1,0 +1,1292 @@
+{
+  "timeout_seconds": 15,
+  "rounds": 2,
+  "include_hk_full": false,
+  "notes": {
+    "full_hk_forbidden": "港股全量接口不应进入 14:55 关键路径；应使用小批量指定代码 sina_hk_batch。",
+    "full_a_stock": "A股全量接口可保留，但必须有源级硬超时和字段补齐短路。",
+    "full_sector_small": "行业全表规模小，一般可接受；但指定板块接口更优。"
+  },
+  "aggregate": {
+    "A股全量_Sina_stock_zh_a_spot": {
+      "category": "full_a_stock",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 2,
+      "errors": [
+        "timeout>15s",
+        "timeout>15s"
+      ],
+      "elapsed_seconds": [
+        15,
+        15
+      ],
+      "last_shape": null,
+      "min_elapsed": 15,
+      "max_elapsed": 15,
+      "avg_elapsed": 15.0
+    },
+    "A股全量_EM_stock_zh_a_spot_em": {
+      "category": "full_a_stock",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 0,
+      "errors": [
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))"
+      ],
+      "elapsed_seconds": [
+        5.670824565007933,
+        5.9500768200086895
+      ],
+      "last_shape": null,
+      "min_elapsed": 5.670824565007933,
+      "max_elapsed": 5.9500768200086895,
+      "avg_elapsed": 5.8104506925083115
+    },
+    "A股全量_THS_stock_zh_a_spot_ths": {
+      "category": "missing_func:['stock_zh_a_spot_ths']",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 0,
+      "errors": [],
+      "elapsed_seconds": [
+        0.008151661008014344,
+        0.006275601001107134
+      ],
+      "last_shape": [
+        0,
+        0
+      ],
+      "min_elapsed": 0.006275601001107134,
+      "max_elapsed": 0.008151661008014344,
+      "avg_elapsed": 0.007213631004560739
+    },
+    "ETF全量_EM_fund_etf_spot_em": {
+      "category": "full_etf",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 2,
+      "errors": [
+        "timeout>15s",
+        "timeout>15s"
+      ],
+      "elapsed_seconds": [
+        15,
+        15
+      ],
+      "last_shape": null,
+      "min_elapsed": 15,
+      "max_elapsed": 15,
+      "avg_elapsed": 15.0
+    },
+    "ETF全量_THS_fund_etf_spot_ths": {
+      "category": "full_etf",
+      "rounds": 2,
+      "ok_rounds": 2,
+      "timeout_rounds": 0,
+      "errors": [],
+      "elapsed_seconds": [
+        0.7292284330032999,
+        0.505331213993486
+      ],
+      "last_shape": [
+        1561,
+        16
+      ],
+      "min_elapsed": 0.505331213993486,
+      "max_elapsed": 0.7292284330032999,
+      "avg_elapsed": 0.6172798234983929
+    },
+    "行业全表_THS_stock_board_industry_summary_ths": {
+      "category": "full_sector_small",
+      "rounds": 2,
+      "ok_rounds": 1,
+      "timeout_rounds": 0,
+      "errors": [
+        "ValueError('No tables found')"
+      ],
+      "elapsed_seconds": [
+        2.2684191890002694,
+        1.4708977349946508
+      ],
+      "last_shape": [
+        90,
+        12
+      ],
+      "min_elapsed": 1.4708977349946508,
+      "max_elapsed": 2.2684191890002694,
+      "avg_elapsed": 1.86965846199746
+    },
+    "行业名称全表_THS_stock_board_industry_name_ths": {
+      "category": "full_sector_small",
+      "rounds": 2,
+      "ok_rounds": 2,
+      "timeout_rounds": 0,
+      "errors": [],
+      "elapsed_seconds": [
+        0.43525704598869197,
+        0.3062332090048585
+      ],
+      "last_shape": [
+        90,
+        2
+      ],
+      "min_elapsed": 0.3062332090048585,
+      "max_elapsed": 0.43525704598869197,
+      "avg_elapsed": 0.37074512749677524
+    },
+    "指定板块_EM_stock_board_industry_spot_em(贵金属)": {
+      "category": "targeted_sector",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 0,
+      "errors": [
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))"
+      ],
+      "elapsed_seconds": [
+        5.946535113995196,
+        5.59663462699973
+      ],
+      "last_shape": null,
+      "min_elapsed": 5.59663462699973,
+      "max_elapsed": 5.946535113995196,
+      "avg_elapsed": 5.771584870497463
+    },
+    "指定板块_EM_stock_board_industry_spot_em(工业金属)": {
+      "category": "targeted_sector",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 0,
+      "errors": [
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))"
+      ],
+      "elapsed_seconds": [
+        5.582652217999566,
+        5.7503414020029595
+      ],
+      "last_shape": null,
+      "min_elapsed": 5.582652217999566,
+      "max_elapsed": 5.7503414020029595,
+      "avg_elapsed": 5.666496810001263
+    },
+    "指定板块_EM_stock_board_industry_spot_em(小金属)": {
+      "category": "targeted_sector",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 0,
+      "errors": [
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))"
+      ],
+      "elapsed_seconds": [
+        5.786960571000236,
+        5.908050804006052
+      ],
+      "last_shape": null,
+      "min_elapsed": 5.786960571000236,
+      "max_elapsed": 5.908050804006052,
+      "avg_elapsed": 5.847505687503144
+    },
+    "指定板块_EM_stock_board_industry_spot_em(养殖业)": {
+      "category": "targeted_sector",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 0,
+      "errors": [
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))"
+      ],
+      "elapsed_seconds": [
+        5.300167683002655,
+        5.553049323003506
+      ],
+      "last_shape": null,
+      "min_elapsed": 5.300167683002655,
+      "max_elapsed": 5.553049323003506,
+      "avg_elapsed": 5.426608503003081
+    },
+    "指定板块_EM_stock_board_industry_spot_em(农产品加工)": {
+      "category": "targeted_sector",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 0,
+      "errors": [
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))"
+      ],
+      "elapsed_seconds": [
+        5.175435257013305,
+        5.780552021009498
+      ],
+      "last_shape": null,
+      "min_elapsed": 5.175435257013305,
+      "max_elapsed": 5.780552021009498,
+      "avg_elapsed": 5.477993639011402
+    },
+    "指定板块_EM_stock_board_industry_spot_em(电网设备)": {
+      "category": "targeted_sector",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 0,
+      "errors": [
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))"
+      ],
+      "elapsed_seconds": [
+        4.813932108998415,
+        5.528737482993165
+      ],
+      "last_shape": null,
+      "min_elapsed": 4.813932108998415,
+      "max_elapsed": 5.528737482993165,
+      "avg_elapsed": 5.17133479599579
+    },
+    "指定板块_EM_stock_board_industry_spot_em(建筑材料)": {
+      "category": "targeted_sector",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 0,
+      "errors": [
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))"
+      ],
+      "elapsed_seconds": [
+        5.9026908930100035,
+        5.620045660994947
+      ],
+      "last_shape": null,
+      "min_elapsed": 5.620045660994947,
+      "max_elapsed": 5.9026908930100035,
+      "avg_elapsed": 5.761368277002475
+    },
+    "指定板块_EM_stock_board_industry_spot_em(化学制药)": {
+      "category": "targeted_sector",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 0,
+      "errors": [
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))"
+      ],
+      "elapsed_seconds": [
+        5.133450501001789,
+        4.84734961099457
+      ],
+      "last_shape": null,
+      "min_elapsed": 4.84734961099457,
+      "max_elapsed": 5.133450501001789,
+      "avg_elapsed": 4.99040005599818
+    },
+    "指定板块_EM_stock_board_industry_spot_em(化学制品)": {
+      "category": "targeted_sector",
+      "rounds": 2,
+      "ok_rounds": 0,
+      "timeout_rounds": 0,
+      "errors": [
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+        "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))"
+      ],
+      "elapsed_seconds": [
+        5.540787766003632,
+        5.24842309000087
+      ],
+      "last_shape": null,
+      "min_elapsed": 5.24842309000087,
+      "max_elapsed": 5.540787766003632,
+      "avg_elapsed": 5.394605428002251
+    },
+    "A+H全表_stock_zh_ah_spot": {
+      "category": "full_ah_mid",
+      "rounds": 2,
+      "ok_rounds": 2,
+      "timeout_rounds": 0,
+      "errors": [],
+      "elapsed_seconds": [
+        3.715010361993336,
+        3.7096465149952564
+      ],
+      "last_shape": [
+        200,
+        13
+      ],
+      "min_elapsed": 3.7096465149952564,
+      "max_elapsed": 3.715010361993336,
+      "avg_elapsed": 3.7123284384942963
+    }
+  },
+  "results": [
+    {
+      "name": "A股全量_Sina_stock_zh_a_spot",
+      "ok": false,
+      "elapsed_seconds": 15,
+      "error": "timeout>15s",
+      "round": 1,
+      "category": "full_a_stock"
+    },
+    {
+      "name": "A股全量_EM_stock_zh_a_spot_em",
+      "ok": false,
+      "elapsed_seconds": 5.670824565007933,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_hist_em.py\", line 36, in stock_zh_a_spot_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 544, in request\n    resp = self.send(prep, **send_kwargs)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 657, in send\n    r = adapter.send(request, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 1,
+      "category": "full_a_stock"
+    },
+    {
+      "name": "A股全量_THS_stock_zh_a_spot_ths",
+      "ok": true,
+      "elapsed_seconds": 0.008151661008014344,
+      "shape": [
+        0,
+        0
+      ],
+      "columns": [],
+      "head": [],
+      "tail": [],
+      "round": 1,
+      "category": "missing_func:['stock_zh_a_spot_ths']"
+    },
+    {
+      "name": "ETF全量_EM_fund_etf_spot_em",
+      "ok": false,
+      "elapsed_seconds": 15,
+      "error": "timeout>15s",
+      "round": 1,
+      "category": "full_etf"
+    },
+    {
+      "name": "ETF全量_THS_fund_etf_spot_ths",
+      "ok": true,
+      "elapsed_seconds": 0.7292284330032999,
+      "shape": [
+        1561,
+        16
+      ],
+      "columns": [
+        "序号",
+        "基金代码",
+        "基金名称",
+        "当前-单位净值",
+        "当前-累计净值",
+        "前一日-单位净值",
+        "前一日-累计净值",
+        "增长值",
+        "增长率",
+        "赎回状态",
+        "申购状态",
+        "最新-交易日",
+        "最新-单位净值",
+        "最新-累计净值",
+        "基金类型",
+        "查询日期"
+      ],
+      "head": [
+        {
+          "序号": "1",
+          "基金代码": "588780",
+          "基金名称": "国联安科创芯片设计ETF",
+          "当前-单位净值": "1.145",
+          "当前-累计净值": "2.29",
+          "前一日-单位净值": "1.0715",
+          "前一日-累计净值": "2.143",
+          "增长值": "0.147",
+          "增长率": "6.86",
+          "赎回状态": "开放",
+          "申购状态": "开放",
+          "最新-交易日": "2026-05-11",
+          "最新-单位净值": "1.145",
+          "最新-累计净值": "2.29",
+          "基金类型": "股票型",
+          "查询日期": "2026-05-11"
+        },
+        {
+          "序号": "2",
+          "基金代码": "589030",
+          "基金名称": "易方达上证科创板芯片设计主题ETF",
+          "当前-单位净值": "1.3263",
+          "当前-累计净值": "1.3263",
+          "前一日-单位净值": "1.2421",
+          "前一日-累计净值": "1.2421",
+          "增长值": "0.0842",
+          "增长率": "6.78",
+          "赎回状态": "开放",
+          "申购状态": "开放",
+          "最新-交易日": "2026-05-11",
+          "最新-单位净值": "1.3263",
+          "最新-累计净值": "1.3263",
+          "基金类型": "股票型",
+          "查询日期": "2026-05-11"
+        },
+        {
+          "序号": "3",
+          "基金代码": "589210",
+          "基金名称": "广发上证科创板芯片设计主题ETF",
+          "当前-单位净值": "1.577",
+          "当前-累计净值": "1.577",
+          "前一日-单位净值": "1.4772",
+          "前一日-累计净值": "1.4772",
+          "增长值": "0.0998",
+          "增长率": "6.76",
+          "赎回状态": "开放",
+          "申购状态": "开放",
+          "最新-交易日": "2026-05-11",
+          "最新-单位净值": "1.577",
+          "最新-累计净值": "1.577",
+          "基金类型": "股票型",
+          "查询日期": "2026-05-11"
+        }
+      ],
+      "tail": [
+        {
+          "序号": "1559",
+          "基金代码": "588510",
+          "基金名称": "华夏中证科创创业人工智能ETF",
+          "当前-单位净值": "nan",
+          "当前-累计净值": "nan",
+          "前一日-单位净值": "nan",
+          "前一日-累计净值": "nan",
+          "增长值": "nan",
+          "增长率": "nan",
+          "赎回状态": "",
+          "申购状态": "",
+          "最新-交易日": "NaT",
+          "最新-单位净值": "nan",
+          "最新-累计净值": "nan",
+          "基金类型": "股票型",
+          "查询日期": "2026-05-11"
+        },
+        {
+          "序号": "1560",
+          "基金代码": "589320",
+          "基金名称": "嘉实上证科创板200ETF",
+          "当前-单位净值": "nan",
+          "当前-累计净值": "nan",
+          "前一日-单位净值": "nan",
+          "前一日-累计净值": "nan",
+          "增长值": "nan",
+          "增长率": "nan",
+          "赎回状态": "",
+          "申购状态": "",
+          "最新-交易日": "NaT",
+          "最新-单位净值": "nan",
+          "最新-累计净值": "nan",
+          "基金类型": "股票型",
+          "查询日期": "2026-05-11"
+        },
+        {
+          "序号": "1561",
+          "基金代码": "589330",
+          "基金名称": "科创200ETF东财",
+          "当前-单位净值": "nan",
+          "当前-累计净值": "nan",
+          "前一日-单位净值": "nan",
+          "前一日-累计净值": "nan",
+          "增长值": "nan",
+          "增长率": "nan",
+          "赎回状态": "",
+          "申购状态": "",
+          "最新-交易日": "NaT",
+          "最新-单位净值": "nan",
+          "最新-累计净值": "nan",
+          "基金类型": "股票型",
+          "查询日期": "2026-05-11"
+        }
+      ],
+      "round": 1,
+      "category": "full_etf"
+    },
+    {
+      "name": "行业全表_THS_stock_board_industry_summary_ths",
+      "ok": true,
+      "elapsed_seconds": 2.2684191890002694,
+      "shape": [
+        90,
+        12
+      ],
+      "columns": [
+        "序号",
+        "板块",
+        "涨跌幅",
+        "总成交量",
+        "总成交额",
+        "净流入",
+        "上涨家数",
+        "下跌家数",
+        "均价",
+        "领涨股",
+        "领涨股-最新价",
+        "领涨股-涨跌幅"
+      ],
+      "head": [
+        {
+          "序号": "1",
+          "板块": "半导体",
+          "涨跌幅": "5.0",
+          "总成交量": "4880.21",
+          "总成交额": "4544.45",
+          "净流入": "231.04",
+          "上涨家数": "168",
+          "下跌家数": "11",
+          "均价": "93.12",
+          "领涨股": "中科仪",
+          "领涨股-最新价": "109.99",
+          "领涨股-涨跌幅": "25.05"
+        },
+        {
+          "序号": "2",
+          "板块": "电子化学品",
+          "涨跌幅": "4.78",
+          "总成交量": "1179.86",
+          "总成交额": "528.39",
+          "净流入": "14.73",
+          "上涨家数": "35",
+          "下跌家数": "5",
+          "均价": "44.78",
+          "领涨股": "天承科技",
+          "领涨股-最新价": "121.18",
+          "领涨股-涨跌幅": "20.0"
+        },
+        {
+          "序号": "3",
+          "板块": "其他电子",
+          "涨跌幅": "3.54",
+          "总成交量": "1088.75",
+          "总成交额": "415.02",
+          "净流入": "17.69",
+          "上涨家数": "25",
+          "下跌家数": "9",
+          "均价": "38.12",
+          "领涨股": "百邦科技",
+          "领涨股-最新价": "40.16",
+          "领涨股-涨跌幅": "19.99"
+        }
+      ],
+      "tail": [
+        {
+          "序号": "88",
+          "板块": "机场航运",
+          "涨跌幅": "-1.35",
+          "总成交量": "1286.23",
+          "总成交额": "55.57",
+          "净流入": "-6.13",
+          "上涨家数": "1",
+          "下跌家数": "12",
+          "均价": "4.32",
+          "领涨股": "上海机场",
+          "领涨股-最新价": "27.23",
+          "领涨股-涨跌幅": "0.15"
+        },
+        {
+          "序号": "89",
+          "板块": "港口航运",
+          "涨跌幅": "-1.62",
+          "总成交量": "1934.98",
+          "总成交额": "168.45",
+          "净流入": "-8.66",
+          "上涨家数": "4",
+          "下跌家数": "30",
+          "均价": "8.71",
+          "领涨股": "海通发展",
+          "领涨股-最新价": "18.25",
+          "领涨股-涨跌幅": "0.77"
+        },
+        {
+          "序号": "90",
+          "板块": "贵金属",
+          "涨跌幅": "-2.27",
+          "总成交量": "1034.22",
+          "总成交额": "334.6",
+          "净流入": "-32.24",
+          "上涨家数": "1",
+          "下跌家数": "12",
+          "均价": "32.35",
+          "领涨股": "四川黄金",
+          "领涨股-最新价": "59.86",
+          "领涨股-涨跌幅": "1.13"
+        }
+      ],
+      "round": 1,
+      "category": "full_sector_small"
+    },
+    {
+      "name": "行业名称全表_THS_stock_board_industry_name_ths",
+      "ok": true,
+      "elapsed_seconds": 0.43525704598869197,
+      "shape": [
+        90,
+        2
+      ],
+      "columns": [
+        "name",
+        "code"
+      ],
+      "head": [
+        {
+          "name": "半导体",
+          "code": "881121"
+        },
+        {
+          "name": "白酒",
+          "code": "881273"
+        },
+        {
+          "name": "白色家电",
+          "code": "881131"
+        }
+      ],
+      "tail": [
+        {
+          "name": "专用设备",
+          "code": "881118"
+        },
+        {
+          "name": "造纸",
+          "code": "881137"
+        },
+        {
+          "name": "种植业与林业",
+          "code": "881101"
+        }
+      ],
+      "round": 1,
+      "category": "full_sector_small"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(贵金属)",
+      "ok": false,
+      "elapsed_seconds": 5.946535113995196,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 1,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(工业金属)",
+      "ok": false,
+      "elapsed_seconds": 5.582652217999566,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 1,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(小金属)",
+      "ok": false,
+      "elapsed_seconds": 5.786960571000236,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 1,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(养殖业)",
+      "ok": false,
+      "elapsed_seconds": 5.300167683002655,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 1,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(农产品加工)",
+      "ok": false,
+      "elapsed_seconds": 5.175435257013305,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 1,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(电网设备)",
+      "ok": false,
+      "elapsed_seconds": 4.813932108998415,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 1,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(建筑材料)",
+      "ok": false,
+      "elapsed_seconds": 5.9026908930100035,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 1,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(化学制药)",
+      "ok": false,
+      "elapsed_seconds": 5.133450501001789,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 1,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(化学制品)",
+      "ok": false,
+      "elapsed_seconds": 5.540787766003632,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 1,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "A+H全表_stock_zh_ah_spot",
+      "ok": true,
+      "elapsed_seconds": 3.715010361993336,
+      "shape": [
+        200,
+        13
+      ],
+      "columns": [
+        "代码",
+        "名称",
+        "最新价",
+        "涨跌幅",
+        "涨跌额",
+        "买入",
+        "卖出",
+        "成交量",
+        "成交额",
+        "今开",
+        "昨收",
+        "最高",
+        "最低"
+      ],
+      "head": [
+        {
+          "代码": "00323",
+          "名称": "马鞍山钢铁股份",
+          "最新价": "2.66",
+          "涨跌幅": "3.91",
+          "涨跌额": "0.1",
+          "买入": "2.66",
+          "卖出": "2.66",
+          "成交量": "21510000.0",
+          "成交额": "56629010.0",
+          "今开": "2.56",
+          "昨收": "2.56",
+          "最高": "2.72",
+          "最低": "2.51"
+        },
+        {
+          "代码": "02068",
+          "名称": "中铝国际",
+          "最新价": "2.51",
+          "涨跌幅": "-0.79",
+          "涨跌额": "-0.02",
+          "买入": "2.51",
+          "卖出": "2.51",
+          "成交量": "2002000.0",
+          "成交额": "5026610.0",
+          "今开": "2.53",
+          "昨收": "2.53",
+          "最高": "2.54",
+          "最低": "2.49"
+        },
+        {
+          "代码": "02016",
+          "名称": "浙商银行",
+          "最新价": "2.5",
+          "涨跌幅": "0.81",
+          "涨跌额": "0.02",
+          "买入": "2.5",
+          "卖出": "2.5",
+          "成交量": "17985327.0",
+          "成交额": "44422323.69",
+          "今开": "2.48",
+          "昨收": "2.48",
+          "最高": "2.5",
+          "最低": "2.44"
+        }
+      ],
+      "tail": [
+        {
+          "代码": "00347",
+          "名称": "鞍钢股份",
+          "最新价": "1.49",
+          "涨跌幅": "1.36",
+          "涨跌额": "0.02",
+          "买入": "1.49",
+          "卖出": "1.49",
+          "成交量": "6026000.0",
+          "成交额": "8971340.0",
+          "今开": "1.47",
+          "昨收": "1.47",
+          "最高": "1.5",
+          "最低": "1.47"
+        },
+        {
+          "代码": "01528",
+          "名称": "红星美凯龙",
+          "最新价": "1.42",
+          "涨跌幅": "1.43",
+          "涨跌额": "0.02",
+          "买入": "1.42",
+          "卖出": "1.42",
+          "成交量": "21625000.0",
+          "成交额": "31077868.0",
+          "今开": "1.39",
+          "昨收": "1.4",
+          "最高": "1.47",
+          "最低": "1.39"
+        },
+        {
+          "代码": "03996",
+          "名称": "中国能源建设",
+          "最新价": "1.33",
+          "涨跌幅": "0.0",
+          "涨跌额": "0.0",
+          "买入": "1.33",
+          "卖出": "1.33",
+          "成交量": "145794000.0",
+          "成交额": "195150220.0",
+          "今开": "1.34",
+          "昨收": "1.33",
+          "最高": "1.38",
+          "最低": "1.31"
+        }
+      ],
+      "round": 1,
+      "category": "full_ah_mid"
+    },
+    {
+      "name": "A股全量_Sina_stock_zh_a_spot",
+      "ok": false,
+      "elapsed_seconds": 15,
+      "error": "timeout>15s",
+      "round": 2,
+      "category": "full_a_stock"
+    },
+    {
+      "name": "A股全量_EM_stock_zh_a_spot_em",
+      "ok": false,
+      "elapsed_seconds": 5.9500768200086895,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_hist_em.py\", line 36, in stock_zh_a_spot_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 544, in request\n    resp = self.send(prep, **send_kwargs)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 657, in send\n    r = adapter.send(request, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 2,
+      "category": "full_a_stock"
+    },
+    {
+      "name": "A股全量_THS_stock_zh_a_spot_ths",
+      "ok": true,
+      "elapsed_seconds": 0.006275601001107134,
+      "shape": [
+        0,
+        0
+      ],
+      "columns": [],
+      "head": [],
+      "tail": [],
+      "round": 2,
+      "category": "missing_func:['stock_zh_a_spot_ths']"
+    },
+    {
+      "name": "ETF全量_EM_fund_etf_spot_em",
+      "ok": false,
+      "elapsed_seconds": 15,
+      "error": "timeout>15s",
+      "round": 2,
+      "category": "full_etf"
+    },
+    {
+      "name": "ETF全量_THS_fund_etf_spot_ths",
+      "ok": true,
+      "elapsed_seconds": 0.505331213993486,
+      "shape": [
+        1561,
+        16
+      ],
+      "columns": [
+        "序号",
+        "基金代码",
+        "基金名称",
+        "当前-单位净值",
+        "当前-累计净值",
+        "前一日-单位净值",
+        "前一日-累计净值",
+        "增长值",
+        "增长率",
+        "赎回状态",
+        "申购状态",
+        "最新-交易日",
+        "最新-单位净值",
+        "最新-累计净值",
+        "基金类型",
+        "查询日期"
+      ],
+      "head": [
+        {
+          "序号": "1",
+          "基金代码": "588780",
+          "基金名称": "国联安科创芯片设计ETF",
+          "当前-单位净值": "1.145",
+          "当前-累计净值": "2.29",
+          "前一日-单位净值": "1.0715",
+          "前一日-累计净值": "2.143",
+          "增长值": "0.147",
+          "增长率": "6.86",
+          "赎回状态": "开放",
+          "申购状态": "开放",
+          "最新-交易日": "2026-05-11",
+          "最新-单位净值": "1.145",
+          "最新-累计净值": "2.29",
+          "基金类型": "股票型",
+          "查询日期": "2026-05-11"
+        },
+        {
+          "序号": "2",
+          "基金代码": "589030",
+          "基金名称": "易方达上证科创板芯片设计主题ETF",
+          "当前-单位净值": "1.3263",
+          "当前-累计净值": "1.3263",
+          "前一日-单位净值": "1.2421",
+          "前一日-累计净值": "1.2421",
+          "增长值": "0.0842",
+          "增长率": "6.78",
+          "赎回状态": "开放",
+          "申购状态": "开放",
+          "最新-交易日": "2026-05-11",
+          "最新-单位净值": "1.3263",
+          "最新-累计净值": "1.3263",
+          "基金类型": "股票型",
+          "查询日期": "2026-05-11"
+        },
+        {
+          "序号": "3",
+          "基金代码": "589210",
+          "基金名称": "广发上证科创板芯片设计主题ETF",
+          "当前-单位净值": "1.577",
+          "当前-累计净值": "1.577",
+          "前一日-单位净值": "1.4772",
+          "前一日-累计净值": "1.4772",
+          "增长值": "0.0998",
+          "增长率": "6.76",
+          "赎回状态": "开放",
+          "申购状态": "开放",
+          "最新-交易日": "2026-05-11",
+          "最新-单位净值": "1.577",
+          "最新-累计净值": "1.577",
+          "基金类型": "股票型",
+          "查询日期": "2026-05-11"
+        }
+      ],
+      "tail": [
+        {
+          "序号": "1559",
+          "基金代码": "588510",
+          "基金名称": "华夏中证科创创业人工智能ETF",
+          "当前-单位净值": "nan",
+          "当前-累计净值": "nan",
+          "前一日-单位净值": "nan",
+          "前一日-累计净值": "nan",
+          "增长值": "nan",
+          "增长率": "nan",
+          "赎回状态": "",
+          "申购状态": "",
+          "最新-交易日": "NaT",
+          "最新-单位净值": "nan",
+          "最新-累计净值": "nan",
+          "基金类型": "股票型",
+          "查询日期": "2026-05-11"
+        },
+        {
+          "序号": "1560",
+          "基金代码": "589320",
+          "基金名称": "嘉实上证科创板200ETF",
+          "当前-单位净值": "nan",
+          "当前-累计净值": "nan",
+          "前一日-单位净值": "nan",
+          "前一日-累计净值": "nan",
+          "增长值": "nan",
+          "增长率": "nan",
+          "赎回状态": "",
+          "申购状态": "",
+          "最新-交易日": "NaT",
+          "最新-单位净值": "nan",
+          "最新-累计净值": "nan",
+          "基金类型": "股票型",
+          "查询日期": "2026-05-11"
+        },
+        {
+          "序号": "1561",
+          "基金代码": "589330",
+          "基金名称": "科创200ETF东财",
+          "当前-单位净值": "nan",
+          "当前-累计净值": "nan",
+          "前一日-单位净值": "nan",
+          "前一日-累计净值": "nan",
+          "增长值": "nan",
+          "增长率": "nan",
+          "赎回状态": "",
+          "申购状态": "",
+          "最新-交易日": "NaT",
+          "最新-单位净值": "nan",
+          "最新-累计净值": "nan",
+          "基金类型": "股票型",
+          "查询日期": "2026-05-11"
+        }
+      ],
+      "round": 2,
+      "category": "full_etf"
+    },
+    {
+      "name": "行业全表_THS_stock_board_industry_summary_ths",
+      "ok": false,
+      "elapsed_seconds": 1.4708977349946508,
+      "error": "ValueError('No tables found')",
+      "traceback": "Traceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_board_industry_ths.py\", line 356, in stock_board_industry_summary_ths\n    temp_df = pd.read_html(StringIO(r.text))[0]\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/io/html.py\", line 1240, in read_html\n    return _parse(\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/io/html.py\", line 1003, in _parse\n    raise retained\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/io/html.py\", line 983, in _parse\n    tables = p.parse_tables()\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/io/html.py\", line 249, in parse_tables\n    tables = self._parse_tables(self._build_doc(), self.match, self.attrs)\n  File \"/usr/local/lib/python3.10/dist-packages/pandas/io/html.py\", line 598, in _parse_tables\n    raise ValueError(\"No tables found\")\nValueError: No tables found\n",
+      "round": 2,
+      "category": "full_sector_small"
+    },
+    {
+      "name": "行业名称全表_THS_stock_board_industry_name_ths",
+      "ok": true,
+      "elapsed_seconds": 0.3062332090048585,
+      "shape": [
+        90,
+        2
+      ],
+      "columns": [
+        "name",
+        "code"
+      ],
+      "head": [
+        {
+          "name": "半导体",
+          "code": "881121"
+        },
+        {
+          "name": "白酒",
+          "code": "881273"
+        },
+        {
+          "name": "白色家电",
+          "code": "881131"
+        }
+      ],
+      "tail": [
+        {
+          "name": "专用设备",
+          "code": "881118"
+        },
+        {
+          "name": "造纸",
+          "code": "881137"
+        },
+        {
+          "name": "种植业与林业",
+          "code": "881101"
+        }
+      ],
+      "round": 2,
+      "category": "full_sector_small"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(贵金属)",
+      "ok": false,
+      "elapsed_seconds": 5.59663462699973,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 2,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(工业金属)",
+      "ok": false,
+      "elapsed_seconds": 5.7503414020029595,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 2,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(小金属)",
+      "ok": false,
+      "elapsed_seconds": 5.908050804006052,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 2,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(养殖业)",
+      "ok": false,
+      "elapsed_seconds": 5.553049323003506,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 2,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(农产品加工)",
+      "ok": false,
+      "elapsed_seconds": 5.780552021009498,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 2,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(电网设备)",
+      "ok": false,
+      "elapsed_seconds": 5.528737482993165,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 2,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(建筑材料)",
+      "ok": false,
+      "elapsed_seconds": 5.620045660994947,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 2,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(化学制药)",
+      "ok": false,
+      "elapsed_seconds": 4.84734961099457,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 2,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "指定板块_EM_stock_board_industry_spot_em(化学制品)",
+      "ok": false,
+      "elapsed_seconds": 5.24842309000087,
+      "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+      "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\n  File \"/usr/lib/python3.10/http/client.py\", line 323, in begin\n    version, status, reason = self._read_status()\n  File \"/usr/lib/python3.10/http/client.py\", line 292, in _read_status\n    raise RemoteDisconnected(\"Remote end closed connection without\"\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 56, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_full_table_sources_timeout.py\", line 187, in <lambda>\n    (lambda sec=sec: fn_spot_sector(symbol=sec)),\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 237, in stock_board_industry_spot_em\n    industry_listing = __stock_board_industry_name_em()\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock/stock_board_industry_em.py\", line 41, in __stock_board_industry_name_em\n    temp_df = fetch_paginated_data(url, params)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/func.py\", line 34, in fetch_paginated_data\n    r = request_with_retry(url, params=params, timeout=timeout)\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 64, in request_with_retry\n    raise last_exception\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/utils/request.py\", line 52, in request_with_retry\n    response = session.get(url, params=params, timeout=timeout)\n  File \"/usr/lib/python3/dist-packages/requests/sessions.py\", line 557, in get\n    return self.request('GET', url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+      "round": 2,
+      "category": "targeted_sector"
+    },
+    {
+      "name": "A+H全表_stock_zh_ah_spot",
+      "ok": true,
+      "elapsed_seconds": 3.7096465149952564,
+      "shape": [
+        200,
+        13
+      ],
+      "columns": [
+        "代码",
+        "名称",
+        "最新价",
+        "涨跌幅",
+        "涨跌额",
+        "买入",
+        "卖出",
+        "成交量",
+        "成交额",
+        "今开",
+        "昨收",
+        "最高",
+        "最低"
+      ],
+      "head": [
+        {
+          "代码": "00323",
+          "名称": "马鞍山钢铁股份",
+          "最新价": "2.66",
+          "涨跌幅": "3.91",
+          "涨跌额": "0.1",
+          "买入": "2.66",
+          "卖出": "2.66",
+          "成交量": "21510000.0",
+          "成交额": "56629010.0",
+          "今开": "2.56",
+          "昨收": "2.56",
+          "最高": "2.72",
+          "最低": "2.51"
+        },
+        {
+          "代码": "02068",
+          "名称": "中铝国际",
+          "最新价": "2.51",
+          "涨跌幅": "-0.79",
+          "涨跌额": "-0.02",
+          "买入": "2.51",
+          "卖出": "2.51",
+          "成交量": "2002000.0",
+          "成交额": "5026610.0",
+          "今开": "2.53",
+          "昨收": "2.53",
+          "最高": "2.54",
+          "最低": "2.49"
+        },
+        {
+          "代码": "02016",
+          "名称": "浙商银行",
+          "最新价": "2.5",
+          "涨跌幅": "0.81",
+          "涨跌额": "0.02",
+          "买入": "2.5",
+          "卖出": "2.5",
+          "成交量": "17985327.0",
+          "成交额": "44422323.69",
+          "今开": "2.48",
+          "昨收": "2.48",
+          "最高": "2.5",
+          "最低": "2.44"
+        }
+      ],
+      "tail": [
+        {
+          "代码": "00347",
+          "名称": "鞍钢股份",
+          "最新价": "1.49",
+          "涨跌幅": "1.36",
+          "涨跌额": "0.02",
+          "买入": "1.49",
+          "卖出": "1.49",
+          "成交量": "6026000.0",
+          "成交额": "8971340.0",
+          "今开": "1.47",
+          "昨收": "1.47",
+          "最高": "1.5",
+          "最低": "1.47"
+        },
+        {
+          "代码": "01528",
+          "名称": "红星美凯龙",
+          "最新价": "1.42",
+          "涨跌幅": "1.43",
+          "涨跌额": "0.02",
+          "买入": "1.42",
+          "卖出": "1.42",
+          "成交量": "21625000.0",
+          "成交额": "31077868.0",
+          "今开": "1.39",
+          "昨收": "1.4",
+          "最高": "1.47",
+          "最低": "1.39"
+        },
+        {
+          "代码": "03996",
+          "名称": "中国能源建设",
+          "最新价": "1.33",
+          "涨跌幅": "0.0",
+          "涨跌额": "0.0",
+          "买入": "1.33",
+          "卖出": "1.33",
+          "成交量": "145794000.0",
+          "成交额": "195150220.0",
+          "今开": "1.34",
+          "昨收": "1.33",
+          "最高": "1.38",
+          "最低": "1.31"
+        }
+      ],
+      "round": 2,
+      "category": "full_ah_mid"
+    }
+  ]
+}

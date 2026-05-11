@@ -1,0 +1,12 @@
+============================================================
+[START] 2026-05-11 17:37:22 002714.SZ mode=hog_only, external=hog
+============================================================
+{
+  "status": "ok",
+  "symbol": "002714.SZ",
+  "out_root": "/root/workspace/stock_realtime_v021_full/saved_data/002714_pipeline_out",
+  "final_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002714_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv",
+  "leaderboard": "/root/workspace/stock_realtime_v021_full/saved_data/002714_pipeline_out/99_summary/final_leaderboard.csv",
+  "manifest": "/root/workspace/stock_realtime_v021_full/saved_data/002714_pipeline_out/pipeline_summary.json"
+}
+[DONE] 2026-05-11 18:29:40 mode=hog_only, status=ok

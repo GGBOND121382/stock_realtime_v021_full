@@ -1,0 +1,5 @@
+symbol,sector,mode,external,status,returncode,start_time,end_time,log_file
+002311.SZ,农产品加工,external,feed,hog,ok,0,2026-05-11 10:20:59,2026-05-11 11:40:18,saved_data/model_search_queue_logs/unfinished_three_20260511_102059/002311_SZ_external.log
+002714.SZ,养殖业,external,hog,muyuan_hk,failed,1,2026-05-11 11:40:18,2026-05-11 11:40:20,saved_data/model_search_queue_logs/unfinished_three_20260511_102059/002714_SZ_external.log
+002714.SZ,养殖业,baseline,,ok,0,2026-05-11 11:40:20,2026-05-11 11:40:21,saved_data/model_search_queue_logs/unfinished_three_20260511_102059/002714_SZ_baseline.log
+600176.SH,建筑材料,baseline,,ok,0,2026-05-11 11:40:21,2026-05-11 12:28:34,saved_data/model_search_queue_logs/unfinished_three_20260511_102059/600176_SH_baseline.log

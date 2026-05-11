@@ -1,0 +1,12 @@
+============================================================
+[START] 2026-05-11 10:20:59 symbol=002311.SZ, sector=农产品加工, mode=external, external=feed,hog
+============================================================
+{
+  "status": "ok",
+  "symbol": "002311.SZ",
+  "out_root": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out",
+  "final_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv",
+  "leaderboard": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/99_summary/final_leaderboard.csv",
+  "manifest": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/pipeline_summary.json"
+}
+[DONE] 2026-05-11 11:40:18 symbol=002311.SZ, mode=external, status=ok

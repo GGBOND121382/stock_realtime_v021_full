@@ -1,0 +1,5 @@
+============================================================
+[START] 2026-05-11 04:43:03 symbol=002714.SZ, sector=养殖业, mode=external, external=hog,muyuan_hk
+============================================================
+[ERROR] RuntimeError: stage external_muyuan_hk failed with returncode=1
+[FAIL] 2026-05-11 04:46:35 symbol=002714.SZ, mode=external, returncode=1

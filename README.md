@@ -192,7 +192,7 @@
 - 评估次日模型时要特别检查是否包含最新未标注行，以及是否有未来信息泄露。
 
 
-
+## 命令
 
 D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe model_training\summarize_nextday_search_results.py   --pipeline-out saved_data\600312_pipeline_out   --out-dir saved_data\600312_pipeline_out\99_summary   --excel
 
@@ -202,3 +202,258 @@ D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe  model_saving/save_nex
 
 
 D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe model_saving/save_nextday_model.py   --stock-code 600312.SH   --artifact-name nextday_vwap_low_close_profit_xgb_d3_reversal_fundamental_regime_v1   --samples saved_data/600312_pipeline_out/03_sector/training_samples_with_sector.csv   --intraday-bars saved_data/600312_pipeline_out/00_base/600312_5m.csv   --out-dir saved_models   --feature-group reversal_fundamental_regime   --model-name xgb_d3_400_lr003_mcw3   --label-mode close_profit   --entry-policy vwap_low   --target-hit-bps 50   --round-trip-cost-bps 1.7   --valid-rows 252   --min-train-entries 80   --min-valid-trades 8   --quantiles 0.5,0.6,0.7,0.8
+
+
+python3 run_saved_config.py list
+python3 pipelines/run_nextday_pipeline.py --help
+python3 model_saving/save_nextday_model.py --help
+python3 prediction/predict_saved_nextday_model.py --help
+
+
+
+
+---
+
+## 交易日 14:55 实盘信号流水线
+
+本节说明每天盘前、盘中如何运行，以及在哪里查看买入信号。核心原则：
+
+```text
+盘前：只更新历史数据、样本、基本面/板块/外部历史特征；不做实时信号。
+盘中：提前采集实时快照和实时上下文；14:55 前只做快速 score。
+14:55：不再联网做慢采集，不再 build-bars，只读取 cutoff 前缓存输出 buy_signals.csv。
+```
+
+### 1. 盘前：更新 BaoStock / 样本 / 历史特征
+
+建议在前一晚收盘后或交易日 09:00~09:15 执行：
+
+```bash
+cd /opt/stock_realtime/stock_realtime
+source .venv/bin/activate
+
+python3 pipelines/run_premarket_history_update.py \
+  --models-dir saved_models \
+  --saved-data-dir saved_data \
+  --context-config configs/realtime_context_sources.toml \
+  --end-date today \
+  --cache-mode incremental \
+  --feature-cache-mode incremental \
+  --keep-going
+```
+
+该脚本会扫描 `saved_models/`，只更新已有模型的标的；不会重新搜索模型、不会保存模型、不会输出交易信号。输出报告在：
+
+```text
+saved_data/premarket_history_update/YYYYMMDD/
+  premarket_update_plan.csv
+  premarket_history_update_report.csv
+  premarket_history_update_report.json
+  premarket_history_update.log
+```
+
+盘前更新后，建议确认 saved model 指向的样本文件存在：
+
+```bash
+python - <<'PY'
+import json
+from pathlib import Path
+
+for p in Path("saved_models").glob("*/*/metadata.json"):
+    m = json.loads(p.read_text(encoding="utf-8"))
+    s = Path(m["samples"])
+    print(p)
+    print("samples:", s)
+    print("exists:", s.exists())
+    print()
+PY
+```
+
+所有模型都应显示 `exists: True`。如果路径指向旧工程目录，应重新保存模型或修正 `metadata.json`。
+
+### 2. 盘中：一键采集并在 14:55 前输出信号
+
+建议在 14:25~14:35 启动。默认流程会：
+
+```text
+plan：扫描 saved_models，只生成有模型标的的 effective_watchlist
+股票实时采集：只采 effective_watchlist；多源补洞；核心字段完整后短路
+板块/外部上下文采集：按 configs/realtime_context_sources.toml 和模型 feature_columns 动态决定
+build-bars：提前构造股票盘中特征，严格使用 cutoff 前数据
+build context features：提前构造板块/外部 as-of 特征
+score-now：14:54/14:55 只打分并输出买入信号
+```
+
+推荐命令：
+
+```bash
+python pipelines/run_trading_day_signal_pipeline.py \
+  --watchlist selected_watchlist.txt \
+  --context-config configs/realtime_context_sources.toml \
+  --cutoff-time 14:55 \
+  --stock-collect-until 14:52 \
+  --context-collect-until 14:52 \
+  --build-time 14:52 \
+  --score-time 14:54 \
+  --spot-source-priority sina,ths,em,xq \
+  --required-fields close,open,high,low,volume,amount \
+  --xq-max-symbols-per-round 10 \
+  --xq-per-symbol-timeout-seconds 2 \
+  --stock-collect-wait-timeout-seconds 45 \
+  --context-collect-wait-timeout-seconds 45 \
+  --max-missing-features 5 \
+  --min-amount-yuan 50000000
+```
+
+先检查命令链可用性：
+
+```bash
+python pipelines/run_trading_day_signal_pipeline.py \
+  --watchlist selected_watchlist.txt \
+  --context-config configs/realtime_context_sources.toml \
+  --cutoff-time 14:55 \
+  --stock-collect-until 14:52 \
+  --context-collect-until 14:52 \
+  --build-time 00:00 \
+  --score-time 00:00 \
+  --dry-run
+```
+
+### 3. 何时、何处查看买入信号
+
+交易日当天的信号输出目录：
+
+```text
+saved_data/intraday_nextday_signals/YYYYMMDD/
+```
+
+核心文件：
+
+```text
+buy_signals.csv       # 只包含真正通过过滤的买入候选
+all_scores.csv        # 所有模型打分和诊断信息
+rejected_scores.csv   # 未通过的模型结果及拒绝原因
+run_summary.json      # 本次打分摘要
+trading_day_pipeline.log
+trading_day_pipeline_summary.json
+```
+
+查看买入候选：
+
+```bash
+cat saved_data/intraday_nextday_signals/$(date +%Y%m%d)/buy_signals.csv
+```
+
+更清晰地打印：
+
+```bash
+python - <<'PY'
+import pandas as pd
+from datetime import datetime
+from pathlib import Path
+
+p = Path(f"saved_data/intraday_nextday_signals/{datetime.now():%Y%m%d}/buy_signals.csv")
+if not p.exists():
+    print("buy_signals.csv not found:", p)
+else:
+    df = pd.read_csv(p)
+    cols = [c for c in [
+        "rank", "stock_code", "artifact_name", "entry_policy",
+        "close", "daily_vwap", "hit_score", "threshold", "score_margin",
+        "snapshot_time", "cutoff_time", "source_used", "context_status",
+        "missing_feature_count", "amount", "reject_reason"
+    ] if c in df.columns]
+    print(df[cols].to_string(index=False))
+PY
+```
+
+### 4. `buy_signals.csv` 字段说明
+
+`buy_signals.csv` 是干净候选列表，只保留：
+
+```text
+signal=True
+error 为空
+日期为当天
+股票核心实时字段完整
+上下文特征满足模型要求
+缺失特征数量不超过 --max-missing-features
+成交额不低于 --min-amount-yuan
+```
+
+常见字段：
+
+| 字段 | 含义 |
+|---|---|
+| `rank` | 按 `score_margin` 降序排序后的候选排名 |
+| `trade_date` | 信号所属交易日 |
+| `stock_code` | 股票代码 |
+| `artifact_name` | 触发信号的模型 artifact |
+| `entry_policy` | `all_days` 或 `vwap_low` |
+| `close` | cutoff 前最新价格/近似收盘价 |
+| `daily_vwap` | cutoff 前累计成交额/成交量估算 VWAP |
+| `hit_score` | 模型输出概率/分数 |
+| `threshold` | 保存模型时确定的交易阈值 |
+| `score_margin` | `hit_score - threshold`，越大越强 |
+| `entry_signal` | 是否满足入场规则，如 `vwap_low` 的 VWAP 低吸条件 |
+| `signal_raw_score_pass` | 分数是否超过阈值 |
+| `signal` | 最终是否给出买入信号 |
+| `snapshot_time` | 用于评分的股票快照时间，必须不晚于 `cutoff_time` |
+| `cutoff_time` | 评分数据硬截止时间 |
+| `source_used` | 股票实时数据实际使用的数据源，例如 `sina,ths,xq` |
+| `core_complete` | 个股实时核心字段是否完整 |
+| `missing_core_fields` | 缺失的核心字段；买入候选中应为空 |
+| `context_status` | 板块/外部上下文状态：`ok` / `not_required` / `partial` / `missing` |
+| `missing_context_features` | 缺失的上下文特征；买入候选中应为空或非阻断 |
+| `missing_feature_count` | 模型输入中被中位数填充的特征数量 |
+| `amount` | cutoff 前成交额，用于流动性过滤 |
+| `reject_reason` | 买入候选中通常为空；拒绝原因见 `rejected_scores.csv` |
+
+### 5. `all_scores.csv` 和 `rejected_scores.csv` 怎么看
+
+如果 `buy_signals.csv` 为空，先看：
+
+```bash
+python - <<'PY'
+import pandas as pd
+from datetime import datetime
+from pathlib import Path
+
+p = Path(f"saved_data/intraday_nextday_signals/{datetime.now():%Y%m%d}/all_scores.csv")
+df = pd.read_csv(p)
+cols = [c for c in [
+    "stock_code", "artifact_name", "hit_score", "threshold", "score_margin",
+    "signal", "reject_reason", "date_status", "core_complete",
+    "missing_core_fields", "context_status", "missing_context_features",
+    "missing_feature_count", "source_used", "snapshot_time"
+] if c in df.columns]
+print(df[cols].to_string(index=False))
+PY
+```
+
+常见拒绝原因：
+
+| 拒绝原因 | 含义 |
+|---|---|
+| `score_below_threshold` | 模型分数未过阈值 |
+| `entry_signal_false` | 不满足入场规则 |
+| `missing_core_fields` | 个股实时核心字段不完整 |
+| `missing_required_realtime_context` | 模型需要的板块/外部上下文没有估算成功 |
+| `filled_features_gt_5` | 缺失特征填充过多，超过 `--max-missing-features` |
+| `amount_lt_50000000` | 成交额低于过滤阈值 |
+| `not_exact_trade_date` | 没有用到当天样本，不能实盘采用 |
+| `unsupported_realtime_features` | 模型依赖当前实时系统不支持的盘口/资金流字段 |
+
+### 6. 时间要求
+
+不要在 14:55 后再采集慢数据。默认推荐：
+
+```text
+14:25~14:35  启动 run_trading_day_signal_pipeline.py
+14:52        股票采集和上下文采集停止
+14:52        build-bars / build context features
+14:54        score-now
+14:55 前后    查看 buy_signals.csv
+```
+
+如果采集进程在 build-time 后仍未退出，主流水线会按超时参数终止采集并继续后续步骤，避免再次出现 15:00 后才出信号。

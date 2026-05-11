@@ -1,0 +1,326 @@
+[
+  {
+    "ok": true,
+    "shape": [
+      2339,
+      7
+    ],
+    "columns": [
+      "date",
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "amount"
+    ],
+    "head": [
+      {
+        "date": "2016-11-01",
+        "open": "1.87",
+        "high": "1.87",
+        "low": "1.52",
+        "close": "1.66",
+        "volume": "396535000.0",
+        "amount": "677319615.0"
+      },
+      {
+        "date": "2016-11-02",
+        "open": "1.65",
+        "high": "1.71",
+        "low": "1.6",
+        "close": "1.63",
+        "volume": "65415000.0",
+        "amount": "107682175.0"
+      },
+      {
+        "date": "2016-11-03",
+        "open": "1.61",
+        "high": "1.64",
+        "low": "1.57",
+        "close": "1.59",
+        "volume": "22028000.0",
+        "amount": "35184610.0"
+      }
+    ],
+    "tail": [
+      {
+        "date": "2026-05-06",
+        "open": "1.39",
+        "high": "1.4",
+        "low": "1.36",
+        "close": "1.38",
+        "volume": "21114000.0",
+        "amount": "29072840.0"
+      },
+      {
+        "date": "2026-05-07",
+        "open": "1.38",
+        "high": "1.39",
+        "low": "1.37",
+        "close": "1.39",
+        "volume": "8521000.0",
+        "amount": "11781800.0"
+      },
+      {
+        "date": "2026-05-08",
+        "open": "1.38",
+        "high": "1.4",
+        "low": "1.36",
+        "close": "1.38",
+        "volume": "13955000.0",
+        "amount": "19191953.0"
+      }
+    ],
+    "name": "stock_hk_daily(01610)/cofco_joycome"
+  },
+  {
+    "ok": false,
+    "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+    "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_hk_proxy_daily.py\", line 27, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_hk_proxy_daily.py\", line 82, in fn_hist\n    df = ak.stock_hk_hist(\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_hist_em.py\", line 1430, in stock_hk_hist\n    r = requests.get(url, timeout=15, params=params)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 76, in get\n    return request('get', url, params=params, **kwargs)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 61, in request\n    return session.request(method=method, url=url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+    "name": "stock_hk_hist(01610)/cofco_joycome"
+  },
+  {
+    "ok": true,
+    "shape": [
+      2892,
+      7
+    ],
+    "columns": [
+      "date",
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "amount"
+    ],
+    "head": [
+      {
+        "date": "2014-08-05",
+        "open": "6.8",
+        "high": "6.86",
+        "low": "6.55",
+        "close": "6.66",
+        "volume": "463865427.0",
+        "amount": "3102056475.0"
+      },
+      {
+        "date": "2014-08-06",
+        "open": "6.65",
+        "high": "6.73",
+        "low": "6.64",
+        "close": "6.64",
+        "volume": "110785500.0",
+        "amount": "739579056.0"
+      },
+      {
+        "date": "2014-08-07",
+        "open": "6.66",
+        "high": "6.82",
+        "low": "6.64",
+        "close": "6.75",
+        "volume": "76599510.0",
+        "amount": "514978124.0"
+      }
+    ],
+    "tail": [
+      {
+        "date": "2026-05-06",
+        "open": "9.59",
+        "high": "9.85",
+        "low": "9.59",
+        "close": "9.83",
+        "volume": "29553410.0",
+        "amount": "288802454.0"
+      },
+      {
+        "date": "2026-05-07",
+        "open": "10.02",
+        "high": "10.07",
+        "low": "9.9",
+        "close": "9.94",
+        "volume": "48092083.0",
+        "amount": "479263075.0"
+      },
+      {
+        "date": "2026-05-08",
+        "open": "9.9",
+        "high": "10.01",
+        "low": "9.76",
+        "close": "9.8",
+        "volume": "37803794.0",
+        "amount": "373251764.0"
+      }
+    ],
+    "name": "stock_hk_daily(00288)/wh_group"
+  },
+  {
+    "ok": false,
+    "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+    "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_hk_proxy_daily.py\", line 27, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_hk_proxy_daily.py\", line 82, in fn_hist\n    df = ak.stock_hk_hist(\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_hist_em.py\", line 1430, in stock_hk_hist\n    r = requests.get(url, timeout=15, params=params)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 76, in get\n    return request('get', url, params=params, **kwargs)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 61, in request\n    return session.request(method=method, url=url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+    "name": "stock_hk_hist(00288)/wh_group"
+  },
+  {
+    "ok": true,
+    "shape": [
+      5052,
+      7
+    ],
+    "columns": [
+      "date",
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "amount"
+    ],
+    "head": [
+      {
+        "date": "2005-10-03",
+        "open": "4.05",
+        "high": "4.075",
+        "low": "3.75",
+        "close": "3.775",
+        "volume": "180395900.0",
+        "amount": "0.0"
+      },
+      {
+        "date": "2005-10-04",
+        "open": "3.8",
+        "high": "3.925",
+        "low": "3.8",
+        "close": "3.9",
+        "volume": "38038000.0",
+        "amount": "147286300.0"
+      },
+      {
+        "date": "2005-10-05",
+        "open": "3.9",
+        "high": "4.0",
+        "low": "3.875",
+        "close": "3.975",
+        "volume": "38336000.0",
+        "amount": "151660600.0"
+      }
+    ],
+    "tail": [
+      {
+        "date": "2026-05-06",
+        "open": "0.108",
+        "high": "0.113",
+        "low": "0.108",
+        "close": "0.108",
+        "volume": "416000.0",
+        "amount": "45078.0"
+      },
+      {
+        "date": "2026-05-07",
+        "open": "0.106",
+        "high": "0.107",
+        "low": "0.104",
+        "close": "0.107",
+        "volume": "709000.0",
+        "amount": "74827.0"
+      },
+      {
+        "date": "2026-05-08",
+        "open": "0.107",
+        "high": "0.107",
+        "low": "0.102",
+        "close": "0.105",
+        "volume": "2377000.0",
+        "amount": "248853.0"
+      }
+    ],
+    "name": "stock_hk_daily(01068)/yurun_food"
+  },
+  {
+    "ok": false,
+    "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+    "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_hk_proxy_daily.py\", line 27, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_hk_proxy_daily.py\", line 82, in fn_hist\n    df = ak.stock_hk_hist(\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_hist_em.py\", line 1430, in stock_hk_hist\n    r = requests.get(url, timeout=15, params=params)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 76, in get\n    return request('get', url, params=params, **kwargs)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 61, in request\n    return session.request(method=method, url=url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+    "name": "stock_hk_hist(01068)/yurun_food"
+  },
+  {
+    "ok": true,
+    "shape": [
+      3802,
+      7
+    ],
+    "columns": [
+      "date",
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "amount"
+    ],
+    "head": [
+      {
+        "date": "2010-11-26",
+        "open": "2.8",
+        "high": "2.8",
+        "low": "2.41",
+        "close": "2.51",
+        "volume": "289606300.0",
+        "amount": "761443900.0"
+      },
+      {
+        "date": "2010-11-29",
+        "open": "2.51",
+        "high": "2.53",
+        "low": "2.41",
+        "close": "2.48",
+        "volume": "36674820.0",
+        "amount": "90618070.0"
+      },
+      {
+        "date": "2010-11-30",
+        "open": "2.49",
+        "high": "2.51",
+        "low": "2.4",
+        "close": "2.45",
+        "volume": "33704000.0",
+        "amount": "82188740.0"
+      }
+    ],
+    "tail": [
+      {
+        "date": "2026-05-06",
+        "open": "1.3",
+        "high": "1.34",
+        "low": "1.28",
+        "close": "1.32",
+        "volume": "14573000.0",
+        "amount": "19239115.0"
+      },
+      {
+        "date": "2026-05-07",
+        "open": "1.32",
+        "high": "1.34",
+        "low": "1.31",
+        "close": "1.32",
+        "volume": "5432000.0",
+        "amount": "7190590.0"
+      },
+      {
+        "date": "2026-05-08",
+        "open": "1.33",
+        "high": "1.39",
+        "low": "1.3",
+        "close": "1.36",
+        "volume": "16300902.0",
+        "amount": "22146770.0"
+      }
+    ],
+    "name": "stock_hk_daily(01117)/modern_dairy"
+  },
+  {
+    "ok": false,
+    "error": "ConnectionError(ProtocolError('Connection aborted.', RemoteDisconnected('Remote end closed connection without response')))",
+    "traceback": "Traceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 446, in _make_request\n    six.raise_from(e, None)\n  File \"<string>\", line 3, in raise_from\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 441, in _make_request\n    httplib_response = conn.getresponse()\n  File \"/usr/lib/python3.10/http/client.py\", line 1395, in getresponse\n    response.begin()\nhttp.client.RemoteDisconnected: Remote end closed connection without response\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/usr/lib/python3/dist-packages/requests/adapters.py\", line 439, in send\n    resp = conn.urlopen(\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 756, in urlopen\n    retries = retries.increment(\n  File \"/usr/lib/python3/dist-packages/urllib3/util/retry.py\", line 534, in increment\n    raise six.reraise(type(error), error, _stacktrace)\n  File \"/usr/lib/python3/dist-packages/six.py\", line 718, in reraise\n    raise value.with_traceback(tb)\n  File \"/usr/lib/python3/dist-packages/urllib3/connectionpool.py\", line 700, in urlopen\n    httplib_response = self._make_request(\nurllib3.exceptions.ProtocolError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n\nDuring handling of the above exception, another exception occurred:\n\nTraceback (most recent call last):\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_hk_proxy_daily.py\", line 27, in worker\n    df = fn()\n  File \"/root/workspace/stock_realtime_v021_full/tests/test_hk_proxy_daily.py\", line 82, in fn_hist\n    df = ak.stock_hk_hist(\n  File \"/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_hist_em.py\", line 1430, in stock_hk_hist\n    r = requests.get(url, timeout=15, params=params)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 76, in get\n    return request('get', url, params=params, **kwargs)\n  File \"/usr/lib/python3/dist-packages/requests/api.py\", line 61, in request\n    return session.request(method=method, url=url, **kwargs)\nrequests.exceptions.ConnectionError: ('Connection aborted.', RemoteDisconnected('Remote end closed connection without response'))\n",
+    "name": "stock_hk_hist(01117)/modern_dairy"
+  }
+]

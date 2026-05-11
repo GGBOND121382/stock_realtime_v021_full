@@ -1,0 +1,9 @@
+symbol,sector,mode,external,status,returncode,start_time,end_time,log_file
+002270.SZ,电网设备,baseline,,failed,127,2026-05-11 02:56:00,2026-05-11 02:56:00,saved_data/model_search_queue_logs/20260511_025600/002270_SZ_baseline.log
+600276.SH,化学制药,baseline,,failed,127,2026-05-11 02:56:00,2026-05-11 02:56:00,saved_data/model_search_queue_logs/20260511_025600/600276_SH_baseline.log
+002311.SZ,饲料,external,feed,hog,failed,127,2026-05-11 02:56:00,2026-05-11 02:56:00,saved_data/model_search_queue_logs/20260511_025600/002311_SZ_external.log
+002311.SZ,饲料,baseline,,failed,127,2026-05-11 02:56:00,2026-05-11 02:56:00,saved_data/model_search_queue_logs/20260511_025600/002311_SZ_baseline.log
+002714.SZ,养殖业,external,hog,muyuan_hk,failed,127,2026-05-11 02:56:00,2026-05-11 02:56:01,saved_data/model_search_queue_logs/20260511_025600/002714_SZ_external.log
+002714.SZ,养殖业,baseline,,failed,127,2026-05-11 02:56:01,2026-05-11 02:56:01,saved_data/model_search_queue_logs/20260511_025600/002714_SZ_baseline.log
+600176.SH,玻璃玻纤,baseline,,failed,127,2026-05-11 02:56:01,2026-05-11 02:56:01,saved_data/model_search_queue_logs/20260511_025600/600176_SH_baseline.log
+600309.SH,化学制品,baseline,,failed,127,2026-05-11 02:56:01,2026-05-11 02:56:01,saved_data/model_search_queue_logs/20260511_025600/600309_SH_baseline.log

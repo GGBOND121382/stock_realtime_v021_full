@@ -1,0 +1,5 @@
+============================================================
+[START] 2026-05-11 02:56:34 symbol=002714.SZ, sector=养殖业, mode=baseline, external=none
+============================================================
+timeout: failed to run command ‘python’: No such file or directory
+[FAIL] 2026-05-11 02:56:34 symbol=002714.SZ, mode=baseline, returncode=127

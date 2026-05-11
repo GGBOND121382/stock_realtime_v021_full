@@ -1,0 +1,5 @@
+============================================================
+[START] 2026-05-11 02:56:01 symbol=600309.SH, sector=化学制品, mode=baseline, external=none
+============================================================
+timeout: failed to run command ‘python’: No such file or directory
+[FAIL] 2026-05-11 02:56:01 symbol=600309.SH, mode=baseline, returncode=127

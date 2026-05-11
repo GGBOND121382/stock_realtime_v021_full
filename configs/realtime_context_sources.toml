@@ -1,0 +1,138 @@
+# configs/realtime_context_sources.toml
+# 14:55 实盘信号实时上下文配置。
+# 关键原则：港股实时不再拉全市场，只按 symbols 里的代码小批量请求。
+
+[defaults]
+sector_provider = "ths_sector_spot"
+external_context_mode = "estimated_asof_cutoff"
+
+[stocks."002270.SZ"]
+sector_symbols = ["电网设备"]
+context_groups = []
+
+[stocks."600312.SH"]
+sector_symbols = ["电网设备"]
+context_groups = []
+
+[stocks."600276.SH"]
+sector_symbols = ["化学制药"]
+context_groups = []
+
+[stocks."002311.SZ"]
+sector_symbols = ["农产品加工"]
+context_groups = ["soymeal", "corn", "rapeseed_meal", "soybean", "hog"]
+
+[stocks."002714.SZ"]
+sector_symbols = ["养殖业"]
+# 如果模型 feature_columns 不包含下面的特征，不会采集对应 context。
+# 若保存 all_no_ak/proxy 模型，则这些 proxy 会走小批量港股实时接口，不再全量拉港股表。
+context_groups = [
+  "hog", "corn", "soymeal", "muyuan_hk",
+  "hog_hk_proxy", "hog_hk_cofco_joycome", "hog_hk_wh_group", "hog_hk_yurun_food", "hog_hk_modern_dairy",
+]
+
+[stocks."600176.SH"]
+sector_symbols = ["建筑材料"]
+context_groups = []
+
+[stocks."600309.SH"]
+sector_symbols = ["化学制品"]
+context_groups = []
+
+[stocks."601899.SH"]
+sector_symbols = ["贵金属", "工业金属", "小金属"]
+context_groups = ["gold", "copper", "silver", "zijin_hk"]
+
+[contexts.gold]
+feature_prefixes = ["gold_", "stock_vs_gold_", "gold_silver_ratio", "gold_copper_ratio"]
+provider = "futures_main_sina_current"
+symbols = ["AU0"]
+canonical_prefix = "gold"
+
+[contexts.copper]
+feature_prefixes = ["copper_", "stock_vs_copper_", "gold_copper_ratio"]
+provider = "futures_main_sina_current"
+symbols = ["CU0"]
+canonical_prefix = "copper"
+
+[contexts.silver]
+feature_prefixes = ["silver_", "gold_silver_ratio"]
+provider = "futures_main_sina_current"
+symbols = ["AG0"]
+canonical_prefix = "silver"
+
+[contexts.zijin_hk]
+feature_prefixes = ["zijin_hk_", "zijin_a_h_"]
+provider = "sina_hq_batch_or_daily"
+symbols = ["02899"]
+canonical_prefix = "zijin_hk"
+display_code = "HK2899"
+exchange_code = "2899"
+
+[contexts.hog]
+feature_prefixes = ["hog_", "stock_vs_hog_", "feed_hog_cost_ratio"]
+provider = "futures_main_sina_current"
+symbols = ["LH0"]
+canonical_prefix = "hog"
+
+[contexts.corn]
+feature_prefixes = ["corn_", "feed_corn_", "hog_corn_", "feed_cost_index", "feed_soymeal_corn_ratio"]
+provider = "futures_main_sina_current"
+symbols = ["C0"]
+canonical_prefix = "corn"
+
+[contexts.soymeal]
+feature_prefixes = ["soymeal_", "feed_soymeal_", "hog_soymeal_", "feed_cost_index", "feed_soymeal_corn_ratio"]
+provider = "futures_main_sina_current"
+symbols = ["M0"]
+canonical_prefix = "soymeal"
+
+[contexts.rapeseed_meal]
+feature_prefixes = ["rapeseed_meal_", "feed_rapeseed_meal_", "feed_cost_index"]
+provider = "futures_main_sina_current"
+symbols = ["RM0"]
+canonical_prefix = "rapeseed_meal"
+
+[contexts.soybean]
+feature_prefixes = ["soybean_", "feed_soybean_", "feed_cost_index"]
+provider = "futures_main_sina_current"
+symbols = ["A0"]
+canonical_prefix = "soybean"
+
+[contexts.muyuan_hk]
+feature_prefixes = ["hog_hk_muyuan", "muyuan_hk_", "muyuan_a_h_"]
+provider = "sina_hq_batch_or_daily"
+symbols = ["02714"]
+canonical_prefix = "hog_hk_muyuan"
+display_code = "HK2714"
+exchange_code = "2714"
+
+[contexts.hog_hk_proxy]
+feature_prefixes = ["hog_hk_proxy_", "stock_vs_hog_hk_proxy_"]
+provider = "sina_hq_batch_or_daily"
+symbols = ["01610", "00288", "01068", "01117"]
+canonical_prefix = "hog_hk_proxy"
+
+[contexts.hog_hk_cofco_joycome]
+feature_prefixes = ["hog_hk_cofco_joycome_"]
+provider = "sina_hq_batch_or_daily"
+symbols = ["01610"]
+canonical_prefix = "hog_hk_cofco_joycome"
+
+[contexts.hog_hk_wh_group]
+feature_prefixes = ["hog_hk_wh_group_"]
+provider = "sina_hq_batch_or_daily"
+symbols = ["00288"]
+canonical_prefix = "hog_hk_wh_group"
+
+[contexts.hog_hk_yurun_food]
+feature_prefixes = ["hog_hk_yurun_food_"]
+provider = "sina_hq_batch_or_daily"
+symbols = ["01068"]
+canonical_prefix = "hog_hk_yurun_food"
+
+[contexts.hog_hk_modern_dairy]
+feature_prefixes = ["hog_hk_modern_dairy_"]
+provider = "sina_hq_batch_or_daily"
+symbols = ["01117"]
+canonical_prefix = "hog_hk_modern_dairy"
