@@ -53,7 +53,7 @@ BUILD_FUNDAMENTAL_SCRIPT = "feature_building/build_fundamental_features.py"
 BUILD_SECTOR_SCRIPT = "feature_building/build_sector_features.py"
 SEARCH_SCRIPT = "model_training/search_walk_forward_model_complexity.py"
 SUMMARIZE_SCRIPT = "model_training/summarize_nextday_search_results.py"
-DEFAULT_GROUPS = "reversal_fundamental_regime,reversal_fundamental_regime_sector,all_no_ak"
+DEFAULT_GROUPS = "reversal_fundamental_regime,reversal_fundamental_regime_sector,reversal_fundamental_regime_sector_external,all_no_ak"
 DEFAULT_MODELS = (
     "xgb_d2_200_lr003_mcw5,"
     "xgb_d3_400_lr003_mcw3,"
@@ -328,6 +328,13 @@ def expected_final_samples_path(
         "muyuan_hk": external_base_dir / "muyuan_hk" / "training_samples_with_hk_external.csv",
         "zijin": external_base_dir / "zijin" / "training_samples_with_zijin_external.csv",
         "zijin_external": external_base_dir / "zijin_external" / "training_samples_with_zijin_external.csv",
+        "ai_compute": external_base_dir / "ai_compute" / "training_samples_with_ai_compute_external.csv",
+        "material_wind_battery": external_base_dir / "material_wind_battery" / "training_samples_with_material_wind_battery_external.csv",
+        "power_utility_rate": external_base_dir / "power_utility_rate" / "training_samples_with_power_utility_rate_external.csv",
+        "fertilizer": external_base_dir / "fertilizer" / "training_samples_with_fertilizer_external.csv",
+        "storage_power": external_base_dir / "storage_power" / "training_samples_with_storage_power_external.csv",
+        "aero_nuclear_equipment": external_base_dir / "aero_nuclear_equipment" / "training_samples_with_aero_nuclear_equipment_external.csv",
+        "optical_cable_grid": external_base_dir / "optical_cable_grid" / "training_samples_with_optical_cable_grid_external.csv",
     }
     effective_external = [x.lower() for x in external_steps if x.lower() not in {"", "none", "no", "false"}]
     if effective_external:
@@ -374,6 +381,13 @@ def resolve_final_samples(
         "muyuan_hk": external_base_dir / "muyuan_hk" / "training_samples_with_hk_external.csv",
         "zijin": external_base_dir / "zijin" / "training_samples_with_zijin_external.csv",
         "zijin_external": external_base_dir / "zijin_external" / "training_samples_with_zijin_external.csv",
+        "ai_compute": external_base_dir / "ai_compute" / "training_samples_with_ai_compute_external.csv",
+        "material_wind_battery": external_base_dir / "material_wind_battery" / "training_samples_with_material_wind_battery_external.csv",
+        "power_utility_rate": external_base_dir / "power_utility_rate" / "training_samples_with_power_utility_rate_external.csv",
+        "fertilizer": external_base_dir / "fertilizer" / "training_samples_with_fertilizer_external.csv",
+        "storage_power": external_base_dir / "storage_power" / "training_samples_with_storage_power_external.csv",
+        "aero_nuclear_equipment": external_base_dir / "aero_nuclear_equipment" / "training_samples_with_aero_nuclear_equipment_external.csv",
+        "optical_cable_grid": external_base_dir / "optical_cable_grid" / "training_samples_with_optical_cable_grid_external.csv",
     }
     for step in reversed([x.lower() for x in external_steps if x.lower() not in {"", "none", "no", "false"}]):
         if step in external_map:
@@ -381,6 +395,13 @@ def resolve_final_samples(
 
     # Also include both Zijin aliases for backward compatibility.
     candidates.extend([
+        external_base_dir / "optical_cable_grid" / "training_samples_with_optical_cable_grid_external.csv",
+        external_base_dir / "aero_nuclear_equipment" / "training_samples_with_aero_nuclear_equipment_external.csv",
+        external_base_dir / "storage_power" / "training_samples_with_storage_power_external.csv",
+        external_base_dir / "fertilizer" / "training_samples_with_fertilizer_external.csv",
+        external_base_dir / "power_utility_rate" / "training_samples_with_power_utility_rate_external.csv",
+        external_base_dir / "material_wind_battery" / "training_samples_with_material_wind_battery_external.csv",
+        external_base_dir / "ai_compute" / "training_samples_with_ai_compute_external.csv",
         external_base_dir / "zijin_external" / "training_samples_with_zijin_external.csv",
         external_base_dir / "zijin" / "training_samples_with_zijin_external.csv",
         external_base_dir / "muyuan_hk" / "training_samples_with_hk_external.csv",
@@ -413,9 +434,19 @@ def resolve_final_samples(
         )
     return expected if expected else current_samples
 
+def sanitize_run_tag(value: str) -> str:
+    tag = re.sub(r"[^0-9A-Za-z_.-]+", "_", str(value or "").strip())
+    return tag.strip("_.-")
+
+
 def build_pipeline(args: argparse.Namespace) -> Tuple[SymbolInfo, Path, Dict[str, object]]:
     info = normalize_symbol(args.symbol)
-    out_root = Path(args.out_root) if args.out_root else SAVED_DATA_DIR / f"{info.raw_code}_pipeline_out"
+    if args.out_root:
+        out_root = Path(args.out_root)
+    else:
+        tag = sanitize_run_tag(getattr(args, "run_tag", ""))
+        suffix = f"_pipeline_out_{tag}" if tag else "_pipeline_out"
+        out_root = SAVED_DATA_DIR / f"{info.raw_code}{suffix}"
     if not out_root.is_absolute():
         out_root = PROJECT_DIR / out_root
     ensure_dir(out_root)
@@ -589,6 +620,13 @@ def run_pipeline(args: argparse.Namespace) -> int:
         "muyuan_hk": ("feature_building/build_muyuan_hk_external_features.py", "training_samples_with_hk_external.csv", []),
         "zijin": ("feature_building/build_zijin_external_features.py", "training_samples_with_zijin_external.csv", []),
         "zijin_external": ("feature_building/build_zijin_external_features.py", "training_samples_with_zijin_external.csv", []),
+        "ai_compute": ("feature_building/build_stock_external_features.py", "training_samples_with_ai_compute_external.csv", ["--profile", "ai_compute"]),
+        "material_wind_battery": ("feature_building/build_stock_external_features.py", "training_samples_with_material_wind_battery_external.csv", ["--profile", "material_wind_battery"]),
+        "power_utility_rate": ("feature_building/build_stock_external_features.py", "training_samples_with_power_utility_rate_external.csv", ["--profile", "power_utility_rate"]),
+        "fertilizer": ("feature_building/build_stock_external_features.py", "training_samples_with_fertilizer_external.csv", ["--profile", "fertilizer"]),
+        "storage_power": ("feature_building/build_stock_external_features.py", "training_samples_with_storage_power_external.csv", ["--profile", "storage_power"]),
+        "aero_nuclear_equipment": ("feature_building/build_stock_external_features.py", "training_samples_with_aero_nuclear_equipment_external.csv", ["--profile", "aero_nuclear_equipment"]),
+        "optical_cable_grid": ("feature_building/build_stock_external_features.py", "training_samples_with_optical_cable_grid_external.csv", ["--profile", "optical_cable_grid"]),
     }
     for step in external_steps:
         key = step.lower()
@@ -609,6 +647,23 @@ def run_pipeline(args: argparse.Namespace) -> int:
                 "--lag-days", str(args.external_lag_days),
                 *extra,
             ]
+            if script.endswith("build_stock_external_features.py"):
+                # New stock external builder supports source-specific lag policies.
+                # Remove the legacy --lag-days pair that is still needed by old external builders.
+                if "--lag-days" in cmd:
+                    i = cmd.index("--lag-days")
+                    del cmd[i:i + 2]
+                cmd.extend([
+                    "--target-symbol", info.stock_code,
+                    "--start-date", start_date,
+                    "--end-date", end_date,
+                    "--adjust", args.adjust if args.adjust in {"qfq", "hfq", ""} else "qfq",
+                    "--domestic-lag-days", str(args.stock_external_domestic_lag_days),
+                    "--future-lag-days", str(args.stock_external_future_lag_days),
+                    "--us-lag-days", str(args.stock_external_us_lag_days),
+                ])
+                if args.enable_us_yf:
+                    cmd.append("--enable-us-yf")
             # Allow speed options for Zijin when requested.
             if key in {"zijin", "zijin_external"}:
                 if args.zijin_skip_basis:
@@ -751,7 +806,8 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Run the full next-day model pipeline for one stock")
     p.add_argument("--symbol", required=True, help="Stock code, e.g. 600176.SH / 000001.SZ / 600176")
     p.add_argument("--sector-symbol", default=None, help="THS sector name, e.g. 建筑材料 / 养殖业")
-    p.add_argument("--out-root", default=None, help="Output root; default: saved_data/<code>_pipeline_out")
+    p.add_argument("--out-root", default=None, help="Output root; default: saved_data/<code>_pipeline_out[_<run_tag>]")
+    p.add_argument("--run-tag", default="", help="If --out-root is omitted, write to saved_data/<code>_pipeline_out_<run_tag>; useful for v2/A-B runs")
     p.add_argument("--python", default=None, help="Python executable; default: current interpreter")
     p.add_argument("--dual-script", default=DEFAULT_DUAL_SCRIPT)
 
@@ -775,8 +831,12 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--no-fundamental", action="store_true", help="Do not build fundamental features")
     p.add_argument("--fallback-lag-days", type=int, default=120)
     p.add_argument("--skip-akshare-fund-flow", action="store_true")
-    p.add_argument("--external", default="", help="Comma list: hog,feed,muyuan_hk,zijin_external")
-    p.add_argument("--external-lag-days", type=int, default=1)
+    p.add_argument("--external", default="", help="Comma list: hog,feed,muyuan_hk,zijin_external,ai_compute,material_wind_battery,power_utility_rate,fertilizer,storage_power,aero_nuclear_equipment,optical_cable_grid")
+    p.add_argument("--external-lag-days", type=int, default=1, help="Legacy lag for old external builders such as hog/feed/muyuan_hk/zijin_external")
+    p.add_argument("--stock-external-domestic-lag-days", type=int, default=0, help="New stock external builder: A-share/ETF/THS board lag; default 0")
+    p.add_argument("--stock-external-future-lag-days", type=int, default=1, help="New stock external builder: domestic futures lag; default 1")
+    p.add_argument("--stock-external-us-lag-days", type=int, default=1, help="New stock external builder: U.S. yfinance lag; forced to >=1 inside builder")
+    p.add_argument("--enable-us-yf", action="store_true", help="Enable optional yfinance U.S. mappings for stock external profiles, mainly ai_compute")
     p.add_argument("--zijin-skip-basis", action="store_true")
     p.add_argument("--zijin-skip-sector", action="store_true")
     p.add_argument("--zijin-skip-hk", action="store_true")

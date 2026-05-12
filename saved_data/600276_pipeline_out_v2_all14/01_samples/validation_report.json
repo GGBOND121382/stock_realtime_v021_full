@@ -1,0 +1,6 @@
+{
+  "rows": 1536,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-11",
+  "out": "/root/workspace/stock_realtime_v021_full/saved_data/600276_pipeline_out_v2_all14/01_samples/training_samples.csv"
+}

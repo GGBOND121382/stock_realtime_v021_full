@@ -1,3 +1,8 @@
+# Python 编译缓存
+*.pyc
+__pycache__/
+*.zip
+
 # 忽略每个 pipeline_out 下面的所有内容
 saved_data/*_pipeline_out/*
 
@@ -8,3 +13,4 @@ saved_data/*_pipeline_out/*
 # 另外保留每个 pipeline_out 根目录下的这两个文件
 !saved_data/*_pipeline_out/pipeline_summary.json
 !saved_data/*_pipeline_out/run.log
+

@@ -1,0 +1,145 @@
+{
+  "profile": "fertilizer",
+  "description": "Fertilizer/agri-chemical commodities and peer proxy for 云天化",
+  "sample_rows": 1536,
+  "merged_rows": 1536,
+  "raw_rows": 2023,
+  "raw_date_min": "2018-01-02",
+  "raw_date_max": "2026-05-11",
+  "lag_days_legacy": null,
+  "lag_policy": {
+    "domestic": 0,
+    "futures": 1,
+    "us": 1
+  },
+  "enable_us_yf": false,
+  "feature_cols": 497,
+  "source_meta": {
+    "profile": {
+      "key": "fertilizer",
+      "prefix": "fert",
+      "description": "Fertilizer/agri-chemical commodities and peer proxy for 云天化",
+      "stocks": [
+        "600141",
+        "000422",
+        "002895",
+        "002539",
+        "000830",
+        "000893"
+      ],
+      "etfs": [
+        "159865",
+        "516220"
+      ],
+      "futures": [
+        "UR0",
+        "MA0",
+        "SA0",
+        "C0",
+        "M0",
+        "JM0",
+        "ZC0"
+      ],
+      "boards": [
+        "农化制品",
+        "化学制品",
+        "基础化工"
+      ],
+      "us_tickers": []
+    },
+    "used": {
+      "stocks": [
+        "600141",
+        "000422",
+        "002895",
+        "002539",
+        "000830",
+        "000893"
+      ],
+      "etfs": [
+        "159865",
+        "516220"
+      ],
+      "futures": [
+        "UR0",
+        "MA0",
+        "SA0",
+        "C0",
+        "M0",
+        "JM0",
+        "ZC0"
+      ],
+      "boards": [
+        "农化制品",
+        "化学制品"
+      ],
+      "us_yf": []
+    },
+    "start_date": "20180101",
+    "end_date": "20260512",
+    "target_symbol_excluded": "600096",
+    "em_sources_used": false,
+    "baostock_cache_dir": "/root/workspace/stock_realtime_v021_full/saved_data/600096_pipeline_out_v2_all14/04_external/fertilizer/baostock_external_cache",
+    "us_yfinance_enabled": false
+  },
+  "errors": {
+    "board_基础化工": "stock_board_industry_index_ths: KeyError: '基础化工' | stock_board_concept_hist_ths: not_available"
+  },
+  "top_missing": {
+    "fert_etf_basket_close_ret60": 0.986328125,
+    "fert_etf_516220_range_pct_ret60": 0.986328125,
+    "fert_etf_159865_range_pct_ret60": 0.986328125,
+    "fert_etf_159865_close_ret60": 0.986328125,
+    "fert_etf_516220_close_ret60": 0.986328125,
+    "fert_etf_159865_range_pct_z60": 0.9602864583333334,
+    "fert_etf_516220_range_pct_z60": 0.9602864583333334,
+    "fert_etf_516220_range_pct_ret20": 0.9602864583333334,
+    "fert_etf_516220_close_z60": 0.9602864583333334,
+    "fert_etf_159865_range_pct_ret20": 0.9602864583333334,
+    "fert_etf_basket_close_ret20": 0.9602864583333334,
+    "fert_etf_159865_close_z60": 0.9602864583333334,
+    "fert_stock_vs_etf_basket_ret20": 0.9602864583333334,
+    "fert_etf_516220_close_ret20": 0.9602864583333334,
+    "fert_etf_159865_close_ret20": 0.9602864583333334,
+    "fert_etf_basket_close_z60": 0.9602864583333334,
+    "fert_etf_159865_close_vol20": 0.9544270833333334,
+    "fert_etf_basket_close_vol20": 0.9544270833333334,
+    "fert_etf_516220_close_vol20": 0.9544270833333334,
+    "fert_etf_516220_range_pct_z20": 0.9537760416666666,
+    "fert_etf_basket_close_ma20_gap": 0.9537760416666666,
+    "fert_etf_basket_close_z20": 0.9537760416666666,
+    "fert_etf_516220_close_z20": 0.9537760416666666,
+    "fert_etf_516220_volume_z20": 0.9537760416666666,
+    "fert_etf_516220_range_pct_ma20_gap": 0.9537760416666666,
+    "fert_etf_516220_volume_shock20": 0.9537760416666666,
+    "fert_etf_159865_close_z20": 0.9537760416666666,
+    "fert_etf_159865_close_ma20_gap": 0.9537760416666666,
+    "fert_etf_159865_range_pct_z20": 0.9537760416666666,
+    "fert_etf_159865_range_pct_ma20_gap": 0.9537760416666666,
+    "fert_etf_159865_volume_z20": 0.9537760416666666,
+    "fert_etf_159865_volume_shock20": 0.9537760416666666,
+    "fert_etf_516220_close_ma20_gap": 0.9537760416666666,
+    "fert_etf_159865_close_ret5": 0.9505208333333334,
+    "fert_stock_vs_etf_basket_ret5": 0.9505208333333334,
+    "fert_etf_516220_close_ret5": 0.9505208333333334,
+    "fert_etf_159865_range_pct_ret5": 0.9505208333333334,
+    "fert_etf_516220_range_pct_ret5": 0.9505208333333334,
+    "fert_etf_basket_close_ret5": 0.9505208333333334,
+    "fert_etf_516220_close_ret3": 0.94921875,
+    "fert_etf_159865_close_ret3": 0.94921875,
+    "fert_etf_516220_range_pct_ret3": 0.94921875,
+    "fert_etf_basket_close_ret3": 0.94921875,
+    "fert_etf_159865_range_pct_ret3": 0.94921875,
+    "fert_etf_159865_range_pct_ret1": 0.9479166666666666,
+    "fert_etf_159865_close_ret1": 0.9479166666666666,
+    "fert_etf_516220_range_pct_ret1": 0.9479166666666666,
+    "fert_etf_basket_close_ret1": 0.9479166666666666,
+    "fert_etf_516220_close_ret1": 0.9479166666666666,
+    "fert_etf_516220_close": 0.947265625
+  },
+  "outputs": {
+    "features": "/root/workspace/stock_realtime_v021_full/saved_data/600096_pipeline_out_v2_all14/04_external/fertilizer/stock_external_features_fertilizer.csv",
+    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/600096_pipeline_out_v2_all14/04_external/fertilizer/training_samples_with_fertilizer_external.csv",
+    "report": "/root/workspace/stock_realtime_v021_full/saved_data/600096_pipeline_out_v2_all14/04_external/fertilizer/validation_report.json"
+  }
+}

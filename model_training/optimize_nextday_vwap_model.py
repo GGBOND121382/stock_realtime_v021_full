@@ -266,6 +266,17 @@ def feature_groups(df: pd.DataFrame, max_missing: float) -> Dict[str, List[str]]
         "precious_", "industrial_metal_", "minor_metal_",
         "stock_vs_gold_", "stock_vs_copper_", "stock_vs_precious_", "stock_vs_industrial_",
     )
+    # Generic AKShare-driven external profiles added by
+    # feature_building/build_stock_external_features.py.
+    stock_external_prefixes = (
+        "ai_",    # ai_compute: 工业富联 AI 算力/服务器链
+        "mwb_",   # material_wind_battery: 中材科技 玻纤/风电/锂电链
+        "pur_",   # power_utility_rate: 中国核电 电力/公用事业/利率代理
+        "fert_",  # fertilizer: 云天化 化肥/农化/商品链
+        "sp_",    # storage_power: 科士达 储能/光伏/电源设备链
+        "ane_",   # aero_nuclear_equipment: 应流股份 航发/军工/核电设备链
+        "ocg_",   # optical_cable_grid: 中天科技/亨通光电 光通信/电缆/电网链
+    )
     reversal_exact = {
         "close_range_pos", "morning_afternoon_reversal", "first60_last30_reversal",
     }
@@ -275,10 +286,12 @@ def feature_groups(df: pd.DataFrame, max_missing: float) -> Dict[str, List[str]]
     hog = [c for c in numeric if c.startswith(hog_prefixes)]
     feed = [c for c in numeric if c.startswith(feed_prefixes)]
     zijin_external = [c for c in numeric if c.startswith(zijin_external_prefixes)]
+    stock_external = [c for c in numeric if c.startswith(stock_external_prefixes)]
+    external_all = list(dict.fromkeys(hog + feed + zijin_external + stock_external))
     base = [
         c for c in numeric
         if c not in fund and c not in reversal and c not in regime
-        and c not in sector and c not in hog and c not in feed and c not in zijin_external
+        and c not in sector and c not in external_all
         and not c.startswith("ak_fund_") and not c.endswith("_fund")
     ]
     return {
@@ -289,6 +302,8 @@ def feature_groups(df: pd.DataFrame, max_missing: float) -> Dict[str, List[str]]
         "hog": hog,
         "feed": feed,
         "zijin_external": zijin_external,
+        "stock_external": stock_external,
+        "external": external_all,
         "base_reversal": list(dict.fromkeys(base + reversal)),
         "reversal_regime": list(dict.fromkeys(reversal + regime)),
         "reversal_sector": list(dict.fromkeys(reversal + sector)),
@@ -297,12 +312,15 @@ def feature_groups(df: pd.DataFrame, max_missing: float) -> Dict[str, List[str]]
         "reversal_fundamental": list(dict.fromkeys(reversal + fund)),
         "reversal_fundamental_regime": list(dict.fromkeys(reversal + fund + regime)),
         "reversal_fundamental_regime_sector": list(dict.fromkeys(reversal + fund + regime + sector)),
+        "reversal_fundamental_regime_external": list(dict.fromkeys(reversal + fund + regime + external_all)),
+        "reversal_fundamental_regime_sector_external": list(dict.fromkeys(reversal + fund + regime + sector + external_all)),
+        "base_reversal_regime_external": list(dict.fromkeys(base + reversal + regime + external_all)),
         "reversal_fundamental_regime_sector_hog": list(dict.fromkeys(reversal + fund + regime + sector + hog)),
         "reversal_fundamental_regime_feed": list(dict.fromkeys(reversal + fund + regime + feed)),
         "base_reversal_regime_feed": list(dict.fromkeys(base + reversal + regime + feed)),
         "reversal_regime_zijin_external": list(dict.fromkeys(reversal + regime + zijin_external)),
         "base_reversal_regime_zijin_external": list(dict.fromkeys(base + reversal + regime + zijin_external)),
-        "all_no_ak": list(dict.fromkeys(base + reversal + fund + regime + sector + hog + feed + zijin_external)),
+        "all_no_ak": list(dict.fromkeys(base + reversal + fund + regime + sector + external_all)),
     }
 
 

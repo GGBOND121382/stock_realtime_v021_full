@@ -1,0 +1,145 @@
+{
+  "profile": "material_wind_battery",
+  "description": "Fiberglass/material + wind + battery proxy for 中材科技",
+  "sample_rows": 1526,
+  "merged_rows": 1526,
+  "raw_rows": 2023,
+  "raw_date_min": "2018-01-02",
+  "raw_date_max": "2026-05-11",
+  "lag_days_legacy": null,
+  "lag_policy": {
+    "domestic": 0,
+    "futures": 1,
+    "us": 1
+  },
+  "enable_us_yf": false,
+  "feature_cols": 496,
+  "source_meta": {
+    "profile": {
+      "key": "material_wind_battery",
+      "prefix": "mwb",
+      "description": "Fiberglass/material + wind + battery proxy for 中材科技",
+      "stocks": [
+        "600176",
+        "300196",
+        "605006",
+        "002202",
+        "601615",
+        "002812",
+        "300568"
+      ],
+      "etfs": [
+        "516660",
+        "159566",
+        "515790",
+        "516160"
+      ],
+      "futures": [
+        "SA0",
+        "FG0",
+        "SI0"
+      ],
+      "boards": [
+        "建筑材料",
+        "玻璃玻纤",
+        "风电设备",
+        "电池"
+      ],
+      "us_tickers": []
+    },
+    "used": {
+      "stocks": [
+        "600176",
+        "300196",
+        "605006",
+        "002202",
+        "601615",
+        "002812",
+        "300568"
+      ],
+      "etfs": [
+        "516660",
+        "159566",
+        "515790",
+        "516160"
+      ],
+      "futures": [
+        "SA0",
+        "FG0",
+        "SI0"
+      ],
+      "boards": [
+        "建筑材料",
+        "风电设备",
+        "电池"
+      ],
+      "us_yf": []
+    },
+    "start_date": "20180101",
+    "end_date": "20260512",
+    "target_symbol_excluded": "002080",
+    "em_sources_used": false,
+    "baostock_cache_dir": "/root/workspace/stock_realtime_v021_full/saved_data/002080_pipeline_out_v2_all14/04_external/material_wind_battery/baostock_external_cache",
+    "us_yfinance_enabled": false
+  },
+  "errors": {
+    "board_玻璃玻纤": "stock_board_industry_index_ths: KeyError: '玻璃玻纤' | stock_board_concept_hist_ths: not_available"
+  },
+  "top_missing": {
+    "mwb_etf_516160_range_pct_ret60": 0.9862385321100917,
+    "mwb_etf_515790_close_ret60": 0.9862385321100917,
+    "mwb_etf_basket_close_ret60": 0.9862385321100917,
+    "mwb_etf_159566_range_pct_ret60": 0.9862385321100917,
+    "mwb_etf_516660_close_ret60": 0.9862385321100917,
+    "mwb_etf_516660_range_pct_ret60": 0.9862385321100917,
+    "mwb_etf_159566_close_ret60": 0.9862385321100917,
+    "mwb_etf_516160_close_ret60": 0.9862385321100917,
+    "mwb_etf_515790_range_pct_ret60": 0.9862385321100917,
+    "mwb_etf_516660_range_pct_z60": 0.9600262123197904,
+    "mwb_etf_515790_range_pct_z60": 0.9600262123197904,
+    "mwb_etf_516160_range_pct_ret20": 0.9600262123197904,
+    "mwb_etf_516160_range_pct_z60": 0.9600262123197904,
+    "mwb_etf_515790_close_z60": 0.9600262123197904,
+    "mwb_etf_516160_close_ret20": 0.9600262123197904,
+    "mwb_etf_159566_close_ret20": 0.9600262123197904,
+    "mwb_etf_159566_close_z60": 0.9600262123197904,
+    "mwb_etf_516160_close_z60": 0.9600262123197904,
+    "mwb_stock_vs_etf_basket_ret20": 0.9600262123197904,
+    "mwb_etf_159566_range_pct_ret20": 0.9600262123197904,
+    "mwb_etf_516660_close_ret20": 0.9600262123197904,
+    "mwb_etf_516660_range_pct_ret20": 0.9600262123197904,
+    "mwb_etf_516660_close_z60": 0.9600262123197904,
+    "mwb_etf_159566_range_pct_z60": 0.9600262123197904,
+    "mwb_etf_515790_range_pct_ret20": 0.9600262123197904,
+    "mwb_etf_basket_close_z60": 0.9600262123197904,
+    "mwb_etf_basket_close_ret20": 0.9600262123197904,
+    "mwb_etf_515790_close_ret20": 0.9600262123197904,
+    "mwb_etf_159566_close_vol20": 0.9541284403669725,
+    "mwb_etf_basket_close_vol20": 0.9541284403669725,
+    "mwb_etf_516660_close_vol20": 0.9541284403669725,
+    "mwb_etf_515790_close_vol20": 0.9541284403669725,
+    "mwb_etf_516160_close_vol20": 0.9541284403669725,
+    "mwb_etf_516160_volume_shock20": 0.953473132372215,
+    "mwb_etf_516160_range_pct_z20": 0.953473132372215,
+    "mwb_etf_159566_range_pct_ma20_gap": 0.953473132372215,
+    "mwb_etf_516660_range_pct_ma20_gap": 0.953473132372215,
+    "mwb_etf_159566_volume_shock20": 0.953473132372215,
+    "mwb_etf_159566_volume_z20": 0.953473132372215,
+    "mwb_etf_516660_close_ma20_gap": 0.953473132372215,
+    "mwb_etf_516660_close_z20": 0.953473132372215,
+    "mwb_etf_159566_range_pct_z20": 0.953473132372215,
+    "mwb_etf_516660_volume_shock20": 0.953473132372215,
+    "mwb_etf_516160_close_z20": 0.953473132372215,
+    "mwb_etf_516160_close_ma20_gap": 0.953473132372215,
+    "mwb_etf_516160_range_pct_ma20_gap": 0.953473132372215,
+    "mwb_etf_515790_close_ma20_gap": 0.953473132372215,
+    "mwb_etf_159566_close_ma20_gap": 0.953473132372215,
+    "mwb_etf_159566_close_z20": 0.953473132372215,
+    "mwb_etf_515790_volume_z20": 0.953473132372215
+  },
+  "outputs": {
+    "features": "/root/workspace/stock_realtime_v021_full/saved_data/002080_pipeline_out_v2_all14/04_external/material_wind_battery/stock_external_features_material_wind_battery.csv",
+    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002080_pipeline_out_v2_all14/04_external/material_wind_battery/training_samples_with_material_wind_battery_external.csv",
+    "report": "/root/workspace/stock_realtime_v021_full/saved_data/002080_pipeline_out_v2_all14/04_external/material_wind_battery/validation_report.json"
+  }
+}

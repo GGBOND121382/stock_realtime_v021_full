@@ -1,0 +1,15 @@
+phase,symbol,sector,external,run_tag,enable_us_yf,status,returncode,start_time,end_time,elapsed_seconds,log_file
+existing,002270.SZ,电网设备,none,v2_all14,0,ok,0,2026-05-12 01:21:39,2026-05-12 02:00:54,2355,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/existing_002270_SZ_none.log
+existing,002311.SZ,农产品加工,feed,hog,v2_all14,0,ok,0,2026-05-12 02:00:54,2026-05-12 03:05:57,3903,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/existing_002311_SZ_feed,hog.log
+existing,002714.SZ,养殖业,hog,muyuan_hk,v2_all14,0,ok,0,2026-05-12 03:05:57,2026-05-12 03:57:05,3068,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/existing_002714_SZ_hog,muyuan_hk.log
+existing,600276.SH,化学制药,none,v2_all14,0,ok,0,2026-05-12 03:57:05,2026-05-12 04:35:54,2329,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/existing_600276_SH_none.log
+existing,600312.SH,电网设备,none,v2_all14,0,ok,0,2026-05-12 04:35:54,2026-05-12 05:14:22,2308,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/existing_600312_SH_none.log
+existing,601899.SH,贵金属,zijin_external,v2_all14,0,ok,0,2026-05-12 05:14:22,2026-05-12 06:26:08,4306,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/existing_601899_SH_zijin_external.log
+next8,601138.SH,消费电子,ai_compute,v2_all14,1,ok,0,2026-05-12 06:26:08,2026-05-12 07:44:36,4708,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/next8_601138_SH_ai_compute.log
+next8,002080.SZ,建筑材料,material_wind_battery,v2_all14,0,ok,0,2026-05-12 07:44:36,2026-05-12 09:03:29,4733,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/next8_002080_SZ_material_wind_battery.log
+next8,601985.SH,电力,power_utility_rate,v2_all14,0,ok,0,2026-05-12 09:03:29,2026-05-12 10:09:21,3952,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/next8_601985_SH_power_utility_rate.log
+next8,600096.SH,农化制品,fertilizer,v2_all14,0,ok,0,2026-05-12 10:09:21,2026-05-12 11:36:12,5211,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/next8_600096_SH_fertilizer.log
+next8,002518.SZ,其他电源设备,storage_power,v2_all14,0,failed,1,2026-05-12 11:36:12,2026-05-12 11:39:42,210,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/next8_002518_SZ_storage_power.log
+next8,603308.SH,通用设备,aero_nuclear_equipment,v2_all14,0,ok,0,2026-05-12 11:39:42,2026-05-12 12:56:22,4600,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/next8_603308_SH_aero_nuclear_equipment.log
+next8,600522.SH,通信设备,optical_cable_grid,v2_all14,0,failed,1,2026-05-12 12:56:22,2026-05-12 12:59:44,202,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/next8_600522_SH_optical_cable_grid.log
+next8,600487.SH,通信设备,optical_cable_grid,v2_all14,0,failed,1,2026-05-12 12:59:44,2026-05-12 13:03:23,219,saved_data/model_search_queue_logs/all14_v2_all14_20260512_012139/next8_600487_SH_optical_cable_grid.log

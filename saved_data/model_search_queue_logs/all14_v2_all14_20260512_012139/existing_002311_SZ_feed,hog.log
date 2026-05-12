@@ -1,0 +1,13 @@
+============================================================
+[START] 2026-05-12 02:00:54 phase=existing, symbol=002311.SZ, sector=农产品加工, external=feed,hog, run_tag=v2_all14, enable_us_yf=0
+[CMD] python3 pipelines/run_nextday_pipeline.py --symbol 002311.SZ --sector-symbol 农产品加工 --external feed\,hog --run-tag v2_all14 --start-date 2018-01-01 --end-date 2026-05-12 --feature-pipeline fundamental\,sector --search-targets hit50\,hit80\,close_profit --entry-policies vwap_low\,all_days --groups reversal_fundamental_regime\,reversal_fundamental_regime_sector\,reversal_fundamental_regime_sector_external\,all_no_ak --models xgb_d2_200_lr003_mcw5\,xgb_d3_400_lr003_mcw3\,xgb_d3_600_lr002_mcw3\,xgb_d4_500_lr002_mcw5\,lgbm_leaves7_400\,lgbm_leaves15_700\,extra_trees_600_d3\,random_forest_600_d4 --quantiles 0.5\,0.6\,0.7\,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80 --external-lag-days 1 --stock-external-domestic-lag-days 0 --stock-external-future-lag-days 1 --stock-external-us-lag-days 1 --resume --excel 
+============================================================
+{
+  "status": "ok",
+  "symbol": "002311.SZ",
+  "out_root": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14",
+  "final_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/hog/training_samples_with_hog_industry.csv",
+  "leaderboard": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/99_summary/final_leaderboard.csv",
+  "manifest": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/pipeline_summary.json"
+}
+[DONE] 2026-05-12 03:05:57 phase=existing, symbol=002311.SZ, status=ok, elapsed=3903s

@@ -1,0 +1,36 @@
+{
+  "sector_symbol": "电网设备",
+  "sector_rows": 2023,
+  "sector_date_min": "2018-01-02",
+  "sector_date_max": "2026-05-11",
+  "sample_rows": 1526,
+  "merged_rows": 1526,
+  "sector_feature_cols": 23,
+  "top_missing": {
+    "sector_ret60": 0.039318479685452164,
+    "sector_ma60_gap": 0.019659239842726082,
+    "stock_vs_sector_ret20": 0.01310615989515072,
+    "sector_ret20": 0.01310615989515072,
+    "sector_vol20": 0.007208387942332897,
+    "sector_ma20_gap": 0.00655307994757536,
+    "sector_range_z20": 0.00655307994757536,
+    "sector_volume_shock20": 0.00655307994757536,
+    "sector_amount_z20": 0.00655307994757536,
+    "sector_volume_z20": 0.00655307994757536,
+    "sector_amount_shock20": 0.00655307994757536,
+    "sector_ret5": 0.00327653997378768,
+    "stock_vs_sector_ret5": 0.00327653997378768,
+    "sector_vs_bench_ret5": 0.00327653997378768,
+    "stock_vs_sector_ret1": 0.000655307994757536,
+    "sector_ret1": 0.000655307994757536,
+    "sector_amount": 0.0,
+    "sector_volume": 0.0,
+    "sector_close": 0.0,
+    "sector_low": 0.0
+  },
+  "outputs": {
+    "sector_index": "/root/workspace/stock_realtime_v021_full/saved_data/002270_pipeline_out_v2_all14/03_sector/sector_index_ths.csv",
+    "sector_features": "/root/workspace/stock_realtime_v021_full/saved_data/002270_pipeline_out_v2_all14/03_sector/sector_features.csv",
+    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002270_pipeline_out_v2_all14/03_sector/training_samples_with_sector.csv"
+  }
+}

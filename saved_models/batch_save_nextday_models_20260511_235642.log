@@ -1,0 +1,235 @@
+
+====================================================================================================
+[1/6] 002270.SZ nextday_all_days_close_profit_extra_trees_all_no_ak_v1
+[CMD] /usr/bin/python3 /root/workspace/stock_realtime_v021_full/model_saving/save_nextday_model.py --stock-code 002270.SZ --artifact-name nextday_all_days_close_profit_extra_trees_all_no_ak_v1 --samples /root/workspace/stock_realtime_v021_full/saved_data/002270_pipeline_out/03_sector/training_samples_with_sector.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002270_pipeline_out/00_base/002270_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_models --feature-group all_no_ak --model-name extra_trees_600_d3 --label-mode close_profit --entry-policy all_days --entry-vwap-premium-bps 50.0 --target-hit-bps 50.0 --round-trip-cost-bps 1.7 --valid-rows 252 --min-train-entries 80 --min-valid-trades 8 --quantiles 0.5,0.6,0.7,0.8
+{
+  "artifact_created_at": "2026-05-11T23:56:59",
+  "stock_code": "002270.SZ",
+  "artifact_name": "nextday_all_days_close_profit_extra_trees_all_no_ak_v1",
+  "samples": "/root/workspace/stock_realtime_v021_full/saved_data/002270_pipeline_out/03_sector/training_samples_with_sector.csv",
+  "intraday_bars": "/root/workspace/stock_realtime_v021_full/saved_data/002270_pipeline_out/00_base/002270_5m.csv",
+  "feature_group": "all_no_ak",
+  "model_name": "extra_trees_600_d3",
+  "label_mode": "close_profit",
+  "entry_policy": "all_days",
+  "entry_vwap_premium_bps": 50.0,
+  "label_col": "trade_close_profit_label",
+  "return_col": "trade_net_close_return",
+  "target_hit_bps": 50.0,
+  "round_trip_cost_bps": 1.7,
+  "threshold": 0.48698807438464276,
+  "threshold_quantile": 0.6,
+  "feature_count": 213,
+  "rows": 1524,
+  "train_rows_for_threshold": 1272,
+  "valid_rows_for_threshold": 252,
+  "final_train_entry_rows": 1524,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-07",
+  "validation_tail_auc": 0.5168220766129032,
+  "validation_tail_trade_metrics": {
+    "trades": 101,
+    "win_rate": 0.504950495049505,
+    "avg_return": 0.002269370500665148,
+    "median_return": 0.00042772863120155505,
+    "compound_return": 0.22746227078233616,
+    "max_drawdown": -0.22133759495718874,
+    "profit_factor": 1.3198436451122741
+  },
+  "files": {
+    "model": "/root/workspace/stock_realtime_v021_full/saved_models/002270.SZ/nextday_all_days_close_profit_extra_trees_all_no_ak_v1/model.joblib",
+    "feature_median": "/root/workspace/stock_realtime_v021_full/saved_models/002270.SZ/nextday_all_days_close_profit_extra_trees_all_no_ak_v1/feature_median.csv",
+    "feature_columns": "/root/workspace/stock_realtime_v021_full/saved_models/002270.SZ/nextday_all_days_close_profit_extra_trees_all_no_ak_v1/feature_columns.txt",
+    "validation_tail_predictions": "/root/workspace/stock_realtime_v021_full/saved_models/002270.SZ/nextday_all_days_close_profit_extra_trees_all_no_ak_v1/validation_tail_predictions.csv",
+    "metadata": "/root/workspace/stock_realtime_v021_full/saved_models/002270.SZ/nextday_all_days_close_profit_extra_trees_all_no_ak_v1/metadata.json"
+  },
+  "usage_note": "This artifact is stock-specific. Use only for 002270.SZ with the same feature-building pipeline."
+}
+
+====================================================================================================
+[2/6] 002311.SZ nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_hog_v1
+[CMD] /usr/bin/python3 /root/workspace/stock_realtime_v021_full/model_saving/save_nextday_model.py --stock-code 002311.SZ --artifact-name nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_hog_v1 --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_models --feature-group reversal_fundamental_regime_sector --model-name xgb_d3_600_lr002_mcw3 --label-mode close_profit --entry-policy vwap_low --entry-vwap-premium-bps 50.0 --target-hit-bps 50.0 --round-trip-cost-bps 1.7 --valid-rows 252 --min-train-entries 80 --min-valid-trades 8 --quantiles 0.5,0.6,0.7,0.8
+{
+  "artifact_created_at": "2026-05-11T23:57:17",
+  "stock_code": "002311.SZ",
+  "artifact_name": "nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_hog_v1",
+  "samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv",
+  "intraday_bars": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv",
+  "feature_group": "reversal_fundamental_regime_sector",
+  "model_name": "xgb_d3_600_lr002_mcw3",
+  "label_mode": "close_profit",
+  "entry_policy": "vwap_low",
+  "entry_vwap_premium_bps": 50.0,
+  "label_col": "trade_close_profit_label",
+  "return_col": "trade_net_close_return",
+  "target_hit_bps": 50.0,
+  "round_trip_cost_bps": 1.7,
+  "threshold": 0.5309878945350648,
+  "threshold_quantile": 0.8,
+  "feature_count": 160,
+  "rows": 1534,
+  "train_rows_for_threshold": 1282,
+  "valid_rows_for_threshold": 252,
+  "final_train_entry_rows": 1504,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-07",
+  "validation_tail_auc": 0.5182362204724409,
+  "validation_tail_trade_metrics": {
+    "trades": 45,
+    "win_rate": 0.5777777777777777,
+    "avg_return": 0.0019543584561781298,
+    "median_return": 0.002056408631615051,
+    "compound_return": 0.08113839537225043,
+    "max_drawdown": -0.13482785886430548,
+    "profit_factor": 1.2766018077174472
+  },
+  "files": {
+    "model": "/root/workspace/stock_realtime_v021_full/saved_models/002311.SZ/nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_hog_v1/model.joblib",
+    "feature_median": "/root/workspace/stock_realtime_v021_full/saved_models/002311.SZ/nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_hog_v1/feature_median.csv",
+    "feature_columns": "/root/workspace/stock_realtime_v021_full/saved_models/002311.SZ/nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_hog_v1/feature_columns.txt",
+    "validation_tail_predictions": "/root/workspace/stock_realtime_v021_full/saved_models/002311.SZ/nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_hog_v1/validation_tail_predictions.csv",
+    "metadata": "/root/workspace/stock_realtime_v021_full/saved_models/002311.SZ/nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_hog_v1/metadata.json"
+  },
+  "usage_note": "This artifact is stock-specific. Use only for 002311.SZ with the same feature-building pipeline."
+}
+
+====================================================================================================
+[3/6] 002714.SZ nextday_vwap_low_close_profit_random_forest_reversal_fundamental_regime_sector_muyuan_hk_v1
+[CMD] /usr/bin/python3 /root/workspace/stock_realtime_v021_full/model_saving/save_nextday_model.py --stock-code 002714.SZ --artifact-name nextday_vwap_low_close_profit_random_forest_reversal_fundamental_regime_sector_muyuan_hk_v1 --samples /root/workspace/stock_realtime_v021_full/saved_data/002714_pipeline_out/04_external/muyuan_hk/training_samples_with_hk_external.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002714_pipeline_out/00_base/002714_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_models --feature-group reversal_fundamental_regime_sector --model-name random_forest_600_d4 --label-mode close_profit --entry-policy vwap_low --entry-vwap-premium-bps 50.0 --target-hit-bps 50.0 --round-trip-cost-bps 1.7 --valid-rows 252 --min-train-entries 80 --min-valid-trades 8 --quantiles 0.5,0.6,0.7,0.8
+{
+  "artifact_created_at": "2026-05-11T23:57:40",
+  "stock_code": "002714.SZ",
+  "artifact_name": "nextday_vwap_low_close_profit_random_forest_reversal_fundamental_regime_sector_muyuan_hk_v1",
+  "samples": "/root/workspace/stock_realtime_v021_full/saved_data/002714_pipeline_out/04_external/muyuan_hk/training_samples_with_hk_external.csv",
+  "intraday_bars": "/root/workspace/stock_realtime_v021_full/saved_data/002714_pipeline_out/00_base/002714_5m.csv",
+  "feature_group": "reversal_fundamental_regime_sector",
+  "model_name": "random_forest_600_d4",
+  "label_mode": "close_profit",
+  "entry_policy": "vwap_low",
+  "entry_vwap_premium_bps": 50.0,
+  "label_col": "trade_close_profit_label",
+  "return_col": "trade_net_close_return",
+  "target_hit_bps": 50.0,
+  "round_trip_cost_bps": 1.7,
+  "threshold": 0.4530099052798996,
+  "threshold_quantile": 0.5,
+  "feature_count": 160,
+  "rows": 1535,
+  "train_rows_for_threshold": 1283,
+  "valid_rows_for_threshold": 252,
+  "final_train_entry_rows": 1509,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-08",
+  "validation_tail_auc": 0.5516648628000255,
+  "validation_tail_trade_metrics": {
+    "trades": 113,
+    "win_rate": 0.49557522123893805,
+    "avg_return": 0.0004402663860559166,
+    "median_return": -0.00016999999999999999,
+    "compound_return": 0.036517261647078136,
+    "max_drawdown": -0.16228318842558986,
+    "profit_factor": 1.0764943034173602
+  },
+  "files": {
+    "model": "/root/workspace/stock_realtime_v021_full/saved_models/002714.SZ/nextday_vwap_low_close_profit_random_forest_reversal_fundamental_regime_sector_muyuan_hk_v1/model.joblib",
+    "feature_median": "/root/workspace/stock_realtime_v021_full/saved_models/002714.SZ/nextday_vwap_low_close_profit_random_forest_reversal_fundamental_regime_sector_muyuan_hk_v1/feature_median.csv",
+    "feature_columns": "/root/workspace/stock_realtime_v021_full/saved_models/002714.SZ/nextday_vwap_low_close_profit_random_forest_reversal_fundamental_regime_sector_muyuan_hk_v1/feature_columns.txt",
+    "validation_tail_predictions": "/root/workspace/stock_realtime_v021_full/saved_models/002714.SZ/nextday_vwap_low_close_profit_random_forest_reversal_fundamental_regime_sector_muyuan_hk_v1/validation_tail_predictions.csv",
+    "metadata": "/root/workspace/stock_realtime_v021_full/saved_models/002714.SZ/nextday_vwap_low_close_profit_random_forest_reversal_fundamental_regime_sector_muyuan_hk_v1/metadata.json"
+  },
+  "usage_note": "This artifact is stock-specific. Use only for 002714.SZ with the same feature-building pipeline."
+}
+
+====================================================================================================
+[4/6] 600276.SH nextday_all_days_hit80_extra_trees_reversal_fundamental_regime_sector_v1
+[CMD] /usr/bin/python3 /root/workspace/stock_realtime_v021_full/model_saving/save_nextday_model.py --stock-code 600276.SH --artifact-name nextday_all_days_hit80_extra_trees_reversal_fundamental_regime_sector_v1 --samples /root/workspace/stock_realtime_v021_full/saved_data/600276_pipeline_out/03_sector/training_samples_with_sector.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/600276_pipeline_out/00_base/600276_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_models --feature-group reversal_fundamental_regime_sector --model-name extra_trees_600_d3 --label-mode hit --entry-policy all_days --entry-vwap-premium-bps 50.0 --target-hit-bps 80.0 --round-trip-cost-bps 1.7 --valid-rows 252 --min-train-entries 80 --min-valid-trades 8 --quantiles 0.5,0.6,0.7,0.8
+{
+  "artifact_created_at": "2026-05-11T23:57:58",
+  "stock_code": "600276.SH",
+  "artifact_name": "nextday_all_days_hit80_extra_trees_reversal_fundamental_regime_sector_v1",
+  "samples": "/root/workspace/stock_realtime_v021_full/saved_data/600276_pipeline_out/03_sector/training_samples_with_sector.csv",
+  "intraday_bars": "/root/workspace/stock_realtime_v021_full/saved_data/600276_pipeline_out/00_base/600276_5m.csv",
+  "feature_group": "reversal_fundamental_regime_sector",
+  "model_name": "extra_trees_600_d3",
+  "label_mode": "hit",
+  "entry_policy": "all_days",
+  "entry_vwap_premium_bps": 50.0,
+  "label_col": "trade_hit_label",
+  "return_col": "trade_target_or_close_return",
+  "target_hit_bps": 80.0,
+  "round_trip_cost_bps": 1.7,
+  "threshold": 0.47321508762143044,
+  "threshold_quantile": 0.8,
+  "feature_count": 158,
+  "rows": 1534,
+  "train_rows_for_threshold": 1282,
+  "valid_rows_for_threshold": 252,
+  "final_train_entry_rows": 1534,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-07",
+  "validation_tail_auc": 0.5741943866943867,
+  "validation_tail_trade_metrics": {
+    "trades": 51,
+    "win_rate": 0.7450980392156863,
+    "avg_return": 0.0012250200265946267,
+    "median_return": 0.008,
+    "compound_return": 0.06042447611291624,
+    "max_drawdown": -0.10590077287331867,
+    "profit_factor": 1.293736030857944
+  },
+  "files": {
+    "model": "/root/workspace/stock_realtime_v021_full/saved_models/600276.SH/nextday_all_days_hit80_extra_trees_reversal_fundamental_regime_sector_v1/model.joblib",
+    "feature_median": "/root/workspace/stock_realtime_v021_full/saved_models/600276.SH/nextday_all_days_hit80_extra_trees_reversal_fundamental_regime_sector_v1/feature_median.csv",
+    "feature_columns": "/root/workspace/stock_realtime_v021_full/saved_models/600276.SH/nextday_all_days_hit80_extra_trees_reversal_fundamental_regime_sector_v1/feature_columns.txt",
+    "validation_tail_predictions": "/root/workspace/stock_realtime_v021_full/saved_models/600276.SH/nextday_all_days_hit80_extra_trees_reversal_fundamental_regime_sector_v1/validation_tail_predictions.csv",
+    "metadata": "/root/workspace/stock_realtime_v021_full/saved_models/600276.SH/nextday_all_days_hit80_extra_trees_reversal_fundamental_regime_sector_v1/metadata.json"
+  },
+  "usage_note": "This artifact is stock-specific. Use only for 600276.SH with the same feature-building pipeline."
+}
+
+====================================================================================================
+[6/6] 601899.SH nextday_vwap_low_close_profit_extra_trees_reversal_fundamental_regime_sector_zijin_v1
+[CMD] /usr/bin/python3 /root/workspace/stock_realtime_v021_full/model_saving/save_nextday_model.py --stock-code 601899.SH --artifact-name nextday_vwap_low_close_profit_extra_trees_reversal_fundamental_regime_sector_zijin_v1 --samples /root/workspace/stock_realtime_v021_full/saved_data/601899_pipeline_out/04_external/zijin_external/training_samples_with_zijin_external.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/601899_pipeline_out/00_base/601899_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_models --feature-group reversal_fundamental_regime_sector --model-name extra_trees_600_d3 --label-mode close_profit --entry-policy vwap_low --entry-vwap-premium-bps 50.0 --target-hit-bps 50.0 --round-trip-cost-bps 1.7 --valid-rows 252 --min-train-entries 80 --min-valid-trades 8 --quantiles 0.5,0.6,0.7,0.8
+{
+  "artifact_created_at": "2026-05-11T23:58:16",
+  "stock_code": "601899.SH",
+  "artifact_name": "nextday_vwap_low_close_profit_extra_trees_reversal_fundamental_regime_sector_zijin_v1",
+  "samples": "/root/workspace/stock_realtime_v021_full/saved_data/601899_pipeline_out/04_external/zijin_external/training_samples_with_zijin_external.csv",
+  "intraday_bars": "/root/workspace/stock_realtime_v021_full/saved_data/601899_pipeline_out/00_base/601899_5m.csv",
+  "feature_group": "reversal_fundamental_regime_sector",
+  "model_name": "extra_trees_600_d3",
+  "label_mode": "close_profit",
+  "entry_policy": "vwap_low",
+  "entry_vwap_premium_bps": 50.0,
+  "label_col": "trade_close_profit_label",
+  "return_col": "trade_net_close_return",
+  "target_hit_bps": 50.0,
+  "round_trip_cost_bps": 1.7,
+  "threshold": 0.4763375877477575,
+  "threshold_quantile": 0.8,
+  "feature_count": 160,
+  "rows": 1534,
+  "train_rows_for_threshold": 1282,
+  "valid_rows_for_threshold": 252,
+  "final_train_entry_rows": 1496,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-07",
+  "validation_tail_auc": 0.5179888126112382,
+  "validation_tail_trade_metrics": {
+    "trades": 43,
+    "win_rate": 0.5348837209302325,
+    "avg_return": 0.005349146564311773,
+    "median_return": 0.0004030659025788842,
+    "compound_return": 0.2448396211294035,
+    "max_drawdown": -0.08092873425684766,
+    "profit_factor": 1.986098899493486
+  },
+  "files": {
+    "model": "/root/workspace/stock_realtime_v021_full/saved_models/601899.SH/nextday_vwap_low_close_profit_extra_trees_reversal_fundamental_regime_sector_zijin_v1/model.joblib",
+    "feature_median": "/root/workspace/stock_realtime_v021_full/saved_models/601899.SH/nextday_vwap_low_close_profit_extra_trees_reversal_fundamental_regime_sector_zijin_v1/feature_median.csv",
+    "feature_columns": "/root/workspace/stock_realtime_v021_full/saved_models/601899.SH/nextday_vwap_low_close_profit_extra_trees_reversal_fundamental_regime_sector_zijin_v1/feature_columns.txt",
+    "validation_tail_predictions": "/root/workspace/stock_realtime_v021_full/saved_models/601899.SH/nextday_vwap_low_close_profit_extra_trees_reversal_fundamental_regime_sector_zijin_v1/validation_tail_predictions.csv",
+    "metadata": "/root/workspace/stock_realtime_v021_full/saved_models/601899.SH/nextday_vwap_low_close_profit_extra_trees_reversal_fundamental_regime_sector_zijin_v1/metadata.json"
+  },
+  "usage_note": "This artifact is stock-specific. Use only for 601899.SH with the same feature-building pipeline."
+}
