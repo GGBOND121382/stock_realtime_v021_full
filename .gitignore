@@ -7,10 +7,27 @@ __pycache__/
 saved_data/*_pipeline_out/*
 
 # 但保留 99_summary 文件夹及其所有内容
-!saved_data/*_pipeline_out/99_summary/
-!saved_data/*_pipeline_out/99_summary/**
 
 # 另外保留每个 pipeline_out 根目录下的这两个文件
-!saved_data/*_pipeline_out/pipeline_summary.json
-!saved_data/*_pipeline_out/run.log
 
+# BEGIN saved_data pipeline ignore
+# 只忽略每个 pipeline 文件夹下的 00 到 10 中间产物目录
+# 不再使用 saved_data/*/*，避免误伤 saved_data 下其他目录
+saved_data/*/00*/
+saved_data/*/01*/
+saved_data/*/02*/
+saved_data/*/03*/
+saved_data/*/04*/
+saved_data/*/05*/
+saved_data/*/06*/
+saved_data/*/07*/
+saved_data/*/08*/
+saved_data/*/09*/
+saved_data/*/10*/
+
+# 明确保留摘要目录和根目录摘要文件
+!saved_data/*/99_summary/
+!saved_data/*/99_summary/**
+!saved_data/*/pipeline_summary.json
+!saved_data/*/run.log
+# END saved_data pipeline ignore
