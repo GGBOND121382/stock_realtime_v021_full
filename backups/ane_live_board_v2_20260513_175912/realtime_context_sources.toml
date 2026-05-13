@@ -243,10 +243,9 @@ symbols = ["NI0", "SS0", "AL0"]
 canonical_prefix_template = "ane_fut_{token}"
 aggregate_prefix = "ane_future_basket"
 
-# 603308 live-board-v2: use THS realtime available boards; old 国防军工/航空装备 were unavailable.
 [contexts.ane_boards]
 feature_prefixes = ["ane_board_", "ane_board_basket_", "ane_stock_vs_board_basket_"]
 provider = "ths_sector_summary"
-symbols = ["军工装备", "军工电子", "通用设备", "专用设备"]
+symbols = ["国防军工", "航空装备", "通用设备", "专用设备"]
 canonical_prefixes = ["ane_board_b01", "ane_board_b02", "ane_board_b03", "ane_board_b04"]
 aggregate_prefix = "ane_board_basket"

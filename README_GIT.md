@@ -70,3 +70,9 @@ git gc --prune=now --aggressive
 查看命令：
 du -sh .git
 git count-objects -vH
+
+# 上传命令
+git config --global http.version HTTP/1.1
+git config --global http.lowSpeedLimit 0
+git config --global http.lowSpeedTime 999999
+git push --progress origin master:master

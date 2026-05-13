@@ -91,8 +91,6 @@ REALTIME_CONTEXT_PREFIXES = (
     # New stock-external profiles from build_stock_external_features.py.
     "ai_", "mwb_", "pur_", "fert_", "sp_", "ane_", "ocg_",
 )
-NON_CRITICAL_REALTIME_CONTEXT_FEATURES = {"sector_range_z20"}
-
 REALTIME_CONTEXT_EXACT_FEATURES = {"gold_silver_ratio", "gold_copper_ratio", "feed_cost_index", "feed_soymeal_corn_ratio", "feed_hog_cost_ratio"}
 STOCK_EXTERNAL_RELATIVE_FAMILIES = (
     "stock_basket", "etf_basket", "future_basket", "board_basket", "us_basket",
@@ -249,11 +247,6 @@ def is_realtime_context_feature(col: str) -> bool:
 def context_dependencies_for_model_features(cols: list[str]) -> list[str]:
     deps: set[str] = set()
     for col in cols:
-        if col in NON_CRITICAL_REALTIME_CONTEXT_FEATURES:
-            # sector_range_z20 needs a 20-day historical sector_range_pct window.
-            # The realtime THS summary snapshot alone cannot compute it correctly,
-            # so do not let this single feature hard-block sector models.
-            continue
         if not is_realtime_context_feature(col):
             continue
         if col.startswith("stock_vs_sector_ret"):
@@ -554,71 +547,9 @@ def load_intraday_feature_cache(intraday_path: Optional[Path], cache_dir: Path, 
     return out
 
 
-def _normalize_realtime_minute_bars(bars: pd.DataFrame, trade_date: str) -> pd.DataFrame:
-    out = bars.copy()
-    if "datetime" in out.columns:
-        out["datetime"] = pd.to_datetime(out["datetime"], errors="coerce")
-    elif {"trade_date", "trade_time"}.issubset(out.columns):
-        out["datetime"] = pd.to_datetime(
-            out["trade_date"].astype(str) + out["trade_time"].astype(str).str.zfill(6),
-            errors="coerce",
-        )
-    else:
-        # Last resort: use date plus row order minutes; caller will likely drop if invalid.
-        out["datetime"] = pd.NaT
-    for c in ["open", "high", "low", "close", "volume", "amount", "bar_volume", "bar_amount"]:
-        if c in out.columns:
-            out[c] = pd.to_numeric(out[c], errors="coerce")
-    # If minute bars store cumulative volume/amount, convert to bar increments when available.
-    if "bar_volume" in out.columns and out["bar_volume"].notna().any():
-        out["volume"] = out["bar_volume"].fillna(0)
-    if "bar_amount" in out.columns and out["bar_amount"].notna().any():
-        out["amount"] = out["bar_amount"].fillna(0)
-    return out.dropna(subset=["datetime", "open", "high", "low", "close"])
-
-
-def _load_pending_intraday_rows(cache_dir: Path, stock_code: str, trade_date: str) -> pd.DataFrame:
-    base = cache_symbol_dir(cache_dir, trade_date, stock_code)
-    candidates = [base / "minute_bars_1min.csv", base / "minute_bars_5min.csv"]
-    for path in candidates:
-        if not path.exists():
-            continue
-        try:
-            bars = pd.read_csv(path, encoding="utf-8-sig")
-        except Exception:
-            continue
-        if bars.empty:
-            continue
-        bars = _normalize_realtime_minute_bars(bars, trade_date)
-        if bars.empty:
-            continue
-        rows = build_intraday_rows(bars)
-        if not rows.empty:
-            return rows
-    return pd.DataFrame()
-
-
 def add_scoring_features(df: pd.DataFrame, intraday_path: Optional[Path], cache_dir: Path, stock_code: str) -> pd.DataFrame:
     out = add_reversal_daily_features(df)
-
     intra = load_intraday_feature_cache(intraday_path, cache_dir, stock_code)
-    # Merge current-day pending minute bars.  The historical feature cache is
-    # normally only complete up to T-1, so without this the same-day row misses
-    # morning/afternoon/last-30m segment features and triggers filled_features_gt_*.
-    try:
-        if "date" in out.columns and not out.empty:
-            trade_date = pd.to_datetime(out["date"].max()).strftime("%Y%m%d")
-            pending_intra = _load_pending_intraday_rows(cache_dir, stock_code, trade_date)
-            if not pending_intra.empty:
-                if intra.empty:
-                    intra = pending_intra
-                else:
-                    intra = pd.concat([intra, pending_intra], ignore_index=True)
-                    intra["date"] = pd.to_datetime(intra["date"], errors="coerce")
-                    intra = intra.dropna(subset=["date"]).drop_duplicates(subset=["date"], keep="last").sort_values("date")
-    except Exception as exc:
-        print(f"[WARN] failed to merge pending intraday bars for {stock_code}: {type(exc).__name__}: {exc}", flush=True)
-
     if not intra.empty:
         out = out.merge(intra, on="date", how="left")
         for col in ["morning_vwap", "afternoon_vwap", "last_30m_vwap"]:
@@ -630,6 +561,7 @@ def add_scoring_features(df: pd.DataFrame, intraday_path: Optional[Path], cache_
             out["first60_last30_reversal"] = -out["first_60m_ret"] * out["last_30m_ret"]
     return add_market_state_features(out)
 
+
 def parse_cutoff_dt(trade_date: str, cutoff_time: Optional[str]) -> Optional[pd.Timestamp]:
     if not cutoff_time:
         return None
@@ -637,13 +569,6 @@ def parse_cutoff_dt(trade_date: str, cutoff_time: Optional[str]) -> Optional[pd.
 
 
 def live_daily_from_snapshots(stock_code: str, trade_date: str, cache_dir: Path, cutoff_time: Optional[str]) -> dict:
-    """Return latest live daily fields from pending snapshots.
-
-    Important fixes:
-      - keep true cumulative amount/volume for liquidity gates;
-      - use vendor daily open/high/low when available instead of only sampled px range;
-      - expose prev_close, pct_chg and overnight_ret for same-day scoring features.
-    """
     snap_path = cache_symbol_dir(cache_dir, trade_date, stock_code) / "snapshot_5level.csv"
     if not snap_path.exists():
         return {}
@@ -653,72 +578,33 @@ def live_daily_from_snapshots(stock_code: str, trade_date: str, cache_dir: Path,
         return {}
     if snap.empty:
         return {}
-
-    if "datetime" in snap.columns:
-        snap["datetime"] = pd.to_datetime(snap["datetime"], errors="coerce")
-    else:
-        snap["datetime"] = pd.to_datetime(
-            snap.get("trade_date", "").astype(str) + snap.get("trade_time", "").astype(str).str.zfill(6),
-            errors="coerce",
-        )
+    snap["datetime"] = pd.to_datetime(snap["trade_date"].astype(str) + snap["trade_time"].astype(str).str.zfill(6), errors="coerce")
     snap = snap.dropna(subset=["datetime"]).sort_values("datetime")
     cutoff_dt = parse_cutoff_dt(trade_date, cutoff_time)
     if cutoff_dt is not None:
         snap = snap[snap["datetime"] <= cutoff_dt].copy()
     if snap.empty:
         return {"core_complete": False, "missing_core_fields": "no_snapshot_before_cutoff"}
-
-    def last_num(col: str):
-        if col not in snap.columns:
-            return np.nan
-        ss = pd.to_numeric(snap[col], errors="coerce").dropna()
-        return float(ss.iloc[-1]) if len(ss) else np.nan
-
-    px = pd.to_numeric(snap.get("last_price"), errors="coerce") if "last_price" in snap.columns else pd.Series(dtype=float)
+    px = pd.to_numeric(snap.get("last_price"), errors="coerce")
     valid_px = px.dropna()
     if valid_px.empty:
         return {"core_complete": False, "missing_core_fields": "close"}
-
+    vol = pd.to_numeric(snap.get("volume"), errors="coerce") if "volume" in snap.columns else pd.Series(dtype=float)
+    amt = pd.to_numeric(snap.get("amount"), errors="coerce") if "amount" in snap.columns else pd.Series(dtype=float)
     last = snap.iloc[-1]
-    close = float(valid_px.iloc[-1])
-    open_v = last_num("open")
-    high_v = last_num("high")
-    low_v = last_num("low")
-    if not np.isfinite(open_v) or open_v <= 0:
-        open_v = float(valid_px.iloc[0])
-    if not np.isfinite(high_v) or high_v <= 0:
-        high_v = float(valid_px.max())
-    if not np.isfinite(low_v) or low_v <= 0:
-        low_v = float(valid_px.min())
-
-    volume = last_num("volume")
-    amount = last_num("amount")
-    prev_close = last_num("prev_close")
-    pct_chg = last_num("pct_chg")
-    # Vendors differ: some pct_chg are percent points, some are ratio.  Keep ratio.
-    if np.isfinite(pct_chg) and abs(pct_chg) > 1.0:
-        pct_chg = pct_chg / 100.0
-    if (not np.isfinite(pct_chg)) and np.isfinite(prev_close) and prev_close > 0:
-        pct_chg = close / prev_close - 1.0
-
     row = {
-        "open": open_v,
-        "high": high_v,
-        "low": low_v,
-        "close": close,
-        "volume": volume,
-        "amount": amount,
-        "prev_close": prev_close,
-        "pct_chg": pct_chg,
+        "open": float(valid_px.iloc[0]),
+        "high": float(valid_px.max()),
+        "low": float(valid_px.min()),
+        "close": float(valid_px.iloc[-1]),
+        "volume": float(vol.dropna().iloc[-1]) if vol.dropna().size else np.nan,
+        "amount": float(amt.dropna().iloc[-1]) if amt.dropna().size else np.nan,
         "snapshots": int(len(snap)),
         "snapshot_time": str(last["datetime"]),
         "source_used": str(last.get("spot_source_used") or last.get("quote_source") or ""),
     }
-    if np.isfinite(amount) and np.isfinite(volume) and volume > 0:
-        row["daily_vwap"] = amount / volume
-    if np.isfinite(prev_close) and prev_close > 0 and np.isfinite(open_v):
-        row["overnight_ret"] = open_v / prev_close - 1.0
-
+    if np.isfinite(row["amount"]) and np.isfinite(row["volume"]) and row["volume"] > 0:
+        row["daily_vwap"] = row["amount"] / row["volume"]
     missing = []
     for field in ["open", "high", "low", "close", "volume", "amount"]:
         v = row.get(field)
@@ -728,13 +614,8 @@ def live_daily_from_snapshots(stock_code: str, trade_date: str, cache_dir: Path,
     row["missing_core_fields"] = ",".join(missing)
     return row
 
-def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date: str, cache_dir: Path, cutoff_time: Optional[str] = None) -> pd.DataFrame:
-    """Overlay current-day live daily fields onto the last scoring row.
 
-    Fix: do not require live fields to already exist in the historical training
-    sample.  Liquidity gates and diagnostics need amount/volume even if the
-    saved model feature set never used them.
-    """
+def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date: str, cache_dir: Path, cutoff_time: Optional[str] = None) -> pd.DataFrame:
     live = live_daily_from_snapshots(stock_code, trade_date, cache_dir, cutoff_time)
     if not live:
         daily_path = cache_symbol_dir(cache_dir, trade_date, stock_code) / "daily_features.csv"
@@ -753,24 +634,10 @@ def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date
             except Exception:
                 pass
         live = dict(current)
-
     out = df.sort_values("date").copy()
-    trade_ts = pd.to_datetime(yyyymmdd_to_iso(trade_date))
-
-    # Ensure diagnostics/liquidity/raw live columns always exist.
-    live_columns = {
-        "open", "high", "low", "close", "volume", "amount", "daily_vwap",
-        "daily_vwap_volume", "daily_vwap_pv", "n_intraday_bars",
-        "prev_close", "pct_chg", "overnight_ret",
-        "_snapshot_time", "_source_used", "_core_complete", "_missing_core_fields",
-    }
-    for c in live_columns:
-        if c not in out.columns:
-            out[c] = np.nan
-
     row = out.iloc[-1].copy()
-    row["date"] = trade_ts
-    mapping = [
+    row["date"] = pd.to_datetime(yyyymmdd_to_iso(trade_date))
+    for src, dst in [
         ("open", "open"),
         ("high", "high"),
         ("low", "low"),
@@ -781,32 +648,19 @@ def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date
         ("volume", "daily_vwap_volume"),
         ("amount", "daily_vwap_pv"),
         ("snapshots", "n_intraday_bars"),
-        ("prev_close", "prev_close"),
-        ("pct_chg", "pct_chg"),
-        ("overnight_ret", "overnight_ret"),
-    ]
-    for src, dst in mapping:
-        if src in live:
+    ]:
+        if src in live and dst in out.columns:
             row[dst] = pd.to_numeric(live[src], errors="coerce")
-
-    # If prev_close exists but pct/overnight were not supplied, derive them.
-    try:
-        if pd.notna(row.get("prev_close")) and float(row["prev_close"]) > 0:
-            if pd.isna(row.get("pct_chg")) and pd.notna(row.get("close")):
-                row["pct_chg"] = float(row["close"]) / float(row["prev_close"]) - 1.0
-            if pd.isna(row.get("overnight_ret")) and pd.notna(row.get("open")):
-                row["overnight_ret"] = float(row["open"]) / float(row["prev_close"]) - 1.0
-    except Exception:
-        pass
-
-    row["_snapshot_time"] = live.get("snapshot_time", live.get("last_time", ""))
-    row["_source_used"] = live.get("source_used", live.get("source", ""))
+    row["_snapshot_time"] = live.get("snapshot_time", "")
+    row["_source_used"] = live.get("source_used", "")
     row["_core_complete"] = bool(live.get("core_complete", False))
     row["_missing_core_fields"] = live.get("missing_core_fields", "")
-
-    out = out[pd.to_datetime(out["date"], errors="coerce").dt.normalize() != trade_ts]
-    out = pd.concat([out, pd.DataFrame([row])], ignore_index=True)
-    return out.sort_values("date").reset_index(drop=True)
+    for col in ["next_date", "next_day_vwap", "next_day_close", "next_day_high", "next_day_low"]:
+        if col in out.columns:
+            row[col] = pd.NA
+    target_date = pd.to_datetime(yyyymmdd_to_iso(trade_date))
+    keep = out[pd.to_datetime(out["date"]) != target_date].copy()
+    return pd.concat([keep, pd.DataFrame([row])], ignore_index=True).sort_values("date").reset_index(drop=True)
 
 def overlay_current_day_from_intraday(df: pd.DataFrame, trade_date: str, intraday_path: Optional[Path], cutoff_time: Optional[str] = None) -> pd.DataFrame:
     if intraday_path is None or not intraday_path.exists():

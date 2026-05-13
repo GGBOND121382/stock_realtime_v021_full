@@ -513,13 +513,13 @@ def fetch_xq_spot_one_with_timeout(symbol: str, timeout: Optional[float]) -> Dic
 
 
 CORE_FIELD_ALIASES = {
-    "close": ["最新", "最新价", "现价", "最新报价", "last_price", "close"],
-    "last_price": ["最新", "最新价", "现价", "最新报价", "last_price", "close"],
-    "open": ["今开", "开盘", "开盘价", "open"],
-    "high": ["最高", "最高价", "high"],
-    "low": ["最低", "最低价", "low"],
-    "volume": ["成交量", "总手", "总量", "volume"],
-    "amount": ["成交额", "金额", "amount"],
+    "close": ["最新", "最新价", "现价", "最新报价"],
+    "last_price": ["最新", "最新价", "现价", "最新报价"],
+    "open": ["今开", "开盘", "开盘价"],
+    "high": ["最高", "最高价"],
+    "low": ["最低", "最低价"],
+    "volume": ["成交量", "总手", "总量"],
+    "amount": ["成交额", "金额"],
 }
 
 

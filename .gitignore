@@ -3,12 +3,12 @@
 __pycache__/
 *.zip
 
-# 忽略每个 pipeline_out 下面的所有内容
-saved_data/*_pipeline_out/*
+#ignore data cleanup trash
+cleanup_trash/
 
-# 但保留 99_summary 文件夹及其所有内容
-
-# 另外保留每个 pipeline_out 根目录下的这两个文件
+# Ignore realtime/cache data
+saved_data/akshare_realtime_cache/
+saved_data/realtime_context/
 
 # BEGIN saved_data pipeline ignore
 # 只忽略每个 pipeline 文件夹下的 00 到 10 中间产物目录

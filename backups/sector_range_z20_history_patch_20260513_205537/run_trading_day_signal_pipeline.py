@@ -486,24 +486,6 @@ def main() -> int:
             try:
                 run_cmd(context_build_cmd, cwd=root, log_file=log_file, dry_run=args.dry_run, check=True)
                 mark("context_build_features", "ok")
-
-                # Post-process sector_range_z20 without changing the realtime source:
-                # estimate today's sector_range_pct from sampled THS sector prices,
-                # then compute z20 from the model training samples referenced by
-                # realtime_context_plan.csv / saved model metadata.
-                sector_range_z20_cmd = [
-                    python, "scripts/fill_sector_range_z20_from_history.py",
-                    "--date", trade_date,
-                    "--context-dir", str(context_dir),
-                    "--cutoff-time", args.cutoff_time,
-                ]
-                try:
-                    run_cmd(sector_range_z20_cmd, cwd=root, log_file=log_file, dry_run=args.dry_run, check=True)
-                    mark("sector_range_z20_history_fill", "ok")
-                except Exception as exc:
-                    mark("sector_range_z20_history_fill", "failed", {"error": str(exc)})
-                    if not args.keep_going:
-                        raise
             except Exception as exc:
                 mark("context_build_features", "failed", {"error": str(exc)})
                 if not args.keep_going:

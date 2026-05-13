@@ -111,7 +111,7 @@ PROFILES: Dict[str, ExternalProfile] = {
         stocks=("600893", "600765", "000768", "003816", "601985", "601611", "300034"),
         etfs=("512660", "512670", "512710"),
         futures=("NI0", "SS0", "AL0"),
-        boards=("军工装备", "军工电子", "通用设备", "专用设备"),
+        boards=("国防军工", "航空装备", "通用设备", "专用设备"),
     ),
     "optical_cable_grid": ExternalProfile(
         key="optical_cable_grid",

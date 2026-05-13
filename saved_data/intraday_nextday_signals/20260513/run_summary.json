@@ -1,0 +1,36 @@
+{
+  "trade_date": "2026-05-13",
+  "started_at": "2026-05-13T14:54:01",
+  "finished_at": "2026-05-13T14:57:20",
+  "n_artifacts": 19,
+  "n_all_scores": 19,
+  "n_buy_signals": 0,
+  "signal_counts": {
+    "False": 19
+  },
+  "date_status_counts": {
+    "exact_trade_date": 19
+  },
+  "feature_status_counts": {
+    "live_overlay_partial": 19
+  },
+  "source_usage": {
+    "sina": 19
+  },
+  "core_complete_counts": {
+    "True": 19
+  },
+  "context_status_counts": {
+    "partial": 13,
+    "not_required": 6
+  },
+  "reject_reason_counts": {
+    "missing_required_realtime_context;filled_features_gt_5;amount_lt_5e+07": 9,
+    "filled_features_gt_5;amount_lt_5e+07;score_below_threshold": 4,
+    "missing_required_realtime_context;filled_features_gt_5;amount_lt_5e+07;score_below_threshold": 2,
+    "filled_features_gt_5;amount_lt_5e+07;entry_signal_false;score_below_threshold": 2,
+    "missing_required_realtime_context;filled_features_gt_5;amount_lt_5e+07;entry_signal_false": 1,
+    "missing_required_realtime_context;filled_features_gt_5;amount_lt_5e+07;entry_signal_false;score_below_threshold": 1
+  },
+  "error_count": 19
+}

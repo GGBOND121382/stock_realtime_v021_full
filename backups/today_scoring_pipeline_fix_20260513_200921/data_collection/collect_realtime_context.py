@@ -55,8 +55,6 @@ STOCK_EXTERNAL_PREFIXES = (
 STOCK_EXTERNAL_RELATIVE_FAMILIES = (
     "stock_basket", "etf_basket", "future_basket", "board_basket", "us_basket",
 )
-NON_CRITICAL_REALTIME_CONTEXT_FEATURES = {"sector_range_z20"}
-
 METADATA_COLS = {
     "stock_code", "artifact_name", "artifact_dir", "samples", "cutoff_time",
     "context_status", "context_mode", "missing_context_features",
@@ -200,11 +198,6 @@ def context_dependencies_for_features(features: list[str]) -> list[str]:
     deps: set[str] = set()
     for feat in features:
         if not feat:
-            continue
-        if feat in NON_CRITICAL_REALTIME_CONTEXT_FEATURES:
-            # Needs historical 20-day sector range.  Realtime THS summary
-            # alone cannot compute it correctly, so do not hard-block.
-            continue
             continue
         if feat.startswith("stock_vs_sector_ret"):
             suffix = feat.replace("stock_vs_sector_ret", "")
