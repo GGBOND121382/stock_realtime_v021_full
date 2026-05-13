@@ -58,3 +58,15 @@ git clone --single-branch -b clean-master --depth 1 --filter=blob:none https://g
 ```
 
 这条最短，也最适合告诉别人快速拉取。
+
+
+
+# .git清理
+
+清理命令：
+git reflog expire --expire=now --all
+git gc --prune=now --aggressive
+
+查看命令：
+du -sh .git
+git count-objects -vH

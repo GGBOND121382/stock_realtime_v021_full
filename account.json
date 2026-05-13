@@ -1,0 +1,54 @@
+{
+  "total_asset": 200000.0,
+  "available_cash": 100000.0,
+  "holdings": {
+    "600312.SH": {
+      "shares": 0,
+      "market_value": 0.0,
+      "cost_basis": 0.0,
+      "sector": "电网设备"
+    },
+    "601899.SH": {
+      "shares": 0,
+      "market_value": 0.0,
+      "cost_basis": 0.0,
+      "sector": "贵金属"
+    },
+    "002311.SZ": {
+      "shares": 0,
+      "market_value": 0.0,
+      "cost_basis": 0.0,
+      "sector": "农产品加工"
+    },
+    "603308.SH": {
+      "shares": 0,
+      "market_value": 0.0,
+      "cost_basis": 0.0,
+      "sector": "通用设备"
+    },
+    "600096.SH": {
+      "shares": 0,
+      "market_value": 0.0,
+      "cost_basis": 0.0,
+      "sector": "农化制品"
+    },
+    "601985.SH": {
+      "shares": 0,
+      "market_value": 0.0,
+      "cost_basis": 0.0,
+      "sector": "电力"
+    },
+    "600276.SH": {
+      "shares": 0,
+      "market_value": 0.0,
+      "cost_basis": 0.0,
+      "sector": "化学制药"
+    },
+    "002714.SZ": {
+      "shares": 0,
+      "market_value": 0.0,
+      "cost_basis": 0.0,
+      "sector": "养殖业"
+    }
+  }
+}

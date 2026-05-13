@@ -1,0 +1,4 @@
+symbol,sector,external,run_tag,status,returncode,start_time,end_time,elapsed_seconds,log_file
+002518.SZ,其他电源设备,storage_power,v2_all14,ok,0,2026-05-12 18:48:05,2026-05-12 22:21:10,12785,saved_data/model_search_queue_logs/failed3_v2_all14_20260512_184805/002518_SZ_storage_power.log
+600522.SH,通信设备,optical_cable_grid,v2_all14,ok,0,2026-05-12 22:21:10,2026-05-13 01:24:37,11007,saved_data/model_search_queue_logs/failed3_v2_all14_20260512_184805/600522_SH_optical_cable_grid.log
+600487.SH,通信设备,optical_cable_grid,v2_all14,ok,0,2026-05-13 01:24:37,2026-05-13 05:02:20,13063,saved_data/model_search_queue_logs/failed3_v2_all14_20260512_184805/600487_SH_optical_cable_grid.log

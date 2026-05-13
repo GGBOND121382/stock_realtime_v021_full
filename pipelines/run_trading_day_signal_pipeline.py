@@ -20,7 +20,8 @@ run_trading_day_signal_pipeline.py
       --stock-collect-until 14:52 \
       --context-collect-until 14:52 \
       --build-time 14:52 \
-      --score-time 14:54
+      --score-time 14:54 \
+      --model-policy all
 
 如果你把本文件放在项目根目录，也可以：
     python run_trading_day_signal_pipeline.py ...
@@ -248,6 +249,16 @@ def main() -> int:
     ap.add_argument("--python", default=None, help="Python 解释器路径；默认使用当前解释器。")
     ap.add_argument("--watchlist", default="selected_watchlist.txt", help="关注标的列表。")
     ap.add_argument("--models-dir", default="saved_models", help="saved_models 目录。")
+    ap.add_argument(
+        "--model-policy",
+        choices=["preferred", "all"],
+        default="preferred",
+        help=(
+            "模型选择策略：preferred=每个标的只选一个推荐模型；"
+            "all=每个标的下所有 artifact 都参与 plan/context/score。"
+            "多模型 + 组合确认方案请使用 all。"
+        ),
+    )
     ap.add_argument("--saved-data-dir", default="saved_data", help="saved_data 根目录。")
     ap.add_argument("--realtime-cache-dir", default="saved_data/akshare_realtime_cache", help="AKShare 实时缓存目录。")
     ap.add_argument("--context-dir", default="saved_data/realtime_context", help="实时上下文目录。")
@@ -330,12 +341,14 @@ def main() -> int:
     log(f"[ROOT] {root}")
     log(f"[DATE] {trade_date}")
     log(f"[CONTEXT_CONFIG] {context_config}")
+    log(f"[MODEL_POLICY] {args.model_policy}")
     log(f"[OUT]  {out_dir}")
 
     run_summary = {
         "trade_date": trade_date,
         "started_at": now_ts(),
         "cutoff_time": args.cutoff_time,
+        "model_policy": args.model_policy,
         "stock_collect_until": args.stock_collect_until,
         "context_collect_until": args.context_collect_until,
         "build_time": args.build_time,
@@ -358,6 +371,7 @@ def main() -> int:
                 python, "pipelines/run_intraday_nextday_signals.py", "plan",
                 "--watchlist", str(watchlist),
                 "--models-dir", str(models_dir),
+                "--model-policy", args.model_policy,
                 "--cutoff-time", args.cutoff_time,
             ]
             run_cmd(plan_cmd, cwd=root, log_file=log_file, dry_run=args.dry_run, check=True)
@@ -406,6 +420,7 @@ def main() -> int:
                 python, "data_collection/collect_realtime_context.py", "collect-loop",
                 "--watchlist", str(watchlist),
                 "--models-dir", str(models_dir),
+                "--model-policy", args.model_policy,
                 "--config", str(context_config),
                 "--out-dir", str(context_dir),
                 "--date", trade_date,
@@ -462,6 +477,7 @@ def main() -> int:
                 python, "data_collection/collect_realtime_context.py", "build-features",
                 "--watchlist", str(watchlist),
                 "--models-dir", str(models_dir),
+                "--model-policy", args.model_policy,
                 "--config", str(context_config),
                 "--out-dir", str(context_dir),
                 "--date", trade_date,
@@ -484,6 +500,7 @@ def main() -> int:
             python, "pipelines/run_intraday_nextday_signals.py", "score-now",
             "--watchlist", str(watchlist),
             "--models-dir", str(models_dir),
+            "--model-policy", args.model_policy,
             "--cache-dir", str(realtime_cache_dir),
             "--signal-out-dir", str(saved_data_dir / "intraday_nextday_signals"),
             "--cutoff-time", args.cutoff_time,

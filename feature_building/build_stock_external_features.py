@@ -580,8 +580,22 @@ def build_external_features(
     if not skip_boards:
         board_frames = []
         board_close_cols = []
-        for board in profile.boards:
-            safe = re.sub(r"[^0-9A-Za-z_]+", "_", board).strip("_") or "board"
+        used_board_tokens = set()
+        for board_idx, board in enumerate(profile.boards, start=1):
+            # Chinese board names such as “通信设备/电网设备/风电设备” would all
+            # collapse to the same ASCII token if we simply stripped non-ASCII
+            # characters.  That caused duplicate columns like
+            # ocg_board_board_close and aborted merge_frames().  Keep the token
+            # deterministic, human-readable enough, and unique within a profile.
+            ascii_token = re.sub(r"[^0-9A-Za-z_]+", "_", str(board)).strip("_").lower()
+            if ascii_token:
+                safe = ascii_token
+            else:
+                safe = f"b{board_idx:02d}"
+            while safe in used_board_tokens:
+                safe = f"{safe}_{board_idx:02d}"
+            used_board_tokens.add(safe)
+
             col_prefix = f"{pfx}_board_{safe}"
             frame, err = fetch_board(board, col_prefix, start_date, end_date)
             if err:

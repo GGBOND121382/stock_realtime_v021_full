@@ -1,0 +1,43 @@
+{
+  "artifact_created_at": "2026-05-13T02:15:53",
+  "stock_code": "002311.SZ",
+  "artifact_name": "nextday_all_days_hit80_lgbm_leaves15_reversal_fundamental_regime_v1",
+  "samples": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/training_samples_with_sector.csv",
+  "intraday_bars": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv",
+  "feature_group": "reversal_fundamental_regime",
+  "model_name": "lgbm_leaves15_700",
+  "label_mode": "hit",
+  "entry_policy": "all_days",
+  "entry_vwap_premium_bps": 50.0,
+  "label_col": "trade_hit_label",
+  "return_col": "trade_target_or_close_return",
+  "target_hit_bps": 80.0,
+  "round_trip_cost_bps": 1.7,
+  "threshold": 0.6645851008948153,
+  "threshold_quantile": 0.7,
+  "feature_count": 137,
+  "rows": 1536,
+  "train_rows_for_threshold": 1284,
+  "valid_rows_for_threshold": 252,
+  "final_train_entry_rows": 1536,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-11",
+  "validation_tail_auc": 0.5097402597402598,
+  "validation_tail_trade_metrics": {
+    "trades": 76,
+    "win_rate": 0.6578947368421053,
+    "avg_return": -0.00041908991076833286,
+    "median_return": 0.008,
+    "compound_return": -0.03721935341633753,
+    "max_drawdown": -0.11617592399820331,
+    "profit_factor": 0.923197057671589
+  },
+  "files": {
+    "model": "saved_models/002311.SZ/nextday_all_days_hit80_lgbm_leaves15_reversal_fundamental_regime_v1/model.joblib",
+    "feature_median": "saved_models/002311.SZ/nextday_all_days_hit80_lgbm_leaves15_reversal_fundamental_regime_v1/feature_median.csv",
+    "feature_columns": "saved_models/002311.SZ/nextday_all_days_hit80_lgbm_leaves15_reversal_fundamental_regime_v1/feature_columns.txt",
+    "validation_tail_predictions": "saved_models/002311.SZ/nextday_all_days_hit80_lgbm_leaves15_reversal_fundamental_regime_v1/validation_tail_predictions.csv",
+    "metadata": "saved_models/002311.SZ/nextday_all_days_hit80_lgbm_leaves15_reversal_fundamental_regime_v1/metadata.json"
+  },
+  "usage_note": "This artifact is stock-specific. Use only for 002311.SZ with the same feature-building pipeline."
+}

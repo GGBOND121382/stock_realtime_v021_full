@@ -1,10 +1,10 @@
 {
-  "rows": 144,
+  "rows": 192,
   "outputs": {
-    "final_leaderboard": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/99_summary/final_leaderboard.csv",
-    "best_by_target_top5": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/99_summary/best_by_target_top5.csv",
-    "best_by_entry_policy_top5": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/99_summary/best_by_entry_policy_top5.csv",
-    "excel": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/99_summary/final_leaderboard.xlsx"
+    "final_leaderboard": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/99_summary/final_leaderboard.csv",
+    "best_by_target_top5": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/99_summary/best_by_target_top5.csv",
+    "best_by_entry_policy_top5": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/99_summary/best_by_entry_policy_top5.csv",
+    "excel": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/99_summary/final_leaderboard.xlsx"
   },
   "columns": [
     "raw_code",

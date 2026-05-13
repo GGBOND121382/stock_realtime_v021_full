@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import time
@@ -87,8 +88,13 @@ REALTIME_CONTEXT_PREFIXES = (
     "gold_", "copper_", "silver_", "zijin_hk_", "zijin_a_h_", "stock_vs_gold_", "stock_vs_copper_",
     "precious_", "industrial_metal_", "minor_metal_",
     "hog_", "feed_",
+    # New stock-external profiles from build_stock_external_features.py.
+    "ai_", "mwb_", "pur_", "fert_", "sp_", "ane_", "ocg_",
 )
 REALTIME_CONTEXT_EXACT_FEATURES = {"gold_silver_ratio", "gold_copper_ratio", "feed_cost_index", "feed_soymeal_corn_ratio", "feed_hog_cost_ratio"}
+STOCK_EXTERNAL_RELATIVE_FAMILIES = (
+    "stock_basket", "etf_basket", "future_basket", "board_basket", "us_basket",
+)
 
 
 
@@ -258,6 +264,11 @@ def context_dependencies_for_model_features(cols: list[str]) -> list[str]:
             suffix = col.replace("sector_vs_bench_ret", "")
             if suffix.isdigit():
                 deps.add(f"sector_ret{suffix}")
+            continue
+        m = re.fullmatch(r"([A-Za-z0-9]+)_stock_vs_(stock_basket|etf_basket|future_basket|board_basket|us_basket)_ret(\d+)", col)
+        if m:
+            pfx, family, suffix = m.group(1), m.group(2), m.group(3)
+            deps.add(f"{pfx}_{family}_close_ret{suffix}")
             continue
         deps.add(col)
     return sorted(deps)
@@ -821,6 +832,19 @@ def recompute_stock_vs_sector_features(day_df: pd.DataFrame, full_df: pd.DataFra
             ctx, _, suffix = body.partition("_ret")
             ctx_ret_col = f"{ctx}_ret{suffix}"
             if ctx and suffix == str(n) and ctx_ret_col in out.columns and np.isfinite(cur_close) and len(hclose) >= n and hclose.iloc[-n] != 0:
+                ctx_ret = pd.to_numeric(out[ctx_ret_col], errors="coerce").iloc[-1]
+                if np.isfinite(ctx_ret):
+                    out[col] = cur_close / hclose.iloc[-n] - 1.0 - ctx_ret
+
+        # New stock-external relative features from build_stock_external_features.py,
+        # e.g. ane_stock_vs_stock_basket_ret5 and fert_stock_vs_future_basket_ret20.
+        for col in [c for c in cols if c.endswith(f"ret{n}")]:
+            m = re.fullmatch(r"([A-Za-z0-9]+)_stock_vs_(stock_basket|etf_basket|future_basket|board_basket|us_basket)_ret(\d+)", col)
+            if not m or m.group(3) != str(n):
+                continue
+            pfx, family = m.group(1), m.group(2)
+            ctx_ret_col = f"{pfx}_{family}_close_ret{n}"
+            if ctx_ret_col in out.columns and np.isfinite(cur_close) and len(hclose) >= n and hclose.iloc[-n] != 0:
                 ctx_ret = pd.to_numeric(out[ctx_ret_col], errors="coerce").iloc[-1]
                 if np.isfinite(ctx_ret):
                     out[col] = cur_close / hclose.iloc[-n] - 1.0 - ctx_ret

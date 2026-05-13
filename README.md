@@ -305,6 +305,27 @@ python pipelines/run_trading_day_signal_pipeline.py \
   --min-amount-yuan 50000000
 ```
 
+```bash
+python3 pipelines/run_trading_day_signal_pipeline.py \
+  --watchlist selected_watchlist.txt \
+  --models-dir saved_models \
+  --model-policy all \
+  --context-config configs/realtime_context_sources.toml \
+  --cutoff-time 14:55 \
+  --stock-collect-until 14:52 \
+  --context-collect-until 14:52 \
+  --build-time 14:52 \
+  --score-time 14:54 \
+  --spot-source-priority sina,ths,em,xq \
+  --required-fields close,open,high,low,volume,amount \
+  --xq-max-symbols-per-round 10 \
+  --xq-per-symbol-timeout-seconds 2 \
+  --stock-collect-wait-timeout-seconds 45 \
+  --context-collect-wait-timeout-seconds 45 \
+  --max-missing-features 5 \
+  --min-amount-yuan 50000000
+```
+
 先检查命令链可用性：
 
 ```bash

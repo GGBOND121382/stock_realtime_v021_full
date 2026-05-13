@@ -1,8 +1,8 @@
-=== nextday pipeline start: 2026-05-11T04:40:08 ===
-symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out
+=== nextday pipeline start: 2026-05-12T02:00:54 ===
+symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14
 
-[2026-05-11T04:40:08] RUN update_data
-  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 002311 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-11 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-11 15:00:00' --output_dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+[2026-05-12T02:00:54] RUN update_data
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 002311 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-12 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-12 15:00:00' --output_dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
 /root/workspace/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:246: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
   merged = _normalize_daily_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
 /root/workspace/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:248: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
@@ -23,64 +23,64 @@ logout success!
   "mode": "update_data",
   "symbol": "002311",
   "data_source": "baostock",
-  "daily_rows": 2022,
-  "intraday_rows": 73680,
+  "daily_rows": 2023,
+  "intraday_rows": 73728,
   "daily_min": "2018-01-02 00:00:00",
-  "daily_max": "2026-05-08 00:00:00",
+  "daily_max": "2026-05-11 00:00:00",
   "intraday_min": "2020-01-02 09:35:00",
-  "intraday_max": "2026-05-08 15:00:00",
+  "intraday_max": "2026-05-11 15:00:00",
   "base_paths": {
-    "daily_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_daily.csv",
-    "intraday_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv",
-    "benchmark_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/000300_benchmark_daily.csv",
-    "raw_daily_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_daily_raw.csv",
-    "raw_intraday_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_5m_raw.csv",
-    "raw_benchmark_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/000300_benchmark_daily_raw.csv",
-    "daily_features_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/daily_features.csv",
-    "intraday_features_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/intraday_features.csv",
-    "daily_features_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache/daily_features_cache.csv",
-    "intraday_features_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache/intraday_features_cache.csv",
-    "feature_state_json": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache/feature_state.json"
+    "daily_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/002311_daily.csv",
+    "intraday_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/002311_5m.csv",
+    "benchmark_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/000300_benchmark_daily.csv",
+    "raw_daily_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/raw_cache/002311_daily_raw.csv",
+    "raw_intraday_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/raw_cache/002311_5m_raw.csv",
+    "raw_benchmark_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/raw_cache/000300_benchmark_daily_raw.csv",
+    "daily_features_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/daily_features.csv",
+    "intraday_features_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/intraday_features.csv",
+    "daily_features_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/feature_cache/daily_features_cache.csv",
+    "intraday_features_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/feature_cache/intraday_features_cache.csv",
+    "feature_state_json": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/feature_cache/feature_state.json"
   },
   "fetch_logs": {
     "symbol": "002311",
     "benchmark_symbol": "000300",
     "daily_start": "2018-01-01",
-    "daily_end": "2026-05-11",
+    "daily_end": "2026-05-12",
     "intraday_start": "2018-01-01 09:30:00",
-    "intraday_end": "2026-05-11 15:00:00",
+    "intraday_end": "2026-05-12 15:00:00",
     "perf_start": "2018-01-01",
     "data_source": "baostock",
     "cache_mode": "incremental",
     "force_refresh": false,
-    "raw_cache_dir": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache",
-    "feature_cache_dir": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache",
+    "raw_cache_dir": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/raw_cache",
+    "feature_cache_dir": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/feature_cache",
     "feature_cache_mode": "incremental",
     "daily": {
-      "cache_path": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_daily_raw.csv",
+      "cache_path": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/raw_cache/002311_daily_raw.csv",
       "requested_start": "2018-01-01",
-      "requested_end": "2026-05-11",
+      "requested_end": "2026-05-12",
       "mode": "initial_fetch",
       "fetch_segments": [
         {
           "provider": "baostock",
           "code": "sz.002311",
           "adjustflag": "2",
-          "rows": 2022,
+          "rows": 2023,
           "start": "2018-01-01",
-          "end": "2026-05-11"
+          "end": "2026-05-12"
         }
       ],
       "cache_after": {
-        "rows": 2022,
+        "rows": 2023,
         "min": "2018-01-02 00:00:00",
-        "max": "2026-05-08 00:00:00"
+        "max": "2026-05-11 00:00:00"
       }
     },
     "intraday_5m": {
-      "cache_path": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_5m_raw.csv",
+      "cache_path": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/raw_cache/002311_5m_raw.csv",
       "requested_start": "2018-01-01 09:30:00",
-      "requested_end": "2026-05-11 15:00:00",
+      "requested_end": "2026-05-12 15:00:00",
       "mode": "initial_fetch",
       "fetch_segments": [
         {
@@ -89,57 +89,57 @@ logout success!
           "adjustflag": "2",
           "requested_start": "2018-01-01 09:30:00",
           "effective_start": "2018-01-01 09:30:00",
-          "requested_end": "2026-05-11 15:00:00",
-          "rows": 73680
+          "requested_end": "2026-05-12 15:00:00",
+          "rows": 73728
         }
       ],
       "cache_after": {
-        "rows": 73680,
+        "rows": 73728,
         "min": "2020-01-02 09:35:00",
-        "max": "2026-05-08 15:00:00"
+        "max": "2026-05-11 15:00:00"
       }
     },
     "benchmark_daily": {
-      "cache_path": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/000300_benchmark_daily_raw.csv",
+      "cache_path": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/raw_cache/000300_benchmark_daily_raw.csv",
       "requested_start": "2018-01-01",
-      "requested_end": "2026-05-11",
+      "requested_end": "2026-05-12",
       "mode": "initial_fetch",
       "fetch_segments": [
         {
           "provider": "baostock",
           "code": "sh.000300",
-          "rows": 2022,
+          "rows": 2023,
           "start": "2018-01-01",
-          "end": "2026-05-11"
+          "end": "2026-05-12"
         }
       ],
       "cache_after": {
-        "rows": 2022,
+        "rows": 2023,
         "min": "2018-01-02 00:00:00",
-        "max": "2026-05-08 00:00:00"
+        "max": "2026-05-11 00:00:00"
       }
     },
     "feature_build": {
       "mode": "full_rebuild",
       "reason": "feature_cache_missing",
       "daily_cache_after": {
-        "rows": 2022,
+        "rows": 2023,
         "min": "2018-01-02 00:00:00",
-        "max": "2026-05-08 00:00:00"
+        "max": "2026-05-11 00:00:00"
       },
       "intraday_cache_after": {
-        "rows": 73680,
+        "rows": 73728,
         "min": "2020-01-02 09:35:00",
-        "max": "2026-05-08 15:00:00"
+        "max": "2026-05-11 15:00:00"
       },
       "daily_context_days": 260,
       "intraday_context_days": 40,
-      "daily_appended_rows": 2022,
-      "intraday_appended_rows": 73680
+      "daily_appended_rows": 2023,
+      "intraday_appended_rows": 73728
     },
     "feature_state": {
-      "daily_feature_max": "2026-05-08 00:00:00",
-      "intraday_feature_max": "2026-05-08 15:00:00",
+      "daily_feature_max": "2026-05-11 00:00:00",
+      "intraday_feature_max": "2026-05-11 15:00:00",
       "daily_context_days": 260,
       "intraday_context_days": 40,
       "feature_build_mode": "full_rebuild"
@@ -147,236 +147,188 @@ logout success!
   }
 }
 
-[2026-05-11T04:42:30] RUN samples
-  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/daily_features.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+[2026-05-12T02:03:26] RUN samples
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/daily_features.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/01_samples --min-bars 40 --keep-unlabeled-tail
 {
-  "rows": 1535,
+  "rows": 1536,
   "date_min": "2020-01-02",
-  "date_max": "2026-05-08",
-  "out": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples/training_samples.csv"
+  "date_max": "2026-05-11",
+  "out": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/01_samples/training_samples.csv"
 }
 
-[2026-05-11T04:42:31] RUN fundamental
-  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 002311.SZ --daily-samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples/training_samples.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-11 --fallback-lag-days 120
+[2026-05-12T02:03:27] RUN fundamental
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 002311.SZ --daily-samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/01_samples/training_samples.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/02_fundamental --start-date 2018-01-01 --end-date 2026-05-12 --fallback-lag-days 120
 login success!
 logout success!
 {
-  "rows": 1535,
+  "rows": 1536,
   "date_min": "2020-01-02",
-  "date_max": "2026-05-08",
+  "date_max": "2026-05-11",
   "source_errors": [],
   "top_missing_rates": {
-    "ak_fund_小单净流入-净额_sum10": 0.9244299674267101,
-    "ak_fund_主力净流入-净额_sum10": 0.9244299674267101,
-    "ak_fund_主力净流入-净占比_sum10": 0.9244299674267101,
-    "ak_fund_涨跌幅_sum10": 0.9244299674267101,
-    "ak_fund_收盘价_sum10": 0.9244299674267101,
-    "ak_fund_中单净流入-净额_sum10": 0.9244299674267101,
-    "ak_fund_中单净流入-净占比_sum10": 0.9244299674267101,
-    "ak_fund_小单净流入-净占比_sum10": 0.9244299674267101,
-    "ak_fund_超大单净流入-净额_sum10": 0.9244299674267101,
-    "ak_fund_大单净流入-净额_sum10": 0.9244299674267101,
-    "ak_fund_大单净流入-净占比_sum10": 0.9244299674267101,
-    "ak_fund_超大单净流入-净占比_sum10": 0.9244299674267101,
-    "ak_fund_涨跌幅_sum5": 0.923127035830619,
-    "ak_fund_主力净流入-净占比_sum5": 0.923127035830619,
-    "ak_fund_主力净流入-净额_sum5": 0.923127035830619,
-    "ak_fund_收盘价_sum5": 0.923127035830619,
-    "ak_fund_超大单净流入-净占比_sum5": 0.923127035830619,
-    "ak_fund_中单净流入-净占比_sum5": 0.923127035830619,
-    "ak_fund_中单净流入-净额_sum5": 0.923127035830619,
-    "ak_fund_小单净流入-净额_sum5": 0.923127035830619,
-    "ak_fund_小单净流入-净占比_sum5": 0.923127035830619,
-    "ak_fund_大单净流入-净占比_sum5": 0.923127035830619,
-    "ak_fund_大单净流入-净额_sum5": 0.923127035830619,
-    "ak_fund_超大单净流入-净额_sum5": 0.923127035830619,
-    "ak_fund_大单净流入-净额": 0.9218241042345277,
-    "ak_fund_超大单净流入-净占比": 0.9218241042345277,
-    "ak_fund_超大单净流入-净额": 0.9218241042345277,
-    "ak_fund_收盘价": 0.9218241042345277,
-    "ak_fund_涨跌幅": 0.9218241042345277,
-    "ak_fund_中单净流入-净额": 0.9218241042345277
+    "ak_fund_小单净流入-净额_sum10": 0.9244791666666666,
+    "ak_fund_主力净流入-净额_sum10": 0.9244791666666666,
+    "ak_fund_主力净流入-净占比_sum10": 0.9244791666666666,
+    "ak_fund_涨跌幅_sum10": 0.9244791666666666,
+    "ak_fund_收盘价_sum10": 0.9244791666666666,
+    "ak_fund_中单净流入-净额_sum10": 0.9244791666666666,
+    "ak_fund_中单净流入-净占比_sum10": 0.9244791666666666,
+    "ak_fund_小单净流入-净占比_sum10": 0.9244791666666666,
+    "ak_fund_超大单净流入-净额_sum10": 0.9244791666666666,
+    "ak_fund_大单净流入-净额_sum10": 0.9244791666666666,
+    "ak_fund_大单净流入-净占比_sum10": 0.9244791666666666,
+    "ak_fund_超大单净流入-净占比_sum10": 0.9244791666666666,
+    "ak_fund_涨跌幅_sum5": 0.9231770833333334,
+    "ak_fund_主力净流入-净占比_sum5": 0.9231770833333334,
+    "ak_fund_主力净流入-净额_sum5": 0.9231770833333334,
+    "ak_fund_收盘价_sum5": 0.9231770833333334,
+    "ak_fund_超大单净流入-净占比_sum5": 0.9231770833333334,
+    "ak_fund_中单净流入-净占比_sum5": 0.9231770833333334,
+    "ak_fund_中单净流入-净额_sum5": 0.9231770833333334,
+    "ak_fund_小单净流入-净额_sum5": 0.9231770833333334,
+    "ak_fund_小单净流入-净占比_sum5": 0.9231770833333334,
+    "ak_fund_大单净流入-净占比_sum5": 0.9231770833333334,
+    "ak_fund_大单净流入-净额_sum5": 0.9231770833333334,
+    "ak_fund_超大单净流入-净额_sum5": 0.9231770833333334,
+    "ak_fund_大单净流入-净额": 0.921875,
+    "ak_fund_超大单净流入-净占比": 0.921875,
+    "ak_fund_超大单净流入-净额": 0.921875,
+    "ak_fund_收盘价": 0.921875,
+    "ak_fund_涨跌幅": 0.921875,
+    "ak_fund_中单净流入-净额": 0.921875
   },
   "valuation_non_null": {
-    "peTTM": 1535,
-    "pbMRQ": 1535,
-    "psTTM": 1535,
-    "pcfNcfTTM": 1535
+    "peTTM": 1536,
+    "pbMRQ": 1536,
+    "psTTM": 1536,
+    "pcfNcfTTM": 1536
   },
   "future_effective_date_violations": 0,
-  "rows_with_quarterly": 1535,
-  "sample_rows": 1535,
+  "rows_with_quarterly": 1536,
+  "sample_rows": 1536,
   "quarterly_raw_rows": 37,
   "quarterly_used_pubDate_rows": 37,
   "quarterly_fallback_rows": 0,
-  "elapsed_seconds": 27.496,
+  "elapsed_seconds": 18.154,
   "symbol": "002311",
   "baostock_code": "sz.002311",
-  "valuation_rows": 2022,
+  "valuation_rows": 2023,
   "fund_flow_rows": 120,
   "feature_columns": 125,
   "merged_columns": 194,
   "outputs": {
-    "daily_valuation": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/baostock_daily_valuation.csv",
-    "quarterly_fundamentals": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/baostock_quarterly_fundamentals_pit.csv",
-    "fundamental_features": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/fundamental_features.csv",
-    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
+    "daily_valuation": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/02_fundamental/baostock_daily_valuation.csv",
+    "quarterly_fundamentals": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/02_fundamental/baostock_quarterly_fundamentals_pit.csv",
+    "fundamental_features": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/02_fundamental/fundamental_features.csv",
+    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/02_fundamental/training_samples_with_fundamentals.csv"
   }
 }
 
-[2026-05-11T04:42:59] RUN sector
-  /usr/bin/python3 feature_building/build_sector_features.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector --sector-symbol '饲料' --start-date 2018-01-01 --end-date 2026-05-11
-Traceback (most recent call last):
-  File "/root/workspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 133, in <module>
-    main()
-  File "/root/workspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 101, in main
-    sector = fetch_ths_sector_index(args.sector_symbol, start_date, end_date)
-  File "/root/workspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 28, in fetch_ths_sector_index
-    raw = ak.stock_board_industry_index_ths(
-  File "/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_board_industry_ths.py", line 139, in stock_board_industry_index_ths
-    symbol_code = code_map[symbol]
-KeyError: '饲料'
-=== nextday pipeline start: 2026-05-11T04:43:01 ===
-symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out
-
-[2026-05-11T04:43:01] SKIP update_data: outputs exist
-  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 002311 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-11 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-11 15:00:00' --output_dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
-
-[2026-05-11T04:43:01] SKIP samples: outputs exist
-  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/daily_features.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
-
-[2026-05-11T04:43:01] SKIP fundamental: outputs exist
-  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 002311.SZ --daily-samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples/training_samples.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-11 --fallback-lag-days 120
-
-[2026-05-11T04:43:01] RUN sector
-  /usr/bin/python3 feature_building/build_sector_features.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector --sector-symbol '饲料' --start-date 2018-01-01 --end-date 2026-05-11
-Traceback (most recent call last):
-  File "/root/workspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 133, in <module>
-    main()
-  File "/root/workspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 101, in main
-    sector = fetch_ths_sector_index(args.sector_symbol, start_date, end_date)
-  File "/root/workspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 28, in fetch_ths_sector_index
-    raw = ak.stock_board_industry_index_ths(
-  File "/usr/local/lib/python3.10/dist-packages/akshare/stock_feature/stock_board_industry_ths.py", line 139, in stock_board_industry_index_ths
-    symbol_code = code_map[symbol]
-KeyError: '饲料'
-=== nextday pipeline start: 2026-05-11T10:20:59 ===
-symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out
-
-[2026-05-11T10:20:59] SKIP update_data: outputs exist
-  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 002311 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-11 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-11 15:00:00' --output_dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
-
-[2026-05-11T10:20:59] SKIP samples: outputs exist
-  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/daily_features.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
-
-[2026-05-11T10:20:59] SKIP fundamental: outputs exist
-  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 002311.SZ --daily-samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples/training_samples.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-11 --fallback-lag-days 120
-
-[2026-05-11T10:20:59] RUN sector
-  /usr/bin/python3 feature_building/build_sector_features.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector --sector-symbol '农产品加工' --start-date 2018-01-01 --end-date 2026-05-11
+[2026-05-12T02:03:46] RUN sector
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/02_fundamental/training_samples_with_fundamentals.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/03_sector --sector-symbol '农产品加工' --start-date 2018-01-01 --end-date 2026-05-12
 
   0%|          | 0/9 [00:00<?, ?it/s]
- 11%|█         | 1/9 [00:00<00:02,  3.74it/s]
- 22%|██▏       | 2/9 [00:00<00:01,  3.66it/s]
- 33%|███▎      | 3/9 [00:00<00:01,  4.06it/s]
- 44%|████▍     | 4/9 [00:01<00:01,  4.03it/s]
- 56%|█████▌    | 5/9 [00:01<00:00,  4.22it/s]
- 67%|██████▋   | 6/9 [00:01<00:00,  4.23it/s]
- 78%|███████▊  | 7/9 [00:01<00:00,  4.12it/s]
- 89%|████████▉ | 8/9 [00:01<00:00,  4.24it/s]
-100%|██████████| 9/9 [00:02<00:00,  4.52it/s]
+ 11%|█         | 1/9 [00:00<00:01,  4.51it/s]
+ 22%|██▏       | 2/9 [00:00<00:01,  4.49it/s]
+ 33%|███▎      | 3/9 [00:00<00:01,  3.94it/s]
+ 44%|████▍     | 4/9 [00:00<00:01,  4.11it/s]
+ 56%|█████▌    | 5/9 [00:01<00:00,  4.03it/s]
+ 67%|██████▋   | 6/9 [00:01<00:00,  4.14it/s]
+ 78%|███████▊  | 7/9 [00:01<00:00,  4.02it/s]
+ 89%|████████▉ | 8/9 [00:01<00:00,  3.93it/s]
+100%|██████████| 9/9 [00:02<00:00,  4.12it/s]
                                              
 {
   "sector_symbol": "农产品加工",
-  "sector_rows": 2022,
+  "sector_rows": 2023,
   "sector_date_min": "2018-01-02",
-  "sector_date_max": "2026-05-08",
-  "sample_rows": 1535,
-  "merged_rows": 1535,
+  "sector_date_max": "2026-05-11",
+  "sample_rows": 1536,
+  "merged_rows": 1536,
   "sector_feature_cols": 23,
   "top_missing": {
-    "sector_ret60": 0.03908794788273615,
-    "sector_ma60_gap": 0.019543973941368076,
-    "stock_vs_sector_ret20": 0.013029315960912053,
-    "sector_ret20": 0.013029315960912053,
-    "sector_vol20": 0.0071661237785016286,
-    "sector_ma20_gap": 0.006514657980456026,
-    "sector_range_z20": 0.006514657980456026,
-    "sector_volume_shock20": 0.006514657980456026,
-    "sector_amount_z20": 0.006514657980456026,
-    "sector_volume_z20": 0.006514657980456026,
-    "sector_amount_shock20": 0.006514657980456026,
-    "sector_ret5": 0.003257328990228013,
-    "stock_vs_sector_ret5": 0.003257328990228013,
-    "sector_vs_bench_ret5": 0.003257328990228013,
-    "stock_vs_sector_ret1": 0.0006514657980456026,
-    "sector_ret1": 0.0006514657980456026,
+    "sector_ret60": 0.0390625,
+    "sector_ma60_gap": 0.01953125,
+    "stock_vs_sector_ret20": 0.013020833333333334,
+    "sector_ret20": 0.013020833333333334,
+    "sector_vol20": 0.007161458333333333,
+    "sector_ma20_gap": 0.006510416666666667,
+    "sector_range_z20": 0.006510416666666667,
+    "sector_volume_shock20": 0.006510416666666667,
+    "sector_amount_z20": 0.006510416666666667,
+    "sector_volume_z20": 0.006510416666666667,
+    "sector_amount_shock20": 0.006510416666666667,
+    "sector_ret5": 0.0032552083333333335,
+    "stock_vs_sector_ret5": 0.0032552083333333335,
+    "sector_vs_bench_ret5": 0.0032552083333333335,
+    "stock_vs_sector_ret1": 0.0006510416666666666,
+    "sector_ret1": 0.0006510416666666666,
     "sector_amount": 0.0,
     "sector_volume": 0.0,
     "sector_close": 0.0,
     "sector_low": 0.0
   },
   "outputs": {
-    "sector_index": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/sector_index_ths.csv",
-    "sector_features": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/sector_features.csv",
-    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/training_samples_with_sector.csv"
+    "sector_index": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/03_sector/sector_index_ths.csv",
+    "sector_features": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/03_sector/sector_features.csv",
+    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/03_sector/training_samples_with_sector.csv"
   }
 }
 
-[2026-05-11T10:21:03] RUN external_feed
-  /usr/bin/python3 feature_building/build_haida_feed_external_features.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/training_samples_with_sector.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/feed --lag-days 1
+[2026-05-12T02:03:50] RUN external_feed
+  /usr/bin/python3 feature_building/build_haida_feed_external_features.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/03_sector/training_samples_with_sector.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/feed --lag-days 1
 /root/workspace/stock_realtime_v021_full/feature_building/build_haida_feed_external_features.py:30: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
   out[f"{col}_ret1"] = out[col].pct_change()
 /root/workspace/stock_realtime_v021_full/feature_building/build_haida_feed_external_features.py:30: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
   out[f"{col}_ret1"] = out[col].pct_change()
 {
-  "sample_rows": 1535,
-  "raw_rows": 5199,
+  "sample_rows": 1536,
+  "raw_rows": 5200,
   "raw_date_min": "2005-01-04",
-  "raw_date_max": "2026-05-08",
+  "raw_date_max": "2026-05-11",
   "feature_cols": 214,
   "lag_days": 1,
   "errors": {},
   "top_missing": {
-    "feed_hog_volume_z60": 0.1745928338762215,
-    "feed_hog_close_ret20": 0.1745928338762215,
-    "feed_hog_range_pct_z60": 0.1745928338762215,
-    "feed_hog_range_pct_ret20": 0.1745928338762215,
-    "feed_hog_hold_z60": 0.1745928338762215,
-    "feed_hog_hold_ret20": 0.1745928338762215,
-    "feed_hog_cost_ratio_ret20": 0.1745928338762215,
-    "feed_hog_cost_ratio_z60": 0.1745928338762215,
-    "feed_hog_close_z60": 0.1745928338762215,
-    "feed_hog_volume_ret20": 0.1745928338762215,
-    "feed_hog_close_ma20_gap": 0.16807817589576549,
-    "feed_hog_volume_ma20_gap": 0.16807817589576549,
-    "feed_hog_range_pct_z20": 0.16807817589576549,
-    "feed_hog_hold_z20": 0.16807817589576549,
-    "feed_hog_volume_z20": 0.16807817589576549,
-    "feed_hog_close_z20": 0.16807817589576549,
-    "feed_hog_cost_ratio_ma20_gap": 0.16807817589576549,
-    "feed_hog_cost_ratio_z20": 0.16807817589576549,
-    "feed_hog_hold_ma20_gap": 0.16807817589576549,
-    "feed_hog_range_pct_ma20_gap": 0.16807817589576549,
-    "feed_hog_range_pct_ret5": 0.16482084690553747,
-    "feed_hog_hold_ret5": 0.16482084690553747,
-    "feed_hog_volume_ret5": 0.16482084690553747,
-    "feed_hog_cost_ratio_ret5": 0.16482084690553747,
-    "feed_hog_close_ret5": 0.16482084690553747,
-    "feed_hog_hold_ret1": 0.16221498371335505,
-    "feed_hog_close_ret1": 0.16221498371335505,
-    "feed_hog_cost_ratio_ret1": 0.16221498371335505,
-    "feed_hog_volume_ret1": 0.16221498371335505,
-    "feed_hog_range_pct_ret1": 0.16221498371335505
+    "feed_hog_volume_z60": 0.17447916666666666,
+    "feed_hog_close_ret20": 0.17447916666666666,
+    "feed_hog_range_pct_z60": 0.17447916666666666,
+    "feed_hog_range_pct_ret20": 0.17447916666666666,
+    "feed_hog_hold_z60": 0.17447916666666666,
+    "feed_hog_hold_ret20": 0.17447916666666666,
+    "feed_hog_cost_ratio_ret20": 0.17447916666666666,
+    "feed_hog_cost_ratio_z60": 0.17447916666666666,
+    "feed_hog_close_z60": 0.17447916666666666,
+    "feed_hog_volume_ret20": 0.17447916666666666,
+    "feed_hog_close_ma20_gap": 0.16796875,
+    "feed_hog_volume_ma20_gap": 0.16796875,
+    "feed_hog_range_pct_z20": 0.16796875,
+    "feed_hog_hold_z20": 0.16796875,
+    "feed_hog_volume_z20": 0.16796875,
+    "feed_hog_close_z20": 0.16796875,
+    "feed_hog_cost_ratio_ma20_gap": 0.16796875,
+    "feed_hog_cost_ratio_z20": 0.16796875,
+    "feed_hog_hold_ma20_gap": 0.16796875,
+    "feed_hog_range_pct_ma20_gap": 0.16796875,
+    "feed_hog_range_pct_ret5": 0.16471354166666666,
+    "feed_hog_hold_ret5": 0.16471354166666666,
+    "feed_hog_volume_ret5": 0.16471354166666666,
+    "feed_hog_cost_ratio_ret5": 0.16471354166666666,
+    "feed_hog_close_ret5": 0.16471354166666666,
+    "feed_hog_hold_ret1": 0.162109375,
+    "feed_hog_close_ret1": 0.162109375,
+    "feed_hog_cost_ratio_ret1": 0.162109375,
+    "feed_hog_volume_ret1": 0.162109375,
+    "feed_hog_range_pct_ret1": 0.162109375
   },
   "outputs": {
-    "features": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/feed/feed_futures_features.csv",
-    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/feed/training_samples_with_feed_external.csv"
+    "features": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/feed/feed_futures_features.csv",
+    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/feed/training_samples_with_feed_external.csv"
   }
 }
 
-[2026-05-11T10:21:09] RUN external_hog
-  /usr/bin/python3 feature_building/build_hog_industry_features.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/feed/training_samples_with_feed_external.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog --lag-days 1
+[2026-05-12T02:03:55] RUN external_hog
+  /usr/bin/python3 feature_building/build_hog_industry_features.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/feed/training_samples_with_feed_external.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/hog --lag-days 1
 /root/workspace/stock_realtime_v021_full/feature_building/build_hog_industry_features.py:92: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
   out[f"{col}_ret1"] = out[col].pct_change()
 /root/workspace/stock_realtime_v021_full/feature_building/build_hog_industry_features.py:92: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
@@ -392,7 +344,7 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
 /root/workspace/stock_realtime_v021_full/feature_building/build_hog_industry_features.py:92: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
   out[f"{col}_ret1"] = out[col].pct_change()
 {
-  "sample_rows": 1535,
+  "sample_rows": 1536,
   "raw_rows": 1551,
   "raw_date_min": "2018-11-04",
   "raw_date_max": "2026-05-11",
@@ -400,49 +352,49 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
   "lag_days": 1,
   "errors": {},
   "top_missing": {
-    "hog_pork_wholesale_ret20": 0.9700325732899023,
-    "hog_pork_wholesale_z60": 0.9700325732899023,
-    "hog_pork_wholesale_ret5": 0.9680781758957655,
-    "hog_pork_wholesale_z20": 0.9674267100977199,
-    "hog_pork_wholesale_ma20_gap": 0.9674267100977199,
-    "hog_pork_wholesale_ret1": 0.9648208469055375,
-    "hog_pork_wholesale": 0.9641693811074918,
-    "hog_pig_corn_ratio_z60": 0.9322475570032573,
-    "hog_pig_corn_ratio_ma20_gap": 0.9022801302931596,
-    "hog_pig_corn_ratio_z20": 0.9022801302931596,
-    "hog_sow_ret5": 0.9009771986970684,
-    "hog_sow_ret20": 0.9009771986970684,
-    "hog_fut_spot_basis_z60": 0.8866449511400651,
-    "hog_fut_spot_basis": 0.8762214983713354,
-    "hog_pig_corn_ratio_ret20": 0.8690553745928339,
-    "hog_sow_z20": 0.8684039087947882,
-    "hog_sow_ma20_gap": 0.8684039087947882,
-    "hog_sow_z60": 0.8657980456026059,
-    "hog_corn_ret20": 0.8527687296416938,
-    "hog_soymeal_ret20": 0.8527687296416938,
-    "hog_feed_cost_ret20": 0.8527687296416938,
-    "hog_soymeal_z60": 0.8527687296416938,
-    "hog_spot_ret20": 0.8527687296416938,
-    "hog_corn_z60": 0.8527687296416938,
-    "hog_spot_z60": 0.8527687296416938,
-    "hog_soymeal_ma20_gap": 0.847557003257329,
-    "hog_spot_z20": 0.847557003257329,
-    "hog_corn_ma20_gap": 0.847557003257329,
-    "hog_soymeal_z20": 0.847557003257329,
-    "hog_corn_z20": 0.847557003257329
+    "hog_pork_wholesale_ret20": 0.9700520833333334,
+    "hog_pork_wholesale_z60": 0.9700520833333334,
+    "hog_pork_wholesale_ret5": 0.9680989583333334,
+    "hog_pork_wholesale_z20": 0.9674479166666666,
+    "hog_pork_wholesale_ma20_gap": 0.9674479166666666,
+    "hog_pork_wholesale": 0.9641927083333334,
+    "hog_pork_wholesale_ret1": 0.9641927083333334,
+    "hog_pig_corn_ratio_z60": 0.9322916666666666,
+    "hog_pig_corn_ratio_ma20_gap": 0.90234375,
+    "hog_pig_corn_ratio_z20": 0.90234375,
+    "hog_sow_ret5": 0.9010416666666666,
+    "hog_sow_ret20": 0.9010416666666666,
+    "hog_fut_spot_basis_z60": 0.88671875,
+    "hog_fut_spot_basis": 0.8763020833333334,
+    "hog_pig_corn_ratio_ret20": 0.869140625,
+    "hog_sow_z20": 0.8684895833333334,
+    "hog_sow_ma20_gap": 0.8684895833333334,
+    "hog_sow_z60": 0.8658854166666666,
+    "hog_corn_ret20": 0.8522135416666666,
+    "hog_soymeal_ret20": 0.8522135416666666,
+    "hog_feed_cost_ret20": 0.8522135416666666,
+    "hog_soymeal_z60": 0.8522135416666666,
+    "hog_spot_ret20": 0.8522135416666666,
+    "hog_corn_z60": 0.8522135416666666,
+    "hog_spot_z60": 0.8522135416666666,
+    "hog_soymeal_ma20_gap": 0.8470052083333334,
+    "hog_spot_z20": 0.8470052083333334,
+    "hog_corn_ma20_gap": 0.8470052083333334,
+    "hog_soymeal_z20": 0.8470052083333334,
+    "hog_corn_z20": 0.8470052083333334
   },
   "outputs": {
-    "raw": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/hog_industry_raw.csv",
-    "features": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/hog_industry_features.csv",
-    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv"
+    "raw": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/hog/hog_industry_raw.csv",
+    "features": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/hog/hog_industry_features.csv",
+    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/hog/training_samples_with_hog_industry.csv"
   }
 }
-[INFO] final samples for search: /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv
+[INFO] final samples for search: /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/hog/training_samples_with_hog_industry.csv
 
-[2026-05-11T10:21:14] RUN search_vwap_low_hit_50bps
-  /usr/bin/python3 model_training/search_walk_forward_model_complexity.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/10_search/search_vwap_low_hit_50bps --round-trip-cost-bps 1.7 --target-hit-bps 50.0 --label-mode hit --entry-policy vwap_low --entry-vwap-premium-bps 50.0 --max-missing 0.35 --groups reversal_fundamental_regime,reversal_fundamental_regime_sector,all_no_ak --models xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
+[2026-05-12T02:04:00] RUN search_vwap_low_hit_50bps
+  /usr/bin/python3 model_training/search_walk_forward_model_complexity.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/10_search/search_vwap_low_hit_50bps --round-trip-cost-bps 1.7 --target-hit-bps 50.0 --label-mode hit --entry-policy vwap_low --entry-vwap-premium-bps 50.0 --max-missing 0.35 --groups reversal_fundamental_regime,reversal_fundamental_regime_sector,reversal_fundamental_regime_sector_external,all_no_ak --models xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
 {
-  "rows": 1534,
+  "rows": 1535,
   "target_hit_bps": 50.0,
   "label_mode": "hit",
   "entry_policy": "vwap_low",
@@ -450,6 +402,7 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
   "groups": {
     "reversal_fundamental_regime": 137,
     "reversal_fundamental_regime_sector": 160,
+    "reversal_fundamental_regime_sector_external": 402,
     "all_no_ak": 457
   },
   "models": [
@@ -661,6 +614,20 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
     },
     {
       "entry_policy": "vwap_low",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "xgb_d2_200_lr003_mcw5",
+      "target_hit_bps": 50.0,
+      "trades": 188,
+      "win_rate": 0.7872340425531915,
+      "avg_return": 0.00042368148099561397,
+      "median_return": 0.005,
+      "compound_return": 0.07212019247317092,
+      "max_drawdown": -0.10472207524914467,
+      "profit_factor": 1.120796152200276,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
       "feature_group": "reversal_fundamental_regime",
       "model_name": "extra_trees_600_d3",
       "target_hit_bps": 50.0,
@@ -717,39 +684,25 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
     },
     {
       "entry_policy": "vwap_low",
-      "feature_group": "reversal_fundamental_regime",
+      "feature_group": "reversal_fundamental_regime_sector_external",
       "model_name": "xgb_d4_500_lr002_mcw5",
       "target_hit_bps": 50.0,
-      "trades": 176,
-      "win_rate": 0.7954545454545454,
-      "avg_return": 0.00020842327777055589,
+      "trades": 164,
+      "win_rate": 0.7926829268292683,
+      "avg_return": 0.00024805076228913745,
       "median_return": 0.005,
-      "compound_return": 0.02572183507563386,
-      "max_drawdown": -0.11931083659781538,
-      "profit_factor": 1.0556649106075535,
-      "windows": 10
-    },
-    {
-      "entry_policy": "vwap_low",
-      "feature_group": "all_no_ak",
-      "model_name": "xgb_d3_400_lr003_mcw3",
-      "target_hit_bps": 50.0,
-      "trades": 172,
-      "win_rate": 0.7674418604651163,
-      "avg_return": 0.0001873822150792733,
-      "median_return": 0.005,
-      "compound_return": 0.023228227569220383,
-      "max_drawdown": -0.11853283621984445,
-      "profit_factor": 1.0514182487214472,
+      "compound_return": 0.031572156087709136,
+      "max_drawdown": -0.10378045846082395,
+      "profit_factor": 1.0672413213714502,
       "windows": 10
     }
   ]
 }
 
-[2026-05-11T10:34:13] RUN search_vwap_low_hit_80bps
-  /usr/bin/python3 model_training/search_walk_forward_model_complexity.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/10_search/search_vwap_low_hit_80bps --round-trip-cost-bps 1.7 --target-hit-bps 80.0 --label-mode hit --entry-policy vwap_low --entry-vwap-premium-bps 50.0 --max-missing 0.35 --groups reversal_fundamental_regime,reversal_fundamental_regime_sector,all_no_ak --models xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
+[2026-05-12T02:14:04] RUN search_vwap_low_hit_80bps
+  /usr/bin/python3 model_training/search_walk_forward_model_complexity.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/10_search/search_vwap_low_hit_80bps --round-trip-cost-bps 1.7 --target-hit-bps 80.0 --label-mode hit --entry-policy vwap_low --entry-vwap-premium-bps 50.0 --max-missing 0.35 --groups reversal_fundamental_regime,reversal_fundamental_regime_sector,reversal_fundamental_regime_sector_external,all_no_ak --models xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
 {
-  "rows": 1534,
+  "rows": 1535,
   "target_hit_bps": 80.0,
   "label_mode": "hit",
   "entry_policy": "vwap_low",
@@ -757,6 +710,7 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
   "groups": {
     "reversal_fundamental_regime": 137,
     "reversal_fundamental_regime_sector": 160,
+    "reversal_fundamental_regime_sector_external": 402,
     "all_no_ak": 457
   },
   "models": [
@@ -982,6 +936,20 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
     },
     {
       "entry_policy": "vwap_low",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "xgb_d4_500_lr002_mcw5",
+      "target_hit_bps": 80.0,
+      "trades": 219,
+      "win_rate": 0.680365296803653,
+      "avg_return": 0.0006387594861801419,
+      "median_return": 0.008,
+      "compound_return": 0.13157339791511014,
+      "max_drawdown": -0.11324329343183193,
+      "profit_factor": 1.1384702810890202,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
       "feature_group": "reversal_fundamental_regime_sector",
       "model_name": "extra_trees_600_d3",
       "target_hit_bps": 80.0,
@@ -992,6 +960,20 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
       "compound_return": 0.12784029092283,
       "max_drawdown": -0.17455918656725766,
       "profit_factor": 1.1307820508306032,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "xgb_d3_400_lr003_mcw3",
+      "target_hit_bps": 80.0,
+      "trades": 211,
+      "win_rate": 0.6777251184834123,
+      "avg_return": 0.0006056837100378711,
+      "median_return": 0.008,
+      "compound_return": 0.11942953991379945,
+      "max_drawdown": -0.10517641966792812,
+      "profit_factor": 1.1304881779564524,
       "windows": 10
     },
     {
@@ -1021,42 +1003,14 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
       "max_drawdown": -0.13474418370101782,
       "profit_factor": 1.100826365571527,
       "windows": 10
-    },
-    {
-      "entry_policy": "vwap_low",
-      "feature_group": "all_no_ak",
-      "model_name": "xgb_d4_500_lr002_mcw5",
-      "target_hit_bps": 80.0,
-      "trades": 205,
-      "win_rate": 0.6731707317073171,
-      "avg_return": 0.0004602476602727904,
-      "median_return": 0.008,
-      "compound_return": 0.08168302685078643,
-      "max_drawdown": -0.11404514331518756,
-      "profit_factor": 1.0967063127016288,
-      "windows": 10
-    },
-    {
-      "entry_policy": "vwap_low",
-      "feature_group": "reversal_fundamental_regime_sector",
-      "model_name": "xgb_d3_600_lr002_mcw3",
-      "target_hit_bps": 80.0,
-      "trades": 137,
-      "win_rate": 0.6788321167883211,
-      "avg_return": 0.0005392321724324515,
-      "median_return": 0.008,
-      "compound_return": 0.06584861509506701,
-      "max_drawdown": -0.11081173145868128,
-      "profit_factor": 1.1154188735017962,
-      "windows": 10
     }
   ]
 }
 
-[2026-05-11T10:47:25] RUN search_vwap_low_close_profit_50bps
-  /usr/bin/python3 model_training/search_walk_forward_model_complexity.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/10_search/search_vwap_low_close_profit_50bps --round-trip-cost-bps 1.7 --target-hit-bps 50.0 --label-mode close_profit --entry-policy vwap_low --entry-vwap-premium-bps 50.0 --max-missing 0.35 --groups reversal_fundamental_regime,reversal_fundamental_regime_sector,all_no_ak --models xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
+[2026-05-12T02:24:25] RUN search_vwap_low_close_profit_50bps
+  /usr/bin/python3 model_training/search_walk_forward_model_complexity.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/10_search/search_vwap_low_close_profit_50bps --round-trip-cost-bps 1.7 --target-hit-bps 50.0 --label-mode close_profit --entry-policy vwap_low --entry-vwap-premium-bps 50.0 --max-missing 0.35 --groups reversal_fundamental_regime,reversal_fundamental_regime_sector,reversal_fundamental_regime_sector_external,all_no_ak --models xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
 {
-  "rows": 1534,
+  "rows": 1535,
   "target_hit_bps": 50.0,
   "label_mode": "close_profit",
   "entry_policy": "vwap_low",
@@ -1064,6 +1018,7 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
   "groups": {
     "reversal_fundamental_regime": 137,
     "reversal_fundamental_regime_sector": 160,
+    "reversal_fundamental_regime_sector_external": 402,
     "all_no_ak": 457
   },
   "models": [
@@ -1163,6 +1118,20 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
     },
     {
       "entry_policy": "vwap_low",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "xgb_d4_500_lr002_mcw5",
+      "target_hit_bps": 50.0,
+      "trades": 226,
+      "win_rate": 0.504424778761062,
+      "avg_return": 0.002133618626467952,
+      "median_return": 0.00042773334487567274,
+      "compound_return": 0.5574753925793647,
+      "max_drawdown": -0.13562214631585823,
+      "profit_factor": 1.3802379686788002,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
       "feature_group": "reversal_fundamental_regime_sector",
       "model_name": "xgb_d4_500_lr002_mcw5",
       "target_hit_bps": 50.0,
@@ -1229,6 +1198,20 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
       "compound_return": 0.43918315264983576,
       "max_drawdown": -0.15102473356922586,
       "profit_factor": 1.3675189470525662,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "xgb_d3_600_lr002_mcw3",
+      "target_hit_bps": 50.0,
+      "trades": 233,
+      "win_rate": 0.48497854077253216,
+      "avg_return": 0.0016512703613977189,
+      "median_return": -0.000516981263011803,
+      "compound_return": 0.4036497845626532,
+      "max_drawdown": -0.19701285457875295,
+      "profit_factor": 1.2616419000093613,
       "windows": 10
     },
     {
@@ -1328,42 +1311,14 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
       "max_drawdown": -0.13897365181669386,
       "profit_factor": 1.180853452735179,
       "windows": 10
-    },
-    {
-      "entry_policy": "vwap_low",
-      "feature_group": "all_no_ak",
-      "model_name": "xgb_d4_500_lr002_mcw5",
-      "target_hit_bps": 50.0,
-      "trades": 216,
-      "win_rate": 0.49537037037037035,
-      "avg_return": 0.001042244069422481,
-      "median_return": -0.0002849161112387609,
-      "compound_return": 0.20186910999360097,
-      "max_drawdown": -0.1865414922973918,
-      "profit_factor": 1.1561075870130442,
-      "windows": 10
-    },
-    {
-      "entry_policy": "vwap_low",
-      "feature_group": "all_no_ak",
-      "model_name": "lgbm_leaves15_700",
-      "target_hit_bps": 50.0,
-      "trades": 217,
-      "win_rate": 0.4838709677419355,
-      "avg_return": 0.0008041594257503317,
-      "median_return": -0.001444117218784121,
-      "compound_return": 0.14580740399724723,
-      "max_drawdown": -0.1775161339346255,
-      "profit_factor": 1.124860943122289,
-      "windows": 10
     }
   ]
 }
 
-[2026-05-11T11:00:49] RUN search_all_days_hit_50bps
-  /usr/bin/python3 model_training/search_walk_forward_model_complexity.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/10_search/search_all_days_hit_50bps --round-trip-cost-bps 1.7 --target-hit-bps 50.0 --label-mode hit --entry-policy all_days --entry-vwap-premium-bps 50.0 --max-missing 0.35 --groups reversal_fundamental_regime,reversal_fundamental_regime_sector,all_no_ak --models xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
+[2026-05-12T02:34:57] RUN search_all_days_hit_50bps
+  /usr/bin/python3 model_training/search_walk_forward_model_complexity.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/10_search/search_all_days_hit_50bps --round-trip-cost-bps 1.7 --target-hit-bps 50.0 --label-mode hit --entry-policy all_days --entry-vwap-premium-bps 50.0 --max-missing 0.35 --groups reversal_fundamental_regime,reversal_fundamental_regime_sector,reversal_fundamental_regime_sector_external,all_no_ak --models xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
 {
-  "rows": 1534,
+  "rows": 1535,
   "target_hit_bps": 50.0,
   "label_mode": "hit",
   "entry_policy": "all_days",
@@ -1371,6 +1326,7 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
   "groups": {
     "reversal_fundamental_regime": 137,
     "reversal_fundamental_regime_sector": 160,
+    "reversal_fundamental_regime_sector_external": 402,
     "all_no_ak": 457
   },
   "models": [
@@ -1456,6 +1412,20 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
     },
     {
       "entry_policy": "all_days",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "xgb_d2_200_lr003_mcw5",
+      "target_hit_bps": 50.0,
+      "trades": 208,
+      "win_rate": 0.8125,
+      "avg_return": 0.0007786435306098385,
+      "median_return": 0.005,
+      "compound_return": 0.16328263949400745,
+      "max_drawdown": -0.10054382238303694,
+      "profit_factor": 1.2374445320673533,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
       "feature_group": "all_no_ak",
       "model_name": "extra_trees_600_d3",
       "target_hit_bps": 50.0,
@@ -1498,6 +1468,20 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
     },
     {
       "entry_policy": "all_days",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "random_forest_600_d4",
+      "target_hit_bps": 50.0,
+      "trades": 215,
+      "win_rate": 0.8046511627906977,
+      "avg_return": 0.0005653120928007074,
+      "median_return": 0.005,
+      "compound_return": 0.11620043663241586,
+      "max_drawdown": -0.10377877502897492,
+      "profit_factor": 1.1636924326914393,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
       "feature_group": "reversal_fundamental_regime",
       "model_name": "lgbm_leaves7_400",
       "target_hit_bps": 50.0,
@@ -1508,6 +1492,20 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
       "compound_return": 0.1125218725296262,
       "max_drawdown": -0.0855648954027648,
       "profit_factor": 1.2149843408179506,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "lgbm_leaves7_400",
+      "target_hit_bps": 50.0,
+      "trades": 157,
+      "win_rate": 0.7898089171974523,
+      "avg_return": 0.0007040869890982459,
+      "median_return": 0.005,
+      "compound_return": 0.10937624471316054,
+      "max_drawdown": -0.09307100376268906,
+      "profit_factor": 1.2173863100218258,
       "windows": 10
     },
     {
@@ -1550,6 +1548,20 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
       "compound_return": 0.09724380977600355,
       "max_drawdown": -0.09999212871032159,
       "profit_factor": 1.1467777292375865,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "extra_trees_600_d3",
+      "target_hit_bps": 50.0,
+      "trades": 224,
+      "win_rate": 0.7946428571428571,
+      "avg_return": 0.00045463365309940075,
+      "median_return": 0.005,
+      "compound_return": 0.09425982512505326,
+      "max_drawdown": -0.15489767300351287,
+      "profit_factor": 1.1293661452232717,
       "windows": 10
     },
     {
@@ -1607,70 +1619,14 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
       "max_drawdown": -0.10460372092023995,
       "profit_factor": 1.1134317942666427,
       "windows": 10
-    },
-    {
-      "entry_policy": "all_days",
-      "feature_group": "reversal_fundamental_regime",
-      "model_name": "xgb_d3_600_lr002_mcw3",
-      "target_hit_bps": 50.0,
-      "trades": 187,
-      "win_rate": 0.7967914438502673,
-      "avg_return": 0.00032586400433911916,
-      "median_return": 0.005,
-      "compound_return": 0.050992843526714404,
-      "max_drawdown": -0.12470376226233504,
-      "profit_factor": 1.0896477053304288,
-      "windows": 10
-    },
-    {
-      "entry_policy": "all_days",
-      "feature_group": "reversal_fundamental_regime",
-      "model_name": "xgb_d2_200_lr003_mcw5",
-      "target_hit_bps": 50.0,
-      "trades": 189,
-      "win_rate": 0.8148148148148148,
-      "avg_return": 0.0002981413940690296,
-      "median_return": 0.005,
-      "compound_return": 0.04426040176460777,
-      "max_drawdown": -0.11931083659781516,
-      "profit_factor": 1.0794403070781045,
-      "windows": 10
-    },
-    {
-      "entry_policy": "all_days",
-      "feature_group": "all_no_ak",
-      "model_name": "xgb_d3_600_lr002_mcw3",
-      "target_hit_bps": 50.0,
-      "trades": 190,
-      "win_rate": 0.7736842105263158,
-      "avg_return": 0.0002559300697466908,
-      "median_return": 0.005,
-      "compound_return": 0.039030854574759966,
-      "max_drawdown": -0.10323249713099125,
-      "profit_factor": 1.0709445849469175,
-      "windows": 10
-    },
-    {
-      "entry_policy": "all_days",
-      "feature_group": "reversal_fundamental_regime",
-      "model_name": "xgb_d3_400_lr003_mcw3",
-      "target_hit_bps": 50.0,
-      "trades": 174,
-      "win_rate": 0.7931034482758621,
-      "avg_return": 5.1426165292582395e-05,
-      "median_return": 0.005,
-      "compound_return": -0.002518555868153416,
-      "max_drawdown": -0.12881869612263686,
-      "profit_factor": 1.0132227870185002,
-      "windows": 10
     }
   ]
 }
 
-[2026-05-11T11:13:43] RUN search_all_days_hit_80bps
-  /usr/bin/python3 model_training/search_walk_forward_model_complexity.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/10_search/search_all_days_hit_80bps --round-trip-cost-bps 1.7 --target-hit-bps 80.0 --label-mode hit --entry-policy all_days --entry-vwap-premium-bps 50.0 --max-missing 0.35 --groups reversal_fundamental_regime,reversal_fundamental_regime_sector,all_no_ak --models xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
+[2026-05-12T02:45:02] RUN search_all_days_hit_80bps
+  /usr/bin/python3 model_training/search_walk_forward_model_complexity.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/10_search/search_all_days_hit_80bps --round-trip-cost-bps 1.7 --target-hit-bps 80.0 --label-mode hit --entry-policy all_days --entry-vwap-premium-bps 50.0 --max-missing 0.35 --groups reversal_fundamental_regime,reversal_fundamental_regime_sector,reversal_fundamental_regime_sector_external,all_no_ak --models xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
 {
-  "rows": 1534,
+  "rows": 1535,
   "target_hit_bps": 80.0,
   "label_mode": "hit",
   "entry_policy": "all_days",
@@ -1678,6 +1634,7 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
   "groups": {
     "reversal_fundamental_regime": 137,
     "reversal_fundamental_regime_sector": 160,
+    "reversal_fundamental_regime_sector_external": 402,
     "all_no_ak": 457
   },
   "models": [
@@ -1819,6 +1776,20 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
     },
     {
       "entry_policy": "all_days",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "xgb_d4_500_lr002_mcw5",
+      "target_hit_bps": 80.0,
+      "trades": 201,
+      "win_rate": 0.681592039800995,
+      "avg_return": 0.0010019003806589486,
+      "median_return": 0.008,
+      "compound_return": 0.20676683346811076,
+      "max_drawdown": -0.09785694225850294,
+      "profit_factor": 1.2337559100664444,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
       "feature_group": "reversal_fundamental_regime",
       "model_name": "xgb_d3_600_lr002_mcw3",
       "target_hit_bps": 80.0,
@@ -1931,53 +1902,39 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
     },
     {
       "entry_policy": "all_days",
-      "feature_group": "reversal_fundamental_regime_sector",
-      "model_name": "xgb_d4_500_lr002_mcw5",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "xgb_d3_400_lr003_mcw3",
       "target_hit_bps": 80.0,
-      "trades": 172,
-      "win_rate": 0.686046511627907,
-      "avg_return": 0.0003972018163741049,
+      "trades": 202,
+      "win_rate": 0.6584158415841584,
+      "avg_return": 0.0004212623193568366,
       "median_return": 0.008,
-      "compound_return": 0.05549414585738899,
-      "max_drawdown": -0.14010903908738503,
-      "profit_factor": 1.0807918042080948,
+      "compound_return": 0.07277359094507085,
+      "max_drawdown": -0.11257131865205061,
+      "profit_factor": 1.0902839227589467,
       "windows": 10
     },
     {
       "entry_policy": "all_days",
-      "feature_group": "all_no_ak",
-      "model_name": "xgb_d4_500_lr002_mcw5",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "random_forest_600_d4",
       "target_hit_bps": 80.0,
-      "trades": 230,
-      "win_rate": 0.6695652173913044,
-      "avg_return": 0.0003014125290910332,
+      "trades": 214,
+      "win_rate": 0.6682242990654206,
+      "avg_return": 0.0003936050670301596,
       "median_return": 0.008,
-      "compound_return": 0.05272350804121895,
-      "max_drawdown": -0.15462862156296986,
-      "profit_factor": 1.0615422023478926,
-      "windows": 10
-    },
-    {
-      "entry_policy": "all_days",
-      "feature_group": "all_no_ak",
-      "model_name": "extra_trees_600_d3",
-      "target_hit_bps": 80.0,
-      "trades": 312,
-      "win_rate": 0.6538461538461539,
-      "avg_return": 0.00022515499119451476,
-      "median_return": 0.008,
-      "compound_return": 0.0479580229380423,
-      "max_drawdown": -0.17402531181079406,
-      "profit_factor": 1.046064029971164,
+      "compound_return": 0.07016193221531863,
+      "max_drawdown": -0.13363273815452648,
+      "profit_factor": 1.081203405234021,
       "windows": 10
     }
   ]
 }
 
-[2026-05-11T11:26:51] RUN search_all_days_close_profit_50bps
-  /usr/bin/python3 model_training/search_walk_forward_model_complexity.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/10_search/search_all_days_close_profit_50bps --round-trip-cost-bps 1.7 --target-hit-bps 50.0 --label-mode close_profit --entry-policy all_days --entry-vwap-premium-bps 50.0 --max-missing 0.35 --groups reversal_fundamental_regime,reversal_fundamental_regime_sector,all_no_ak --models xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
+[2026-05-12T02:55:27] RUN search_all_days_close_profit_50bps
+  /usr/bin/python3 model_training/search_walk_forward_model_complexity.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/04_external/hog/training_samples_with_hog_industry.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/10_search/search_all_days_close_profit_50bps --round-trip-cost-bps 1.7 --target-hit-bps 50.0 --label-mode close_profit --entry-policy all_days --entry-vwap-premium-bps 50.0 --max-missing 0.35 --groups reversal_fundamental_regime,reversal_fundamental_regime_sector,reversal_fundamental_regime_sector_external,all_no_ak --models xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d3_600_lr002_mcw3,xgb_d4_500_lr002_mcw5,lgbm_leaves7_400,lgbm_leaves15_700,extra_trees_600_d3,random_forest_600_d4 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
 {
-  "rows": 1534,
+  "rows": 1535,
   "target_hit_bps": 50.0,
   "label_mode": "close_profit",
   "entry_policy": "all_days",
@@ -1985,6 +1942,7 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
   "groups": {
     "reversal_fundamental_regime": 137,
     "reversal_fundamental_regime_sector": 160,
+    "reversal_fundamental_regime_sector_external": 402,
     "all_no_ak": 457
   },
   "models": [
@@ -2098,6 +2056,20 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
     },
     {
       "entry_policy": "all_days",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "xgb_d4_500_lr002_mcw5",
+      "target_hit_bps": 50.0,
+      "trades": 232,
+      "win_rate": 0.5172413793103449,
+      "avg_return": 0.0016776537775323537,
+      "median_return": 0.00087685077361788,
+      "compound_return": 0.41442429796176383,
+      "max_drawdown": -0.18713452682052445,
+      "profit_factor": 1.2715115408761477,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
       "feature_group": "reversal_fundamental_regime_sector",
       "model_name": "xgb_d2_200_lr003_mcw5",
       "target_hit_bps": 50.0,
@@ -2108,6 +2080,20 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
       "compound_return": 0.3881297560667254,
       "max_drawdown": -0.16253189734549756,
       "profit_factor": 1.3441939796525237,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
+      "feature_group": "reversal_fundamental_regime_sector_external",
+      "model_name": "lgbm_leaves15_700",
+      "target_hit_bps": 50.0,
+      "trades": 233,
+      "win_rate": 0.4721030042918455,
+      "avg_return": 0.0014456829872196238,
+      "median_return": -0.0006169273743016311,
+      "compound_return": 0.3411081997098706,
+      "max_drawdown": -0.1755506686387397,
+      "profit_factor": 1.240766270700557,
       "windows": 10
     },
     {
@@ -2238,70 +2224,324 @@ symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/0
     },
     {
       "entry_policy": "all_days",
-      "feature_group": "all_no_ak",
-      "model_name": "random_forest_600_d4",
-      "target_hit_bps": 50.0,
-      "trades": 242,
-      "win_rate": 0.4669421487603306,
-      "avg_return": 0.0008063898570559969,
-      "median_return": -0.0017401344423396657,
-      "compound_return": 0.1562200445490025,
-      "max_drawdown": -0.16654522111911696,
-      "profit_factor": 1.117085981723522,
-      "windows": 10
-    },
-    {
-      "entry_policy": "all_days",
-      "feature_group": "all_no_ak",
+      "feature_group": "reversal_fundamental_regime_sector_external",
       "model_name": "extra_trees_600_d3",
       "target_hit_bps": 50.0,
-      "trades": 197,
-      "win_rate": 0.4720812182741117,
-      "avg_return": 0.0008571528191061571,
-      "median_return": -0.0013141647597253413,
-      "compound_return": 0.13388771630333496,
-      "max_drawdown": -0.2086302793093927,
-      "profit_factor": 1.122231171052685,
-      "windows": 10
-    },
-    {
-      "entry_policy": "all_days",
-      "feature_group": "all_no_ak",
-      "model_name": "lgbm_leaves7_400",
-      "target_hit_bps": 50.0,
-      "trades": 189,
-      "win_rate": 0.455026455026455,
-      "avg_return": 0.000843809761387091,
-      "median_return": -0.0015168013468013185,
-      "compound_return": 0.13129543248381204,
-      "max_drawdown": -0.21327263411781017,
-      "profit_factor": 1.1266612302869887,
+      "trades": 151,
+      "win_rate": 0.4900662251655629,
+      "avg_return": 0.0012543034966337333,
+      "median_return": -0.0003998322224775218,
+      "compound_return": 0.17877733608353386,
+      "max_drawdown": -0.14891625732758473,
+      "profit_factor": 1.2009758746806114,
       "windows": 10
     }
   ]
 }
 
-[2026-05-11T11:40:17] RUN summarize
-  /usr/bin/python3 model_training/summarize_nextday_search_results.py --pipeline-out /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/99_summary --excel
+[2026-05-12T03:05:57] RUN summarize
+  /usr/bin/python3 model_training/summarize_nextday_search_results.py --pipeline-out /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14 --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/99_summary --excel
 {
-  "rows": 144,
+  "rows": 192,
   "outputs": {
-    "final_leaderboard": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/99_summary/final_leaderboard.csv",
-    "best_by_target_top5": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/99_summary/best_by_target_top5.csv",
-    "best_by_entry_policy_top5": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/99_summary/best_by_entry_policy_top5.csv",
-    "excel": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/99_summary/final_leaderboard.xlsx",
-    "summary_manifest": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/99_summary/summary_manifest.json"
+    "final_leaderboard": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/99_summary/final_leaderboard.csv",
+    "best_by_target_top5": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/99_summary/best_by_target_top5.csv",
+    "best_by_entry_policy_top5": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/99_summary/best_by_entry_policy_top5.csv",
+    "excel": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/99_summary/final_leaderboard.xlsx",
+    "summary_manifest": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out_v2_all14/99_summary/summary_manifest.json"
   }
 }
-=== nextday pipeline end: 2026-05-11T11:40:18 status=ok ===
-=== nextday pipeline start: 2026-05-12T00:32:34 ===
-symbol=002311.SZ, out_root=/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out
+=== nextday pipeline end: 2026-05-12T03:05:57 status=ok ===
+=== nextday pipeline start: 2026-05-13T01:46:42 ===
+symbol=002311.SZ, out_root=/root/stock_realtime_v021_full/saved_data/002311_pipeline_out
 
-[2026-05-12T00:32:34] RUN update_data
-  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 002311 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-12 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-12 15:00:00' --output_dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
-/root/workspace/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:246: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+[2026-05-13T01:46:42] RUN update_data
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 002311 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-12 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-12 15:00:00' --output_dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:246: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
   merged = _normalize_daily_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
-/root/workspace/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:254: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:248: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  merged = _normalize_intraday_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:254: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  merged = _normalize_bench_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:250: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  merged = _normalize_daily_feature_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:252: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  merged = _normalize_intraday_feature_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
+login success!
+logout success!
+login success!
+logout success!
+login success!
+logout success!
+{
+  "mode": "update_data",
+  "symbol": "002311",
+  "data_source": "baostock",
+  "daily_rows": 2024,
+  "intraday_rows": 73776,
+  "daily_min": "2018-01-02 00:00:00",
+  "daily_max": "2026-05-12 00:00:00",
+  "intraday_min": "2020-01-02 09:35:00",
+  "intraday_max": "2026-05-12 15:00:00",
+  "base_paths": {
+    "daily_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_daily.csv",
+    "intraday_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv",
+    "benchmark_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/000300_benchmark_daily.csv",
+    "raw_daily_cache_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_daily_raw.csv",
+    "raw_intraday_cache_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_5m_raw.csv",
+    "raw_benchmark_cache_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/000300_benchmark_daily_raw.csv",
+    "daily_features_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/daily_features.csv",
+    "intraday_features_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/intraday_features.csv",
+    "daily_features_cache_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache/daily_features_cache.csv",
+    "intraday_features_cache_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache/intraday_features_cache.csv",
+    "feature_state_json": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache/feature_state.json"
+  },
+  "fetch_logs": {
+    "symbol": "002311",
+    "benchmark_symbol": "000300",
+    "daily_start": "2018-01-01",
+    "daily_end": "2026-05-12",
+    "intraday_start": "2018-01-01 09:30:00",
+    "intraday_end": "2026-05-12 15:00:00",
+    "perf_start": "2018-01-01",
+    "data_source": "baostock",
+    "cache_mode": "incremental",
+    "force_refresh": false,
+    "raw_cache_dir": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache",
+    "feature_cache_dir": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache",
+    "feature_cache_mode": "incremental",
+    "daily": {
+      "cache_path": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-12",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sz.002311",
+          "adjustflag": "2",
+          "rows": 2024,
+          "start": "2018-01-01",
+          "end": "2026-05-12"
+        }
+      ],
+      "cache_after": {
+        "rows": 2024,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-12 00:00:00"
+      }
+    },
+    "intraday_5m": {
+      "cache_path": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_5m_raw.csv",
+      "requested_start": "2018-01-01 09:30:00",
+      "requested_end": "2026-05-12 15:00:00",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sz.002311",
+          "adjustflag": "2",
+          "requested_start": "2018-01-01 09:30:00",
+          "effective_start": "2018-01-01 09:30:00",
+          "requested_end": "2026-05-12 15:00:00",
+          "rows": 73776
+        }
+      ],
+      "cache_after": {
+        "rows": 73776,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-12 15:00:00"
+      }
+    },
+    "benchmark_daily": {
+      "cache_path": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/000300_benchmark_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-12",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.000300",
+          "rows": 2024,
+          "start": "2018-01-01",
+          "end": "2026-05-12"
+        }
+      ],
+      "cache_after": {
+        "rows": 2024,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-12 00:00:00"
+      }
+    },
+    "feature_build": {
+      "mode": "full_rebuild",
+      "reason": "feature_cache_missing",
+      "daily_cache_after": {
+        "rows": 2024,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-12 00:00:00"
+      },
+      "intraday_cache_after": {
+        "rows": 73776,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-12 15:00:00"
+      },
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "daily_appended_rows": 2024,
+      "intraday_appended_rows": 73776
+    },
+    "feature_state": {
+      "daily_feature_max": "2026-05-12 00:00:00",
+      "intraday_feature_max": "2026-05-12 15:00:00",
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "feature_build_mode": "full_rebuild"
+    }
+  }
+}
+
+[2026-05-13T01:50:14] RUN samples
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/daily_features.csv --intraday-bars /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+{
+  "rows": 1537,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-12",
+  "out": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples/training_samples.csv"
+}
+
+[2026-05-13T01:50:15] RUN fundamental
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 002311.SZ --daily-samples /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples/training_samples.csv --out-dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-12 --fallback-lag-days 120
+login success!
+logout success!
+{
+  "rows": 1537,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-12",
+  "source_errors": [],
+  "top_missing_rates": {
+    "ak_fund_小单净流入-净额_sum10": 0.9245283018867925,
+    "ak_fund_主力净流入-净额_sum10": 0.9245283018867925,
+    "ak_fund_主力净流入-净占比_sum10": 0.9245283018867925,
+    "ak_fund_涨跌幅_sum10": 0.9245283018867925,
+    "ak_fund_收盘价_sum10": 0.9245283018867925,
+    "ak_fund_中单净流入-净额_sum10": 0.9245283018867925,
+    "ak_fund_中单净流入-净占比_sum10": 0.9245283018867925,
+    "ak_fund_小单净流入-净占比_sum10": 0.9245283018867925,
+    "ak_fund_超大单净流入-净额_sum10": 0.9245283018867925,
+    "ak_fund_大单净流入-净额_sum10": 0.9245283018867925,
+    "ak_fund_大单净流入-净占比_sum10": 0.9245283018867925,
+    "ak_fund_超大单净流入-净占比_sum10": 0.9245283018867925,
+    "ak_fund_涨跌幅_sum5": 0.9232270657124269,
+    "ak_fund_主力净流入-净占比_sum5": 0.9232270657124269,
+    "ak_fund_主力净流入-净额_sum5": 0.9232270657124269,
+    "ak_fund_收盘价_sum5": 0.9232270657124269,
+    "ak_fund_超大单净流入-净占比_sum5": 0.9232270657124269,
+    "ak_fund_中单净流入-净占比_sum5": 0.9232270657124269,
+    "ak_fund_中单净流入-净额_sum5": 0.9232270657124269,
+    "ak_fund_小单净流入-净额_sum5": 0.9232270657124269,
+    "ak_fund_小单净流入-净占比_sum5": 0.9232270657124269,
+    "ak_fund_大单净流入-净占比_sum5": 0.9232270657124269,
+    "ak_fund_大单净流入-净额_sum5": 0.9232270657124269,
+    "ak_fund_超大单净流入-净额_sum5": 0.9232270657124269,
+    "ak_fund_大单净流入-净额": 0.9219258295380611,
+    "ak_fund_超大单净流入-净占比": 0.9219258295380611,
+    "ak_fund_超大单净流入-净额": 0.9219258295380611,
+    "ak_fund_收盘价": 0.9219258295380611,
+    "ak_fund_涨跌幅": 0.9219258295380611,
+    "ak_fund_中单净流入-净额": 0.9219258295380611
+  },
+  "valuation_non_null": {
+    "peTTM": 1537,
+    "pbMRQ": 1537,
+    "psTTM": 1537,
+    "pcfNcfTTM": 1537
+  },
+  "future_effective_date_violations": 0,
+  "rows_with_quarterly": 1537,
+  "sample_rows": 1537,
+  "quarterly_raw_rows": 37,
+  "quarterly_used_pubDate_rows": 37,
+  "quarterly_fallback_rows": 0,
+  "elapsed_seconds": 30.416,
+  "symbol": "002311",
+  "baostock_code": "sz.002311",
+  "valuation_rows": 2024,
+  "fund_flow_rows": 120,
+  "feature_columns": 125,
+  "merged_columns": 194,
+  "outputs": {
+    "daily_valuation": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/baostock_daily_valuation.csv",
+    "quarterly_fundamentals": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/baostock_quarterly_fundamentals_pit.csv",
+    "fundamental_features": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/fundamental_features.csv",
+    "merged_samples": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
+  }
+}
+
+[2026-05-13T01:50:47] RUN sector
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector --sector-symbol '农产品加工' --start-date 2018-01-01 --end-date 2026-05-12
+
+  0%|          | 0/9 [00:00<?, ?it/s]
+ 11%|█         | 1/9 [00:00<00:02,  3.36it/s]
+ 22%|██▏       | 2/9 [00:00<00:02,  3.15it/s]
+ 33%|███▎      | 3/9 [00:00<00:01,  3.02it/s]
+ 44%|████▍     | 4/9 [00:01<00:01,  3.20it/s]
+ 56%|█████▌    | 5/9 [00:01<00:01,  3.17it/s]
+ 67%|██████▋   | 6/9 [00:01<00:00,  3.24it/s]
+ 78%|███████▊  | 7/9 [00:02<00:00,  3.35it/s]
+ 89%|████████▉ | 8/9 [00:02<00:00,  3.30it/s]
+100%|██████████| 9/9 [00:02<00:00,  3.62it/s]
+                                             
+{
+  "sector_symbol": "农产品加工",
+  "sector_rows": 2024,
+  "sector_date_min": "2018-01-02",
+  "sector_date_max": "2026-05-12",
+  "sample_rows": 1537,
+  "merged_rows": 1537,
+  "sector_feature_cols": 23,
+  "top_missing": {
+    "sector_ret60": 0.03903708523096942,
+    "sector_ma60_gap": 0.01951854261548471,
+    "stock_vs_sector_ret20": 0.013012361743656473,
+    "sector_ret20": 0.013012361743656473,
+    "sector_vol20": 0.0071567989590110605,
+    "sector_ma20_gap": 0.006506180871828237,
+    "sector_range_z20": 0.006506180871828237,
+    "sector_volume_shock20": 0.006506180871828237,
+    "sector_amount_z20": 0.006506180871828237,
+    "sector_volume_z20": 0.006506180871828237,
+    "sector_amount_shock20": 0.006506180871828237,
+    "sector_ret5": 0.0032530904359141183,
+    "stock_vs_sector_ret5": 0.0032530904359141183,
+    "sector_vs_bench_ret5": 0.0032530904359141183,
+    "stock_vs_sector_ret1": 0.0006506180871828237,
+    "sector_ret1": 0.0006506180871828237,
+    "sector_amount": 0.0,
+    "sector_volume": 0.0,
+    "sector_close": 0.0,
+    "sector_low": 0.0
+  },
+  "outputs": {
+    "sector_index": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/sector_index_ths.csv",
+    "sector_features": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/sector_features.csv",
+    "merged_samples": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/training_samples_with_sector.csv"
+  }
+}
+[INFO] final samples for search: /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/training_samples_with_sector.csv
+=== nextday pipeline end: 2026-05-13T01:50:52 status=ok ===
+=== nextday pipeline start: 2026-05-13T09:39:29 ===
+symbol=002311.SZ, out_root=/root/stock_realtime_v021_full/saved_data/002311_pipeline_out
+
+[2026-05-13T09:39:29] RUN update_data
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 002311 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-13 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-13 15:00:00' --output_dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:246: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  merged = _normalize_daily_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:246: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  merged = _normalize_daily_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:254: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  merged = _normalize_bench_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:254: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
   merged = _normalize_bench_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
 login success!
 logout success!
@@ -2319,48 +2559,48 @@ logout success!
   "mode": "update_data",
   "symbol": "002311",
   "data_source": "baostock",
-  "daily_rows": 2023,
-  "intraday_rows": 73728,
+  "daily_rows": 2024,
+  "intraday_rows": 73776,
   "daily_min": "2018-01-02 00:00:00",
-  "daily_max": "2026-05-11 00:00:00",
+  "daily_max": "2026-05-12 00:00:00",
   "intraday_min": "2020-01-02 09:35:00",
-  "intraday_max": "2026-05-11 15:00:00",
+  "intraday_max": "2026-05-12 15:00:00",
   "base_paths": {
-    "daily_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_daily.csv",
-    "intraday_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv",
-    "benchmark_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/000300_benchmark_daily.csv",
-    "raw_daily_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_daily_raw.csv",
-    "raw_intraday_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_5m_raw.csv",
-    "raw_benchmark_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/000300_benchmark_daily_raw.csv",
-    "daily_features_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/daily_features.csv",
-    "intraday_features_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/intraday_features.csv",
-    "daily_features_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache/daily_features_cache.csv",
-    "intraday_features_cache_csv": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache/intraday_features_cache.csv",
-    "feature_state_json": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache/feature_state.json"
+    "daily_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_daily.csv",
+    "intraday_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv",
+    "benchmark_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/000300_benchmark_daily.csv",
+    "raw_daily_cache_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_daily_raw.csv",
+    "raw_intraday_cache_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_5m_raw.csv",
+    "raw_benchmark_cache_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/000300_benchmark_daily_raw.csv",
+    "daily_features_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/daily_features.csv",
+    "intraday_features_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/intraday_features.csv",
+    "daily_features_cache_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache/daily_features_cache.csv",
+    "intraday_features_cache_csv": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache/intraday_features_cache.csv",
+    "feature_state_json": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache/feature_state.json"
   },
   "fetch_logs": {
     "symbol": "002311",
     "benchmark_symbol": "000300",
     "daily_start": "2018-01-01",
-    "daily_end": "2026-05-12",
+    "daily_end": "2026-05-13",
     "intraday_start": "2018-01-01 09:30:00",
-    "intraday_end": "2026-05-12 15:00:00",
+    "intraday_end": "2026-05-13 15:00:00",
     "perf_start": "2018-01-01",
     "data_source": "baostock",
     "cache_mode": "incremental",
     "force_refresh": false,
-    "raw_cache_dir": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache",
-    "feature_cache_dir": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache",
+    "raw_cache_dir": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache",
+    "feature_cache_dir": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/feature_cache",
     "feature_cache_mode": "incremental",
     "daily": {
-      "cache_path": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_daily_raw.csv",
+      "cache_path": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_daily_raw.csv",
       "requested_start": "2018-01-01",
-      "requested_end": "2026-05-12",
+      "requested_end": "2026-05-13",
       "mode": "incremental",
       "cache_before": {
-        "rows": 2022,
+        "rows": 2024,
         "min": "2018-01-02 00:00:00",
-        "max": "2026-05-08 00:00:00"
+        "max": "2026-05-12 00:00:00"
       },
       "fetch_segments": [
         {
@@ -2373,26 +2613,24 @@ logout success!
           "provider": "baostock",
           "code": "sz.002311",
           "adjustflag": "2",
-          "rows": 1,
-          "start": "2026-05-09",
-          "end": "2026-05-12"
+          "rows": 0
         }
       ],
       "cache_after": {
-        "rows": 2023,
+        "rows": 2024,
         "min": "2018-01-02 00:00:00",
-        "max": "2026-05-11 00:00:00"
+        "max": "2026-05-12 00:00:00"
       }
     },
     "intraday_5m": {
-      "cache_path": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_5m_raw.csv",
+      "cache_path": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/002311_5m_raw.csv",
       "requested_start": "2018-01-01 09:30:00",
-      "requested_end": "2026-05-12 15:00:00",
+      "requested_end": "2026-05-13 15:00:00",
       "mode": "incremental",
       "cache_before": {
-        "rows": 73680,
+        "rows": 73776,
         "min": "2020-01-02 09:35:00",
-        "max": "2026-05-08 15:00:00"
+        "max": "2026-05-12 15:00:00"
       },
       "fetch_segments": [
         {
@@ -2408,27 +2646,27 @@ logout success!
           "provider": "baostock",
           "code": "sz.002311",
           "adjustflag": "2",
-          "requested_start": "2026-05-08 15:05:00",
-          "effective_start": "2026-05-08 15:05:00",
-          "requested_end": "2026-05-12 15:00:00",
-          "rows": 48
+          "requested_start": "2026-05-12 15:05:00",
+          "effective_start": "2026-05-12 15:05:00",
+          "requested_end": "2026-05-13 15:00:00",
+          "rows": 0
         }
       ],
       "cache_after": {
-        "rows": 73728,
+        "rows": 73776,
         "min": "2020-01-02 09:35:00",
-        "max": "2026-05-11 15:00:00"
+        "max": "2026-05-12 15:00:00"
       }
     },
     "benchmark_daily": {
-      "cache_path": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/000300_benchmark_daily_raw.csv",
+      "cache_path": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/raw_cache/000300_benchmark_daily_raw.csv",
       "requested_start": "2018-01-01",
-      "requested_end": "2026-05-12",
+      "requested_end": "2026-05-13",
       "mode": "incremental",
       "cache_before": {
-        "rows": 2022,
+        "rows": 2024,
         "min": "2018-01-02 00:00:00",
-        "max": "2026-05-08 00:00:00"
+        "max": "2026-05-12 00:00:00"
       },
       "fetch_segments": [
         {
@@ -2441,192 +2679,168 @@ logout success!
         {
           "provider": "baostock",
           "code": "sh.000300",
-          "rows": 1,
-          "start": "2026-05-09",
-          "end": "2026-05-12"
+          "rows": 0,
+          "start": "2026-05-13",
+          "end": "2026-05-13"
         }
       ],
       "cache_after": {
-        "rows": 2023,
+        "rows": 2024,
         "min": "2018-01-02 00:00:00",
-        "max": "2026-05-11 00:00:00"
+        "max": "2026-05-12 00:00:00"
       }
     },
     "feature_build": {
-      "mode": "stateful_incremental_append",
-      "daily_context_days": 260,
-      "intraday_context_days": 40,
-      "daily_append": {
-        "needed": true,
-        "first_new_date": "2026-05-11 00:00:00",
-        "context_start": "2025-04-10 00:00:00",
-        "context_raw_rows": 261,
-        "appended_rows": 1,
-        "cache_before": {
-          "rows": 2022,
-          "min": "2018-01-02 00:00:00",
-          "max": "2026-05-08 00:00:00"
-        },
-        "cache_after": {
-          "rows": 2023,
-          "min": "2018-01-02 00:00:00",
-          "max": "2026-05-11 00:00:00"
-        }
+      "mode": "cache_reuse_no_rebuild",
+      "daily_cache": {
+        "rows": 2024,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-12 00:00:00"
       },
-      "intraday_append": {
-        "needed": true,
-        "first_new_datetime": "2026-05-11 09:35:00",
-        "context_start_date": "2026-03-10 00:00:00",
-        "context_raw_rows": 1968,
-        "appended_rows": 48,
-        "cache_before": {
-          "rows": 73680,
-          "min": "2020-01-02 09:35:00",
-          "max": "2026-05-08 15:00:00"
-        },
-        "cache_after": {
-          "rows": 73728,
-          "min": "2020-01-02 09:35:00",
-          "max": "2026-05-11 15:00:00"
-        }
-      }
+      "intraday_cache": {
+        "rows": 73776,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-12 15:00:00"
+      },
+      "daily_context_days": 260,
+      "intraday_context_days": 40
     },
     "feature_state": {
-      "daily_feature_max": "2026-05-11 00:00:00",
-      "intraday_feature_max": "2026-05-11 15:00:00",
+      "daily_feature_max": "2026-05-12 00:00:00",
+      "intraday_feature_max": "2026-05-12 15:00:00",
       "daily_context_days": 260,
       "intraday_context_days": 40,
-      "feature_build_mode": "stateful_incremental_append"
+      "feature_build_mode": "cache_reuse_no_rebuild"
     }
   }
 }
 
-[2026-05-12T00:32:54] RUN samples
-  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/daily_features.csv --intraday-bars /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+[2026-05-13T09:39:51] RUN samples
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/daily_features.csv --intraday-bars /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
 {
-  "rows": 1536,
+  "rows": 1537,
   "date_min": "2020-01-02",
-  "date_max": "2026-05-11",
-  "out": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples/training_samples.csv"
+  "date_max": "2026-05-12",
+  "out": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples/training_samples.csv"
 }
 
-[2026-05-12T00:32:55] RUN fundamental
-  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 002311.SZ --daily-samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples/training_samples.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-12 --fallback-lag-days 120
+[2026-05-13T09:39:52] RUN fundamental
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 002311.SZ --daily-samples /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples/training_samples.csv --out-dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-13 --fallback-lag-days 120
 login success!
 logout success!
 {
-  "rows": 1536,
+  "rows": 1537,
   "date_min": "2020-01-02",
-  "date_max": "2026-05-11",
+  "date_max": "2026-05-12",
   "source_errors": [],
   "top_missing_rates": {
-    "ak_fund_小单净流入-净额_sum10": 0.9244791666666666,
-    "ak_fund_主力净流入-净额_sum10": 0.9244791666666666,
-    "ak_fund_主力净流入-净占比_sum10": 0.9244791666666666,
-    "ak_fund_涨跌幅_sum10": 0.9244791666666666,
-    "ak_fund_收盘价_sum10": 0.9244791666666666,
-    "ak_fund_中单净流入-净额_sum10": 0.9244791666666666,
-    "ak_fund_中单净流入-净占比_sum10": 0.9244791666666666,
-    "ak_fund_小单净流入-净占比_sum10": 0.9244791666666666,
-    "ak_fund_超大单净流入-净额_sum10": 0.9244791666666666,
-    "ak_fund_大单净流入-净额_sum10": 0.9244791666666666,
-    "ak_fund_大单净流入-净占比_sum10": 0.9244791666666666,
-    "ak_fund_超大单净流入-净占比_sum10": 0.9244791666666666,
-    "ak_fund_涨跌幅_sum5": 0.9231770833333334,
-    "ak_fund_主力净流入-净占比_sum5": 0.9231770833333334,
-    "ak_fund_主力净流入-净额_sum5": 0.9231770833333334,
-    "ak_fund_收盘价_sum5": 0.9231770833333334,
-    "ak_fund_超大单净流入-净占比_sum5": 0.9231770833333334,
-    "ak_fund_中单净流入-净占比_sum5": 0.9231770833333334,
-    "ak_fund_中单净流入-净额_sum5": 0.9231770833333334,
-    "ak_fund_小单净流入-净额_sum5": 0.9231770833333334,
-    "ak_fund_小单净流入-净占比_sum5": 0.9231770833333334,
-    "ak_fund_大单净流入-净占比_sum5": 0.9231770833333334,
-    "ak_fund_大单净流入-净额_sum5": 0.9231770833333334,
-    "ak_fund_超大单净流入-净额_sum5": 0.9231770833333334,
-    "ak_fund_大单净流入-净额": 0.921875,
-    "ak_fund_超大单净流入-净占比": 0.921875,
-    "ak_fund_超大单净流入-净额": 0.921875,
-    "ak_fund_收盘价": 0.921875,
-    "ak_fund_涨跌幅": 0.921875,
-    "ak_fund_中单净流入-净额": 0.921875
+    "ak_fund_小单净流入-净额_sum10": 0.9245283018867925,
+    "ak_fund_主力净流入-净额_sum10": 0.9245283018867925,
+    "ak_fund_主力净流入-净占比_sum10": 0.9245283018867925,
+    "ak_fund_涨跌幅_sum10": 0.9245283018867925,
+    "ak_fund_收盘价_sum10": 0.9245283018867925,
+    "ak_fund_中单净流入-净额_sum10": 0.9245283018867925,
+    "ak_fund_中单净流入-净占比_sum10": 0.9245283018867925,
+    "ak_fund_小单净流入-净占比_sum10": 0.9245283018867925,
+    "ak_fund_超大单净流入-净额_sum10": 0.9245283018867925,
+    "ak_fund_大单净流入-净额_sum10": 0.9245283018867925,
+    "ak_fund_大单净流入-净占比_sum10": 0.9245283018867925,
+    "ak_fund_超大单净流入-净占比_sum10": 0.9245283018867925,
+    "ak_fund_涨跌幅_sum5": 0.9232270657124269,
+    "ak_fund_主力净流入-净占比_sum5": 0.9232270657124269,
+    "ak_fund_主力净流入-净额_sum5": 0.9232270657124269,
+    "ak_fund_收盘价_sum5": 0.9232270657124269,
+    "ak_fund_超大单净流入-净占比_sum5": 0.9232270657124269,
+    "ak_fund_中单净流入-净占比_sum5": 0.9232270657124269,
+    "ak_fund_中单净流入-净额_sum5": 0.9232270657124269,
+    "ak_fund_小单净流入-净额_sum5": 0.9232270657124269,
+    "ak_fund_小单净流入-净占比_sum5": 0.9232270657124269,
+    "ak_fund_大单净流入-净占比_sum5": 0.9232270657124269,
+    "ak_fund_大单净流入-净额_sum5": 0.9232270657124269,
+    "ak_fund_超大单净流入-净额_sum5": 0.9232270657124269,
+    "ak_fund_大单净流入-净额": 0.9219258295380611,
+    "ak_fund_超大单净流入-净占比": 0.9219258295380611,
+    "ak_fund_超大单净流入-净额": 0.9219258295380611,
+    "ak_fund_收盘价": 0.9219258295380611,
+    "ak_fund_涨跌幅": 0.9219258295380611,
+    "ak_fund_中单净流入-净额": 0.9219258295380611
   },
   "valuation_non_null": {
-    "peTTM": 1536,
-    "pbMRQ": 1536,
-    "psTTM": 1536,
-    "pcfNcfTTM": 1536
+    "peTTM": 1537,
+    "pbMRQ": 1537,
+    "psTTM": 1537,
+    "pcfNcfTTM": 1537
   },
   "future_effective_date_violations": 0,
-  "rows_with_quarterly": 1536,
-  "sample_rows": 1536,
+  "rows_with_quarterly": 1537,
+  "sample_rows": 1537,
   "quarterly_raw_rows": 37,
   "quarterly_used_pubDate_rows": 37,
   "quarterly_fallback_rows": 0,
-  "elapsed_seconds": 23.538,
+  "elapsed_seconds": 31.07,
   "symbol": "002311",
   "baostock_code": "sz.002311",
-  "valuation_rows": 2023,
+  "valuation_rows": 2024,
   "fund_flow_rows": 120,
   "feature_columns": 125,
   "merged_columns": 194,
   "outputs": {
-    "daily_valuation": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/baostock_daily_valuation.csv",
-    "quarterly_fundamentals": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/baostock_quarterly_fundamentals_pit.csv",
-    "fundamental_features": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/fundamental_features.csv",
-    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
+    "daily_valuation": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/baostock_daily_valuation.csv",
+    "quarterly_fundamentals": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/baostock_quarterly_fundamentals_pit.csv",
+    "fundamental_features": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/fundamental_features.csv",
+    "merged_samples": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
   }
 }
 
-[2026-05-12T00:33:19] RUN sector
-  /usr/bin/python3 feature_building/build_sector_features.py --samples /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector --sector-symbol '农产品加工' --start-date 2018-01-01 --end-date 2026-05-12
+[2026-05-13T09:40:24] RUN sector
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector --sector-symbol '农产品加工' --start-date 2018-01-01 --end-date 2026-05-13
 
   0%|          | 0/9 [00:00<?, ?it/s]
- 11%|█         | 1/9 [00:00<00:02,  3.56it/s]
- 22%|██▏       | 2/9 [00:00<00:02,  3.49it/s]
- 33%|███▎      | 3/9 [00:00<00:01,  3.82it/s]
- 44%|████▍     | 4/9 [00:01<00:01,  3.70it/s]
- 56%|█████▌    | 5/9 [00:01<00:01,  3.81it/s]
- 67%|██████▋   | 6/9 [00:01<00:00,  3.89it/s]
- 78%|███████▊  | 7/9 [00:01<00:00,  3.84it/s]
- 89%|████████▉ | 8/9 [00:02<00:00,  3.92it/s]
-100%|██████████| 9/9 [00:02<00:00,  4.10it/s]
+ 11%|█         | 1/9 [00:00<00:01,  4.40it/s]
+ 22%|██▏       | 2/9 [00:00<00:01,  4.22it/s]
+ 33%|███▎      | 3/9 [00:00<00:01,  3.84it/s]
+ 44%|████▍     | 4/9 [00:00<00:01,  4.05it/s]
+ 56%|█████▌    | 5/9 [00:01<00:01,  3.94it/s]
+ 67%|██████▋   | 6/9 [00:01<00:00,  3.94it/s]
+ 78%|███████▊  | 7/9 [00:01<00:00,  4.17it/s]
+ 89%|████████▉ | 8/9 [00:02<00:00,  3.89it/s]
+100%|██████████| 9/9 [00:02<00:00,  4.23it/s]
                                              
 {
   "sector_symbol": "农产品加工",
-  "sector_rows": 2023,
+  "sector_rows": 2024,
   "sector_date_min": "2018-01-02",
-  "sector_date_max": "2026-05-11",
-  "sample_rows": 1536,
-  "merged_rows": 1536,
+  "sector_date_max": "2026-05-12",
+  "sample_rows": 1537,
+  "merged_rows": 1537,
   "sector_feature_cols": 23,
   "top_missing": {
-    "sector_ret60": 0.0390625,
-    "sector_ma60_gap": 0.01953125,
-    "stock_vs_sector_ret20": 0.013020833333333334,
-    "sector_ret20": 0.013020833333333334,
-    "sector_vol20": 0.007161458333333333,
-    "sector_ma20_gap": 0.006510416666666667,
-    "sector_range_z20": 0.006510416666666667,
-    "sector_volume_shock20": 0.006510416666666667,
-    "sector_amount_z20": 0.006510416666666667,
-    "sector_volume_z20": 0.006510416666666667,
-    "sector_amount_shock20": 0.006510416666666667,
-    "sector_ret5": 0.0032552083333333335,
-    "stock_vs_sector_ret5": 0.0032552083333333335,
-    "sector_vs_bench_ret5": 0.0032552083333333335,
-    "stock_vs_sector_ret1": 0.0006510416666666666,
-    "sector_ret1": 0.0006510416666666666,
+    "sector_ret60": 0.03903708523096942,
+    "sector_ma60_gap": 0.01951854261548471,
+    "stock_vs_sector_ret20": 0.013012361743656473,
+    "sector_ret20": 0.013012361743656473,
+    "sector_vol20": 0.0071567989590110605,
+    "sector_ma20_gap": 0.006506180871828237,
+    "sector_range_z20": 0.006506180871828237,
+    "sector_volume_shock20": 0.006506180871828237,
+    "sector_amount_z20": 0.006506180871828237,
+    "sector_volume_z20": 0.006506180871828237,
+    "sector_amount_shock20": 0.006506180871828237,
+    "sector_ret5": 0.0032530904359141183,
+    "stock_vs_sector_ret5": 0.0032530904359141183,
+    "sector_vs_bench_ret5": 0.0032530904359141183,
+    "stock_vs_sector_ret1": 0.0006506180871828237,
+    "sector_ret1": 0.0006506180871828237,
     "sector_amount": 0.0,
     "sector_volume": 0.0,
     "sector_close": 0.0,
     "sector_low": 0.0
   },
   "outputs": {
-    "sector_index": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/sector_index_ths.csv",
-    "sector_features": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/sector_features.csv",
-    "merged_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/training_samples_with_sector.csv"
+    "sector_index": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/sector_index_ths.csv",
+    "sector_features": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/sector_features.csv",
+    "merged_samples": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/training_samples_with_sector.csv"
   }
 }
-[INFO] final samples for search: /root/workspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv
-=== nextday pipeline end: 2026-05-12T00:33:23 status=ok ===
+[INFO] final samples for search: /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/training_samples_with_sector.csv
+=== nextday pipeline end: 2026-05-13T09:40:29 status=ok ===

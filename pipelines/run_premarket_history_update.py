@@ -150,8 +150,17 @@ class SymbolPlan:
             stages.append("fundamental")
         if "sector" in self.feature_pipeline:
             stages.append("sector")
-        if self.external:
-            stages.append("external")
+        # run_nextday_pipeline.py names external stages as external_<profile>,
+        # e.g. --external aero_nuclear_equipment corresponds to
+        # --only-stages ...,external_aero_nuclear_equipment.
+        # A generic "external" stage will not trigger those builders.
+        for ext in self.external:
+            ext = str(ext).strip()
+            if not ext:
+                continue
+            stage = ext if ext.startswith("external_") else f"external_{ext}"
+            if stage not in stages:
+                stages.append(stage)
         return stages
 
 
