@@ -5,6 +5,8 @@ __pycache__/
 
 #ignore data cleanup trash
 cleanup_trash/
+saved_data/gap_fill_diagnostics/
+backup_signal_replay/
 
 # Ignore realtime/cache data
 saved_data/akshare_realtime_cache/

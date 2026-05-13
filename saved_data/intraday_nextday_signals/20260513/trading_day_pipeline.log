@@ -3441,3 +3441,148 @@ SKIP BaoStock update: disabled for intraday signal run
 603308.SH nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_external_aero_nuclear_v1 score=0.334631 threshold=0.579982 raw_pass=False entry=False signal=False reject=missing_required_realtime_context;filled_features_gt_5;amount_lt_5e+07;entry_signal_false;score_below_threshold
 WROTE /root/stock_realtime_v021_full/saved_data/intraday_nextday_signals/20260513/all_scores.csv rows=19
 WROTE /root/stock_realtime_v021_full/saved_data/intraday_nextday_signals/20260513/buy_signals.csv rows=0
+
+
+===== 2026-05-13 23:05:14 CMD: /usr/bin/python3 pipelines/run_intraday_nextday_signals.py plan --watchlist /root/stock_realtime_v021_full/selected_watchlist.txt --models-dir /root/stock_realtime_v021_full/saved_models --model-policy all --cutoff-time 14:55 =====
+[MODEL] saved model symbols: 9
+[WATCHLIST] selected symbols: 61
+[COLLECT] symbols with models: 9
+[SKIP] symbols without models: 52
+WROTE runtime plan under /root/stock_realtime_v021_full/saved_data/intraday_nextday_signals/20260513
+
+
+===== 2026-05-13 23:05:16 CMD: /usr/bin/python3 data_collection/collect_akshare_l1_cache.py build-bars --out-dir /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache --date 20260513 --cutoff-time 14:52 --symbols-file /root/stock_realtime_v021_full/saved_data/intraday_nextday_signals/20260513/effective_watchlist.txt =====
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/002270.SZ/minute_bars_1min.csv rows=165
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/002270.SZ/minute_bars_5min.csv rows=35
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/002311.SZ/minute_bars_1min.csv rows=165
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/002311.SZ/minute_bars_5min.csv rows=35
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/002714.SZ/minute_bars_1min.csv rows=165
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/002714.SZ/minute_bars_5min.csv rows=35
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/600096.SH/minute_bars_1min.csv rows=165
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/600096.SH/minute_bars_5min.csv rows=35
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/600276.SH/minute_bars_1min.csv rows=165
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/600276.SH/minute_bars_5min.csv rows=35
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/600312.SH/minute_bars_1min.csv rows=165
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/600312.SH/minute_bars_5min.csv rows=35
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/601899.SH/minute_bars_1min.csv rows=165
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/601899.SH/minute_bars_5min.csv rows=35
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/601985.SH/minute_bars_1min.csv rows=165
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/601985.SH/minute_bars_5min.csv rows=35
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/603308.SH/minute_bars_1min.csv rows=165
+wrote /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache/pending/20260513/603308.SH/minute_bars_5min.csv rows=35
+
+
+===== 2026-05-13 23:05:18 CMD: /usr/bin/python3 data_collection/collect_realtime_context.py build-features --watchlist /root/stock_realtime_v021_full/selected_watchlist.txt --models-dir /root/stock_realtime_v021_full/saved_models --model-policy all --config /root/stock_realtime_v021_full/configs/realtime_context_sources.toml --out-dir /root/stock_realtime_v021_full/saved_data/realtime_context --date 20260513 --cutoff-time 14:55 =====
+WROTE /root/stock_realtime_v021_full/saved_data/realtime_context/20260513/context_features_asof.csv rows=19
+
+
+===== 2026-05-13 23:05:40 CMD: /usr/bin/python3 scripts/fill_sector_range_z20_from_history.py --date 20260513 --context-dir /root/stock_realtime_v021_full/saved_data/realtime_context --cutoff-time 14:55 =====
+{
+  "date": "20260513",
+  "context_features_asof": "/root/stock_realtime_v021_full/saved_data/realtime_context/20260513/context_features_asof.csv",
+  "rows": 19,
+  "filled_sector_range_z20": 13,
+  "estimated_sector_range_pct": 13,
+  "failed_sector_range_z20": 0
+}
+
+
+===== 2026-05-13 23:05:43 CMD: /usr/bin/python3 pipelines/run_intraday_nextday_signals.py score-now --watchlist /root/stock_realtime_v021_full/selected_watchlist.txt --models-dir /root/stock_realtime_v021_full/saved_models --model-policy all --cache-dir /root/stock_realtime_v021_full/saved_data/akshare_realtime_cache --signal-out-dir /root/stock_realtime_v021_full/saved_data/intraday_nextday_signals --cutoff-time 14:55 --context-dir /root/stock_realtime_v021_full/saved_data/realtime_context --max-missing-features 5 --min-amount-yuan 50000000.0 =====
+[MODEL] saved model symbols: 9
+[WATCHLIST] selected symbols: 61
+[COLLECT] symbols with models: 9
+[SKIP] symbols without models: 52
+SKIP BaoStock update: disabled for intraday signal run
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '5619.25' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+002270.SZ nextday_all_days_close_profit_extra_trees_all_no_ak_v1 score=0.490773 threshold=0.486988 raw_pass=True entry=True signal=True reject=
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '586.74' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+002311.SZ nextday_all_days_close_profit_random_forest_reversal_fundamental_regime_sector_v1 score=0.458085 threshold=0.453674 raw_pass=True entry=True signal=True reject=
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+002311.SZ nextday_all_days_hit80_lgbm_leaves15_reversal_fundamental_regime_v1 score=0.670031 threshold=0.664585 raw_pass=True entry=True signal=True reject=
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '586.74' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+002311.SZ nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_v1 score=0.521147 threshold=0.542502 raw_pass=False entry=False signal=False reject=entry_signal_false;score_below_threshold
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+002311.SZ nextday_vwap_low_hit80_lgbm_leaves15_reversal_fundamental_regime_v1 score=0.634378 threshold=0.615541 raw_pass=True entry=False signal=False reject=entry_signal_false
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '760.33' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+002714.SZ nextday_vwap_low_close_profit_random_forest_reversal_fundamental_regime_sector_v1 score=0.530261 threshold=0.461491 raw_pass=True entry=True signal=True reject=
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '1448.26' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+600096.SH nextday_all_days_close_profit_xgb_d4_reversal_fundamental_regime_sector_v1 score=0.592648 threshold=0.471615 raw_pass=True entry=True signal=True reject=
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+600096.SH nextday_all_days_hit80_xgb_d3_400_reversal_fundamental_regime_v1 score=0.387181 threshold=0.580747 raw_pass=False entry=True signal=False reject=score_below_threshold
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '1448.26' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+600096.SH nextday_vwap_low_close_profit_xgb_d4_reversal_fundamental_regime_sector_v1 score=0.608319 threshold=0.471729 raw_pass=True entry=True signal=True reject=
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '2537.93' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+600276.SH nextday_all_days_hit80_extra_trees_reversal_fundamental_regime_sector_v1 score=0.490678 threshold=0.476752 raw_pass=True entry=True signal=True reject=
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '5619.25' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+600312.SH nextday_all_days_close_profit_xgb_d3_400_reversal_fundamental_regime_sector_v1 score=0.417155 threshold=0.486552 raw_pass=False entry=True signal=False reject=score_below_threshold
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+600312.SH nextday_all_days_close_profit_xgb_d3_600_reversal_fundamental_regime_v1 score=0.404959 threshold=0.488447 raw_pass=False entry=True signal=False reject=score_below_threshold
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+600312.SH nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_v1 score=0.431889 threshold=0.510881 raw_pass=False entry=False signal=False reject=entry_signal_false;score_below_threshold
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '887.58' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+601899.SH nextday_all_days_close_profit_xgb_d3_400_reversal_fundamental_regime_sector_v1 score=0.578179 threshold=0.436504 raw_pass=True entry=True signal=True reject=
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '887.58' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+601899.SH nextday_vwap_low_close_profit_extra_trees_reversal_fundamental_regime_sector_zijin_v1 score=0.520550 threshold=0.464405 raw_pass=True entry=True signal=True reject=
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+601985.SH nextday_all_days_close_profit_extra_trees_reversal_fundamental_regime_v1 score=0.475260 threshold=0.496879 raw_pass=False entry=True signal=False reject=score_below_threshold
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '4074.34' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '2651.78' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '4074.34' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+603308.SH nextday_all_days_close_profit_xgb_d3_400_reversal_fundamental_regime_sector_external_aero_nuclear_v1 score=0.326002 threshold=0.519954 raw_pass=False entry=True signal=False reject=missing_required_realtime_context;score_below_threshold
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '4074.34' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+603308.SH nextday_all_days_close_profit_xgb_d4_reversal_fundamental_regime_sector_v1 score=0.428207 threshold=0.309502 raw_pass=True entry=True signal=True reject=
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '4074.34' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '2651.78' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:926: FutureWarning: Setting an item of incompatible dtype is deprecated and will raise an error in a future version of pandas. Value '4074.34' has dtype incompatible with int64, please explicitly cast to a compatible dtype first.
+  out.at[idx, col] = val
+/root/stock_realtime_v021_full/pipelines/run_intraday_nextday_signals.py:1019: FutureWarning: Downcasting behavior in `replace` is deprecated and will be removed in a future version. To retain the old behavior, explicitly call `result.infer_objects(copy=False)`. To opt-in to the future behavior, set `pd.set_option('future.no_silent_downcasting', True)`
+  df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
+603308.SH nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_external_aero_nuclear_v1 score=0.417087 threshold=0.579982 raw_pass=False entry=False signal=False reject=missing_required_realtime_context;entry_signal_false;score_below_threshold
+WROTE /root/stock_realtime_v021_full/saved_data/intraday_nextday_signals/20260513/all_scores.csv rows=19
+WROTE /root/stock_realtime_v021_full/saved_data/intraday_nextday_signals/20260513/buy_signals.csv rows=10
