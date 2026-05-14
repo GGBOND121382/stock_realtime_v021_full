@@ -465,19 +465,19 @@ def main() -> int:
                 run_cmd(build_cmd, cwd=root, log_file=log_file, dry_run=args.dry_run, check=True)
                 mark("build_bars", "ok")
 
-                # Fix 5m bars built from cumulative snapshot volume/amount.
+                # Rebuild local 5m OHLCV bars from snapshots.
                 # Snapshot volume/amount are intraday cumulative fields. A 5m
                 # bar must use per-bar delta values; otherwise VWAP and volume
                 # share features are polluted by cumulative sums.
                 fix_5m_cmd = [
-                    python, "tools/fix_5m_cumulative_volume_amount.py",
+                    python, "tools/fix_5m_ohlcv_from_snapshots.py",
                     "--date", trade_date,
                     "--cache-dir", str(realtime_cache_dir),
                     "--cutoff-time", args.cutoff_time,
                     "--symbols-file", str(effective_watchlist),
                 ]
                 run_cmd(fix_5m_cmd, cwd=root, log_file=log_file, dry_run=args.dry_run, check=True)
-                mark("fix_5m_cumulative_volume_amount", "ok")
+                mark("fix_5m_ohlcv_from_snapshots", "ok")
             except Exception as exc:
                 mark("build_bars", "failed", {"error": str(exc)})
                 if not args.keep_going:
