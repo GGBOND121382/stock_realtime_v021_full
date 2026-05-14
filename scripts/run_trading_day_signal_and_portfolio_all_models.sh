@@ -31,4 +31,4 @@ HISTORY="${HISTORY:-history_close.csv}"
   --min-amount-yuan "${MIN_AMOUNT_YUAN:-50000000}"
 
 DATE_DASH="$DATE_DASH" DATE_COMPACT="$DATE_COMPACT" ACCOUNT="$ACCOUNT" HISTORY="$HISTORY" \
-  "$PYTHON" scripts/run_portfolio_confirm_from_signals.sh
+  bash scripts/run_portfolio_confirm_from_signals.sh

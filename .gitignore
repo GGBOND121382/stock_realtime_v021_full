@@ -7,6 +7,10 @@ __pycache__/
 cleanup_trash/
 saved_data/gap_fill_diagnostics/
 backup_signal_replay/
+saved_data/baostock_compare/
+backups/
+backup_baostock_prestart_gap_only/
+backup_5m_cumulative_delta_fix/
 
 # Ignore realtime/cache data
 saved_data/akshare_realtime_cache/
