@@ -4,6 +4,10 @@
 
 本文档刻意保持简洁，方便后续 Codex 快速理解目录，不需要反复扫描大量输出文件。
 
+## 警告
+
+除了项目创建者本人，任何人/AI不得以任何形式删除该工程下的数据！！！！！！
+
 ## 核心数据流
 
 ```text
@@ -478,3 +482,57 @@ PY
 ```
 
 如果采集进程在 build-time 后仍未退出，主流水线会按超时参数终止采集并继续后续步骤，避免再次出现 15:00 后才出信号。
+
+
+
+## 补丁260516
+cd /root/stock_realtime_v021_full
+
+# 1. 应用大补丁
+unzip -o /path/to/big_safe_model_retrain_patch.zip -d .
+bash scripts/apply_big_safe_patch.sh
+
+# 2. 覆盖 603308 脚本为 no-search 版本
+unzip -o /path/to/big_safe_model_retrain_patch_v2_no_search.zip -d .
+bash scripts/apply_603308_no_search_patch.sh
+
+# 3. 重构 603308 训练数据，不跑 search，并保存 603308 模型
+PYTHON=python3 END_DATE=2026-05-15 bash scripts/rebuild_603308_pipeline_safe.sh
+
+# 4. 先 dry-run 检查其他好模型
+DRY_RUN=1 SKIP_PIPELINE=1 PYTHON=python3 END_DATE=2026-05-15 \
+ONLY=600522.SH,600487.SH,600312.SH,601899.SH,603308.SH \
+bash scripts/update_ranked_models_latest.sh
+
+# 5. 正式保存其他好模型
+SKIP_PIPELINE=1 PYTHON=python3 END_DATE=2026-05-15 \
+ONLY=600522.SH,600487.SH,600312.SH,601899.SH,603308.SH \
+bash scripts/update_ranked_models_latest.sh
+
+# 6. 验证采集配置
+python3 - <<'PY'
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
+tomllib.load(open("configs/realtime_context_sources.toml", "rb"))
+print("TOML OK")
+PY
+
+# 7. 修当天 5min bar
+python3 tools/fix_5m_ohlcv_from_snapshots.py \
+  --date 20260515 \
+  --cache-dir saved_data/akshare_realtime_cache \
+  --symbols-file saved_data/intraday_nextday_signals/20260515/effective_watchlist.txt \
+  --cutoff-time 14:55
+
+# 8. 检查实盘 context plan
+python3 data_collection/collect_realtime_context.py plan \
+  --watchlist selected_watchlist.txt \
+  --models-dir saved_models \
+  --model-policy all \
+  --config configs/realtime_context_sources.toml \
+  --out-dir saved_data/realtime_context \
+  --date 20260515 \
+  --cutoff-time 14:55 \
+  --refresh-plan

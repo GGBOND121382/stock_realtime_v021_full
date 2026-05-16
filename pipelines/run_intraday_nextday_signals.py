@@ -579,7 +579,7 @@ def _normalize_realtime_minute_bars(bars: pd.DataFrame, trade_date: str) -> pd.D
 
 def _load_pending_intraday_rows(cache_dir: Path, stock_code: str, trade_date: str) -> pd.DataFrame:
     base = cache_symbol_dir(cache_dir, trade_date, stock_code)
-    candidates = [base / "minute_bars_1min.csv", base / "minute_bars_5min.csv"]
+    candidates = [base / "minute_bars_5min.csv", base / "minute_bars_1min.csv"]
     for path in candidates:
         if not path.exists():
             continue

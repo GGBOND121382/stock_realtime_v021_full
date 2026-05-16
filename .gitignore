@@ -12,6 +12,7 @@ backups/
 backup_baostock_prestart_gap_only/
 backup_5m_cumulative_delta_fix/
 backup_5m_ohlc_snapshot_fix/
+saved_data/patch_backups/
 
 # Ignore realtime/cache data
 saved_data/akshare_realtime_cache/
@@ -38,3 +39,12 @@ saved_data/*/10*/
 !saved_data/*/pipeline_summary.json
 !saved_data/*/run.log
 # END saved_data pipeline ignore
+saved_data/patch_backups/realtime_context_sources.toml.20260516_000646.bak
+saved_data/patch_backups/run_trading_day_signal_and_portfolio_all_models.sh.20260516_000646.bak
+saved_data/patch_backups/603308_no_search_patch_20260516_005715/scripts/rebuild_603308_pipeline_safe.sh.bak
+saved_data/patch_backups/big_safe_patch_20260516_005617/scripts/update_ranked_models_latest.sh.bak
+saved_data/patch_backups/big_safe_patch_20260516_005617/tools/fix_5m_ohlcv_from_snapshots.py.bak
+saved_data/patch_backups/realtime_5m_bar_patch_20260516_000705/fix_5m_ohlcv_from_snapshots.py.bak
+saved_data/patch_backups/realtime_5m_bar_patch_20260516_000814/fix_5m_ohlcv_from_snapshots.py.bak
+saved_data/patch_backups/realtime_code_safe_20260516_005617/pipelines/run_intraday_nextday_signals.py.bak
+saved_data/patch_backups/realtime_code_safe_20260516_005617/pipelines/run_trading_day_signal_pipeline.py.bak

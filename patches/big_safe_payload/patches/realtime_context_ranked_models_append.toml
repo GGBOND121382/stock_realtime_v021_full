@@ -1,0 +1,74 @@
+
+# ---------------------------------------------------------------------------
+# Added by big safe patch.
+# Optical cable/grid profile: 600522.SH 中天科技 / 600487.SH 亨通光电
+# Storage/power profile: 002518.SZ 科士达
+# ---------------------------------------------------------------------------
+
+[stocks."600522.SH"]
+sector_symbols = ["通信设备"]
+context_groups = ["ocg_stocks", "ocg_etfs", "ocg_futures", "ocg_boards"]
+
+[stocks."600487.SH"]
+sector_symbols = ["通信设备"]
+context_groups = ["ocg_stocks", "ocg_etfs", "ocg_futures", "ocg_boards"]
+
+[contexts.ocg_stocks]
+feature_prefixes = ["ocg_stk_", "ocg_stock_basket_", "ocg_stock_vs_stock_basket_"]
+provider = "sina_a_spot_or_daily"
+symbols = ["300308.SZ", "300502.SZ", "300394.SZ", "600522.SH", "600487.SH", "603606.SH", "600973.SH", "601869.SH", "600498.SH", "600406.SH", "601179.SH"]
+canonical_prefix_template = "ocg_stk_{code}"
+aggregate_prefix = "ocg_stock_basket"
+
+[contexts.ocg_etfs]
+feature_prefixes = ["ocg_etf_", "ocg_etf_basket_", "ocg_stock_vs_etf_basket_"]
+provider = "sina_a_spot_or_daily"
+symbols = ["515050.SH", "159994.SZ", "159819.SZ", "512480.SH", "515790.SH"]
+canonical_prefix_template = "ocg_etf_{code}"
+aggregate_prefix = "ocg_etf_basket"
+
+[contexts.ocg_futures]
+feature_prefixes = ["ocg_fut_", "ocg_future_basket_", "ocg_stock_vs_future_basket_"]
+provider = "futures_main_sina_current"
+symbols = ["CU0", "AL0"]
+canonical_prefix_template = "ocg_fut_{token}"
+aggregate_prefix = "ocg_future_basket"
+
+[contexts.ocg_boards]
+feature_prefixes = ["ocg_board_", "ocg_board_basket_", "ocg_stock_vs_board_basket_"]
+provider = "ths_sector_summary"
+symbols = ["通信设备", "电网设备", "风电设备", "消费电子"]
+canonical_prefixes = ["ocg_board_b01", "ocg_board_b02", "ocg_board_b03", "ocg_board_b04"]
+aggregate_prefix = "ocg_board_basket"
+
+[stocks."002518.SZ"]
+sector_symbols = ["其他电源设备"]
+context_groups = ["sp_stocks", "sp_etfs", "sp_futures", "sp_boards"]
+
+[contexts.sp_stocks]
+feature_prefixes = ["sp_stk_", "sp_stock_basket_", "sp_stock_vs_stock_basket_"]
+provider = "sina_a_spot_or_daily"
+symbols = ["300274.SZ", "300763.SZ", "688390.SH", "605117.SH", "300750.SZ", "002594.SZ", "300693.SZ"]
+canonical_prefix_template = "sp_stk_{code}"
+aggregate_prefix = "sp_stock_basket"
+
+[contexts.sp_etfs]
+feature_prefixes = ["sp_etf_", "sp_etf_basket_", "sp_stock_vs_etf_basket_"]
+provider = "sina_a_spot_or_daily"
+symbols = ["159566.SZ", "515790.SH", "516160.SH", "515030.SH", "512480.SH"]
+canonical_prefix_template = "sp_etf_{code}"
+aggregate_prefix = "sp_etf_basket"
+
+[contexts.sp_futures]
+feature_prefixes = ["sp_fut_", "sp_future_basket_", "sp_stock_vs_future_basket_"]
+provider = "futures_main_sina_current"
+symbols = ["LC0", "SI0", "CU0", "AL0"]
+canonical_prefix_template = "sp_fut_{token}"
+aggregate_prefix = "sp_future_basket"
+
+[contexts.sp_boards]
+feature_prefixes = ["sp_board_", "sp_board_basket_", "sp_stock_vs_board_basket_"]
+provider = "ths_sector_summary"
+symbols = ["其他电源设备", "光伏设备", "电池", "电网设备"]
+canonical_prefixes = ["sp_board_b01", "sp_board_b02", "sp_board_b03", "sp_board_b04"]
+aggregate_prefix = "sp_board_basket"

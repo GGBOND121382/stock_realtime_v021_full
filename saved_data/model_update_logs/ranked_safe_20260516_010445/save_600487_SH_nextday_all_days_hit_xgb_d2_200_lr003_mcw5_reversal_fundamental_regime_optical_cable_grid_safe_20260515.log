@@ -1,0 +1,43 @@
+{
+  "artifact_created_at": "2026-05-16T01:08:25",
+  "stock_code": "600487.SH",
+  "artifact_name": "nextday_all_days_hit_xgb_d2_200_lr003_mcw5_reversal_fundamental_regime_optical_cable_grid_safe_20260515",
+  "samples": "/root/stock_realtime_v021_full/saved_data/600487_pipeline_out_v2_all14/04_external/optical_cable_grid/training_samples_with_optical_cable_grid_external.csv",
+  "intraday_bars": "/root/stock_realtime_v021_full/saved_data/600487_pipeline_out_v2_all14/00_base/600487_5m.csv",
+  "feature_group": "reversal_fundamental_regime",
+  "model_name": "xgb_d2_200_lr003_mcw5",
+  "label_mode": "hit",
+  "entry_policy": "all_days",
+  "entry_vwap_premium_bps": 50.0,
+  "label_col": "trade_hit_label",
+  "return_col": "trade_target_or_close_return",
+  "target_hit_bps": 80.0,
+  "round_trip_cost_bps": 1.7,
+  "threshold": 0.493517741560936,
+  "threshold_quantile": 0.5,
+  "feature_count": 137,
+  "rows": 1536,
+  "train_rows_for_threshold": 1284,
+  "valid_rows_for_threshold": 252,
+  "final_train_entry_rows": 1536,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-11",
+  "validation_tail_auc": 0.6388126159554729,
+  "validation_tail_trade_metrics": {
+    "trades": 126,
+    "win_rate": 0.8333333333333334,
+    "avg_return": 0.002502685343154845,
+    "median_return": 0.008,
+    "compound_return": 0.3529746125966624,
+    "max_drawdown": -0.10209038178043439,
+    "profit_factor": 1.6110198984579285
+  },
+  "files": {
+    "model": "saved_models/600487.SH/nextday_all_days_hit_xgb_d2_200_lr003_mcw5_reversal_fundamental_regime_optical_cable_grid_safe_20260515/model.joblib",
+    "feature_median": "saved_models/600487.SH/nextday_all_days_hit_xgb_d2_200_lr003_mcw5_reversal_fundamental_regime_optical_cable_grid_safe_20260515/feature_median.csv",
+    "feature_columns": "saved_models/600487.SH/nextday_all_days_hit_xgb_d2_200_lr003_mcw5_reversal_fundamental_regime_optical_cable_grid_safe_20260515/feature_columns.txt",
+    "validation_tail_predictions": "saved_models/600487.SH/nextday_all_days_hit_xgb_d2_200_lr003_mcw5_reversal_fundamental_regime_optical_cable_grid_safe_20260515/validation_tail_predictions.csv",
+    "metadata": "saved_models/600487.SH/nextday_all_days_hit_xgb_d2_200_lr003_mcw5_reversal_fundamental_regime_optical_cable_grid_safe_20260515/metadata.json"
+  },
+  "usage_note": "This artifact is stock-specific. Use only for 600487.SH with the same feature-building pipeline."
+}

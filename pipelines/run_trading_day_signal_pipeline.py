@@ -456,6 +456,7 @@ def main() -> int:
         if not args.skip_build_bars:
             build_cmd = [
                 python, "data_collection/collect_akshare_l1_cache.py", "build-bars",
+            "--freqs", "5min",
                 "--out-dir", str(realtime_cache_dir),
                 "--date", trade_date,
                 "--cutoff-time", args.stock_collect_until,

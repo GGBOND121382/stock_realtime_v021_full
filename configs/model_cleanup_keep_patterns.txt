@@ -1,0 +1,12 @@
+# Regex patterns for artifacts that should not be moved by cleanup.
+# Matched against: STOCK/ARTIFACT
+
+# Current 603308 selected model families.
+^603308\.SH/.*aero_nuclear
+^603308\.SH/.*xgb_d4.*reversal_fundamental_regime_sector
+
+# Strong existing / selected families.
+^600312\.SH/.*xgb_d3_600
+^601899\.SH/.*zijin
+^600522\.SH/.*optical_cable_grid
+^600487\.SH/.*optical_cable_grid

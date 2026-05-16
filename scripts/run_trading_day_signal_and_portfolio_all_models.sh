@@ -21,7 +21,7 @@ HISTORY="${HISTORY:-history_close.csv}"
   --context-collect-until "${CONTEXT_COLLECT_UNTIL:-14:52}" \
   --build-time "${BUILD_TIME:-14:52}" \
   --score-time "${SCORE_TIME:-14:54}" \
-  --spot-source-priority "${SPOT_SOURCE_PRIORITY:-sina,ths,em,xq}" \
+  --spot-source-priority "${SPOT_SOURCE_PRIORITY:-sina_batch,ths_etf,xq}" \
   --required-fields "${REQUIRED_FIELDS:-close,open,high,low,volume,amount}" \
   --xq-max-symbols-per-round "${XQ_MAX_SYMBOLS_PER_ROUND:-10}" \
   --xq-per-symbol-timeout-seconds "${XQ_TIMEOUT:-2}" \

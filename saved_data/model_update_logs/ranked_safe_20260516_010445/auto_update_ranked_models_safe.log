@@ -1,0 +1,11 @@
+{
+  "selected_rows": 8,
+  "rejected_rows": 1196,
+  "save_rows": 8,
+  "status_counts": {
+    "ok": 8
+  },
+  "selected_csv": "saved_data/model_update_logs/ranked_safe_20260516_010445/auto_model_selected.csv",
+  "rejected_csv": "saved_data/model_update_logs/ranked_safe_20260516_010445/auto_model_rejected.csv",
+  "save_report_csv": "saved_data/model_update_logs/ranked_safe_20260516_010445/auto_model_save_report.csv"
+}
