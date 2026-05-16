@@ -12,6 +12,7 @@ ACCOUNT="${ACCOUNT:-account.json}"
 HISTORY="${HISTORY:-history_close.csv}"
 
 "$PYTHON" pipelines/run_trading_day_signal_pipeline.py \
+  --date "$DATE_COMPACT" \
   --watchlist "$WATCHLIST" \
   --models-dir saved_models \
   --model-policy all \

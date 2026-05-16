@@ -7,16 +7,16 @@
     "baostock_symbol": "603308"
   },
   "out_root": "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out",
-  "created_at": "2026-05-16T00:58:20",
+  "created_at": "2026-05-16T12:31:53",
   "args": {
     "symbol": "603308.SH",
     "sector_symbol": "通用设备",
-    "out_root": "saved_data/603308_pipeline_out",
+    "out_root": null,
     "run_tag": "",
     "python": null,
     "dual_script": "bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py",
     "start_date": "2018-01-01",
-    "end_date": "2026-05-15",
+    "end_date": "2026-05-16",
     "intraday_start": null,
     "intraday_end": null,
     "benchmark_symbol": "000300",
@@ -53,14 +53,14 @@
     "test_rows": 63,
     "min_valid_trades": 8,
     "min_train_entries": 80,
-    "resume": true,
+    "resume": false,
     "dry_run": false,
     "continue_on_error": false,
     "only_stages": "update_data,samples,fundamental,sector,external_aero_nuclear_equipment",
     "skip_stages": "",
     "excel": false
   },
-  "finished_at": "2026-05-16T01:01:21",
+  "finished_at": "2026-05-16T12:33:04",
   "status": "ok",
   "feature_pipeline_effective": [
     "fundamental",
@@ -100,11 +100,11 @@
         "--daily_start",
         "2018-01-01",
         "--daily_end",
-        "2026-05-15",
+        "2026-05-16",
         "--intraday_start",
         "2018-01-01 09:30:00",
         "--intraday_end",
-        "2026-05-15 15:00:00",
+        "2026-05-16 15:00:00",
         "--output_dir",
         "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base",
         "--cache_mode",
@@ -114,9 +114,9 @@
         "--adjust",
         "qfq"
       ],
-      "started_at": "2026-05-16T00:58:20",
-      "ended_at": "2026-05-16T01:00:26",
-      "elapsed_seconds": 125.572,
+      "started_at": "2026-05-16T12:31:53",
+      "ended_at": "2026-05-16T12:32:05",
+      "elapsed_seconds": 12.2,
       "returncode": 0,
       "outputs": {
         "daily_features": "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/daily_features.csv",
@@ -140,9 +140,9 @@
         "40",
         "--keep-unlabeled-tail"
       ],
-      "started_at": "2026-05-16T01:00:26",
-      "ended_at": "2026-05-16T01:00:27",
-      "elapsed_seconds": 1.123,
+      "started_at": "2026-05-16T12:32:05",
+      "ended_at": "2026-05-16T12:32:06",
+      "elapsed_seconds": 1.114,
       "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples/training_samples.csv"
@@ -164,13 +164,13 @@
         "--start-date",
         "2018-01-01",
         "--end-date",
-        "2026-05-15",
+        "2026-05-16",
         "--fallback-lag-days",
         "120"
       ],
-      "started_at": "2026-05-16T01:00:27",
-      "ended_at": "2026-05-16T01:00:53",
-      "elapsed_seconds": 26.484,
+      "started_at": "2026-05-16T12:32:06",
+      "ended_at": "2026-05-16T12:32:32",
+      "elapsed_seconds": 25.904,
       "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
@@ -192,11 +192,11 @@
         "--start-date",
         "2018-01-01",
         "--end-date",
-        "2026-05-15"
+        "2026-05-16"
       ],
-      "started_at": "2026-05-16T01:00:53",
-      "ended_at": "2026-05-16T01:00:58",
-      "elapsed_seconds": 4.425,
+      "started_at": "2026-05-16T12:32:32",
+      "ended_at": "2026-05-16T12:32:36",
+      "elapsed_seconds": 4.451,
       "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out/03_sector/training_samples_with_sector.csv"
@@ -220,7 +220,7 @@
         "--start-date",
         "2018-01-01",
         "--end-date",
-        "2026-05-15",
+        "2026-05-16",
         "--adjust",
         "qfq",
         "--domestic-lag-days",
@@ -230,9 +230,9 @@
         "--us-lag-days",
         "1"
       ],
-      "started_at": "2026-05-16T01:00:58",
-      "ended_at": "2026-05-16T01:01:21",
-      "elapsed_seconds": 22.788,
+      "started_at": "2026-05-16T12:32:36",
+      "ended_at": "2026-05-16T12:33:04",
+      "elapsed_seconds": 27.091,
       "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv"

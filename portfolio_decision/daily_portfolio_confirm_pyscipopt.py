@@ -59,9 +59,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "min_ev_bps_hit": 10.0,
     "min_utility_bps": 0.0,
 
-    "max_positions": 3,
+    "max_positions": 7,
     "max_daily_buy_pct_of_total_asset": 0.30,
     "max_daily_buy_pct_of_cash": 0.70,
+    "max_policy_weight": 0.15,
     "min_trade_amount": 6000.0,
     "lot_size": 100,
 
@@ -77,6 +78,8 @@ DEFAULT_CONFIG: Dict[str, Any] = {
 
     "use_covariance_penalty": False,
     "cov_risk_aversion": 3.0,
+    "covariance_penalty_mode": "linear",
+    "cov_linear_self_weight": 0.05,
     "vol_penalty_lambda": 0.02,
     "dd_penalty_lambda": 0.02,
 
@@ -130,6 +133,9 @@ class Candidate:
     trades: float
     median_return_bps: float
     utility_bps: float
+    enabled: bool
+    weight_multiplier: float
+    override_reason: str
     current_value: float
     current_shares: int
     held: bool
@@ -172,6 +178,24 @@ def parse_rate_decimal(x: Any, default: float = 0.0) -> float:
     if abs(val) > 1.5:
         val /= 100.0
     return val
+
+
+def parse_bool_flag(x: Any, default: bool = True) -> bool:
+    if x is None:
+        return default
+    try:
+        if pd.isna(x):
+            return default
+    except Exception:
+        pass
+    s = str(x).strip().lower()
+    if s == "":
+        return default
+    if s in {"1", "true", "t", "yes", "y", "on", "enable", "enabled"}:
+        return True
+    if s in {"0", "false", "f", "no", "n", "off", "disable", "disabled"}:
+        return False
+    return default
 
 
 def parse_drawdown_abs(x: Any, default: float = 0.12) -> float:
@@ -383,6 +407,10 @@ def get_tier_and_caps(row: pd.Series, stock_code: str, model_type: str, cfg: Dic
     default_max_add = cfg["default_max_add_weight_by_tier"].get(tier_s, 0.10)
     max_weight = as_float(override.get("max_weight", get_row_field(row, "max_weight", default_max_w)), default_max_w)
     max_add_weight = as_float(override.get("max_add_weight", get_row_field(row, "max_add_weight", default_max_add)), default_max_add)
+    max_policy_weight = cfg.get("max_policy_weight")
+    if max_policy_weight is not None:
+        max_weight = min(max_weight, as_float(max_policy_weight, max_weight))
+
     if model_type == "hit":
         max_weight = min(max_weight, 0.10)
         max_add_weight = min(max_add_weight, 0.08)
@@ -423,6 +451,16 @@ def build_candidates(df: pd.DataFrame, account: Dict[str, Any], vol_map: Dict[st
             rejected.append({"stock_code": code, "model_name": model_name, "reason": "missing_or_invalid_price"})
             continue
 
+        enabled = parse_bool_flag(get_row_field(row, "enabled", 1), True)
+        weight_multiplier = as_float(get_row_field(row, "weight_multiplier", 1.0), 1.0)
+        override_reason = str(get_row_field(row, "model_override_reason", get_row_field(row, "recent_perf_note", "")) or "")
+        if not enabled:
+            rejected.append({"stock_code": code, "model_name": model_name, "reason": "disabled_by_override", "override_reason": override_reason})
+            continue
+        if weight_multiplier <= 0:
+            rejected.append({"stock_code": code, "model_name": model_name, "reason": "non_positive_weight_multiplier", "weight_multiplier": weight_multiplier})
+            continue
+
         model_type = infer_model_type(label_mode, row, cfg, code)
         sector = str(get_row_field(row, "sector", holdings.get(code, {}).get("sector", "UNKNOWN")))
 
@@ -451,6 +489,12 @@ def build_candidates(df: pd.DataFrame, account: Dict[str, Any], vol_map: Dict[st
 
         quality = calc_quality_weight(row, cfg)
         tier, max_weight, max_add_weight = get_tier_and_caps(row, code, model_type, cfg)
+        max_weight_override = as_float(get_row_field(row, "max_weight_override", np.nan), np.nan)
+        max_add_weight_override = as_float(get_row_field(row, "max_add_weight_override", np.nan), np.nan)
+        if np.isfinite(max_weight_override) and max_weight_override > 0:
+            max_weight = min(float(max_weight_override), as_float(cfg.get("max_policy_weight", max_weight), max_weight))
+        if np.isfinite(max_add_weight_override) and max_add_weight_override > 0:
+            max_add_weight = float(max_add_weight_override)
         tier_mult = as_float(cfg.get("tier_multiplier", {}).get(str(tier), 1.0), 1.0)
 
         vol_daily = float(vol_map.get(code, np.nan))
@@ -470,6 +514,7 @@ def build_candidates(df: pd.DataFrame, account: Dict[str, Any], vol_map: Dict[st
             - float(cfg.get("vol_penalty_lambda", 0.02)) * vol_bps
             - float(cfg.get("dd_penalty_lambda", 0.02)) * dd_bps
         )
+        utility_bps *= weight_multiplier
         if utility_bps <= float(cfg.get("min_utility_bps", 0.0)):
             rejected.append({"stock_code": code, "model_name": model_name, "reason": "utility_below_threshold", "utility_bps": utility_bps, "ev_bps": ev_bps})
             continue
@@ -491,7 +536,8 @@ def build_candidates(df: pd.DataFrame, account: Dict[str, Any], vol_map: Dict[st
             quality_weight=quality, tier=tier, tier_multiplier=tier_mult, vol_daily=vol_daily,
             vol_bps=vol_bps, max_drawdown_abs=dd_abs, max_drawdown_bps=dd_bps,
             profit_factor=pf, trades=trades, median_return_bps=median_bps,
-            utility_bps=utility_bps, current_value=current_value, current_shares=current_shares,
+            utility_bps=utility_bps, enabled=True, weight_multiplier=weight_multiplier,
+            override_reason=override_reason, current_value=current_value, current_shares=current_shares,
             held=held, max_weight=max_weight, max_add_weight=max_add_weight,
             min_trade_amount=min_trade_amount_default, min_lots=min_lots, max_lots=max_lots,
         ))
@@ -603,17 +649,41 @@ def optimize_portfolio(candidates: List[Candidate], account: Dict[str, Any], cor
 
     obj = quicksum((c.utility_bps / 10000.0) * amount[c.stock_code] for c in candidates)
 
-    if bool(cfg.get("use_covariance_penalty", False)) and not cov_matrix.empty:
-        risk_aversion = float(cfg.get("cov_risk_aversion", 3.0))
-        codes = [c.stock_code for c in candidates if c.stock_code in cov_matrix.index]
-        quad = 0
-        for i in codes:
-            for j in codes:
-                cov_ij = float(cov_matrix.loc[i, j])
-                if cov_ij != 0:
-                    quad += cov_ij * (amount[i] / total_asset) * (amount[j] / total_asset)
-        obj = obj - risk_aversion * total_asset * quad
 
+    if bool(cfg.get("use_covariance_penalty", False)) and not cov_matrix.empty:
+        # PySCIPOpt setObjective() in this environment rejects nonlinear
+        # objectives such as amount_i times amount_j. Use a linear marginal
+        # covariance-risk proxy so the model remains MILP-compatible.
+        risk_aversion = float(cfg.get("cov_risk_aversion", 3.0))
+        self_weight = float(cfg.get("cov_linear_self_weight", 0.05))
+
+        current_weights = {}
+        for h_code, h in holdings.items():
+            code = normalize_stock_code(h_code)
+            mv = as_float(h.get("market_value", 0.0), 0.0)
+            if mv > 0 and total_asset > 0:
+                current_weights[code] = mv / total_asset
+
+        cov_linear_penalty_bps = {}
+        for c in candidates:
+            code = c.stock_code
+            if code not in cov_matrix.index:
+                continue
+
+            current_cov = 0.0
+            for h_code, w_h in current_weights.items():
+                if h_code in cov_matrix.columns:
+                    current_cov += float(cov_matrix.loc[code, h_code]) * float(w_h)
+
+            var_i = float(cov_matrix.loc[code, code]) if code in cov_matrix.columns else 0.0
+            marginal_variance = max(0.0, 2.0 * current_cov + self_weight * var_i)
+            cov_linear_penalty_bps[code] = 10000.0 * risk_aversion * marginal_variance
+
+        if cov_linear_penalty_bps:
+            obj = obj - quicksum(
+                (cov_linear_penalty_bps.get(c.stock_code, 0.0) / 10000.0) * amount[c.stock_code]
+                for c in candidates
+            )
     m.setObjective(obj, "maximize")
     m.optimize()
     status = str(m.getStatus())

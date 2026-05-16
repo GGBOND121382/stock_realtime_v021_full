@@ -6,7 +6,7 @@
   "slippage_bps_sell": 2.0,
   "round_trip_cost_bps": null,
   "safety_margin_bps": 8.0,
-  "max_positions": 3,
+  "max_positions": 7,
   "max_daily_buy_pct_of_total_asset": 0.3,
   "max_daily_buy_pct_of_cash": 0.7,
   "min_trade_amount": 6000.0,
@@ -27,5 +27,6 @@
     "电力": 0.15,
     "化学制药": 0.1,
     "养殖业": 0.08
-  }
+  },
+  "max_policy_weight": 0.15
 }

@@ -1402,7 +1402,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--signal-time", default="14:55")
     p.add_argument("--interval-seconds", type=int, default=30)
     p.add_argument("--cutoff-time", default="14:55", help="HH:MM. Score/build-bars use only snapshots at or before this time.")
-    p.add_argument("--spot-source-priority", default="sina,ths,em,xq")
+    p.add_argument("--spot-source-priority", default="sina_batch,ths_etf,xq")
     p.add_argument("--enable-source-short-circuit", action="store_true", default=True, help="Use later sources only for symbols still missing required fields")
     p.add_argument("--no-source-short-circuit", dest="enable_source_short_circuit", action="store_false")
     p.add_argument("--required-fields", default="close,open,high,low,volume,amount")

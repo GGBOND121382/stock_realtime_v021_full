@@ -184,7 +184,7 @@ aggregate_prefix = "fert_future_basket"
 [contexts.fert_boards]
 feature_prefixes = ["fert_board_", "fert_board_basket_", "fert_stock_vs_board_basket_"]
 provider = "ths_sector_summary"
-symbols = ["农化制品", "化学制品", "基础化工"]
+symbols = ["农化制品", "化学制品", "化学原料"]
 canonical_prefixes = ["fert_board_b01", "fert_board_b02", "fert_board_b03"]
 aggregate_prefix = "fert_board_basket"
 
@@ -215,7 +215,7 @@ aggregate_prefix = "pur_future_basket"
 [contexts.pur_boards]
 feature_prefixes = ["pur_board_", "pur_board_basket_", "pur_stock_vs_board_basket_"]
 provider = "ths_sector_summary"
-symbols = ["电力", "公用事业"]
+symbols = ["电力", "燃气"]
 canonical_prefixes = ["pur_board_b01", "pur_board_b02"]
 aggregate_prefix = "pur_board_basket"
 

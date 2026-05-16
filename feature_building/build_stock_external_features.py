@@ -75,7 +75,7 @@ PROFILES: Dict[str, ExternalProfile] = {
         stocks=("600176", "300196", "605006", "002202", "601615", "002812", "300568"),
         etfs=("516660", "159566", "515790", "516160"),
         futures=("SA0", "FG0", "SI0"),
-        boards=("建筑材料", "玻璃玻纤", "风电设备", "电池"),
+        boards=("建筑材料", "非金属材料", "风电设备", "电池"),
     ),
     "power_utility_rate": ExternalProfile(
         key="power_utility_rate",
@@ -84,7 +84,7 @@ PROFILES: Dict[str, ExternalProfile] = {
         stocks=("003816", "600900", "600025", "600011", "601991", "601611"),
         etfs=("512890", "159611", "516260"),
         futures=("ZC0",),
-        boards=("电力", "公用事业"),
+        boards=("电力", "燃气"),
     ),
     "fertilizer": ExternalProfile(
         key="fertilizer",
@@ -93,7 +93,7 @@ PROFILES: Dict[str, ExternalProfile] = {
         stocks=("600141", "000422", "002895", "002539", "000830", "000893"),
         etfs=("159865", "516220"),
         futures=("UR0", "MA0", "SA0", "C0", "M0", "JM0", "ZC0"),
-        boards=("农化制品", "化学制品", "基础化工"),
+        boards=("农化制品", "化学制品", "化学原料"),
     ),
     "storage_power": ExternalProfile(
         key="storage_power",

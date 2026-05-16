@@ -228,6 +228,50 @@ python3 prediction/predict_saved_nextday_model.py --help
 14:55：不再联网做慢采集，不再 build-bars，只读取 cutoff 前缓存输出 buy_signals.csv。
 ```
 
+### 0. 推荐一键入口：信号 + 组合确认
+
+每天实盘优先使用这个入口，它会串联：
+
+```text
+实时股票快照采集
+实时板块/外部上下文采集
+5min bar 构建与 OHLCV 修正
+score-now 生成 all_scores / buy_signals / rejected_scores
+portfolio optimizer 生成最终组合订单
+```
+
+推荐命令：
+
+```bash
+PYTHON=python3 bash scripts/run_trading_day_signal_and_portfolio_all_models.sh
+```
+
+指定交易日回放/补跑时同时指定紧凑日期和横线日期：
+
+```bash
+DATE_COMPACT=20260515 DATE_DASH=2026-05-15 PYTHON=python3 \
+bash scripts/run_trading_day_signal_and_portfolio_all_models.sh
+```
+
+该入口内部会把 `DATE_COMPACT` 传给信号流水线的 `--date`，并把 `DATE_DASH` 传给组合确认模块，避免信号目录日期和组合报告日期错位。
+
+默认实时股票源为：
+
+```text
+sina_batch,ths_etf,xq
+```
+
+含义：
+
+```text
+sina_batch：A 股/ETF 小批量目标代码实时源，默认主源
+ths_etf：THS ETF 表，只用于 ETF 补充
+xq：雪球慢速补洞源，只补仍缺核心字段的少量标的
+```
+
+不建议在 14:55 主流程中使用 `em` 或全市场接口。`em` 在实时路径中被显式禁用，`em_full` 只适合人工诊断，不适合作为临近收盘主流程数据源。
+
+
 ### 1. 盘前：更新 BaoStock / 样本 / 历史特征
 
 建议在前一晚收盘后或交易日 09:00~09:15 执行：
@@ -299,7 +343,7 @@ python pipelines/run_trading_day_signal_pipeline.py \
   --context-collect-until 14:52 \
   --build-time 14:52 \
   --score-time 14:54 \
-  --spot-source-priority sina,ths,em,xq \
+  --spot-source-priority sina_batch,ths_etf,xq \
   --required-fields close,open,high,low,volume,amount \
   --xq-max-symbols-per-round 10 \
   --xq-per-symbol-timeout-seconds 2 \
@@ -320,7 +364,7 @@ python3 pipelines/run_trading_day_signal_pipeline.py \
   --context-collect-until 14:52 \
   --build-time 14:52 \
   --score-time 14:54 \
-  --spot-source-priority sina,ths,em,xq \
+  --spot-source-priority sina_batch,ths_etf,xq \
   --required-fields close,open,high,low,volume,amount \
   --xq-max-symbols-per-round 10 \
   --xq-per-symbol-timeout-seconds 2 \
@@ -536,3 +580,53 @@ python3 data_collection/collect_realtime_context.py plan \
   --date 20260515 \
   --cutoff-time 14:55 \
   --refresh-plan
+
+### 每日流程关键检查点
+
+1. `scripts/run_trading_day_signal_and_portfolio_all_models.sh` 是推荐的一键入口。
+2. `pipelines/run_intraday_nextday_signals.py` 的默认 `--spot-source-priority` 已对齐为 `sina_batch,ths_etf,xq`。
+3. 历史补跑时必须同时设置：
+   - `DATE_COMPACT=YYYYMMDD`
+   - `DATE_DASH=YYYY-MM-DD`
+4. 信号输出目录：
+   - `saved_data/intraday_nextday_signals/YYYYMMDD/all_scores.csv`
+   - `saved_data/intraday_nextday_signals/YYYYMMDD/buy_signals.csv`
+   - `saved_data/intraday_nextday_signals/YYYYMMDD/rejected_scores.csv`
+5. 组合输出目录：
+   - `portfolio_reports/daily_portfolio_orders_YYYY-MM-DD.csv`
+   - `portfolio_reports/daily_portfolio_selected_YYYY-MM-DD.csv`
+   - `portfolio_reports/daily_portfolio_rejected_YYYY-MM-DD.csv`
+   - `portfolio_reports/daily_portfolio_report_YYYY-MM-DD.json`
+6. 清理模型库不是每日交易流程的一部分。`cleanup-apply` 只应在检查 `cleanup-preview` 报告后单独执行。
+
+
+
+
+## 新增标的
+601100
+002297
+000657
+002601
+600438
+002460
+603259
+002261
+002895
+600919
+600361
+002028
+600885
+600030
+601818
+601336
+605499
+601390
+601186
+600016
+000786
+002128
+002364
+003816
+601991
+002518
+600584

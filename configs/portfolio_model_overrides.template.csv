@@ -1,0 +1,4 @@
+# stock_code,artifact_pattern,enabled,weight_multiplier,max_weight_override,max_add_weight_override,notes
+# Later matching rows override earlier rows.
+# Keep this file conservative by default. Add rules only after review.
+stock_code,artifact_pattern,enabled,weight_multiplier,max_weight_override,max_add_weight_override,notes
