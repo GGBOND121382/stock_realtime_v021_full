@@ -247,9 +247,23 @@ def build_inputs(
     metrics_out = out_input_dir / "portfolio_metrics.csv"
     prices_out = out_input_dir / "portfolio_prices.csv"
 
+    signal_columns = [
+        "stock_code", "model_name", "label_mode", "pred_return_bps", "pred_prob",
+        "target_hit_bps", "price", "sector", "sector_source", "hit_score",
+        "threshold", "score_margin", "entry_policy", "entry_vwap_premium_bps",
+        "samples", "expected_return_col", "metadata_path",
+    ]
+    metric_columns = [
+        "stock_code", "model_name", "label_mode", "trades", "win_rate",
+        "avg_return_bps", "median_return_bps", "max_drawdown", "profit_factor",
+        "target_hit_bps", "feature_group", "base_model_name", "entry_policy",
+        "entry_vwap_premium_bps", "samples", "expected_return_col",
+        "sector", "sector_source",
+    ]
+
     if raw.empty:
-        pd.DataFrame(columns=["stock_code", "model_name", "label_mode"]).to_csv(signals_out, index=False, encoding="utf-8-sig")
-        pd.DataFrame(columns=["stock_code", "model_name"]).to_csv(metrics_out, index=False, encoding="utf-8-sig")
+        pd.DataFrame(columns=signal_columns).to_csv(signals_out, index=False, encoding="utf-8-sig")
+        pd.DataFrame(columns=metric_columns).to_csv(metrics_out, index=False, encoding="utf-8-sig")
         pd.DataFrame(columns=["stock_code", "price"]).to_csv(prices_out, index=False, encoding="utf-8-sig")
         return {"signals": signals_out, "metrics": metrics_out, "prices": prices_out}
 
@@ -262,7 +276,7 @@ def build_inputs(
 
     for _, r in raw.iterrows():
         stock_code = normalize_stock_code(r.get("stock_code", ""))
-        artifact = str(r.get("artifact_name", "")).strip()
+        artifact = as_text(r.get("artifact_name"), "")
         if not stock_code or not artifact:
             continue
 
@@ -281,7 +295,10 @@ def build_inputs(
         max_drawdown = as_float(validation.get("max_drawdown", np.nan), np.nan)
         profit_factor = as_float(validation.get("profit_factor", np.nan), np.nan)
 
-        target_hit_bps = as_float(meta.get("target_hit_bps", r.get("target_hit_bps", 80 if "80" in artifact else 50)), 50.0)
+        target_hit_bps = as_float(
+            meta.get("target_hit_bps", r.get("target_hit_bps", 80 if "80" in artifact else 50)),
+            50.0,
+        )
 
         price = as_float(r.get("close", np.nan), np.nan)
         if not np.isfinite(price) or price <= 0:
@@ -295,7 +312,7 @@ def build_inputs(
         if np.isfinite(score_margin) and np.isfinite(threshold) and abs(threshold) > 1e-9:
             conf_mult = float(np.clip(1.0 + 0.20 * score_margin / max(abs(threshold), 1e-9), 0.80, 1.20))
 
-        if label_mode == "hit":
+        if str(label_mode).lower().startswith("hit") or str(label_mode).lower() == "hit":
             pred_prob = hit_score if np.isfinite(hit_score) else win_rate
             pred_return_bps = np.nan
         else:
@@ -304,6 +321,20 @@ def build_inputs(
 
         sector, sector_source = choose_sector(r, stock_code, context_sector_map)
         override_fields = apply_override_fields(stock_code, artifact, override_rows, recent_rows)
+
+        entry_policy = as_text(r.get("entry_policy"), as_text(meta.get("entry_policy"), ""))
+        entry_vwap_premium_bps = as_float(
+            r.get("entry_vwap_premium_bps", meta.get("entry_vwap_premium_bps", 50.0)),
+            50.0,
+        )
+        samples = as_text(
+            r.get("samples"),
+            as_text(r.get("sample_file"), as_text(meta.get("samples"), as_text(meta.get("sample_file"), ""))),
+        )
+        expected_return_col = as_text(r.get("expected_return_col"), "")
+        if not expected_return_col:
+            lm = str(label_mode).lower()
+            expected_return_col = "trade_target_or_close_return" if lm.startswith("hit") or lm == "hit" else "trade_net_close_return"
 
         sig_rows.append({
             "stock_code": stock_code,
@@ -318,6 +349,10 @@ def build_inputs(
             "hit_score": hit_score,
             "threshold": threshold,
             "score_margin": score_margin,
+            "entry_policy": entry_policy,
+            "entry_vwap_premium_bps": entry_vwap_premium_bps,
+            "samples": samples,
+            "expected_return_col": expected_return_col,
             "metadata_path": str(meta_path) if meta_path else "",
             **override_fields,
         })
@@ -335,7 +370,10 @@ def build_inputs(
             "target_hit_bps": target_hit_bps,
             "feature_group": meta.get("feature_group", ""),
             "base_model_name": meta.get("model_name", ""),
-            "entry_policy": meta.get("entry_policy", ""),
+            "entry_policy": entry_policy,
+            "entry_vwap_premium_bps": entry_vwap_premium_bps,
+            "samples": samples,
+            "expected_return_col": expected_return_col,
             "sector": sector,
             "sector_source": sector_source,
             **override_fields,
@@ -343,8 +381,10 @@ def build_inputs(
 
         price_rows.append({"stock_code": stock_code, "price": price})
 
-    pd.DataFrame(sig_rows).to_csv(signals_out, index=False, encoding="utf-8-sig")
-    pd.DataFrame(met_rows).to_csv(metrics_out, index=False, encoding="utf-8-sig")
+    sig_cols = list(dict.fromkeys(signal_columns + (list(sig_rows[0].keys()) if sig_rows else [])))
+    met_cols = list(dict.fromkeys(metric_columns + (list(met_rows[0].keys()) if met_rows else [])))
+    pd.DataFrame(sig_rows, columns=sig_cols).to_csv(signals_out, index=False, encoding="utf-8-sig")
+    pd.DataFrame(met_rows, columns=met_cols).to_csv(metrics_out, index=False, encoding="utf-8-sig")
     pd.DataFrame(price_rows).drop_duplicates("stock_code", keep="last").to_csv(prices_out, index=False, encoding="utf-8-sig")
 
     return {"signals": signals_out, "metrics": metrics_out, "prices": prices_out}

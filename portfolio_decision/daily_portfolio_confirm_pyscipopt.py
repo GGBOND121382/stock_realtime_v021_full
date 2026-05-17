@@ -177,6 +177,18 @@ def as_float(x: Any, default: float = 0.0) -> float:
         return default
 
 
+def as_text(x: Any, default: str = "") -> str:
+    try:
+        if x is None or pd.isna(x):
+            return default
+    except Exception:
+        pass
+    s = str(x).strip()
+    if s.lower() in {"nan", "none", "null"}:
+        return default
+    return s
+
+
 def parse_rate_decimal(x: Any, default: float = 0.0) -> float:
     s = str(default if x is None else x).strip().replace("%", "")
     val = as_float(s, default)
