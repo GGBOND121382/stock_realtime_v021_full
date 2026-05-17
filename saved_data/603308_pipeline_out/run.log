@@ -1000,3 +1000,319 @@ login success!
 logout success!
 [INFO] final samples for search: /root/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv
 === nextday pipeline end: 2026-05-16T12:33:04 status=ok ===
+=== nextday pipeline start: 2026-05-17T22:11:53 ===
+symbol=603308.SH, out_root=D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\603308_pipeline_out
+
+[2026-05-17T22:11:53] RUN update_data
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 603308 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-17 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-17 15:00:00' --output_dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\603308_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+login success!
+logout success!
+login success!
+logout success!
+login success!
+logout success!
+{
+  "mode": "update_data",
+  "symbol": "603308",
+  "data_source": "baostock",
+  "daily_rows": 2027,
+  "intraday_rows": 73920,
+  "daily_min": "2018-01-02 00:00:00",
+  "daily_max": "2026-05-15 00:00:00",
+  "intraday_min": "2020-01-02 09:35:00",
+  "intraday_max": "2026-05-15 15:00:00",
+  "base_paths": {
+    "daily_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\603308_daily.csv",
+    "intraday_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\603308_5m.csv",
+    "benchmark_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\000300_benchmark_daily.csv",
+    "raw_daily_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\raw_cache\\603308_daily_raw.csv",
+    "raw_intraday_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\raw_cache\\603308_5m_raw.csv",
+    "raw_benchmark_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+    "daily_features_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\daily_features.csv",
+    "intraday_features_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\intraday_features.csv",
+    "daily_features_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\feature_cache\\daily_features_cache.csv",
+    "intraday_features_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\feature_cache\\intraday_features_cache.csv",
+    "feature_state_json": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\feature_cache\\feature_state.json"
+  },
+  "fetch_logs": {
+    "symbol": "603308",
+    "benchmark_symbol": "000300",
+    "daily_start": "2018-01-01",
+    "daily_end": "2026-05-17",
+    "intraday_start": "2018-01-01 09:30:00",
+    "intraday_end": "2026-05-17 15:00:00",
+    "perf_start": "2018-01-01",
+    "data_source": "baostock",
+    "cache_mode": "incremental",
+    "force_refresh": false,
+    "raw_cache_dir": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\raw_cache",
+    "feature_cache_dir": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\feature_cache",
+    "feature_cache_mode": "incremental",
+    "daily": {
+      "cache_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\raw_cache\\603308_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-17",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.603308",
+          "adjustflag": "2",
+          "rows": 2027,
+          "start": "2018-01-01",
+          "end": "2026-05-17"
+        }
+      ],
+      "cache_after": {
+        "rows": 2027,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-15 00:00:00"
+      }
+    },
+    "intraday_5m": {
+      "cache_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\raw_cache\\603308_5m_raw.csv",
+      "requested_start": "2018-01-01 09:30:00",
+      "requested_end": "2026-05-17 15:00:00",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.603308",
+          "adjustflag": "2",
+          "requested_start": "2018-01-01 09:30:00",
+          "effective_start": "2018-01-01 09:30:00",
+          "requested_end": "2026-05-17 15:00:00",
+          "rows": 73920
+        }
+      ],
+      "cache_after": {
+        "rows": 73920,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-15 15:00:00"
+      }
+    },
+    "benchmark_daily": {
+      "cache_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-17",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.000300",
+          "rows": 2027,
+          "start": "2018-01-01",
+          "end": "2026-05-17"
+        }
+      ],
+      "cache_after": {
+        "rows": 2027,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-15 00:00:00"
+      }
+    },
+    "feature_build": {
+      "mode": "full_rebuild",
+      "reason": "feature_cache_missing",
+      "daily_cache_after": {
+        "rows": 2027,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-15 00:00:00"
+      },
+      "intraday_cache_after": {
+        "rows": 73920,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-15 15:00:00"
+      },
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "daily_appended_rows": 2027,
+      "intraday_appended_rows": 73920
+    },
+    "feature_state": {
+      "daily_feature_max": "2026-05-15 00:00:00",
+      "intraday_feature_max": "2026-05-15 15:00:00",
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "feature_build_mode": "full_rebuild"
+    }
+  }
+}
+
+[2026-05-17T22:13:50] RUN samples
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' feature_building/build_nextday_samples_from_baostock.py --daily-features 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\603308_pipeline_out\00_base\daily_features.csv' --intraday-bars 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\603308_pipeline_out\00_base\603308_5m.csv' --out-dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\603308_pipeline_out\01_samples' --min-bars 40 --keep-unlabeled-tail
+{
+  "rows": 1540,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-15",
+  "out": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\01_samples\\training_samples.csv"
+}
+
+[2026-05-17T22:13:51] RUN fundamental
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' feature_building/build_fundamental_features.py --symbol 603308.SH --daily-samples 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\603308_pipeline_out\01_samples\training_samples.csv' --out-dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\603308_pipeline_out\02_fundamental' --start-date 2018-01-01 --end-date 2026-05-17 --fallback-lag-days 120
+login success!
+logout success!
+{
+  "rows": 1540,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-15",
+  "source_errors": [],
+  "top_missing_rates": {
+    "ak_fund_小单净流入-净额_sum10": 0.9246753246753247,
+    "ak_fund_主力净流入-净额_sum10": 0.9246753246753247,
+    "ak_fund_主力净流入-净占比_sum10": 0.9246753246753247,
+    "ak_fund_涨跌幅_sum10": 0.9246753246753247,
+    "ak_fund_收盘价_sum10": 0.9246753246753247,
+    "ak_fund_中单净流入-净额_sum10": 0.9246753246753247,
+    "ak_fund_中单净流入-净占比_sum10": 0.9246753246753247,
+    "ak_fund_小单净流入-净占比_sum10": 0.9246753246753247,
+    "ak_fund_超大单净流入-净额_sum10": 0.9246753246753247,
+    "ak_fund_大单净流入-净额_sum10": 0.9246753246753247,
+    "ak_fund_大单净流入-净占比_sum10": 0.9246753246753247,
+    "ak_fund_超大单净流入-净占比_sum10": 0.9246753246753247,
+    "ak_fund_涨跌幅_sum5": 0.9233766233766234,
+    "ak_fund_主力净流入-净占比_sum5": 0.9233766233766234,
+    "ak_fund_主力净流入-净额_sum5": 0.9233766233766234,
+    "ak_fund_收盘价_sum5": 0.9233766233766234,
+    "ak_fund_超大单净流入-净占比_sum5": 0.9233766233766234,
+    "ak_fund_中单净流入-净占比_sum5": 0.9233766233766234,
+    "ak_fund_中单净流入-净额_sum5": 0.9233766233766234,
+    "ak_fund_小单净流入-净额_sum5": 0.9233766233766234,
+    "ak_fund_小单净流入-净占比_sum5": 0.9233766233766234,
+    "ak_fund_大单净流入-净占比_sum5": 0.9233766233766234,
+    "ak_fund_大单净流入-净额_sum5": 0.9233766233766234,
+    "ak_fund_超大单净流入-净额_sum5": 0.9233766233766234,
+    "ak_fund_大单净流入-净额": 0.922077922077922,
+    "ak_fund_超大单净流入-净占比": 0.922077922077922,
+    "ak_fund_超大单净流入-净额": 0.922077922077922,
+    "ak_fund_收盘价": 0.922077922077922,
+    "ak_fund_涨跌幅": 0.922077922077922,
+    "ak_fund_中单净流入-净额": 0.922077922077922
+  },
+  "valuation_non_null": {
+    "peTTM": 1540,
+    "pbMRQ": 1540,
+    "psTTM": 1540,
+    "pcfNcfTTM": 1540
+  },
+  "future_effective_date_violations": 0,
+  "rows_with_quarterly": 1540,
+  "sample_rows": 1540,
+  "quarterly_raw_rows": 37,
+  "quarterly_used_pubDate_rows": 37,
+  "quarterly_fallback_rows": 0,
+  "elapsed_seconds": 44.112,
+  "symbol": "603308",
+  "baostock_code": "sh.603308",
+  "valuation_rows": 2027,
+  "fund_flow_rows": 120,
+  "feature_columns": 125,
+  "merged_columns": 194,
+  "outputs": {
+    "daily_valuation": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\02_fundamental\\baostock_daily_valuation.csv",
+    "quarterly_fundamentals": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\02_fundamental\\baostock_quarterly_fundamentals_pit.csv",
+    "fundamental_features": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\02_fundamental\\fundamental_features.csv",
+    "merged_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out\\02_fundamental\\training_samples_with_fundamentals.csv"
+  }
+}
+
+[2026-05-17T22:14:35] RUN sector
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' feature_building/build_sector_features.py --samples 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\603308_pipeline_out\02_fundamental\training_samples_with_fundamentals.csv' --out-dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\603308_pipeline_out\03_sector' --sector-symbol '通用设备' --start-date 2018-01-01 --end-date 2026-05-17
+
+  0%|          | 0/9 [00:00<?, ?it/s]
+ 11%|█         | 1/9 [00:05<00:46,  5.87s/it]
+                                             
+Traceback (most recent call last):
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\connectionpool.py", line 773, in urlopen
+    self._prepare_proxy(conn)
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\connectionpool.py", line 1042, in _prepare_proxy
+    conn.connect()
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\connection.py", line 796, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\connection.py", line 975, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+               ^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\util\ssl_.py", line 483, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\util\ssl_.py", line 527, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Programs\Python\Python312\Lib\ssl.py", line 1042, in _create
+    self.do_handshake()
+  File "D:\Programs\Python\Python312\Lib\ssl.py", line 1320, in do_handshake
+    self._sslobj.do_handshake()
+ConnectionResetError: [WinError 10054] 远程主机强迫关闭了一个现有的连接。
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\requests\adapters.py", line 644, in send
+    resp = conn.urlopen(
+           ^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\connectionpool.py", line 841, in urlopen
+    retries = retries.increment(
+              ^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\util\retry.py", line 490, in increment
+    raise reraise(type(error), error, _stacktrace)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\util\util.py", line 38, in reraise
+    raise value.with_traceback(tb)
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\connectionpool.py", line 773, in urlopen
+    self._prepare_proxy(conn)
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\connectionpool.py", line 1042, in _prepare_proxy
+    conn.connect()
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\connection.py", line 796, in connect
+    sock_and_verified = _ssl_wrap_socket_and_match_hostname(
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\connection.py", line 975, in _ssl_wrap_socket_and_match_hostname
+    ssl_sock = ssl_wrap_socket(
+               ^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\util\ssl_.py", line 483, in ssl_wrap_socket
+    ssl_sock = _ssl_wrap_socket_impl(sock, context, tls_in_tls, server_hostname)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\urllib3\util\ssl_.py", line 527, in _ssl_wrap_socket_impl
+    return ssl_context.wrap_socket(sock, server_hostname=server_hostname)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Programs\Python\Python312\Lib\ssl.py", line 455, in wrap_socket
+    return self.sslsocket_class._create(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\Programs\Python\Python312\Lib\ssl.py", line 1042, in _create
+    self.do_handshake()
+  File "D:\Programs\Python\Python312\Lib\ssl.py", line 1320, in do_handshake
+    self._sslobj.do_handshake()
+urllib3.exceptions.ProtocolError: ('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None))
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\feature_building\build_sector_features.py", line 133, in <module>
+    main()
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\feature_building\build_sector_features.py", line 101, in main
+    sector = fetch_ths_sector_index(args.sector_symbol, start_date, end_date)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\feature_building\build_sector_features.py", line 28, in fetch_ths_sector_index
+    raw = ak.stock_board_industry_index_ths(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\akshare\stock_feature\stock_board_industry_ths.py", line 157, in stock_board_industry_index_ths
+    r = requests.get(url, headers=headers)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\requests\api.py", line 73, in get
+    return request("get", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\requests\api.py", line 59, in request
+    return session.request(method=method, url=url, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\requests\sessions.py", line 589, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\requests\sessions.py", line 703, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stockAnalysis\.venv\Lib\site-packages\requests\adapters.py", line 659, in send
+    raise ConnectionError(err, request=request)
+requests.exceptions.ConnectionError: ('Connection aborted.', ConnectionResetError(10054, '远程主机强迫关闭了一个现有的连接。', None, 10054, None))

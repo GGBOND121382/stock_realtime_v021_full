@@ -3737,3 +3737,63 @@ logout success!
 }
 [INFO] final samples for search: /root/stock_realtime_v021_full/saved_data/600276_pipeline_out/03_sector/training_samples_with_sector.csv
 === nextday pipeline end: 2026-05-16T12:21:49 status=ok ===
+=== nextday pipeline start: 2026-05-17T21:51:24 ===
+symbol=600276.SH, out_root=D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out
+
+[2026-05-17T21:51:24] RUN update_data
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 600276 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-17 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-17 15:00:00' --output_dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+=== nextday pipeline start: 2026-05-17T21:51:41 ===
+symbol=600276.SH, out_root=D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out
+
+[2026-05-17T21:51:41] RUN update_data
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 600276 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-17 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-17 15:00:00' --output_dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+login success!
+logout success!
+login success!
+logout success!
+Traceback (most recent call last):
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 2084, in <module>
+    main()
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 2075, in main
+    result = run_update_data(args)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 953, in run_update_data
+    mod, cfg, meta, daily_feat, intraday_feat, fetch_logs, base_paths = helper.build_feature_frames(args)
+                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 801, in build_feature_frames
+    intraday_df, intra_logs = _incremental_fetch_intraday(args.symbol, args.intraday_start, args.intraday_end, adjust=args.adjust, cache_path=intraday_cache_path, force_refresh=force_refresh, cache_mode=cache_mode)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 402, in _incremental_fetch_intraday
+    fresh, meta = fetch_stock_intraday_5m_range(symbol, str(req_start), str(req_end), adjust)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 321, in fetch_stock_intraday_5m_range
+    df = _rs_to_df(rs)
+         ^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 118, in _rs_to_df
+    raise RuntimeError(f"BaoStock query failed: {rs.error_code} {rs.error_msg}")
+RuntimeError: BaoStock query failed: 10001001 用户未登录
+login success!
+logout success!
+login success!
+logout failed!
+Traceback (most recent call last):
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 2084, in <module>
+    main()
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 2075, in main
+    result = run_update_data(args)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 953, in run_update_data
+    mod, cfg, meta, daily_feat, intraday_feat, fetch_logs, base_paths = helper.build_feature_frames(args)
+                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 797, in build_feature_frames
+    daily_df, daily_logs = _incremental_fetch_daily(args.symbol, args.daily_start, args.daily_end, adjust=args.adjust, cache_path=daily_cache_path, force_refresh=force_refresh, cache_mode=cache_mode)
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 383, in _incremental_fetch_daily
+    post_df, post_meta = fetch_stock_daily_range(symbol, str(post_start.date()), str(req_end.date()), adjust)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 283, in fetch_stock_daily_range
+    df = _rs_to_df(rs)
+         ^^^^^^^^^^^^^
+  File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 118, in _rs_to_df
+    raise RuntimeError(f"BaoStock query failed: {rs.error_code} {rs.error_msg}")
+RuntimeError: BaoStock query failed: 10001001 用户未登录

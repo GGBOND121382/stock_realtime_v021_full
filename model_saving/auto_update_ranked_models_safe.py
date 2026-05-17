@@ -270,7 +270,7 @@ def save_candidate(row: pd.Series, args) -> dict:
         "--target-hit-bps", str(row.get("target_hit_bps", 50.0)),
         "--entry-vwap-premium-bps", "50",
         "--round-trip-cost-bps", "1.7",
-        "--valid-rows", "252",
+        "--valid-rows", "126",
         "--min-train-entries", "80",
         "--min-valid-trades", "8",
         "--quantiles", "0.5,0.6,0.7,0.8",

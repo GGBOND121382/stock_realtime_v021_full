@@ -111,26 +111,18 @@ def train_saved_model(args: argparse.Namespace) -> Dict:
         np.nan,
     )
 
-    final_train = df.loc[df["entry_signal"].to_numpy(bool)].copy()
-    x_final, _ = prepare_x_by_median(final_train, final_train, cols)
-    final_median = final_train[cols].apply(pd.to_numeric, errors="coerce").median(numeric_only=True)
-    y_final = final_train[label_col].to_numpy(int)
-    final_model = clone_model(template)
-    params = final_model.get_params() if hasattr(final_model, "get_params") else {}
-    if "scale_pos_weight" in params:
-        pos = max(float(np.sum(y_final == 1)), 1.0)
-        neg = max(float(np.sum(y_final == 0)), 1.0)
-        final_model.set_params(scale_pos_weight=neg / pos)
-    final_model.fit(x_final, y_final)
-
     model_path = artifact_dir / "model.joblib"
     med_path = artifact_dir / "feature_median.csv"
     cols_path = artifact_dir / "feature_columns.txt"
     valid_path = artifact_dir / "validation_tail_predictions.csv"
     meta_path = artifact_dir / "metadata.json"
 
-    joblib.dump(final_model, model_path)
-    final_median.rename("median").to_csv(med_path, encoding="utf-8-sig")
+    # Save the exact model and feature medians used to produce
+    # validation_tail_predictions.csv and choose the threshold.  Re-fitting a
+    # second "final" model on all rows changes score calibration, so the saved
+    # threshold/validation metrics no longer describe model.joblib.
+    joblib.dump(model, model_path)
+    median.rename("median").to_csv(med_path, encoding="utf-8-sig")
     cols_path.write_text("\n".join(cols) + "\n", encoding="utf-8")
     valid_scored.to_csv(valid_path, index=False, encoding="utf-8-sig")
 
@@ -156,7 +148,9 @@ def train_saved_model(args: argparse.Namespace) -> Dict:
         "rows": int(len(df)),
         "train_rows_for_threshold": int(len(train)),
         "valid_rows_for_threshold": int(len(valid)),
-        "final_train_entry_rows": int(len(final_train)),
+        "train_entry_rows_for_saved_model": int(len(fit_train)),
+        "saved_model_scope": "validation_train",
+        "saved_model_matches_validation_tail_predictions": True,
         "date_min": str(df["date"].min().date()),
         "date_max": str(df["date"].max().date()),
         "validation_tail_auc": float(roc_auc_score(valid_scored["eval_label"], valid_scored["hit_score"]))
@@ -169,7 +163,12 @@ def train_saved_model(args: argparse.Namespace) -> Dict:
             "validation_tail_predictions": str(valid_path),
             "metadata": str(meta_path),
         },
-        "usage_note": f"This artifact is stock-specific. Use only for {args.stock_code} with the same feature-building pipeline.",
+        "usage_note": (
+            f"This artifact is stock-specific. Use only for {args.stock_code} "
+            "with the same feature-building pipeline. model.joblib is the "
+            "validation-train model whose scores produced "
+            "validation_tail_predictions.csv and threshold."
+        ),
     }
     meta_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     return metadata
@@ -191,7 +190,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--round-trip-cost-bps", type=float, default=1.7)
     p.add_argument("--target-hit-bps", type=float, default=50.0)
     p.add_argument("--max-missing", type=float, default=0.35)
-    p.add_argument("--valid-rows", type=int, default=252)
+    p.add_argument("--valid-rows", type=int, default=126)
     p.add_argument("--min-train-entries", type=int, default=80)
     p.add_argument("--min-valid-trades", type=int, default=8)
     p.add_argument("--quantiles", default="0.5,0.6,0.7,0.8")

@@ -214,7 +214,7 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--replace-existing", action="store_true")
     ap.add_argument("--artifact-suffix", default=f"refresh_{datetime.now():%Y%m%d}")
-    ap.add_argument("--valid-rows", type=int, default=252)
+    ap.add_argument("--valid-rows", type=int, default=126)
     ap.add_argument("--min-train-entries", type=int, default=80)
     ap.add_argument("--min-valid-trades", type=int, default=8)
     ap.add_argument("--quantiles", default="0.5,0.6,0.7,0.8")

@@ -1,0 +1,111 @@
+
+
+===== 2026-05-17 20:46:34 600312.SH CMD: D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe pipelines/run_nextday_pipeline.py --symbol 600312.SH --sector-symbol 电网设备 --end-date 2026-05-17 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector =====
+{
+  "status": "ok",
+  "symbol": "600312.SH",
+  "out_root": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600312_pipeline_out",
+  "final_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600312_pipeline_out\\03_sector\\training_samples_with_sector.csv",
+  "leaderboard": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600312_pipeline_out\\99_summary\\final_leaderboard.csv",
+  "manifest": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600312_pipeline_out\\pipeline_summary.json"
+}
+
+
+===== 2026-05-17 21:32:02 002270.SZ CMD: D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe pipelines/run_nextday_pipeline.py --symbol 002270.SZ --sector-symbol 电网设备 --end-date 2026-05-17 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector =====
+{
+  "status": "ok",
+  "symbol": "002270.SZ",
+  "out_root": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\002270_pipeline_out",
+  "final_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\002270_pipeline_out\\03_sector\\training_samples_with_sector.csv",
+  "leaderboard": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\002270_pipeline_out\\99_summary\\final_leaderboard.csv",
+  "manifest": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\002270_pipeline_out\\pipeline_summary.json"
+}
+
+
+===== 2026-05-17 21:36:37 002311.SZ CMD: D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe pipelines/run_nextday_pipeline.py --symbol 002311.SZ --sector-symbol 农产品加工 --end-date 2026-05-17 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector =====
+{
+  "status": "ok",
+  "symbol": "002311.SZ",
+  "out_root": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\002311_pipeline_out",
+  "final_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\002311_pipeline_out\\03_sector\\training_samples_with_sector.csv",
+  "leaderboard": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\002311_pipeline_out\\99_summary\\final_leaderboard.csv",
+  "manifest": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\002311_pipeline_out\\pipeline_summary.json"
+}
+
+
+===== 2026-05-17 21:41:59 002714.SZ CMD: D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe pipelines/run_nextday_pipeline.py --symbol 002714.SZ --sector-symbol 养殖业 --end-date 2026-05-17 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector =====
+{
+  "status": "ok",
+  "symbol": "002714.SZ",
+  "out_root": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\002714_pipeline_out",
+  "final_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\002714_pipeline_out\\03_sector\\training_samples_with_sector.csv",
+  "leaderboard": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\002714_pipeline_out\\99_summary\\final_leaderboard.csv",
+  "manifest": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\002714_pipeline_out\\pipeline_summary.json"
+}
+
+
+===== 2026-05-17 21:46:25 600096.SH CMD: D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe pipelines/run_nextday_pipeline.py --symbol 600096.SH --sector-symbol 农化制品 --end-date 2026-05-17 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector =====
+{
+  "status": "ok",
+  "symbol": "600096.SH",
+  "out_root": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600096_pipeline_out",
+  "final_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600096_pipeline_out\\03_sector\\training_samples_with_sector.csv",
+  "leaderboar{
+  "status": "ok",
+  "symbol": "600096.SH",
+  "out_root": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600096_pipeline_out",
+  "final_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600096_pipeline_out\\03_sector\\training_samples_with_sector.csv",
+  "leaderboard": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600096_pipeline_out\\99_summary\\final_leaderboard.csv",
+  "manifest": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600096_pipeline_out\\pipeline_summary.json"
+}
+[ERROR] RuntimeError: stage update_data failed with returncode=1
+ockAnalysis\.venv\Scripts\python.exe pipelines/run_nextday_pipeline.py --symbol 600276.SH --sector-symbol 化学制药 --end-date 2026-05-17 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector =====
+[ERROR] RuntimeError: stage update_data failed with returncode=1
+
+
+===== 2026-05-17 21:51:45 601899.SH CMD: D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe pipelines/run_nextday_pipeline.py --symbol 601899.SH --sector-symbol 贵金属 --end-date 2026-05-17 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector =====
+{
+  "status": "ok",
+  "symbol": "601899.SH",
+  "out_root": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\601899_pipeline_out",
+  "final_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\601899_pipeline_out\\03_sector\\training_samples_with_sector.csv",
+  "leaderboard": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\601899_pipeline_out\\99_summary\\final_leaderboard.csv",
+  "manifest": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\601899_pipeline_out\\pipeline_summary.json"
+}
+
+
+===== 2026-05-17 21:55:08 601985.SH CMD: D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe pipelines/run_nextday_pipeline.py --symbol 601985.SH --sector-symbol 电力 --end-date 2026-05-17 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector =====
+{
+  "status": "ok",
+  "symbol": "601985.SH",
+  "out_root": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\601985_pipeline_out",
+  "final_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\601985_pipeline_out\\03_sector\\training_samples_with_sector.csv",
+  "leaderboard": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\601985_pipeline_out\\99_summary\\final_leaderboard.csv",
+  "manifest": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\601985_pipeline_out\\pipeline_summary.json"
+}
+
+
+===== 2026-05-17 21:58:51 600487.SH CMD: D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe pipelines/run_nextday_pipeline.py --symbol 600487.SH --sector-symbol 通信设备 --end-date 2026-05-17 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector,external_optical_cable_grid --external optical_cable_grid =====
+{
+  "status": "ok",
+  "symbol": "600487.SH",
+  "out_root": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600487_pipeline_out",
+  "final_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600487_pipeline_out\\04_external\\optical_cable_grid\\training_samples_with_optical_cable_grid_external.csv",
+  "leaderboard": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600487_pipeline_out\\99_summary\\final_leaderboard.csv",
+  "manifest": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600487_pipeline_out\\pipeline_summary.json"
+}
+
+
+===== 2026-05-17 22:05:14 600522.SH CMD: D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe pipelines/run_nextday_pipeline.py --symbol 600522.SH --sector-symbol 通信设备 --end-date 2026-05-17 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector,external_optical_cable_grid --external optical_cable_grid =====
+{
+  "status": "ok",
+  "symbol": "600522.SH",
+  "out_root": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out",
+  "final_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\04_external\\optical_cable_grid\\training_samples_with_optical_cable_grid_external.csv",
+  "leaderboard": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\99_summary\\final_leaderboard.csv",
+  "manifest": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\pipeline_summary.json"
+}
+
+
+===== 2026-05-17 22:11:53 603308.SH CMD: D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe pipelines/run_nextday_pipeline.py --symbol 603308.SH --sector-symbol 通用设备 --end-date 2026-05-17 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector,external_aero_nuclear_equipment --external aero_nuclear_equipment =====
+[ERROR] RuntimeError: stage sector failed with returncode=1
