@@ -121,6 +121,11 @@ class Candidate:
     pred_prob: float
     target_hit_bps: float
     fail_loss_bps: float
+    entry_policy: str
+    entry_vwap_premium_bps: float
+    samples: str
+    expected_return_col: str
+    metadata_path: str
     ev_bps: float
     quality_weight: float
     tier: int
@@ -474,6 +479,11 @@ def build_candidates(df: pd.DataFrame, account: Dict[str, Any], vol_map: Dict[st
             pred_return_bps = as_float(get_row_field(row, "score", 0.0), 0.0)
 
         target_hit_bps = as_float(get_row_field(row, "target_hit_bps", 80.0 if "80" in label_mode else 50.0), 80.0)
+        entry_policy = as_text(get_row_field(row, "entry_policy", ""))
+        entry_vwap_premium_bps = as_float(get_row_field(row, "entry_vwap_premium_bps", 50.0), 50.0)
+        samples = as_text(get_row_field(row, "samples", ""))
+        expected_return_col = as_text(get_row_field(row, "expected_return_col", ""))
+        metadata_path = as_text(get_row_field(row, "metadata_path", ""))
         pred_prob = parse_rate_decimal(get_row_field(row, "pred_prob", get_row_field(row, "win_rate", cfg["default_hit_prob"])), cfg["default_hit_prob"])
         fail_loss_bps = as_float(get_row_field(row, "fail_loss_bps", cfg["default_fail_loss_bps"]), cfg["default_fail_loss_bps"])
 
@@ -532,7 +542,10 @@ def build_candidates(df: pd.DataFrame, account: Dict[str, Any], vol_map: Dict[st
         candidates.append(Candidate(
             stock_code=code, model_name=model_name, label_mode=label_mode, model_type=model_type,
             sector=sector, price=price, pred_return_bps=pred_return_bps, pred_prob=pred_prob,
-            target_hit_bps=target_hit_bps, fail_loss_bps=fail_loss_bps, ev_bps=ev_bps,
+            target_hit_bps=target_hit_bps, fail_loss_bps=fail_loss_bps,
+            entry_policy=entry_policy, entry_vwap_premium_bps=entry_vwap_premium_bps,
+            samples=samples, expected_return_col=expected_return_col, metadata_path=metadata_path,
+            ev_bps=ev_bps,
             quality_weight=quality, tier=tier, tier_multiplier=tier_mult, vol_daily=vol_daily,
             vol_bps=vol_bps, max_drawdown_abs=dd_abs, max_drawdown_bps=dd_bps,
             profit_factor=pf, trades=trades, median_return_bps=median_bps,

@@ -48,6 +48,18 @@ def as_float(x: Any, default: float = np.nan) -> float:
         return default
 
 
+def as_text(x: Any, default: str = "") -> str:
+    try:
+        if x is None or pd.isna(x):
+            return default
+    except Exception:
+        pass
+    s = str(x).strip()
+    if s.lower() in {"nan", "none", "null"}:
+        return default
+    return s
+
+
 def find_metadata(saved_models: Path, stock_code: str, artifact_name: str) -> Optional[Path]:
     p = saved_models / stock_code / artifact_name / "metadata.json"
     if p.exists():
@@ -257,7 +269,7 @@ def build_inputs(
         meta_path = find_metadata(saved_models, stock_code, artifact)
         meta = load_metadata(meta_path)
 
-        label_mode = str(meta.get("label_mode", r.get("label_mode", ""))).strip()
+        label_mode = as_text(meta.get("label_mode"), as_text(r.get("label_mode"), ""))
         if not label_mode:
             label_mode = "hit" if "hit" in artifact.lower() else "close_profit"
 
