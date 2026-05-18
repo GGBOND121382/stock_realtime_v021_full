@@ -43,6 +43,9 @@ OUT_DIR="${OUT_DIR:-portfolio_reports}"
   --stock-collect-wait-timeout-seconds "${STOCK_WAIT_TIMEOUT:-45}" \
   --context-collect-wait-timeout-seconds "${CONTEXT_WAIT_TIMEOUT:-45}" \
   --max-missing-features "${MAX_MISSING_FEATURES:-5}" \
+  --max-intraday-bars "${MAX_INTRADAY_BARS:-60}" \
+  --max-snapshot-age-seconds "${MAX_SNAPSHOT_AGE_SECONDS:-180}" \
+  --max-prev-close-rel-diff "${MAX_PREV_CLOSE_REL_DIFF:-0.02}" \
   --min-amount-yuan "${MIN_AMOUNT_YUAN:-50000000}"
 
 DATE_DASH="$DATE_DASH" DATE_COMPACT="$DATE_COMPACT" ACCOUNT="$ACCOUNT" HISTORY="$HISTORY" \

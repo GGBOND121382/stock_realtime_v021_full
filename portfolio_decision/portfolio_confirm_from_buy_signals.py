@@ -61,11 +61,20 @@ def as_text(x: Any, default: str = "") -> str:
 
 
 def find_metadata(saved_models: Path, stock_code: str, artifact_name: str) -> Optional[Path]:
-    p = saved_models / stock_code / artifact_name / "metadata.json"
-    if p.exists():
-        return p
-    matches = list(saved_models.glob(f"*/{artifact_name}/metadata.json"))
-    return matches[0] if matches else None
+    p = saved_models / normalize_stock_code(stock_code) / artifact_name / "metadata.json"
+    return p if p.exists() else None
+
+
+def metadata_matches(meta: Dict[str, Any], stock_code: str, artifact_name: str) -> tuple[bool, str]:
+    if not meta:
+        return False, "missing_metadata"
+    meta_stock = normalize_stock_code(meta.get("stock_code") or "")
+    if meta_stock and meta_stock != normalize_stock_code(stock_code):
+        return False, "metadata_stock_mismatch"
+    meta_artifact = as_text(meta.get("artifact_name"), "")
+    if meta_artifact and meta_artifact != artifact_name:
+        return False, "metadata_artifact_mismatch"
+    return True, "ok"
 
 
 def load_metadata(path: Optional[Path]) -> Dict[str, Any]:
@@ -251,7 +260,7 @@ def build_inputs(
         "stock_code", "model_name", "label_mode", "pred_return_bps", "pred_prob",
         "target_hit_bps", "price", "sector", "sector_source", "hit_score",
         "threshold", "score_margin", "entry_policy", "entry_vwap_premium_bps",
-        "samples", "expected_return_col", "metadata_path",
+        "samples", "expected_return_col", "metadata_path", "metadata_status", "reject_reason",
     ]
     metric_columns = [
         "stock_code", "model_name", "label_mode", "trades", "win_rate",
@@ -282,6 +291,7 @@ def build_inputs(
 
         meta_path = find_metadata(saved_models, stock_code, artifact)
         meta = load_metadata(meta_path)
+        metadata_ok, metadata_status = metadata_matches(meta, stock_code, artifact)
 
         label_mode = as_text(meta.get("label_mode"), as_text(r.get("label_mode"), ""))
         if not label_mode:
@@ -321,6 +331,10 @@ def build_inputs(
 
         sector, sector_source = choose_sector(r, stock_code, context_sector_map)
         override_fields = apply_override_fields(stock_code, artifact, override_rows, recent_rows)
+        reject_reason = ""
+        if not metadata_ok:
+            override_fields["enabled"] = 0
+            reject_reason = metadata_status
 
         entry_policy = as_text(r.get("entry_policy"), as_text(meta.get("entry_policy"), ""))
         entry_vwap_premium_bps = as_float(
@@ -354,6 +368,8 @@ def build_inputs(
             "samples": samples,
             "expected_return_col": expected_return_col,
             "metadata_path": str(meta_path) if meta_path else "",
+            "metadata_status": metadata_status,
+            "reject_reason": reject_reason,
             **override_fields,
         })
 
@@ -376,6 +392,9 @@ def build_inputs(
             "expected_return_col": expected_return_col,
             "sector": sector,
             "sector_source": sector_source,
+            "metadata_path": str(meta_path) if meta_path else "",
+            "metadata_status": metadata_status,
+            "reject_reason": reject_reason,
             **override_fields,
         })
 

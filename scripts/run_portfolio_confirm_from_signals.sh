@@ -55,6 +55,7 @@ if [[ "${AUTO_RISK_HISTORY:-1}" == "1" && ( -z "${HISTORY:-}" || ! -f "$HISTORY"
     --out "$AUTO_HISTORY"
 
   if [[ -f "$AUTO_HISTORY" ]]; then
+    "$PYTHON" -c "import pandas as pd, sys; p=sys.argv[1]; df=pd.read_csv(p); ok=df.shape[0] >= 20 and df.shape[1] >= 2; print(f'[RISK_HISTORY] shape={df.shape} path={p}'); sys.exit(0 if ok else 3)" "$AUTO_HISTORY"
     HISTORY="$AUTO_HISTORY"
   fi
 fi

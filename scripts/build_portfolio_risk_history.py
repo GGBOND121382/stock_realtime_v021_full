@@ -152,7 +152,7 @@ def read_close_series(path: Path) -> Optional[pd.Series]:
     if close_col is None:
         return None
 
-    dates = pd.to_datetime(df[date_col], errors="coerce")
+    dates = pd.to_datetime(df[date_col], errors="coerce").dt.normalize()
     close = pd.to_numeric(df[close_col], errors="coerce")
     s = pd.Series(close.values, index=dates)
     s = s[s.index.notna()].dropna()
@@ -242,14 +242,16 @@ def main() -> int:
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     if hist.empty:
-        pd.DataFrame(columns=["date"]).to_csv(out, index=False, encoding="utf-8-sig")
-        print(f"[WARN] wrote empty risk history: {out}")
-        return 0
+        print(f"[ERROR] risk history is empty; refusing to write unusable history: {out}")
+        return 2
 
     export = hist.reset_index().rename(columns={"index": "date"})
     if export.columns[0] != "date":
         export = export.rename(columns={export.columns[0]: "date"})
     export["date"] = pd.to_datetime(export["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+    if len(export) < int(args.min_rows) or len(export.columns) < 2:
+        print(f"[ERROR] risk history invalid: shape={export.shape}, min_rows={args.min_rows}, out={out}")
+        return 2
     export.to_csv(out, index=False, encoding="utf-8-sig")
     print(f"[OK] wrote risk history: {out} rows={len(export)} cols={len(export.columns)-1}")
     return 0

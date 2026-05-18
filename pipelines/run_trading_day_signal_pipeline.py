@@ -286,6 +286,9 @@ def main() -> int:
     ap.add_argument("--context-collect-wait-timeout-seconds", type=float, default=45.0, help="build-time 后最多等待上下文采集进程秒数；超时则终止并继续。")
 
     ap.add_argument("--max-missing-features", type=int, default=5, help="模型特征最多允许填充数量。")
+    ap.add_argument("--max-intraday-bars", type=int, default=60, help="5min intraday bar count upper bound; use -1 to disable.")
+    ap.add_argument("--max-snapshot-age-seconds", type=int, default=180, help="Latest snapshot max age from cutoff-time in seconds; use -1 to disable.")
+    ap.add_argument("--max-prev-close-rel-diff", type=float, default=0.02, help="Live prev_close vs sample previous close max relative diff; use -1 to disable.")
     ap.add_argument("--min-amount-yuan", type=float, default=50_000_000, help="最低成交额过滤。")
     ap.add_argument("--max-abs-pct-chg", type=float, default=None, help="最大绝对涨跌幅过滤；不传则不启用。")
 
@@ -542,6 +545,9 @@ def main() -> int:
             "--cutoff-time", args.cutoff_time,
             "--context-dir", str(context_dir),
             "--max-missing-features", str(args.max_missing_features),
+            "--max-intraday-bars", str(args.max_intraday_bars),
+            "--max-snapshot-age-seconds", str(args.max_snapshot_age_seconds),
+            "--max-prev-close-rel-diff", str(args.max_prev_close_rel_diff),
             "--min-amount-yuan", str(args.min_amount_yuan),
         ]
         if args.max_abs_pct_chg is not None:

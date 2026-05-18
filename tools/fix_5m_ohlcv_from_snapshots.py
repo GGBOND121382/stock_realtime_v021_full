@@ -105,6 +105,28 @@ def pick_col(df: pd.DataFrame, names: list[str]) -> Optional[str]:
     return None
 
 
+def infer_volume_units(volume: pd.Series, amount: pd.Series, price: pd.Series) -> pd.DataFrame:
+    vol = pd.to_numeric(volume, errors="coerce")
+    amt = pd.to_numeric(amount, errors="coerce")
+    px = pd.to_numeric(price, errors="coerce")
+    ratio = (amt / vol.replace(0, np.nan)) / px.replace(0, np.nan)
+    ratio = ratio.replace([np.inf, -np.inf], np.nan)
+    unit = pd.Series("unknown", index=vol.index, dtype="object")
+    unit = unit.mask(ratio.between(0.5, 2.0), "shares")
+    unit = unit.mask(ratio.between(50.0, 150.0), "lots")
+    multiplier = pd.Series(np.nan, index=vol.index, dtype="float64")
+    multiplier = multiplier.mask(unit.eq("shares"), 1.0)
+    multiplier = multiplier.mask(unit.eq("lots"), 100.0)
+    return pd.DataFrame({
+        "raw_volume": vol,
+        "raw_amount": amt,
+        "vwap_ratio_raw": ratio,
+        "volume_unit_inferred": unit,
+        "volume_unit_multiplier": multiplier,
+        "cum_volume": vol * multiplier,
+    }, index=vol.index)
+
+
 def normalize_snapshots(path: Path, date: str, cutoff: str | None) -> pd.DataFrame:
     df = pd.read_csv(path, encoding="utf-8-sig")
     df = ensure_dt(df, date)
@@ -117,16 +139,14 @@ def normalize_snapshots(path: Path, date: str, cutoff: str | None) -> pd.DataFra
     out = pd.DataFrame({
         "datetime": df["datetime"],
         "price": pd.to_numeric(df[price], errors="coerce"),
-        "cum_volume": pd.to_numeric(df[vol], errors="coerce") if vol else np.nan,
         "cum_amount": pd.to_numeric(df[amt], errors="coerce") if amt else np.nan,
     }).dropna(subset=["datetime", "price"])
-    ratio = (
-        pd.to_numeric(out["cum_amount"], errors="coerce")
-        / pd.to_numeric(out["cum_volume"], errors="coerce").replace(0, np.nan)
-        / pd.to_numeric(out["price"], errors="coerce").replace(0, np.nan)
-    ).replace([np.inf, -np.inf], np.nan).dropna()
-    if not ratio.empty and 50.0 <= float(ratio.median()) <= 150.0:
-        out["cum_volume"] = pd.to_numeric(out["cum_volume"], errors="coerce") * 100.0
+    if vol:
+        unit_df = infer_volume_units(df.loc[out.index, vol], out["cum_amount"], out["price"])
+        for c in unit_df.columns:
+            out[c] = unit_df[c]
+    else:
+        out["cum_volume"] = np.nan
     return out.sort_values("datetime").drop_duplicates("datetime", keep="last").reset_index(drop=True)
 
 
@@ -167,6 +187,11 @@ def rebuild_bars(snap: pd.DataFrame, symbol: str, cutoff: str | None) -> pd.Data
         ca = pd.to_numeric(g["cum_amount"], errors="coerce").dropna()
         cur_vol = float(cv.iloc[-1]) if len(cv) else np.nan
         cur_amt = float(ca.iloc[-1]) if len(ca) else np.nan
+        first_training_bar = str(pd.Timestamp(bt).time()) == "09:35:00"
+        if first_training_bar and not np.isfinite(prev_vol):
+            prev_vol = 0.0
+        if first_training_bar and not np.isfinite(prev_amt):
+            prev_amt = 0.0
         vol_delta = cur_vol - prev_vol if np.isfinite(cur_vol) and np.isfinite(prev_vol) else np.nan
         amt_delta = cur_amt - prev_amt if np.isfinite(cur_amt) and np.isfinite(prev_amt) else np.nan
         if np.isfinite(cur_vol):
@@ -186,6 +211,17 @@ def rebuild_bars(snap: pd.DataFrame, symbol: str, cutoff: str | None) -> pd.Data
             "close": float(px.iloc[-1]),
             "volume": float(vol_delta) if np.isfinite(vol_delta) else np.nan,
             "amount": float(amt_delta) if np.isfinite(amt_delta) else np.nan,
+            "raw_volume": float(pd.to_numeric(g.get("raw_volume"), errors="coerce").dropna().iloc[-1])
+            if "raw_volume" in g.columns and pd.to_numeric(g.get("raw_volume"), errors="coerce").dropna().size else np.nan,
+            "vwap_ratio_raw": float(pd.to_numeric(g.get("vwap_ratio_raw"), errors="coerce").dropna().iloc[-1])
+            if "vwap_ratio_raw" in g.columns and pd.to_numeric(g.get("vwap_ratio_raw"), errors="coerce").dropna().size else np.nan,
+            "volume_unit_inferred": str(g["volume_unit_inferred"].dropna().iloc[-1])
+            if "volume_unit_inferred" in g.columns and g["volume_unit_inferred"].dropna().size else "unknown",
+            "volume_unit_multiplier": float(pd.to_numeric(g.get("volume_unit_multiplier"), errors="coerce").dropna().iloc[-1])
+            if "volume_unit_multiplier" in g.columns and pd.to_numeric(g.get("volume_unit_multiplier"), errors="coerce").dropna().size else np.nan,
+            "rebuilt_from_snapshot": True,
+            "bar_freq": "5min",
+            "bar_label": "right",
             "source": "local_snapshot_5m_right_endpoint",
             "snapshot_count": int(len(g)),
             "first_snapshot_time": str(g["datetime"].iloc[0]),

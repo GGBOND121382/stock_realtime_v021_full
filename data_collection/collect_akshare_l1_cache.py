@@ -22,6 +22,7 @@ from datetime import datetime, time as dtime
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence
 
+import numpy as np
 import pandas as pd
 
 
@@ -31,6 +32,7 @@ SAVED_DATA_DIR = PROJECT_DIR / "saved_data"
 DEFAULT_OUT_DIR = SAVED_DATA_DIR / "akshare_realtime_cache"
 DEFAULT_WATCHLIST = Path("PurchasedData/selected_watchlist.txt")
 DEFAULT_INTERVAL_SECONDS = 30
+DEFAULT_BENCHMARK_SYMBOLS = "000300.SH,000001.SH,399001.SZ,399006.SZ"
 TRADING_WINDOWS = (
     (dtime(9, 15), dtime(11, 30, 30)),
     (dtime(13, 0), dtime(15, 0, 30)),
@@ -67,6 +69,10 @@ class Snapshot:
     amount: Optional[float] = None
     turnover: Optional[float] = None
     pct_chg: Optional[float] = None
+    pct_chg_raw: Optional[float] = None
+    pct_chg_norm: Optional[float] = None
+    pct_chg_source: Optional[str] = None
+    pct_chg_unit: Optional[str] = None
     bid_price_1: Optional[float] = None
     bid_price_2: Optional[float] = None
     bid_price_3: Optional[float] = None
@@ -149,6 +155,11 @@ def read_symbols(args: argparse.Namespace) -> List[str]:
             token = line.split("#", 1)[0].strip()
             if token:
                 symbols.append(token)
+    if getattr(args, "max_symbols", None):
+        symbols = symbols[: int(args.max_symbols)]
+    bench_symbols = getattr(args, "benchmark_symbols", None)
+    if bench_symbols:
+        symbols.extend(t.strip() for t in str(bench_symbols).replace(";", ",").split(",") if t.strip())
     symbols = [normalize_symbol(s) for s in symbols]
     seen = set()
     out = []
@@ -156,8 +167,6 @@ def read_symbols(args: argparse.Namespace) -> List[str]:
         if s not in seen:
             seen.add(s)
             out.append(s)
-    if getattr(args, "max_symbols", None):
-        out = out[: int(args.max_symbols)]
     if not out:
         raise ValueError("provide --symbols or --symbols-file")
     return out
@@ -657,6 +666,40 @@ def derive_snapshot(snap: Snapshot) -> None:
         snap.weighted_ask_price_5 = sum((ap[i] or 0.0) * av[i] for i in range(5)) / sum(av)
 
 
+def normalize_pct_chg_value(raw_pct, close, prev_close, source_text: str = "") -> dict:
+    raw = pd.to_numeric(pd.Series([raw_pct]), errors="coerce").iloc[0]
+    close_v = pd.to_numeric(pd.Series([close]), errors="coerce").iloc[0]
+    prev_v = pd.to_numeric(pd.Series([prev_close]), errors="coerce").iloc[0]
+    source = str(source_text or "").lower()
+    if np.isfinite(raw) and any(token in source for token in ("ths", "xq", "em", "eastmoney")):
+        return {
+            "pct_chg_raw": float(raw),
+            "pct_chg_norm": float(raw) / 100.0,
+            "pct_chg_source": source_text,
+            "pct_chg_unit": "percent",
+        }
+    if np.isfinite(close_v) and np.isfinite(prev_v) and prev_v > 0:
+        return {
+            "pct_chg_raw": float(raw) if np.isfinite(raw) else np.nan,
+            "pct_chg_norm": float(close_v) / float(prev_v) - 1.0,
+            "pct_chg_source": source_text or "derived_close_prev_close",
+            "pct_chg_unit": "ratio",
+        }
+    if np.isfinite(raw):
+        return {
+            "pct_chg_raw": float(raw),
+            "pct_chg_norm": float(raw) / 100.0,
+            "pct_chg_source": source_text,
+            "pct_chg_unit": "percent_assumed",
+        }
+    return {
+        "pct_chg_raw": np.nan,
+        "pct_chg_norm": np.nan,
+        "pct_chg_source": source_text,
+        "pct_chg_unit": "unknown",
+    }
+
+
 def fetch_bid_ask_map(
     ak,
     symbol: str,
@@ -728,6 +771,17 @@ def fetch_one_snapshot(
         raw_json=json.dumps({"spot": spot, "bid_ask": bid_ask_map}, ensure_ascii=False) if include_raw else None,
         spot_source_used=",".join(spot_source_used or []),
     )
+    pct_diag = normalize_pct_chg_value(
+        snap.pct_chg,
+        snap.last_price,
+        snap.prev_close,
+        ",".join(spot_source_used or []) or quote_source,
+    )
+    snap.pct_chg_raw = pct_diag["pct_chg_raw"]
+    snap.pct_chg_norm = pct_diag["pct_chg_norm"]
+    snap.pct_chg_source = pct_diag["pct_chg_source"]
+    snap.pct_chg_unit = pct_diag["pct_chg_unit"]
+    snap.pct_chg = pct_diag["pct_chg_norm"]
     for i in range(1, 6):
         setattr(snap, f"bid_price_{i}", to_float(value(f"buy_{i}", f"买{i}", f"买{i}价", f"买盘{i}")))
         setattr(snap, f"ask_price_{i}", to_float(value(f"sell_{i}", f"卖{i}", f"卖{i}价", f"卖盘{i}")))
@@ -1081,6 +1135,58 @@ def load_snapshots(path: Path, cutoff_time: Optional[str] = None) -> pd.DataFram
     return df
 
 
+def infer_volume_units(
+    volume: pd.Series,
+    amount: pd.Series,
+    price: pd.Series,
+) -> pd.DataFrame:
+    """Infer volume units row by row and normalize lots to shares.
+
+    Expected valid states:
+      amount / volume / price ~= 1   -> volume is already shares
+      amount / volume / price ~= 100 -> volume is lots, multiply by 100
+    Anything else is kept visible as unknown and excluded from normalized volume.
+    """
+    vol = pd.to_numeric(volume, errors="coerce")
+    amt = pd.to_numeric(amount, errors="coerce")
+    px = pd.to_numeric(price, errors="coerce")
+    ratio = (amt / vol.replace(0, np.nan)) / px.replace(0, np.nan)
+    ratio = ratio.replace([np.inf, -np.inf], np.nan)
+    unit = pd.Series("unknown", index=vol.index, dtype="object")
+    unit = unit.mask(ratio.between(0.5, 2.0), "shares")
+    unit = unit.mask(ratio.between(50.0, 150.0), "lots")
+    multiplier = pd.Series(np.nan, index=vol.index, dtype="float64")
+    multiplier = multiplier.mask(unit.eq("shares"), 1.0)
+    multiplier = multiplier.mask(unit.eq("lots"), 100.0)
+    normalized = vol * multiplier
+    return pd.DataFrame({
+        "raw_volume": vol,
+        "raw_amount": amt,
+        "vwap_ratio_raw": ratio,
+        "volume_unit_inferred": unit,
+        "volume_unit_multiplier": multiplier,
+        "normalized_volume": normalized,
+    }, index=vol.index)
+
+
+def summarize_volume_unit_diagnostics(unit_df: pd.DataFrame) -> dict:
+    if unit_df.empty or "volume_unit_inferred" not in unit_df.columns:
+        return {}
+    ratio = pd.to_numeric(unit_df.get("vwap_ratio_raw"), errors="coerce").replace([np.inf, -np.inf], np.nan).dropna()
+    counts = unit_df["volume_unit_inferred"].fillna("unknown").value_counts()
+    known_units = [u for u in ("shares", "lots") if int(counts.get(u, 0)) > 0]
+    return {
+        "volume_unit_inferred": "mixed" if len(known_units) > 1 else (known_units[0] if known_units else "unknown"),
+        "volume_unit_ratio_median": float(ratio.median()) if len(ratio) else None,
+        "volume_unit_ratio_p05": float(ratio.quantile(0.05)) if len(ratio) else None,
+        "volume_unit_ratio_p95": float(ratio.quantile(0.95)) if len(ratio) else None,
+        "volume_unit_lots_rows": int(counts.get("lots", 0)),
+        "volume_unit_shares_rows": int(counts.get("shares", 0)),
+        "volume_unit_unknown_rows": int(counts.get("unknown", 0)),
+        "volume_unit_mixed": bool(len(known_units) > 1),
+    }
+
+
 def build_bars(args: argparse.Namespace) -> None:
     out_dir = Path(args.out_dir)
     src = out_dir / "pending" / args.date
@@ -1113,13 +1219,10 @@ def build_bars(args: argparse.Namespace) -> None:
             if c in df.columns:
                 base[c] = pd.to_numeric(df[c], errors="coerce").to_numpy()
         if {"volume", "amount"}.issubset(base.columns):
-            vwap_ratio = (
-                pd.to_numeric(base["amount"], errors="coerce")
-                / pd.to_numeric(base["volume"], errors="coerce").replace(0, pd.NA)
-                / pd.to_numeric(base["close"], errors="coerce").replace(0, pd.NA)
-            ).replace([float("inf"), float("-inf")], pd.NA).dropna()
-            if not vwap_ratio.empty and 50.0 <= float(vwap_ratio.median()) <= 150.0:
-                base["volume"] = pd.to_numeric(base["volume"], errors="coerce") * 100.0
+            unit_df = infer_volume_units(base["volume"], base["amount"], base["close"])
+            for c in unit_df.columns:
+                base[c] = unit_df[c]
+            base["volume"] = base["normalized_volume"]
         for freq in freqs:
             agg_map = {
                 "open": ("open", "first"),
@@ -1127,9 +1230,15 @@ def build_bars(args: argparse.Namespace) -> None:
                 "low": ("low", "min"),
                 "close": ("close", "last"),
             }
-            for c in ["volume", "amount", "depth_imbalance_1", "depth_imbalance_5", "spread_1", "mid_price_1"]:
+            for c in [
+                "volume", "amount", "raw_volume", "raw_amount", "vwap_ratio_raw",
+                "volume_unit_multiplier", "depth_imbalance_1", "depth_imbalance_5",
+                "spread_1", "mid_price_1",
+            ]:
                 if c in base.columns:
                     agg_map[c] = (c, "last")
+            if "volume_unit_inferred" in base.columns:
+                agg_map["volume_unit_inferred"] = ("volume_unit_inferred", "last")
             bars = base.resample(freq).agg(**agg_map).dropna(subset=["open", "high", "low", "close"], how="all")
             if "volume" in bars.columns:
                 bars["bar_volume"] = bars["volume"].diff()
@@ -1137,6 +1246,9 @@ def build_bars(args: argparse.Namespace) -> None:
             if "amount" in bars.columns:
                 bars["bar_amount"] = bars["amount"].diff()
                 bars.loc[bars["bar_amount"] < 0, "bar_amount"] = pd.NA
+            if "raw_volume" in bars.columns:
+                bars["raw_bar_volume"] = bars["raw_volume"].diff()
+                bars.loc[bars["raw_bar_volume"] < 0, "raw_bar_volume"] = pd.NA
             bars = bars.reset_index()
             bars.insert(0, "trade_date", args.date)
             bars.insert(0, "symbol", symbol)
@@ -1150,10 +1262,13 @@ def write_daily_features(sym_dir: Path, df: pd.DataFrame, date: str, symbol: str
     px = pd.to_numeric(df["last_price"], errors="coerce")
     vol = pd.to_numeric(df.get("volume"), errors="coerce")
     amt = pd.to_numeric(df.get("amount"), errors="coerce")
-    valid = px.dropna()
+    valid = px[px > 0].dropna()
     if valid.empty:
         return
     last30 = df[df["datetime"] >= df["datetime"].max() - pd.Timedelta(minutes=30)].copy()
+    unit_df = infer_volume_units(vol, amt, px) if vol.notna().any() and amt.notna().any() else pd.DataFrame(index=df.index)
+    norm_vol = pd.to_numeric(unit_df.get("normalized_volume"), errors="coerce") if not unit_df.empty else vol
+    unit_diag = summarize_volume_unit_diagnostics(unit_df)
     row = {
         "symbol": symbol,
         "trade_date": date,
@@ -1164,17 +1279,31 @@ def write_daily_features(sym_dir: Path, df: pd.DataFrame, date: str, symbol: str
         "high": float(valid.max()),
         "low": float(valid.min()),
         "close": float(valid.iloc[-1]),
-        "volume": float(vol.dropna().iloc[-1]) if vol.dropna().size else None,
+        "raw_volume": float(vol.dropna().iloc[-1]) if vol.dropna().size else None,
+        "volume": float(norm_vol.dropna().iloc[-1]) if norm_vol.dropna().size else None,
         "amount": float(amt.dropna().iloc[-1]) if amt.dropna().size else None,
+        "pct_chg_raw": float(pd.to_numeric(df.get("pct_chg_raw"), errors="coerce").dropna().iloc[-1])
+        if "pct_chg_raw" in df.columns and pd.to_numeric(df.get("pct_chg_raw"), errors="coerce").dropna().size else None,
+        "pct_chg_norm": float(pd.to_numeric(df.get("pct_chg_norm"), errors="coerce").dropna().iloc[-1])
+        if "pct_chg_norm" in df.columns and pd.to_numeric(df.get("pct_chg_norm"), errors="coerce").dropna().size else None,
+        "pct_chg": float(pd.to_numeric(df.get("pct_chg_norm"), errors="coerce").dropna().iloc[-1])
+        if "pct_chg_norm" in df.columns and pd.to_numeric(df.get("pct_chg_norm"), errors="coerce").dropna().size else None,
+        "pct_chg_source": str(df["pct_chg_source"].dropna().iloc[-1])
+        if "pct_chg_source" in df.columns and df["pct_chg_source"].dropna().size else "",
+        "pct_chg_unit": str(df["pct_chg_unit"].dropna().iloc[-1])
+        if "pct_chg_unit" in df.columns and df["pct_chg_unit"].dropna().size else "",
         "last_30m_ret": float(pd.to_numeric(last30["last_price"], errors="coerce").dropna().iloc[-1] / pd.to_numeric(last30["last_price"], errors="coerce").dropna().iloc[0] - 1.0)
         if pd.to_numeric(last30["last_price"], errors="coerce").dropna().size >= 2 else None,
         "last_depth_imbalance_5": float(pd.to_numeric(df.get("depth_imbalance_5"), errors="coerce").dropna().iloc[-1])
         if "depth_imbalance_5" in df.columns and pd.to_numeric(df.get("depth_imbalance_5"), errors="coerce").dropna().size else None,
     }
+    row.update(unit_diag)
+    if len(unit_df):
+        last_valid_unit = unit_df.dropna(subset=["normalized_volume"]).tail(1)
+        if len(last_valid_unit):
+            row["vwap_ratio_raw"] = float(last_valid_unit["vwap_ratio_raw"].iloc[0])
+            row["volume_unit_multiplier"] = float(last_valid_unit["volume_unit_multiplier"].iloc[0])
     if row["amount"] and row["volume"]:
-        raw_vwap = row["amount"] / row["volume"]
-        if row["close"] and 50.0 <= raw_vwap / row["close"] <= 150.0:
-            row["volume"] = row["volume"] * 100.0
         row["daily_vwap"] = row["amount"] / row["volume"]
     pd.DataFrame([row]).to_csv(sym_dir / "daily_features.csv", index=False, encoding="utf-8-sig")
 
@@ -1185,7 +1314,7 @@ def validate_day(args: argparse.Namespace) -> None:
     if not day_dir.exists():
         raise FileNotFoundError(day_dir)
     rows = []
-    for sym_dir in sorted(p for p in day_dir.iterdir() if p.is_dir()):
+    for sym_dir in sorted(p for p in day_dir.iterdir() if p.is_dir() and not p.name.startswith("_")):
         snap = sym_dir / "snapshot_5level.csv"
         snap_error = sym_dir / "snapshot_errors.csv"
         trade = sym_dir / "intraday_trades.csv"
@@ -1205,6 +1334,22 @@ def validate_day(args: argparse.Namespace) -> None:
                 "bid1_missing_rate": float(pd.to_numeric(df.get("bid_price_1"), errors="coerce").isna().mean()) if len(df) else None,
                 "ask1_missing_rate": float(pd.to_numeric(df.get("ask_price_1"), errors="coerce").isna().mean()) if len(df) else None,
             })
+            if {"volume", "amount", "last_price"}.issubset(df.columns):
+                unit_df = infer_volume_units(df["volume"], df["amount"], df["last_price"])
+                row.update(summarize_volume_unit_diagnostics(unit_df))
+                norm_vol = pd.to_numeric(unit_df["normalized_volume"], errors="coerce")
+                norm_amt = pd.to_numeric(df["amount"], errors="coerce")
+                bar_vol = norm_vol.diff()
+                bar_amt = norm_amt.diff()
+                row["bar_volume_negative_count"] = int((bar_vol < 0).sum())
+                row["bar_amount_negative_count"] = int((bar_amt < 0).sum())
+                positive_vol = bar_vol[bar_vol > 0].dropna()
+                if len(positive_vol) >= 10:
+                    med = float(positive_vol.median())
+                    row["bar_volume_spike_count"] = int((positive_vol > med * 20.0).sum()) if med > 0 else 0
+                    row["bar_volume_spike_threshold"] = med * 20.0 if med > 0 else None
+                else:
+                    row["bar_volume_spike_count"] = 0
             if "phase" in df.columns:
                 for phase, n in df["phase"].value_counts().items():
                     row[f"phase_{phase}"] = int(n)
@@ -1326,6 +1471,7 @@ def parse_args() -> argparse.Namespace:
     def add_common(sp):
         sp.add_argument("--symbols", help="Comma separated symbols, e.g. 002714,000001.SZ")
         sp.add_argument("--symbols-file", help="One symbol per line; defaults to PurchasedData/selected_watchlist.txt when --symbols is omitted")
+        sp.add_argument("--benchmark-symbols", default=DEFAULT_BENCHMARK_SYMBOLS, help="Comma separated benchmark index symbols to collect alongside stocks; empty disables")
         sp.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR))
         sp.add_argument("--include-raw", action="store_true")
         sp.add_argument("--no-spot-bulk", action="store_true")
@@ -1370,11 +1516,13 @@ def parse_args() -> argparse.Namespace:
     sp.add_argument("--freqs", default="1min,5min")
     sp.add_argument("--cutoff-time", help="HH:MM; use only snapshots collected at or before this time")
     sp.add_argument("--symbols-file", help="Optional effective watchlist to restrict symbols")
+    sp.add_argument("--benchmark-symbols", default=DEFAULT_BENCHMARK_SYMBOLS, help="Comma separated benchmark index symbols to include when --symbols-file restricts symbols")
 
     sp = sub.add_parser("validate-day", help="Write collection quality report for a date")
     sp.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR))
     sp.add_argument("--date", required=True, help="YYYYMMDD")
     sp.add_argument("--cutoff-time", help="HH:MM; validate only snapshots collected at or before this time")
+    sp.add_argument("--benchmark-symbols", default=DEFAULT_BENCHMARK_SYMBOLS)
 
     sp = sub.add_parser("reconcile-data88", help="Archive AKShare pending symbol dirs covered by data88")
     sp.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR))

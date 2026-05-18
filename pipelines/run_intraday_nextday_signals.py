@@ -48,6 +48,7 @@ SAVED_MODELS_DIR = PROJECT_DIR / "saved_models"
 COLLECT_AKSHARE_SCRIPT = "data_collection/collect_akshare_l1_cache.py"
 COLLECT_CONTEXT_SCRIPT = "data_collection/collect_realtime_context.py"
 UPDATE_BAOSTOCK_SCRIPT = "data_collection/update_baostock_raw_cache.py"
+DEFAULT_BENCHMARK_SYMBOLS = "000300.SH,000001.SH,399001.SZ,399006.SZ"
 
 
 @dataclass
@@ -190,6 +191,16 @@ def append_reject_reason(row: dict, reason: str) -> None:
     parts = [p for p in existing.split(";") if p]
     parts.append(reason)
     row["reject_reason"] = ";".join(parts)
+
+
+def snapshot_age_seconds(snapshot_time: str, trade_date: str, cutoff_time: Optional[str]) -> float:
+    if not snapshot_time or not cutoff_time:
+        return np.nan
+    snap_ts = pd.to_datetime(snapshot_time, errors="coerce")
+    cutoff_ts = parse_cutoff_dt(trade_date, cutoff_time)
+    if pd.isna(snap_ts) or cutoff_ts is None or pd.isna(cutoff_ts):
+        return np.nan
+    return float((cutoff_ts - snap_ts).total_seconds())
 
 
 def as_bool_series_value(value) -> bool:
@@ -421,22 +432,29 @@ def resolve_repo_path(raw: Optional[str], stock_code: str = "") -> Optional[Path
         return p
 
     text = str(raw).replace("\\", "/")
-    marker = "stock_realtime/"
-    if marker in text:
-        candidate = ROOT / text.split(marker, 1)[1]
-        if candidate.exists():
-            return candidate
+    for marker in ["stock_realtime_v021_full/", "stock_realtime/"]:
+        if marker in text:
+            candidate = ROOT / text.split(marker, 1)[1]
+            if candidate.exists():
+                return candidate
 
     name = Path(text).name
-    if name:
-        hits = list(ROOT.rglob(name))
-        if stock_code:
-            code6 = stock_code.split(".", 1)[0]
-            preferred = [h for h in hits if code6 in str(h)]
-            if preferred:
-                return preferred[0]
-        if hits:
+    if name and stock_code:
+        code6 = stock_code.split(".", 1)[0]
+        roots = sorted((ROOT / "saved_data").glob(f"{code6}_pipeline_out*"))
+        roots.extend([
+            ROOT / "saved_data" / f"{code6}_base_out",
+            ROOT / "saved_data" / f"zijin_{code6}_base_out",
+        ])
+        hits = []
+        for root in roots:
+            if root.exists():
+                hits.extend(root.rglob(name))
+        hits = sorted(dict.fromkeys(h.resolve() for h in hits))
+        if len(hits) == 1:
             return hits[0]
+        if len(hits) > 1:
+            raise FileNotFoundError(f"ambiguous path for {stock_code} {name}: {[str(h) for h in hits[:10]]}")
     return None
 
 
@@ -584,27 +602,91 @@ def _normalize_realtime_minute_bars(bars: pd.DataFrame, trade_date: str) -> pd.D
     return out.dropna(subset=["datetime", "open", "high", "low", "close"])
 
 
-def normalize_volume_unit_if_lot(df: pd.DataFrame) -> pd.DataFrame:
-    """Normalize realtime volume from lots to shares when vendors expose lots.
+def infer_volume_units(volume: pd.Series, amount: pd.Series, price: pd.Series) -> pd.DataFrame:
+    vol = pd.to_numeric(volume, errors="coerce")
+    amt = pd.to_numeric(amount, errors="coerce")
+    px = pd.to_numeric(price, errors="coerce")
+    ratio = (amt / vol.replace(0, np.nan)) / px.replace(0, np.nan)
+    ratio = ratio.replace([np.inf, -np.inf], np.nan)
+    unit = pd.Series("unknown", index=vol.index, dtype="object")
+    unit = unit.mask(ratio.between(0.5, 2.0), "shares")
+    unit = unit.mask(ratio.between(50.0, 150.0), "lots")
+    multiplier = pd.Series(np.nan, index=vol.index, dtype="float64")
+    multiplier = multiplier.mask(unit.eq("shares"), 1.0)
+    multiplier = multiplier.mask(unit.eq("lots"), 100.0)
+    return pd.DataFrame({
+        "raw_volume": vol,
+        "raw_amount": amt,
+        "vwap_ratio_raw": ratio,
+        "volume_unit_inferred": unit,
+        "volume_unit_multiplier": multiplier,
+        "normalized_volume": vol * multiplier,
+    }, index=vol.index)
 
-    Some AKShare snapshot sources report cumulative volume in hands/lots while
-    amount stays in yuan.  Training 5m raw uses shares, so amount / volume should
-    be close to price, not price * 100.
-    """
+
+def normalize_volume_unit_if_lot(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize realtime volume row by row; unknown units become missing."""
     if not {"volume", "amount", "close"}.issubset(df.columns):
         return df
     out = df.copy()
-    vol = pd.to_numeric(out["volume"], errors="coerce")
-    amt = pd.to_numeric(out["amount"], errors="coerce")
-    close = pd.to_numeric(out["close"], errors="coerce").replace(0, np.nan)
-    ratio = (amt / vol.replace(0, np.nan)) / close
-    ratio = ratio.replace([np.inf, -np.inf], np.nan).dropna()
-    if ratio.empty:
-        return out
-    median_ratio = float(ratio.median())
-    if 50.0 <= median_ratio <= 150.0:
-        out["volume"] = vol * 100.0
+    unit_df = infer_volume_units(out["volume"], out["amount"], out["close"])
+    for c in ["raw_volume", "raw_amount", "vwap_ratio_raw", "volume_unit_inferred", "volume_unit_multiplier"]:
+        if c not in out.columns:
+            out[c] = unit_df[c]
+    out["volume"] = unit_df["normalized_volume"]
     return out
+
+
+def normalize_pct_chg_value(raw_pct, close, prev_close, source_text: str = "") -> dict:
+    raw = pd.to_numeric(pd.Series([raw_pct]), errors="coerce").iloc[0]
+    close_v = pd.to_numeric(pd.Series([close]), errors="coerce").iloc[0]
+    prev_v = pd.to_numeric(pd.Series([prev_close]), errors="coerce").iloc[0]
+    source = str(source_text or "").lower()
+    if np.isfinite(raw) and any(token in source for token in ("ths", "xq", "em", "eastmoney")):
+        return {
+            "pct_chg_raw": float(raw),
+            "pct_chg_norm": float(raw) / 100.0,
+            "pct_chg_source": source_text,
+            "pct_chg_unit": "percent",
+        }
+    if np.isfinite(close_v) and np.isfinite(prev_v) and prev_v > 0:
+        return {
+            "pct_chg_raw": float(raw) if np.isfinite(raw) else np.nan,
+            "pct_chg_norm": float(close_v) / float(prev_v) - 1.0,
+            "pct_chg_source": source_text or "derived_close_prev_close",
+            "pct_chg_unit": "ratio",
+        }
+    if np.isfinite(raw):
+        return {
+            "pct_chg_raw": float(raw),
+            "pct_chg_norm": float(raw) / 100.0,
+            "pct_chg_source": source_text,
+            "pct_chg_unit": "percent_assumed",
+        }
+    return {
+        "pct_chg_raw": np.nan,
+        "pct_chg_norm": np.nan,
+        "pct_chg_source": source_text,
+        "pct_chg_unit": "unknown",
+    }
+
+
+def summarize_volume_unit_diagnostics(unit_df: pd.DataFrame) -> dict:
+    if unit_df.empty or "volume_unit_inferred" not in unit_df.columns:
+        return {}
+    ratio = pd.to_numeric(unit_df.get("vwap_ratio_raw"), errors="coerce").replace([np.inf, -np.inf], np.nan).dropna()
+    counts = unit_df["volume_unit_inferred"].fillna("unknown").value_counts()
+    known_units = [u for u in ("shares", "lots") if int(counts.get(u, 0)) > 0]
+    return {
+        "volume_unit_inferred": "mixed" if len(known_units) > 1 else (known_units[0] if known_units else "unknown"),
+        "volume_unit_ratio_median": float(ratio.median()) if len(ratio) else np.nan,
+        "volume_unit_ratio_p05": float(ratio.quantile(0.05)) if len(ratio) else np.nan,
+        "volume_unit_ratio_p95": float(ratio.quantile(0.95)) if len(ratio) else np.nan,
+        "volume_unit_lots_rows": int(counts.get("lots", 0)),
+        "volume_unit_shares_rows": int(counts.get("shares", 0)),
+        "volume_unit_unknown_rows": int(counts.get("unknown", 0)),
+        "volume_unit_mixed": bool(len(known_units) > 1),
+    }
 
 
 def _load_pending_intraday_rows(
@@ -614,26 +696,42 @@ def _load_pending_intraday_rows(
     cutoff_time: Optional[str] = None,
 ) -> pd.DataFrame:
     base = cache_symbol_dir(cache_dir, trade_date, stock_code)
-    candidates = [base / "minute_bars_5min.csv", base / "minute_bars_1min.csv"]
+    path = base / "minute_bars_5min.csv"
+    if not path.exists():
+        return pd.DataFrame()
     cutoff_dt = parse_cutoff_dt(trade_date, cutoff_time)
-    for path in candidates:
-        if not path.exists():
-            continue
-        try:
-            bars = pd.read_csv(path, encoding="utf-8-sig")
-        except Exception:
-            continue
-        if bars.empty:
-            continue
-        bars = _normalize_realtime_minute_bars(bars, trade_date)
-        if cutoff_dt is not None and not bars.empty:
-            bars = bars[bars["datetime"] <= cutoff_dt].copy()
-        if bars.empty:
-            continue
-        rows = build_intraday_rows(bars)
-        if not rows.empty:
-            return rows
-    return pd.DataFrame()
+    try:
+        bars = pd.read_csv(path, encoding="utf-8-sig")
+    except Exception:
+        return pd.DataFrame()
+    if bars.empty:
+        return pd.DataFrame()
+    if "source" not in bars.columns or not (bars["source"].astype(str) == "local_snapshot_5m_right_endpoint").all():
+        return pd.DataFrame()
+    if "bar_freq" in bars.columns and not (bars["bar_freq"].astype(str) == "5min").all():
+        return pd.DataFrame()
+    if "bar_label" in bars.columns and not (bars["bar_label"].astype(str) == "right").all():
+        return pd.DataFrame()
+    bars = _normalize_realtime_minute_bars(bars, trade_date)
+    if bars.empty:
+        return pd.DataFrame()
+    times = pd.to_datetime(bars["datetime"], errors="coerce").dropna().sort_values()
+    if len(times) >= 2:
+        prev_times = times.shift(1)
+        diffs = times - prev_times
+        regular = diffs == pd.Timedelta(minutes=5)
+        lunch_break = (
+            prev_times.dt.strftime("%H:%M:%S").eq("11:30:00")
+            & times.dt.strftime("%H:%M:%S").eq("13:05:00")
+        )
+        invalid = ~(regular | lunch_break | diffs.isna())
+        if invalid.any():
+            return pd.DataFrame()
+    if cutoff_dt is not None:
+        bars = bars[bars["datetime"] <= cutoff_dt].copy()
+    if bars.empty:
+        return pd.DataFrame()
+    return build_intraday_rows(bars)
 
 
 def add_scoring_features(
@@ -643,8 +741,24 @@ def add_scoring_features(
     stock_code: str,
     cutoff_time: Optional[str] = None,
     scoring_trade_date: Optional[str] = None,
+    benchmark_symbols: str = DEFAULT_BENCHMARK_SYMBOLS,
 ) -> pd.DataFrame:
     out = add_reversal_daily_features(df)
+    if scoring_trade_date and {"date", "prev_close_for_feature"}.issubset(out.columns):
+        scoring_date = pd.to_datetime(yyyymmdd_to_iso(scoring_trade_date)).normalize()
+        mask = pd.to_datetime(out["date"], errors="coerce").dt.normalize() == scoring_date
+        pcf = pd.to_numeric(out.loc[mask, "prev_close_for_feature"], errors="coerce")
+        valid = pcf.notna() & (pcf > 0)
+        if valid.any():
+            idx = pcf[valid].index
+            out.loc[idx, "prev_close"] = pcf.loc[idx]
+            if "open" in out.columns:
+                out.loc[idx, "overnight_ret"] = pd.to_numeric(out.loc[idx, "open"], errors="coerce") / pcf.loc[idx] - 1.0
+            if "close" in out.columns:
+                pct = pd.to_numeric(out.loc[idx, "close"], errors="coerce") / pcf.loc[idx] - 1.0
+                out.loc[idx, "pct_chg"] = pct
+                if "pct_chg_norm" in out.columns:
+                    out.loc[idx, "pct_chg_norm"] = pct
 
     intra = load_intraday_feature_cache(intraday_path, cache_dir, stock_code)
     # Merge current-day pending minute bars.  The historical feature cache is
@@ -685,7 +799,10 @@ def add_scoring_features(
             out["morning_afternoon_reversal"] = -out["morning_ret"] * out["afternoon_ret"]
         if {"first_60m_ret", "last_30m_ret"}.issubset(out.columns):
             out["first60_last30_reversal"] = -out["first_60m_ret"] * out["last_30m_ret"]
-    return add_market_state_features(out)
+    bench_trade_date = scoring_trade_date or (pd.to_datetime(out["date"].max()).strftime("%Y%m%d") if "date" in out.columns and not out.empty else "")
+    out = overlay_benchmark_asof(out, bench_trade_date, cache_dir, cutoff_time, benchmark_symbols)
+    out = add_market_state_features(out)
+    return add_benchmark_asof_aliases(out)
 
 def parse_cutoff_dt(trade_date: str, cutoff_time: Optional[str]) -> Optional[pd.Timestamp]:
     if not cutoff_time:
@@ -732,7 +849,7 @@ def live_daily_from_snapshots(stock_code: str, trade_date: str, cache_dir: Path,
         return float(ss.iloc[-1]) if len(ss) else np.nan
 
     px = pd.to_numeric(snap.get("last_price"), errors="coerce") if "last_price" in snap.columns else pd.Series(dtype=float)
-    valid_px = px.dropna()
+    valid_px = px[px > 0].dropna()
     if valid_px.empty:
         return {"core_complete": False, "missing_core_fields": "close"}
 
@@ -750,31 +867,51 @@ def live_daily_from_snapshots(stock_code: str, trade_date: str, cache_dir: Path,
 
     volume = last_num("volume")
     amount = last_num("amount")
+    raw_volume = volume
     prev_close = last_num("prev_close")
-    pct_chg = last_num("pct_chg")
-    # Vendors differ: some pct_chg are percent points, some are ratio.  Keep ratio.
-    if np.isfinite(pct_chg) and abs(pct_chg) > 1.0:
-        pct_chg = pct_chg / 100.0
-    if (not np.isfinite(pct_chg)) and np.isfinite(prev_close) and prev_close > 0:
-        pct_chg = close / prev_close - 1.0
-    if np.isfinite(amount) and np.isfinite(volume) and volume > 0 and close > 0:
-        vwap_ratio = (amount / volume) / close
-        if np.isfinite(vwap_ratio) and 50.0 <= vwap_ratio <= 150.0:
-            volume = volume * 100.0
+    pct_diag = normalize_pct_chg_value(
+        last_num("pct_chg"),
+        close,
+        prev_close,
+        str(last.get("spot_source_used") or last.get("quote_source") or ""),
+    )
+    pct_chg = pct_diag["pct_chg_norm"]
+    unit_diag = {}
+    if {"volume", "amount"}.issubset(snap.columns):
+        unit_df = infer_volume_units(snap["volume"], snap["amount"], px.reindex(snap.index))
+        unit_diag = summarize_volume_unit_diagnostics(unit_df)
+        norm_vol = pd.to_numeric(unit_df["normalized_volume"], errors="coerce")
+        valid_norm = norm_vol.dropna()
+        if len(valid_norm):
+            volume = float(valid_norm.iloc[-1])
+            last_idx = valid_norm.index[-1]
+            unit_diag["vwap_ratio_raw"] = float(unit_df.loc[last_idx, "vwap_ratio_raw"])
+            unit_diag["volume_unit_multiplier"] = float(unit_df.loc[last_idx, "volume_unit_multiplier"])
+            unit_diag["volume_unit_last"] = str(unit_df.loc[last_idx, "volume_unit_inferred"])
+        else:
+            volume = np.nan
 
     row = {
         "open": open_v,
         "high": high_v,
         "low": low_v,
         "close": close,
+        "raw_volume": raw_volume,
         "volume": volume,
         "amount": amount,
+        "live_prev_close": prev_close,
         "prev_close": prev_close,
+        "prev_close_for_feature": prev_close,
         "pct_chg": pct_chg,
+        "pct_chg_raw": pct_diag["pct_chg_raw"],
+        "pct_chg_norm": pct_diag["pct_chg_norm"],
+        "pct_chg_source": pct_diag["pct_chg_source"],
+        "pct_chg_unit": pct_diag["pct_chg_unit"],
         "snapshots": int(len(snap)),
         "snapshot_time": str(last["datetime"]),
         "source_used": str(last.get("spot_source_used") or last.get("quote_source") or ""),
     }
+    row.update(unit_diag)
     if np.isfinite(amount) and np.isfinite(volume) and volume > 0:
         row["daily_vwap"] = amount / volume
     if np.isfinite(prev_close) and prev_close > 0 and np.isfinite(open_v):
@@ -788,6 +925,97 @@ def live_daily_from_snapshots(stock_code: str, trade_date: str, cache_dir: Path,
     row["core_complete"] = len(missing) == 0
     row["missing_core_fields"] = ",".join(missing)
     return row
+
+
+def live_benchmark_close_from_snapshots(symbol: str, trade_date: str, cache_dir: Path, cutoff_time: Optional[str]) -> dict:
+    snap_path = cache_symbol_dir(cache_dir, trade_date, symbol) / "snapshot_5level.csv"
+    if not snap_path.exists():
+        return {}
+    try:
+        snap = pd.read_csv(snap_path, encoding="utf-8-sig")
+    except Exception:
+        return {}
+    if snap.empty:
+        return {}
+    if "datetime" in snap.columns:
+        snap["datetime"] = pd.to_datetime(snap["datetime"], errors="coerce")
+    else:
+        snap["datetime"] = pd.to_datetime(
+            snap.get("trade_date", "").astype(str) + snap.get("trade_time", "").astype(str).str.zfill(6),
+            errors="coerce",
+        )
+    snap = snap.dropna(subset=["datetime"]).sort_values("datetime")
+    cutoff_dt = parse_cutoff_dt(trade_date, cutoff_time)
+    if cutoff_dt is not None:
+        snap = snap[snap["datetime"] <= cutoff_dt].copy()
+    if snap.empty or "last_price" not in snap.columns:
+        return {}
+    close_s = pd.to_numeric(snap["last_price"], errors="coerce")
+    valid = close_s[close_s > 0].dropna()
+    if valid.empty:
+        return {}
+    last_idx = valid.index[-1]
+    raw_pct = pd.to_numeric(snap.get("pct_chg"), errors="coerce").dropna() if "pct_chg" in snap.columns else pd.Series(dtype=float)
+    source = str(snap.loc[last_idx].get("spot_source_used") or snap.loc[last_idx].get("quote_source") or "")
+    return {
+        "bench_symbol_asof": normalize_symbol(symbol),
+        "bench_close_asof": float(valid.iloc[-1]),
+        "bench_snapshot_time": str(snap.loc[last_idx, "datetime"]),
+        "bench_pct_chg_raw": float(raw_pct.iloc[-1]) if len(raw_pct) else np.nan,
+        "bench_source_used": source,
+    }
+
+
+def overlay_benchmark_asof(df: pd.DataFrame, trade_date: str, cache_dir: Path, cutoff_time: Optional[str], benchmark_symbols: str) -> pd.DataFrame:
+    if df.empty or "date" not in df.columns or "bench_close" not in df.columns:
+        return df
+    live = {}
+    for sym in [s.strip() for s in str(benchmark_symbols or "").replace(";", ",").split(",") if s.strip()]:
+        live = live_benchmark_close_from_snapshots(sym, trade_date, cache_dir, cutoff_time)
+        if live:
+            break
+    if not live:
+        return df
+    out = df.sort_values("date").copy()
+    trade_ts = pd.to_datetime(yyyymmdd_to_iso(trade_date))
+    if not (pd.to_datetime(out["date"], errors="coerce").dt.normalize() == trade_ts).any():
+        return out
+    idx = out.index[pd.to_datetime(out["date"], errors="coerce").dt.normalize() == trade_ts][-1]
+    for col in ["bench_close_asof", "bench_symbol_asof", "bench_snapshot_time", "bench_pct_chg_raw", "bench_source_used"]:
+        if col not in out.columns:
+            out[col] = np.nan
+    out.at[idx, "bench_close"] = live["bench_close_asof"]
+    for col, val in live.items():
+        out.at[idx, col] = val
+    return out
+
+
+def add_benchmark_asof_aliases(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    if out.empty or "date" not in out.columns:
+        return out
+    for src, dst in [
+        ("bench_close", "bench_close_asof"),
+        ("bench_ret1", "bench_ret1_asof"),
+        ("bench_ret5", "bench_ret5_asof"),
+        ("bench_ret20", "bench_ret20_asof"),
+        ("bench_ma20_gap", "bench_ma20_gap_asof"),
+        ("bench_ma60_gap", "bench_ma60_gap_asof"),
+        ("regime_market_ok", "regime_market_ok_asof"),
+        ("regime_market_strict", "regime_market_strict_asof"),
+    ]:
+        if src in out.columns and dst not in out.columns:
+            out[dst] = out[src]
+        elif src in out.columns:
+            out[dst] = out[src]
+    if "bench_close" in out.columns:
+        close = pd.to_numeric(out["bench_close"], errors="coerce")
+        out["bench_ret1"] = close / close.shift(1) - 1.0
+        out["bench_ret5"] = close / close.shift(5) - 1.0
+        out["bench_ret1_asof"] = out["bench_ret1"]
+        out["bench_ret5_asof"] = out["bench_ret5"]
+    return out
+
 
 def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date: str, cache_dir: Path, cutoff_time: Optional[str] = None) -> pd.DataFrame:
     """Overlay current-day live daily fields onto the last scoring row.
@@ -817,12 +1045,23 @@ def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date
 
     out = df.sort_values("date").copy()
     trade_ts = pd.to_datetime(yyyymmdd_to_iso(trade_date))
+    hist_before = out[pd.to_datetime(out["date"], errors="coerce").dt.normalize() < trade_ts].sort_values("date")
+    hist_prev_close = np.nan
+    if not hist_before.empty and "close" in hist_before.columns:
+        hist_close = pd.to_numeric(hist_before["close"], errors="coerce").dropna()
+        if len(hist_close):
+            hist_prev_close = float(hist_close.iloc[-1])
 
     # Ensure diagnostics/liquidity/raw live columns always exist.
     live_columns = {
-        "open", "high", "low", "close", "volume", "amount", "daily_vwap",
+        "open", "high", "low", "close", "raw_volume", "volume", "amount", "daily_vwap",
         "daily_vwap_volume", "daily_vwap_pv", "n_intraday_bars", "snapshot_count",
-        "prev_close", "pct_chg", "overnight_ret",
+        "prev_close", "live_prev_close", "hist_prev_close", "prev_close_for_feature",
+        "pct_chg", "pct_chg_raw", "pct_chg_norm", "pct_chg_source", "pct_chg_unit", "overnight_ret",
+        "volume_unit_ratio_median", "volume_unit_ratio_p05", "volume_unit_ratio_p95",
+        "volume_unit_lots_rows", "volume_unit_shares_rows", "volume_unit_unknown_rows",
+        "volume_unit_multiplier",
+        "volume_unit_inferred", "volume_unit_last", "volume_unit_mixed",
         "_snapshot_time", "_source_used", "_core_complete", "_missing_core_fields",
     }
     for c in live_columns:
@@ -831,11 +1070,17 @@ def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date
 
     row = out.iloc[-1].copy()
     row["date"] = trade_ts
+    live_prev_close = pd.to_numeric(pd.Series([live.get("live_prev_close", live.get("prev_close"))]), errors="coerce").iloc[0]
+    prev_close_for_feature = live_prev_close if np.isfinite(live_prev_close) and live_prev_close > 0 else hist_prev_close
+    row["live_prev_close"] = live_prev_close
+    row["hist_prev_close"] = hist_prev_close
+    row["prev_close_for_feature"] = prev_close_for_feature
     mapping = [
         ("open", "open"),
         ("high", "high"),
         ("low", "low"),
         ("close", "close"),
+        ("raw_volume", "raw_volume"),
         ("volume", "volume"),
         ("amount", "amount"),
         ("daily_vwap", "daily_vwap"),
@@ -843,20 +1088,38 @@ def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date
         ("amount", "daily_vwap_pv"),
         ("snapshots", "snapshot_count"),
         ("prev_close", "prev_close"),
+        ("live_prev_close", "live_prev_close"),
+        ("prev_close_for_feature", "prev_close_for_feature"),
         ("pct_chg", "pct_chg"),
+        ("pct_chg_raw", "pct_chg_raw"),
+        ("pct_chg_norm", "pct_chg_norm"),
         ("overnight_ret", "overnight_ret"),
+        ("volume_unit_ratio_median", "volume_unit_ratio_median"),
+        ("volume_unit_ratio_p05", "volume_unit_ratio_p05"),
+        ("volume_unit_ratio_p95", "volume_unit_ratio_p95"),
+        ("volume_unit_lots_rows", "volume_unit_lots_rows"),
+        ("volume_unit_shares_rows", "volume_unit_shares_rows"),
+        ("volume_unit_unknown_rows", "volume_unit_unknown_rows"),
+        ("volume_unit_multiplier", "volume_unit_multiplier"),
     ]
     for src, dst in mapping:
         if src in live:
             row[dst] = pd.to_numeric(live[src], errors="coerce")
+    for src in ["pct_chg_source", "pct_chg_unit"]:
+        if src in live:
+            row[src] = live[src]
+    row["hist_prev_close"] = hist_prev_close
+    if np.isfinite(prev_close_for_feature) and prev_close_for_feature > 0:
+        row["prev_close_for_feature"] = prev_close_for_feature
+        row["prev_close"] = prev_close_for_feature
 
     # If prev_close exists but pct/overnight were not supplied, derive them.
     try:
-        if pd.notna(row.get("prev_close")) and float(row["prev_close"]) > 0:
-            if pd.isna(row.get("pct_chg")) and pd.notna(row.get("close")):
-                row["pct_chg"] = float(row["close"]) / float(row["prev_close"]) - 1.0
-            if pd.isna(row.get("overnight_ret")) and pd.notna(row.get("open")):
-                row["overnight_ret"] = float(row["open"]) / float(row["prev_close"]) - 1.0
+        if pd.notna(row.get("prev_close_for_feature")) and float(row["prev_close_for_feature"]) > 0:
+            if pd.notna(row.get("close")):
+                row["pct_chg"] = float(row["close"]) / float(row["prev_close_for_feature"]) - 1.0
+            if pd.notna(row.get("open")):
+                row["overnight_ret"] = float(row["open"]) / float(row["prev_close_for_feature"]) - 1.0
     except Exception:
         pass
 
@@ -864,6 +1127,9 @@ def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date
     row["_source_used"] = live.get("source_used", live.get("source", ""))
     row["_core_complete"] = bool(live.get("core_complete", False))
     row["_missing_core_fields"] = live.get("missing_core_fields", "")
+    row["volume_unit_inferred"] = live.get("volume_unit_inferred", "")
+    row["volume_unit_last"] = live.get("volume_unit_last", "")
+    row["volume_unit_mixed"] = bool(live.get("volume_unit_mixed", False))
 
     out = out[pd.to_datetime(out["date"], errors="coerce").dt.normalize() != trade_ts]
     out = pd.concat([out, pd.DataFrame([row])], ignore_index=True)
@@ -932,6 +1198,9 @@ def load_realtime_context_row(args: argparse.Namespace, artifact: ModelArtifact,
         "context_snapshot_time": "",
         "missing_context_features": ",".join(req.required_context_features) if req.requires_realtime_context else "",
         "required_context_features": ",".join(req.required_context_features),
+        "context_has_daily_fallback": "",
+        "context_stale_features": "",
+        "context_source_modes": "",
     }
     if not req.requires_realtime_context:
         return {}, meta
@@ -949,13 +1218,14 @@ def load_realtime_context_row(args: argparse.Namespace, artifact: ModelArtifact,
         return {}, meta
     part = df[(df.get("stock_code", "").astype(str) == artifact.stock_code) & (df.get("artifact_name", "").astype(str) == artifact.artifact_name)]
     if part.empty:
-        # Fallback to stock-only if artifact names changed after model re-save.
-        part = df[df.get("stock_code", "").astype(str) == artifact.stock_code]
-    if part.empty:
-        meta["context_status"] = "missing_row"
+        meta["context_status"] = "missing_artifact_context_row"
         return {}, meta
     row = part.iloc[-1].to_dict()
-    for k in ["context_status", "context_mode", "context_snapshot_time", "missing_context_features", "required_context_features"]:
+    for k in [
+        "context_status", "context_mode", "context_snapshot_time", "missing_context_features",
+        "required_context_features", "context_has_daily_fallback", "context_stale_features",
+        "context_source_modes",
+    ]:
         if k in row:
             meta[k] = str(row.get(k) or "")
     values = {}
@@ -1081,6 +1351,7 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
         artifact.stock_code,
         cutoff_time=args.cutoff_time,
         scoring_trade_date=trade_date,
+        benchmark_symbols=args.benchmark_symbols,
     )
     df, context_meta = apply_realtime_context_to_df(df, artifact, trade_date, req, args)
     df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
@@ -1126,12 +1397,43 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
     volume_value = float(pd.to_numeric(day_df["volume"], errors="coerce").iloc[-1]) if "volume" in day_df.columns else np.nan
     n_intraday_bars = int(pd.to_numeric(day_df["n_intraday_bars"], errors="coerce").fillna(0).iloc[-1]) if "n_intraday_bars" in day_df.columns else 0
     pct_chg_value = float(pd.to_numeric(day_df["pct_chg"], errors="coerce").iloc[-1]) if "pct_chg" in day_df.columns else np.nan
+    live_prev_close = float(pd.to_numeric(day_df["live_prev_close"], errors="coerce").iloc[-1]) if "live_prev_close" in day_df.columns else np.nan
+    hist_prev_close = float(pd.to_numeric(day_df["hist_prev_close"], errors="coerce").iloc[-1]) if "hist_prev_close" in day_df.columns else np.nan
+    prev_close_for_feature = float(pd.to_numeric(day_df["prev_close_for_feature"], errors="coerce").iloc[-1]) if "prev_close_for_feature" in day_df.columns else np.nan
+    pct_chg_raw = float(pd.to_numeric(day_df["pct_chg_raw"], errors="coerce").iloc[-1]) if "pct_chg_raw" in day_df.columns else np.nan
+    pct_chg_norm = float(pd.to_numeric(day_df["pct_chg_norm"], errors="coerce").iloc[-1]) if "pct_chg_norm" in day_df.columns else pct_chg_value
+    pct_chg_source = str(day_df["pct_chg_source"].iloc[-1]) if "pct_chg_source" in day_df.columns else ""
+    pct_chg_unit = str(day_df["pct_chg_unit"].iloc[-1]) if "pct_chg_unit" in day_df.columns else ""
+    bench_close_asof = float(pd.to_numeric(day_df["bench_close_asof"], errors="coerce").iloc[-1]) if "bench_close_asof" in day_df.columns else np.nan
+    bench_ret1_asof = float(pd.to_numeric(day_df["bench_ret1_asof"], errors="coerce").iloc[-1]) if "bench_ret1_asof" in day_df.columns else np.nan
+    bench_ret5_asof = float(pd.to_numeric(day_df["bench_ret5_asof"], errors="coerce").iloc[-1]) if "bench_ret5_asof" in day_df.columns else np.nan
+    bench_ret20_asof = float(pd.to_numeric(day_df["bench_ret20_asof"], errors="coerce").iloc[-1]) if "bench_ret20_asof" in day_df.columns else np.nan
+    regime_market_ok_asof = float(pd.to_numeric(day_df["regime_market_ok_asof"], errors="coerce").iloc[-1]) if "regime_market_ok_asof" in day_df.columns else np.nan
+    regime_market_strict_asof = float(pd.to_numeric(day_df["regime_market_strict_asof"], errors="coerce").iloc[-1]) if "regime_market_strict_asof" in day_df.columns else np.nan
+    sample_prev_close = np.nan
+    try:
+        hist_before = df[pd.to_datetime(df["date"], errors="coerce") < target_date].sort_values("date")
+        if not hist_before.empty and "close" in hist_before.columns:
+            sample_prev_close = float(pd.to_numeric(hist_before["close"], errors="coerce").dropna().iloc[-1])
+    except Exception:
+        sample_prev_close = np.nan
+    prev_close_rel_diff = (
+        abs(live_prev_close / sample_prev_close - 1.0)
+        if np.isfinite(live_prev_close) and np.isfinite(sample_prev_close) and sample_prev_close > 0
+        else np.nan
+    )
 
     feature_status = "live_overlay_partial" if date_status == "exact_trade_date" else "fallback_latest_sample"
     snapshot_time = str(day_df["_snapshot_time"].iloc[-1]) if "_snapshot_time" in day_df.columns else ""
+    snapshot_age = snapshot_age_seconds(snapshot_time, trade_date, args.cutoff_time)
     source_used = str(day_df["_source_used"].iloc[-1]) if "_source_used" in day_df.columns else ""
     core_complete = bool(day_df["_core_complete"].iloc[-1]) if "_core_complete" in day_df.columns else False
     missing_core_fields = str(day_df["_missing_core_fields"].iloc[-1]) if "_missing_core_fields" in day_df.columns else ""
+    volume_unit_inferred = str(day_df["volume_unit_inferred"].iloc[-1]) if "volume_unit_inferred" in day_df.columns else ""
+    volume_unit_last = str(day_df["volume_unit_last"].iloc[-1]) if "volume_unit_last" in day_df.columns else ""
+    volume_unit_mixed = bool(day_df["volume_unit_mixed"].iloc[-1]) if "volume_unit_mixed" in day_df.columns else False
+    volume_unit_unknown_rows = int(pd.to_numeric(day_df["volume_unit_unknown_rows"], errors="coerce").fillna(0).iloc[-1]) if "volume_unit_unknown_rows" in day_df.columns else 0
+    volume_unit_ratio_median = float(pd.to_numeric(day_df["volume_unit_ratio_median"], errors="coerce").iloc[-1]) if "volume_unit_ratio_median" in day_df.columns else np.nan
     unsupported = list(req.unsupported_realtime_features)
     if req.requires_bid_ask and not args.enable_five_level:
         unsupported.append("bid_ask")
@@ -1145,6 +1447,8 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
         "date_status": date_status,
         "feature_status": feature_status,
         "snapshot_time": snapshot_time,
+        "snapshot_age_seconds": snapshot_age,
+        "max_snapshot_age_seconds": int(args.max_snapshot_age_seconds) if args.max_snapshot_age_seconds is not None else "",
         "cutoff_time": args.cutoff_time or "",
         "source_used": source_used,
         "core_complete": core_complete,
@@ -1157,6 +1461,9 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
         "context_status": context_meta.get("context_status", ""),
         "context_mode": context_meta.get("context_mode", ""),
         "context_snapshot_time": context_meta.get("context_snapshot_time", ""),
+        "context_has_daily_fallback": context_meta.get("context_has_daily_fallback", ""),
+        "context_stale_features": context_meta.get("context_stale_features", ""),
+        "context_source_modes": context_meta.get("context_source_modes", ""),
         "required_context_features": context_meta.get("required_context_features", ""),
         "missing_context_features": context_meta.get("missing_context_features", ""),
         "unsupported_realtime_features": ",".join(unsupported),
@@ -1169,9 +1476,30 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
         "daily_vwap": daily_vwap_value,
         "amount": amount_value,
         "volume": volume_value,
+        "volume_unit_inferred": volume_unit_inferred,
+        "volume_unit_last": volume_unit_last,
+        "volume_unit_mixed": volume_unit_mixed,
+        "volume_unit_unknown_rows": volume_unit_unknown_rows,
+        "volume_unit_ratio_median": volume_unit_ratio_median,
         "pct_chg": pct_chg_value,
+        "pct_chg_raw": pct_chg_raw,
+        "pct_chg_norm": pct_chg_norm,
+        "pct_chg_source": pct_chg_source,
+        "pct_chg_unit": pct_chg_unit,
+        "live_prev_close": live_prev_close,
+        "hist_prev_close": hist_prev_close,
+        "prev_close_for_feature": prev_close_for_feature,
+        "sample_prev_close": sample_prev_close,
+        "prev_close_rel_diff": prev_close_rel_diff,
+        "bench_close_asof": bench_close_asof,
+        "bench_ret1_asof": bench_ret1_asof,
+        "bench_ret5_asof": bench_ret5_asof,
+        "bench_ret20_asof": bench_ret20_asof,
+        "regime_market_ok_asof": regime_market_ok_asof,
+        "regime_market_strict_asof": regime_market_strict_asof,
         "n_intraday_bars": n_intraday_bars,
         "min_intraday_bars": int(args.min_intraday_bars) if args.min_intraday_bars is not None else "",
+        "max_intraday_bars": int(args.max_intraday_bars) if args.max_intraday_bars is not None else "",
         "intraday_feature_count": int(len(intraday_cols_used)),
         "intraday_missing_count": int(intraday_missing_count),
         "hit_score": float(score[-1]),
@@ -1196,6 +1524,20 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
     if args.require_core_complete and req.requires_price_snapshot and not core_complete:
         row["signal"] = False
         append_reject_reason(row, "missing_core_fields")
+    if (
+        req.requires_price_snapshot
+        and args.max_snapshot_age_seconds is not None
+        and np.isfinite(snapshot_age)
+        and snapshot_age > args.max_snapshot_age_seconds
+    ):
+        row["signal"] = False
+        append_reject_reason(row, f"stale_snapshot_gt_{args.max_snapshot_age_seconds}s")
+    if req.requires_price_snapshot and volume_unit_mixed:
+        row["signal"] = False
+        append_reject_reason(row, "volume_unit_mixed")
+    if req.requires_price_snapshot and volume_unit_last == "unknown":
+        row["signal"] = False
+        append_reject_reason(row, "volume_unit_unknown")
     if unsupported:
         row["signal"] = False
         append_reject_reason(row, "unsupported_realtime_features")
@@ -1209,8 +1551,24 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
     ):
         row["signal"] = False
         append_reject_reason(row, f"intraday_bars_lt_{args.min_intraday_bars}")
+    if (
+        req.requires_intraday_bars
+        and args.max_intraday_bars is not None
+        and np.isfinite(n_intraday_bars)
+        and n_intraday_bars > args.max_intraday_bars
+    ):
+        row["signal"] = False
+        append_reject_reason(row, f"intraday_bars_gt_{args.max_intraday_bars}")
     if req.requires_intraday_bars and intraday_missing_count > 0:
+        row["signal"] = False
         append_reject_reason(row, f"intraday_features_missing_{intraday_missing_count}")
+    if (
+        args.max_prev_close_rel_diff is not None
+        and np.isfinite(prev_close_rel_diff)
+        and prev_close_rel_diff > args.max_prev_close_rel_diff
+    ):
+        row["signal"] = False
+        append_reject_reason(row, f"prev_close_mismatch_gt_{args.max_prev_close_rel_diff:g}")
     if args.max_missing_features is not None and int(filled_feature_count) > args.max_missing_features:
         row["signal"] = False
         append_reject_reason(row, f"filled_features_gt_{args.max_missing_features}")
@@ -1244,6 +1602,7 @@ def collect_once(args: argparse.Namespace) -> None:
     if not args.enable_five_level:
         cmd.append("--disable-em-bid-ask")
     cmd.extend(["--spot-source-priority", args.spot_source_priority])
+    cmd.extend(["--benchmark-symbols", args.benchmark_symbols or ""])
     if args.enable_source_short_circuit:
         cmd.append("--enable-source-short-circuit")
     if args.xq_only_missing:
@@ -1289,6 +1648,7 @@ def build_bars_and_validate(args: argparse.Namespace, trade_date: str) -> None:
         ]
         if args.cutoff_time:
             cmd.extend(["--cutoff-time", args.cutoff_time])
+        cmd.extend(["--benchmark-symbols", args.benchmark_symbols or ""])
         if getattr(args, "_effective_watchlist", None) and subcmd == "build-bars":
             cmd.extend(["--symbols-file", str(args._effective_watchlist)])
         run_cmd(cmd, args.dry_run, timeout_seconds=args.build_bars_timeout_seconds)
@@ -1314,6 +1674,7 @@ def collect_loop_until_signal(args: argparse.Namespace) -> None:
     if args.with_trades:
         cmd.extend(["--with-trades", "--trades-interval-seconds", str(args.trades_interval_seconds)])
     cmd.extend(["--spot-source-priority", args.spot_source_priority])
+    cmd.extend(["--benchmark-symbols", args.benchmark_symbols or ""])
     if args.enable_source_short_circuit:
         cmd.append("--enable-source-short-circuit")
     if args.xq_only_missing:
@@ -1484,6 +1845,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--interval-seconds", type=int, default=30)
     p.add_argument("--cutoff-time", default="14:55", help="HH:MM. Score/build-bars use only snapshots at or before this time.")
     p.add_argument("--spot-source-priority", default="sina_batch,ths_etf,xq")
+    p.add_argument("--benchmark-symbols", default=DEFAULT_BENCHMARK_SYMBOLS, help="Comma separated benchmark index symbols collected/scored as-of cutoff; empty disables")
     p.add_argument("--enable-source-short-circuit", action="store_true", default=True, help="Use later sources only for symbols still missing required fields")
     p.add_argument("--no-source-short-circuit", dest="enable_source_short_circuit", action="store_false")
     p.add_argument("--required-fields", default="close,open,high,low,volume,amount")
@@ -1515,6 +1877,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--allow-missing-core", dest="require_core_complete", action="store_false")
     p.add_argument("--max-missing-features", type=int, default=5, help="Force signal=False when live row misses more than this many trained features. Use -1 to disable.")
     p.add_argument("--min-intraday-bars", type=int, default=40, help="Force signal=False for models using intraday-bar features when reconstructed same-day bars are below this count. Use -1 to disable.")
+    p.add_argument("--max-intraday-bars", type=int, default=60, help="Force signal=False for models using intraday-bar features when same-day bars exceed this count. Use -1 to disable.")
+    p.add_argument("--max-snapshot-age-seconds", type=int, default=180, help="Force signal=False when latest snapshot is older than cutoff by this many seconds. Use -1 to disable.")
+    p.add_argument("--max-prev-close-rel-diff", type=float, default=0.02, help="Force signal=False when live prev_close differs from latest sample close by more than this ratio. Use -1 to disable.")
     p.add_argument("--min-amount-yuan", type=float, default=0.0, help="Optional liquidity gate for buy_signals.csv; force signal=False below this traded amount.")
     p.add_argument("--max-abs-pct-chg", type=float, default=None, help="Optional risk gate; force signal=False if abs(pct_chg) exceeds this value when pct_chg exists.")
     p.add_argument("--deadline-time", help="HH:MM. After this time, skip optional slow steps such as trade-detail collection.")
@@ -1531,6 +1896,12 @@ def main() -> None:
         args.max_missing_features = None
     if args.min_intraday_bars is not None and args.min_intraday_bars < 0:
         args.min_intraday_bars = None
+    if args.max_intraday_bars is not None and args.max_intraday_bars < 0:
+        args.max_intraday_bars = None
+    if args.max_snapshot_age_seconds is not None and args.max_snapshot_age_seconds < 0:
+        args.max_snapshot_age_seconds = None
+    if args.max_prev_close_rel_diff is not None and args.max_prev_close_rel_diff < 0:
+        args.max_prev_close_rel_diff = None
     trade_date = args.date or today_yyyymmdd()
     if args.cmd == "list-models":
         list_models(args, trade_date)

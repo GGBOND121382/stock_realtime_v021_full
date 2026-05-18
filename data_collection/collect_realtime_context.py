@@ -125,21 +125,28 @@ def resolve_repo_path(raw: Optional[str], stock_code: str = "") -> Optional[Path
     if p.exists():
         return p
     text = str(raw).replace("\\", "/")
-    marker = "stock_realtime/"
-    if marker in text:
-        cand = PROJECT_DIR / text.split(marker, 1)[1]
-        if cand.exists():
-            return cand
+    for marker in ["stock_realtime_v021_full/", "stock_realtime/"]:
+        if marker in text:
+            cand = PROJECT_DIR / text.split(marker, 1)[1]
+            if cand.exists():
+                return cand
     name = Path(text).name
-    if name:
-        hits = list(PROJECT_DIR.rglob(name))
-        if stock_code:
-            code6 = stock_code.split(".", 1)[0]
-            preferred = [h for h in hits if code6 in str(h)]
-            if preferred:
-                return preferred[0]
-        if hits:
+    if name and stock_code:
+        code6 = stock_code.split(".", 1)[0]
+        roots = sorted((PROJECT_DIR / "saved_data").glob(f"{code6}_pipeline_out*"))
+        roots.extend([
+            PROJECT_DIR / "saved_data" / f"{code6}_base_out",
+            PROJECT_DIR / "saved_data" / f"zijin_{code6}_base_out",
+        ])
+        hits = []
+        for root in roots:
+            if root.exists():
+                hits.extend(root.rglob(name))
+        hits = sorted(dict.fromkeys(h.resolve() for h in hits))
+        if len(hits) == 1:
             return hits[0]
+        if len(hits) > 1:
+            raise FileNotFoundError(f"ambiguous path for {stock_code} {name}: {[str(h) for h in hits[:10]]}")
     return None
 
 
@@ -368,13 +375,35 @@ def normalize_snapshot(kind: str, context_group: str, symbol: str, provider: str
     now = datetime.now().isoformat(timespec="seconds")
     if raw_row is None:
         return {"datetime": now, "kind": kind, "context_group": context_group, "context_symbol": symbol, "provider": provider, "canonical_prefix": canonical_prefix, "status": "empty"}
-    # THS industry summary has no index latest price; it provides 均价 and 涨跌幅.
-    # Use 均价 only as an as-of current level for direct fields; ret1 is derived
-    # from 涨跌幅 below.  Do not call Eastmoney sector APIs in realtime path.
-    price = pick(raw_row, ["最新", "最新价", "现价", "收盘", "收盘价", "均价", "close", "last", "price"])
+    # THS sector summary reports stock-average price ("均价"), not the THS
+    # industry/concept index close used during training.  Never map it into
+    # *_close/open/high/low; only pct_chg/ret1 is scale-compatible.
+    provider_name = str(provider)
+    summary_provider = provider_name.startswith("ths_sector_summary") or provider_name.startswith("stock_board_") and provider_name.endswith("_summary_ths")
+    price_names = ["最新", "最新价", "现价", "收盘", "收盘价", "close", "last", "price"]
+    if not summary_provider:
+        price_names.append("均价")
+    price = pick(raw_row, price_names)
     open_v = pick(raw_row, ["今开", "开盘", "开盘价", "open"])
     high_v = pick(raw_row, ["最高", "最高价", "high"])
     low_v = pick(raw_row, ["最低", "最低价", "low"])
+    raw_volume = pick(raw_row, ["总成交量", "成交量", "volume", "总成交量(万手)"])
+    raw_amount = pick(raw_row, ["总成交额", "成交额", "amount", "总成交额(亿元)"])
+    volume = raw_volume
+    amount = raw_amount
+    amount_source = ""
+    volume_source = ""
+    summary_amount_yuan = None
+    summary_volume_shares = None
+    if summary_provider:
+        if raw_amount is not None:
+            summary_amount_yuan = raw_amount * 1e8
+            amount = summary_amount_yuan
+            amount_source = "ths_summary_total_amount_yuan"
+        if raw_volume is not None:
+            summary_volume_shares = raw_volume * 10000.0 * 100.0
+            volume = summary_volume_shares
+            volume_source = "ths_summary_total_volume_shares"
     # Some realtime summary sources only provide current price/average price.
     # Fill OHLC with current level to avoid rejecting models for unavailable
     # intraday high/low from a provider that never exposes them.
@@ -389,13 +418,22 @@ def normalize_snapshot(kind: str, context_group: str, symbol: str, provider: str
         "context_symbol": symbol,
         "provider": provider,
         "canonical_prefix": canonical_prefix,
-        "status": "ok" if price is not None else "no_price",
+        "status": "ok" if (price is not None or pick(raw_row, ["涨跌幅", "pct_chg", "changepercent"]) is not None) else "no_price",
+        "level_scale_status": "ret_only" if summary_provider else "level_ok",
         "open": open_v,
         "high": high_v,
         "low": low_v,
         "close": price,
-        "volume": pick(raw_row, ["成交量", "volume", "总成交量"]),
-        "amount": pick(raw_row, ["成交额", "amount", "总成交额"]),
+        "volume": volume,
+        "amount": amount,
+        "summary_amount_raw": raw_amount if summary_provider else None,
+        "summary_volume_raw": raw_volume if summary_provider else None,
+        "summary_amount_yuan": summary_amount_yuan,
+        "summary_volume_shares": summary_volume_shares,
+        "summary_amount_unit": "亿元" if summary_provider and raw_amount is not None else "",
+        "summary_volume_unit": "万手" if summary_provider and raw_volume is not None else "",
+        "amount_source": amount_source,
+        "volume_source": volume_source,
         "pct_chg": pick(raw_row, ["涨跌幅", "pct_chg", "changepercent"]),
     }
 
@@ -1221,7 +1259,13 @@ def load_snapshots(path: Path, cutoff_time: Optional[str]) -> pd.DataFrame:
 
 
 
-def snapshots_to_flat_current(snapshots: pd.DataFrame, sector_symbols: list[str], context_groups: list[str]) -> dict[str, Any]:
+def snapshots_to_flat_current(
+    snapshots: pd.DataFrame,
+    sector_symbols: list[str],
+    context_groups: list[str],
+    hist: Optional[pd.DataFrame] = None,
+    target_date: Optional[pd.Timestamp] = None,
+) -> dict[str, Any]:
     """Build per-artifact current context map from snapshots.
 
     Generic sector features use the first configured sector symbol as the
@@ -1243,18 +1287,109 @@ def snapshots_to_flat_current(snapshots: pd.DataFrame, sector_symbols: list[str]
     if ok.empty:
         return flat
 
-    def add_row(r: pd.Series, prefix: str) -> None:
-        flat[f"{prefix}_open"] = to_float(r.get("open"))
-        flat[f"{prefix}_high"] = to_float(r.get("high"))
-        flat[f"{prefix}_low"] = to_float(r.get("low"))
-        flat[f"{prefix}_close"] = to_float(r.get("close"))
-        flat[f"{prefix}_volume"] = to_float(r.get("volume"))
-        flat[f"{prefix}_amount"] = to_float(r.get("amount"))
+    hist_before = pd.DataFrame()
+    if hist is not None and not hist.empty and "date" in hist.columns:
+        target = target_date if target_date is not None else pd.Timestamp.max
+        hist_before = hist[pd.to_datetime(hist["date"], errors="coerce") < target].sort_values("date")
+
+    def previous_close(prefix: str) -> float:
+        col = f"{prefix}_close"
+        if hist_before.empty or col not in hist_before.columns:
+            return np.nan
+        s = pd.to_numeric(hist_before[col], errors="coerce").replace([np.inf, -np.inf], np.nan).dropna()
+        return float(s.iloc[-1]) if len(s) else np.nan
+
+    def add_sampled_index_ohlc(part: pd.DataFrame, prefix: str) -> None:
+        """Build sampled index OHLC from pct_chg snapshots and historical close."""
+        prev = previous_close(prefix)
+        if not np.isfinite(prev) or prev <= 0 or part.empty:
+            return
+        pct = pd.to_numeric(part.get("pct_chg"), errors="coerce").replace([np.inf, -np.inf], np.nan)
+        tmp = part.assign(_ret1=pct / 100.0).dropna(subset=["_ret1"]).sort_values("datetime")
+        if tmp.empty:
+            return
+        px = prev * (1.0 + pd.to_numeric(tmp["_ret1"], errors="coerce"))
+        px = px.replace([np.inf, -np.inf], np.nan).dropna()
+        if px.empty:
+            return
+        flat[f"{prefix}_open"] = float(px.iloc[0])
+        flat[f"{prefix}_high"] = float(px.max())
+        flat[f"{prefix}_low"] = float(px.min())
+        flat[f"{prefix}_close"] = float(px.iloc[-1])
+        flat[f"{prefix}_sampled_ohlc"] = True
+
+    def add_sampled_aggregate_ohlc(part: pd.DataFrame, prefix: str) -> None:
+        prev = previous_close(prefix)
+        if not np.isfinite(prev) or prev <= 0 or part.empty:
+            return
+        tmp = part.copy()
+        tmp["_pct"] = pd.to_numeric(tmp.get("pct_chg"), errors="coerce").replace([np.inf, -np.inf], np.nan)
+        tmp = tmp.dropna(subset=["datetime", "_pct"]).sort_values("datetime")
+        if tmp.empty:
+            return
+        pct_by_time = tmp.groupby("datetime")["_pct"].mean().dropna()
+        if pct_by_time.empty:
+            return
+        px = prev * (1.0 + pct_by_time / 100.0)
+        px = px.replace([np.inf, -np.inf], np.nan).dropna()
+        if px.empty:
+            return
+        flat[f"{prefix}_open"] = float(px.iloc[0])
+        flat[f"{prefix}_high"] = float(px.max())
+        flat[f"{prefix}_low"] = float(px.min())
+        flat[f"{prefix}_close"] = float(px.iloc[-1])
+        flat[f"{prefix}_sampled_ohlc"] = True
+
+    def add_row(r: pd.Series, prefix: str, part: Optional[pd.DataFrame] = None) -> None:
+        ret_only = (
+            str(r.get("level_scale_status") or "") == "ret_only"
+            or str(r.get("provider") or "").startswith("ths_sector_summary")
+            or (str(r.get("provider") or "").startswith("stock_board_") and str(r.get("provider") or "").endswith("_summary_ths"))
+        )
+        summary_provider = (
+            str(r.get("provider") or "").startswith("ths_sector_summary")
+            or (str(r.get("provider") or "").startswith("stock_board_") and str(r.get("provider") or "").endswith("_summary_ths"))
+        )
+        amount_val = to_float(r.get("amount"))
+        volume_val = to_float(r.get("volume"))
+        amount_source = str(r.get("amount_source") or "")
+        volume_source = str(r.get("volume_source") or "")
+        summary_amount_raw = to_float(r.get("summary_amount_raw"))
+        summary_volume_raw = to_float(r.get("summary_volume_raw"))
+        if summary_provider and not amount_source and amount_val is not None:
+            summary_amount_raw = amount_val
+            amount_val = amount_val * 1e8
+            amount_source = "ths_summary_total_amount_yuan"
+        if summary_provider and not volume_source and volume_val is not None:
+            summary_volume_raw = volume_val
+            volume_val = volume_val * 10000.0 * 100.0
+            volume_source = "ths_summary_total_volume_shares"
+        if not ret_only:
+            flat[f"{prefix}_open"] = to_float(r.get("open"))
+            flat[f"{prefix}_high"] = to_float(r.get("high"))
+            flat[f"{prefix}_low"] = to_float(r.get("low"))
+            flat[f"{prefix}_close"] = to_float(r.get("close"))
+        elif part is not None:
+            add_sampled_index_ohlc(part, prefix)
+        flat[f"{prefix}_volume"] = volume_val
+        flat[f"{prefix}_amount"] = amount_val
+        flat[f"{prefix}_amount_source"] = amount_source
+        flat[f"{prefix}_volume_source"] = volume_source
+        flat[f"{prefix}_summary_amount_raw"] = summary_amount_raw
+        flat[f"{prefix}_summary_volume_raw"] = summary_volume_raw
+        flat[f"{prefix}_summary_amount_yuan"] = amount_val if amount_source == "ths_summary_total_amount_yuan" else to_float(r.get("summary_amount_yuan"))
+        flat[f"{prefix}_summary_volume_shares"] = volume_val if volume_source == "ths_summary_total_volume_shares" else to_float(r.get("summary_volume_shares"))
+        flat[f"{prefix}_level_scale_status"] = "ret_only" if ret_only else "level_ok"
+        is_daily_fallback = str(r.get("context_mode") or "") == "latest_daily_fallback"
+        flat[f"{prefix}_source_mode"] = "daily_fallback" if is_daily_fallback else ("snapshot_ret_only" if ret_only else "snapshot_level")
+        flat[f"{prefix}_is_daily_fallback"] = bool(is_daily_fallback)
         flat[f"{prefix}_pct_chg"] = to_float(r.get("pct_chg"))
         pct = to_float(r.get("pct_chg"))
         if pct is not None and np.isfinite(pct):
             # Most CN/HK realtime APIs report pct_chg in percent units.
-            flat[f"{prefix}_ret1"] = pct / 100.0
+            ret1 = pct / 100.0
+            flat[f"{prefix}_ret1"] = ret1
+            flat[f"{prefix}_close_ret1"] = ret1
         flat[f"{prefix}_snapshot_time"] = str(r.get("datetime"))
 
     def add_proxy_mean(part: pd.DataFrame) -> None:
@@ -1274,12 +1409,14 @@ def snapshots_to_flat_current(snapshots: pd.DataFrame, sector_symbols: list[str]
                 flat[f"hog_hk_proxy_{field}_mean"] = float(vals.mean())
         flat["hog_hk_proxy_snapshot_time"] = str(latest["datetime"].max()) if "datetime" in latest.columns else ""
         flat["hog_hk_proxy_symbol_count"] = int(len(latest))
+        flat["hog_hk_proxy_source_mode"] = "daily_fallback" if latest.get("context_mode", pd.Series(dtype=str)).astype(str).eq("latest_daily_fallback").any() else "snapshot_level"
+        flat["hog_hk_proxy_is_daily_fallback"] = bool(latest.get("context_mode", pd.Series(dtype=str)).astype(str).eq("latest_daily_fallback").any())
 
     # Primary sector: first configured sector symbol that has an OK snapshot.
     for sec in sector_symbols:
         part = ok[(ok["kind"].astype(str) == "sector") & (ok["context_symbol"].astype(str) == sec)]
         if not part.empty:
-            add_row(part.sort_values("datetime").iloc[-1], "sector")
+            add_row(part.sort_values("datetime").iloc[-1], "sector", part)
             break
 
     def add_aggregate(part: pd.DataFrame, prefix: str) -> None:
@@ -1298,6 +1435,7 @@ def snapshots_to_flat_current(snapshots: pd.DataFrame, sector_symbols: list[str]
             pct_vals = pd.to_numeric(latest["pct_chg"], errors="coerce").replace([np.inf, -np.inf], np.nan).dropna()
             if not pct_vals.empty:
                 flat[f"{prefix}_close_ret1"] = float(pct_vals.mean()) / 100.0
+        add_sampled_aggregate_ohlc(part, prefix)
         for field in ["volume", "amount"]:
             if field in latest.columns:
                 vals = pd.to_numeric(latest[field], errors="coerce").replace([np.inf, -np.inf], np.nan).dropna()
@@ -1305,6 +1443,9 @@ def snapshots_to_flat_current(snapshots: pd.DataFrame, sector_symbols: list[str]
                     flat[f"{prefix}_{field}_mean"] = float(vals.mean())
         flat[f"{prefix}_snapshot_time"] = str(latest["datetime"].max()) if "datetime" in latest.columns else ""
         flat[f"{prefix}_symbol_count"] = int(len(latest))
+        is_daily_fallback = latest.get("context_mode", pd.Series(dtype=str)).astype(str).eq("latest_daily_fallback").any()
+        flat[f"{prefix}_source_mode"] = "daily_fallback" if is_daily_fallback else "snapshot_aggregate"
+        flat[f"{prefix}_is_daily_fallback"] = bool(is_daily_fallback)
 
     for group in context_groups:
         part = ok[ok["context_group"].astype(str) == group]
@@ -1322,7 +1463,8 @@ def snapshots_to_flat_current(snapshots: pd.DataFrame, sector_symbols: list[str]
         # Emit individual context prefixes, e.g. ane_stk_600893_close.
         for _, r in latest.iterrows():
             prefix = str(r.get("canonical_prefix") or group)
-            add_row(r, prefix)
+            ppart = part[part["context_symbol"].astype(str) == str(r.get("context_symbol"))]
+            add_row(r, prefix, ppart)
         # Emit optional basket prefix, e.g. ane_stock_basket_close_ret1.
         agg_prefixes = [x for x in latest.get("aggregate_prefix", pd.Series(dtype=str)).astype(str).unique().tolist() if x and x != "nan"]
         for agg_prefix in agg_prefixes:
@@ -1421,6 +1563,21 @@ def estimate_feature(feature: str, current: dict[str, Any], hist: pd.DataFrame, 
             cur_close = hclose.iloc[-1] * (1.0 + cur_ret1)
             return cur_close / hclose.iloc[-n] - 1.0
 
+    if feature == "sector_close":
+        cur_ret1 = current.get("sector_ret1")
+        try:
+            cur_ret1 = float(cur_ret1)
+        except Exception:
+            cur_ret1 = np.nan
+        hclose = num_series("sector_close")
+        if np.isfinite(cur_ret1) and not hclose.empty and np.isfinite(hclose.iloc[-1]):
+            return float(hclose.iloc[-1]) * (1.0 + cur_ret1)
+
+    if feature.endswith("_close"):
+        cur = cur_value(feature)
+        if np.isfinite(cur):
+            return cur
+
     for suffix, window, minp in [("sector_ma20_gap", 20, 10), ("sector_ma60_gap", 60, 30)]:
         if feature == suffix:
             cur_ret1 = current.get("sector_ret1")
@@ -1512,6 +1669,46 @@ def estimate_feature(feature: str, current: dict[str, Any], hist: pd.DataFrame, 
 
     return np.nan
 
+
+def context_feature_prefix(feature: str, current: dict[str, Any]) -> str:
+    if feature.startswith("stock_vs_sector_") or feature.startswith("sector_"):
+        return "sector"
+    prefixes = []
+    for key in current:
+        if key.endswith("_snapshot_time"):
+            prefix = key[: -len("_snapshot_time")]
+            if feature == prefix or feature.startswith(f"{prefix}_"):
+                prefixes.append(prefix)
+    if prefixes:
+        return sorted(prefixes, key=len, reverse=True)[0]
+    parts = feature.split("_")
+    return "_".join(parts[:2]) if len(parts) >= 2 else feature
+
+
+def context_feature_meta(feature: str, current: dict[str, Any], value: Any, target_date: pd.Timestamp, cutoff_time: Optional[str]) -> dict[str, Any]:
+    prefix = context_feature_prefix(feature, current)
+    source_mode = str(current.get(f"{prefix}_source_mode") or "")
+    is_missing = value is None or (isinstance(value, float) and not np.isfinite(value))
+    if not source_mode:
+        source_mode = "snapshot" if feature in current else ("missing" if is_missing else "historical_estimate")
+    snapshot_time = str(current.get(f"{prefix}_snapshot_time") or "")
+    age_seconds = np.nan
+    if snapshot_time and cutoff_time:
+        try:
+            cutoff_dt = pd.to_datetime(f"{target_date.date()} {cutoff_time}:00")
+            snap_dt = pd.to_datetime(snapshot_time)
+            age_seconds = float((cutoff_dt - snap_dt).total_seconds())
+        except Exception:
+            age_seconds = np.nan
+    is_fallback = bool(current.get(f"{prefix}_is_daily_fallback", False)) or source_mode == "daily_fallback"
+    return {
+        "source_mode": source_mode,
+        "snapshot_time": snapshot_time,
+        "age_seconds": age_seconds,
+        "is_daily_fallback": bool(is_fallback),
+    }
+
+
 def build_features(args: argparse.Namespace) -> None:
     od = out_day_dir(args.out_dir, args.date)
     plan_path = od / "realtime_context_plan.csv"
@@ -1525,8 +1722,8 @@ def build_features(args: argparse.Namespace) -> None:
         feats = [x.strip() for x in str(row.get("required_context_features") or "").split(",") if x.strip()]
         sector_symbols = [x.strip() for x in str(row.get("sector_symbols") or "").split(",") if x.strip()]
         context_groups = [x.strip() for x in str(row.get("context_groups") or "").split(",") if x.strip()]
-        flat = snapshots_to_flat_current(snapshots, sector_symbols, context_groups)
         hist = load_hist_samples(str(row.get("samples") or ""), str(row.get("stock_code") or ""))
+        flat = snapshots_to_flat_current(snapshots, sector_symbols, context_groups, hist=hist, target_date=target)
         out = {
             "stock_code": row.get("stock_code"),
             "artifact_name": row.get("artifact_name"),
@@ -1539,26 +1736,59 @@ def build_features(args: argparse.Namespace) -> None:
             "context_mode": "estimated_asof_cutoff",
             "context_snapshot_time": str(snapshots["datetime"].max()) if not snapshots.empty else "",
         }
+        for k, v in flat.items():
+            if k.endswith((
+                "_amount_source",
+                "_volume_source",
+                "_summary_amount_raw",
+                "_summary_volume_raw",
+                "_summary_amount_yuan",
+                "_summary_volume_shares",
+            )):
+                out[k] = v
         missing = []
+        source_modes = []
+        stale_features = []
+        has_daily_fallback = False
         for feat in feats:
             val = estimate_feature(feat, flat, hist, target)
             if val is None or (isinstance(val, float) and not np.isfinite(val)):
                 missing.append(feat)
             else:
                 out[feat] = val
+            meta = context_feature_meta(feat, flat, val, target, args.cutoff_time)
+            out[f"{feat}_source_mode"] = meta["source_mode"]
+            out[f"{feat}_snapshot_time"] = meta["snapshot_time"]
+            out[f"{feat}_age_seconds"] = meta["age_seconds"]
+            out[f"{feat}_is_daily_fallback"] = meta["is_daily_fallback"]
+            if meta["source_mode"]:
+                source_modes.append(str(meta["source_mode"]))
+            if bool(meta["is_daily_fallback"]):
+                has_daily_fallback = True
+            try:
+                if np.isfinite(float(meta["age_seconds"])) and float(meta["age_seconds"]) > 300:
+                    stale_features.append(feat)
+            except Exception:
+                pass
         if not feats:
             status = "not_required"
         elif missing:
             status = "partial" if len(missing) < len(feats) else "missing"
         else:
             status = "ok"
+        if status == "ok" and has_daily_fallback:
+            status = "ok_with_daily_fallback"
         out["context_status"] = status
         out["missing_context_features"] = ",".join(missing)
+        out["context_has_daily_fallback"] = bool(has_daily_fallback)
+        out["context_stale_features"] = ",".join(stale_features)
+        out["context_source_modes"] = ",".join(sorted(set(source_modes)))
         rows.append(out)
     base_cols = [
         "stock_code", "artifact_name", "artifact_dir", "samples", "cutoff_time",
         "context_groups", "sector_symbols", "required_context_features",
         "context_mode", "context_snapshot_time", "context_status", "missing_context_features",
+        "context_has_daily_fallback", "context_stale_features", "context_source_modes",
     ]
     out_df = pd.DataFrame(rows)
     if out_df.empty:
