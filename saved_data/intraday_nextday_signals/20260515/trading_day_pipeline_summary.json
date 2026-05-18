@@ -1,69 +1,49 @@
 {
   "trade_date": "20260515",
-  "started_at": "2026-05-15 09:15:15",
+  "started_at": "2026-05-18 15:20:32",
   "cutoff_time": "14:55",
   "model_policy": "all",
   "stock_collect_until": "14:52",
   "context_collect_until": "14:52",
-  "build_time": "14:52",
-  "score_time": "14:54",
+  "build_time": "00:00",
+  "score_time": "00:00",
   "steps": [
     {
       "step": "plan",
       "status": "ok",
-      "time": "2026-05-15 09:15:17"
+      "time": "2026-05-18 15:20:32"
     },
     {
       "step": "stock_collect_start",
-      "status": "ok",
-      "time": "2026-05-15 09:15:17"
+      "status": "skipped",
+      "time": "2026-05-18 15:20:32"
     },
     {
       "step": "context_collect_start",
-      "status": "ok",
-      "time": "2026-05-15 09:15:17"
-    },
-    {
-      "step": "stock_collect_wait",
-      "status": "ok",
-      "time": "2026-05-15 14:52:10"
-    },
-    {
-      "step": "context_collect_wait",
-      "status": "ok",
-      "time": "2026-05-15 14:52:31"
+      "status": "skipped",
+      "time": "2026-05-18 15:20:32"
     },
     {
       "step": "build_bars",
-      "status": "ok",
-      "time": "2026-05-15 14:52:32"
-    },
-    {
-      "step": "fix_5m_ohlcv_from_snapshots",
-      "status": "ok",
-      "time": "2026-05-15 14:52:35"
+      "status": "skipped",
+      "time": "2026-05-18 15:20:32"
     },
     {
       "step": "context_build_features",
-      "status": "ok",
-      "time": "2026-05-15 14:52:53"
-    },
-    {
-      "step": "sector_range_z20_history_fill",
-      "status": "ok",
-      "time": "2026-05-15 14:52:54"
+      "status": "skipped",
+      "time": "2026-05-18 15:20:32"
     },
     {
       "step": "score_now",
       "status": "ok",
-      "time": "2026-05-15 14:54:21"
+      "time": "2026-05-18 15:20:32"
     },
     {
       "step": "pipeline",
       "status": "ok",
-      "time": "2026-05-15 14:54:21",
-      "buy_signals": "/root/stock_realtime_v021_full/saved_data/intraday_nextday_signals/20260515/buy_signals.csv",
-      "all_scores": "/root/stock_realtime_v021_full/saved_data/intraday_nextday_signals/20260515/all_scores.csv"
+      "time": "2026-05-18 15:20:32",
+      "buy_signals": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\intraday_nextday_signals\\20260515\\buy_signals.csv",
+      "all_scores": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\intraday_nextday_signals\\20260515\\all_scores.csv"
     }
   ]
 }

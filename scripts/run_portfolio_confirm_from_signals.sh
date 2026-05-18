@@ -50,6 +50,7 @@ if [[ "${AUTO_RISK_HISTORY:-1}" == "1" && ( -z "${HISTORY:-}" || ! -f "$HISTORY"
     --saved-models "$SAVED_MODELS" \
     --saved-data-dir "$SAVED_DATA_DIR" \
     --signals "$SIGNAL_FILE" \
+    --account "$ACCOUNT" \
     --date "$DATE_DASH" \
     --out "$AUTO_HISTORY"
 

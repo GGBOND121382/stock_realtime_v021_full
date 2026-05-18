@@ -1112,6 +1112,14 @@ def build_bars(args: argparse.Namespace) -> None:
         for c in ["volume", "amount", "depth_imbalance_1", "depth_imbalance_5", "spread_1", "mid_price_1"]:
             if c in df.columns:
                 base[c] = pd.to_numeric(df[c], errors="coerce").to_numpy()
+        if {"volume", "amount"}.issubset(base.columns):
+            vwap_ratio = (
+                pd.to_numeric(base["amount"], errors="coerce")
+                / pd.to_numeric(base["volume"], errors="coerce").replace(0, pd.NA)
+                / pd.to_numeric(base["close"], errors="coerce").replace(0, pd.NA)
+            ).replace([float("inf"), float("-inf")], pd.NA).dropna()
+            if not vwap_ratio.empty and 50.0 <= float(vwap_ratio.median()) <= 150.0:
+                base["volume"] = pd.to_numeric(base["volume"], errors="coerce") * 100.0
         for freq in freqs:
             agg_map = {
                 "open": ("open", "first"),
@@ -1164,6 +1172,9 @@ def write_daily_features(sym_dir: Path, df: pd.DataFrame, date: str, symbol: str
         if "depth_imbalance_5" in df.columns and pd.to_numeric(df.get("depth_imbalance_5"), errors="coerce").dropna().size else None,
     }
     if row["amount"] and row["volume"]:
+        raw_vwap = row["amount"] / row["volume"]
+        if row["close"] and 50.0 <= raw_vwap / row["close"] <= 150.0:
+            row["volume"] = row["volume"] * 100.0
         row["daily_vwap"] = row["amount"] / row["volume"]
     pd.DataFrame([row]).to_csv(sym_dir / "daily_features.csv", index=False, encoding="utf-8-sig")
 

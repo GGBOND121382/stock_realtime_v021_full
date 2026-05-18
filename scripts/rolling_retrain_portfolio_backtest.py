@@ -30,6 +30,7 @@ from model_training.search_walk_forward_model_complexity import clone_model, pre
 from portfolio_decision.backtest_historical_score_portfolio import (
     as_float,
     build_history_close_from_states,
+    build_history_high_from_states,
     load_artifact_states,
     load_eval_config,
     read_watchlist,
@@ -400,6 +401,7 @@ def main() -> int:
         restore_end_date=str(args.end_date or "today"),
     )
     history = build_history_close_from_states(states)
+    high_history = build_history_high_from_states(states)
     start_ts = pd.to_datetime(args.start_date).normalize()
     end_ts = pd.to_datetime(args.end_date).normalize() if args.end_date else None
     date_set = set()
@@ -420,6 +422,7 @@ def main() -> int:
         dates=dates,
         signal_root=signal_root,
         history=history,
+        high_history=high_history,
         history_path=None,
         saved_models=Path(args.models_dir),
         config_path=Path(args.config),

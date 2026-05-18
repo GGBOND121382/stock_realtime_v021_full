@@ -120,6 +120,13 @@ def normalize_snapshots(path: Path, date: str, cutoff: str | None) -> pd.DataFra
         "cum_volume": pd.to_numeric(df[vol], errors="coerce") if vol else np.nan,
         "cum_amount": pd.to_numeric(df[amt], errors="coerce") if amt else np.nan,
     }).dropna(subset=["datetime", "price"])
+    ratio = (
+        pd.to_numeric(out["cum_amount"], errors="coerce")
+        / pd.to_numeric(out["cum_volume"], errors="coerce").replace(0, np.nan)
+        / pd.to_numeric(out["price"], errors="coerce").replace(0, np.nan)
+    ).replace([np.inf, -np.inf], np.nan).dropna()
+    if not ratio.empty and 50.0 <= float(ratio.median()) <= 150.0:
+        out["cum_volume"] = pd.to_numeric(out["cum_volume"], errors="coerce") * 100.0
     return out.sort_values("datetime").drop_duplicates("datetime", keep="last").reset_index(drop=True)
 
 

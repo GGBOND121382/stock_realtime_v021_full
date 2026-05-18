@@ -66,7 +66,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "min_trade_amount": 6000.0,
     "lot_size": 100,
 
-    "max_new_hit_buys": 1,
+    "max_new_hit_buys": None,
     "max_new_observation_buys": 1,
 
     "vol_window": 60,
@@ -428,9 +428,6 @@ def get_tier_and_caps(row: pd.Series, stock_code: str, model_type: str, cfg: Dic
     if max_policy_weight is not None:
         max_weight = min(max_weight, as_float(max_policy_weight, max_weight))
 
-    if model_type == "hit":
-        max_weight = min(max_weight, 0.10)
-        max_add_weight = min(max_add_weight, 0.08)
     if model_type == "observation":
         max_weight = min(max_weight, 0.05)
         max_add_weight = min(max_add_weight, 0.05)
@@ -486,9 +483,8 @@ def build_candidates(df: pd.DataFrame, account: Dict[str, Any], vol_map: Dict[st
         current_shares = int(as_float(holding.get("shares", 0), 0))
         held = current_value > 0 or current_shares > 0
 
-        pred_return_bps = as_float(get_row_field(row, "pred_return_bps", np.nan), np.nan)
-        if not np.isfinite(pred_return_bps):
-            pred_return_bps = as_float(get_row_field(row, "score", 0.0), 0.0)
+        raw_pred_return_bps = as_float(get_row_field(row, "pred_return_bps", np.nan), np.nan)
+        pred_return_bps = raw_pred_return_bps
 
         target_hit_bps = as_float(get_row_field(row, "target_hit_bps", 80.0 if "80" in label_mode else 50.0), 80.0)
         entry_policy = as_text(get_row_field(row, "entry_policy", ""))
@@ -499,12 +495,14 @@ def build_candidates(df: pd.DataFrame, account: Dict[str, Any], vol_map: Dict[st
         pred_prob = parse_rate_decimal(get_row_field(row, "pred_prob", get_row_field(row, "win_rate", cfg["default_hit_prob"])), cfg["default_hit_prob"])
         fail_loss_bps = as_float(get_row_field(row, "fail_loss_bps", cfg["default_fail_loss_bps"]), cfg["default_fail_loss_bps"])
 
-        if model_type == "hit":
+        if model_type == "hit" and not np.isfinite(pred_return_bps):
             ev_bps = pred_prob * target_hit_bps - (1 - pred_prob) * fail_loss_bps - round_trip - margin
             min_ev = float(cfg.get("min_ev_bps_hit", 10.0))
         else:
+            if not np.isfinite(pred_return_bps):
+                pred_return_bps = as_float(get_row_field(row, "score", 0.0), 0.0)
             ev_bps = pred_return_bps - round_trip - margin
-            min_ev = float(cfg.get("min_ev_bps_close", 15.0))
+            min_ev = float(cfg.get("min_ev_bps_hit" if model_type == "hit" else "min_ev_bps_close", 15.0))
         if ev_bps < min_ev:
             rejected.append({"stock_code": code, "model_name": model_name, "reason": "ev_below_threshold", "ev_bps": ev_bps, "threshold": min_ev})
             continue
@@ -613,10 +611,12 @@ def optimize_portfolio(candidates: List[Candidate], account: Dict[str, Any], cor
         if as_float(h.get("market_value", 0.0), 0.0) > 0 or as_float(h.get("shares", 0.0), 0.0) > 0
     }
     candidate_codes = {c.stock_code for c in candidates}
+    max_positions = int(cfg.get("max_positions", 3))
+    max_new_positions = max(0, max_positions - len(held_codes))
     existing_outside_count = len([x for x in held_codes if x not in candidate_codes])
     m.addCons(
-        existing_outside_count + quicksum(b[c.stock_code] for c in candidates if c.stock_code not in held_codes)
-        <= int(cfg.get("max_positions", 3)),
+        quicksum(b[c.stock_code] for c in candidates if c.stock_code not in held_codes)
+        <= max_new_positions,
         name="max_final_positions",
     )
 
@@ -625,9 +625,11 @@ def optimize_portfolio(candidates: List[Candidate], account: Dict[str, Any], cor
         name="cash_budget",
     )
 
-    hit_codes = [c.stock_code for c in candidates if c.model_type == "hit"]
-    if hit_codes:
-        m.addCons(quicksum(b[code] for code in hit_codes) <= int(cfg.get("max_new_hit_buys", 1)), name="max_new_hit_buys")
+    max_new_hit_buys = cfg.get("max_new_hit_buys")
+    if max_new_hit_buys is not None:
+        hit_codes = [c.stock_code for c in candidates if c.model_type == "hit"]
+        if hit_codes:
+            m.addCons(quicksum(b[code] for code in hit_codes) <= int(max_new_hit_buys), name="max_new_hit_buys")
 
     obs_codes = [c.stock_code for c in candidates if c.model_type == "observation" or c.tier >= 4]
     if obs_codes:
@@ -747,6 +749,7 @@ def optimize_portfolio(candidates: List[Candidate], account: Dict[str, Any], cor
         "cash_budget": cash_budget,
         "existing_positions_count": len(held_codes),
         "existing_outside_count": existing_outside_count,
+        "max_new_positions": max_new_positions,
     }
 
 
@@ -800,9 +803,15 @@ def main() -> int:
         print(pd.DataFrame([asdict(c) for c in candidates]).to_string(index=False))
 
     candidate_codes = [c.stock_code for c in candidates]
-    corr_pairs = compute_corr_pairs(returns, candidate_codes, int(cfg.get("corr_window", 60)), float(cfg.get("max_pair_corr", 0.75)))
+    held_codes = [
+        normalize_stock_code(code)
+        for code, h in account.get("holdings", {}).items()
+        if as_float(h.get("market_value", 0.0), 0.0) > 0 or as_float(h.get("shares", 0.0), 0.0) > 0
+    ]
+    risk_codes = sorted(set(candidate_codes) | set(held_codes))
+    corr_pairs = compute_corr_pairs(returns, risk_codes, int(cfg.get("corr_window", 60)), float(cfg.get("max_pair_corr", 0.75)))
     scenario_returns = get_scenario_returns(returns, candidate_codes, int(cfg.get("scenario_window", 120)))
-    cov_matrix = compute_cov_matrix(returns, candidate_codes, int(cfg.get("corr_window", 60)))
+    cov_matrix = compute_cov_matrix(returns, risk_codes, int(cfg.get("corr_window", 60)))
 
     if not candidates:
         result = {"status": "no_candidates", "objective": None, "orders": [], "selected": []}

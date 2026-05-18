@@ -73,6 +73,8 @@ D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe `
   --quantiles 0.5,0.6,0.7,0.8
 ```
 
+python3  scripts/rolling_retrain_portfolio_backtest.py  --start-date 2026-01-05   --end-date 2026-05-15   --model-policy all   --out-dir portfolio_reports/backtests/weekly_retrain_all_models_valid126   --retrain-frequency weekly   --threshold-mode tail   --initial-cash 200000   --hold-days 1   --min-amount-yuan 50000000   --valid-rows 126   --min-train-entries 80   --min-valid-trades 8  --quantiles 0.5,0.6,0.7,0.8
+
 ## Saving Models With The Recommended Setting
 
 The rolling backtest does not overwrite `saved_models/`. It retrains temporary
@@ -128,6 +130,11 @@ D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe `
   --min-valid-trades 8 `
   --quantiles 0.5,0.6,0.7,0.8
 ```
+
+```powershell
+python3  model_saving/retrain_existing_models_safe.py   --models-dir saved_models  --replace-existing  --valid-rows 126  --min-train-entries 80  --min-valid-trades 8  --quantiles 0.5,0.6,0.7,0.8
+```
+
 
 `--replace-existing` moves the old artifact under `cleanup_trash` before writing
 the replacement.

@@ -178,6 +178,31 @@ def price_on_or_before(history: pd.DataFrame, date: pd.Timestamp, stock: str) ->
     return float(s.iloc[-1]) if not s.empty else np.nan
 
 
+def target_hit_exit(
+    high_history: Optional[pd.DataFrame],
+    lot: OpenLot,
+    current_date: pd.Timestamp,
+) -> Optional[tuple[pd.Timestamp, float]]:
+    label = str(lot.label_mode or "").lower()
+    if label != "hit" and not label.startswith("hit"):
+        return None
+    if high_history is None or high_history.empty or lot.stock_code not in high_history.columns:
+        return None
+    target_bps = as_float(lot.target_hit_bps, np.nan)
+    if not np.isfinite(target_bps) or target_bps <= 0:
+        return None
+    buy_date = pd.to_datetime(lot.buy_date).normalize()
+    current_date = pd.Timestamp(current_date).normalize()
+    target_px = float(lot.buy_price) * (1.0 + target_bps / 10000.0)
+    highs = high_history[lot.stock_code].copy()
+    highs.index = pd.to_datetime(highs.index, errors="coerce").normalize()
+    window = pd.to_numeric(highs.loc[(highs.index > buy_date) & (highs.index <= current_date)], errors="coerce").dropna()
+    hit = window[window >= target_px]
+    if hit.empty:
+        return None
+    return pd.Timestamp(hit.index[0]).normalize(), target_px
+
+
 def next_trading_date(history: pd.DataFrame, date: pd.Timestamp, hold_days: int) -> Optional[pd.Timestamp]:
     idx = list(history.index)
     pos = int(np.searchsorted(idx, date))
@@ -254,6 +279,7 @@ class OpenLot:
     sector: str
     ev_bps: float
     utility_bps: float
+    target_hit_bps: float = np.nan
     entry_policy: str = ""
     label_mode: str = ""
     expected_return_col: str = ""
@@ -284,6 +310,7 @@ class TradeRecord:
     ev_bps: float
     utility_bps: float
     exit_reason: str
+    target_hit_bps: float = np.nan
     entry_policy: str = ""
     label_mode: str = ""
     expected_return_col: str = ""
@@ -466,10 +493,22 @@ def load_artifact_states(
 
 
 def build_history_close_from_states(states: list[ArtifactState]) -> pd.DataFrame:
+    return build_history_price_from_states(states, "close")
+
+
+def build_history_high_from_states(states: list[ArtifactState]) -> pd.DataFrame:
+    return build_history_price_from_states(states, "high")
+
+
+def build_history_price_from_states(states: list[ArtifactState], field: str) -> pd.DataFrame:
     rows = []
     for st in states:
         price_col = None
-        for c in ["close", "last_price", "daily_close", "adj_close"]:
+        candidates = {
+            "close": ["close", "last_price", "daily_close", "adj_close"],
+            "high": ["high", "daily_high"],
+        }.get(field, [field])
+        for c in candidates:
             if c in st.samples.columns:
                 price_col = c
                 break
@@ -478,16 +517,16 @@ def build_history_close_from_states(states: list[ArtifactState]) -> pd.DataFrame
         part = st.samples[["date", price_col]].copy()
         part["date"] = pd.to_datetime(part["date"], errors="coerce").dt.normalize()
         part["stock_code"] = st.stock_code
-        part["close"] = pd.to_numeric(part[price_col], errors="coerce")
-        part = part.dropna(subset=["date", "close"])
-        part = part[part["close"] > 0]
-        rows.append(part[["date", "stock_code", "close"]])
+        part[field] = pd.to_numeric(part[price_col], errors="coerce")
+        part = part.dropna(subset=["date", field])
+        part = part[part[field] > 0]
+        rows.append(part[["date", "stock_code", field]])
 
     if not rows:
-        raise ValueError("cannot build in-memory close history: no close-like column found in model samples")
+        raise ValueError(f"cannot build in-memory {field} history: no {field}-like column found in model samples")
 
     long_df = pd.concat(rows, ignore_index=True)
-    wide = long_df.pivot_table(index="date", columns="stock_code", values="close", aggfunc="last")
+    wide = long_df.pivot_table(index="date", columns="stock_code", values=field, aggfunc="last")
     wide = wide.sort_index().apply(pd.to_numeric, errors="coerce")
     return wide[[c for c in wide.columns if c]]
 
@@ -648,15 +687,16 @@ def write_point_in_time_risk_history(
     history: pd.DataFrame,
     date: pd.Timestamp,
     out_dir: Path,
-    include_current_day: bool = True,
+    include_current_day: bool = False,
     min_rows: int = 20,
 ) -> Optional[Path]:
     # Write the risk-history CSV visible to the optimizer on one backtest date.
     #
     # The optimizer is executed as a subprocess, so its covariance / correlation /
     # scenario-risk logic needs a CSV input. This function writes a point-in-time
-    # wide close-price table clipped to the current decision date. It is an
-    # intermediate risk input only, not a long-lived data source.
+    # wide close-price table clipped before the current decision date by default,
+    # matching live intraday mode where the current full-day close is unknown.
+    # It is an intermediate risk input only, not a long-lived data source.
     if history is None or history.empty:
         return None
 
@@ -799,6 +839,7 @@ def simulate_portfolio(
     dates: list[pd.Timestamp],
     signal_root: Path,
     history: pd.DataFrame,
+    high_history: Optional[pd.DataFrame],
     history_path: Optional[Path],
     saved_models: Path,
     config_path: Optional[Path],
@@ -832,7 +873,14 @@ def simulate_portfolio(
         realized_today = []
         for lot in open_lots:
             if pd.to_datetime(lot.planned_sell_date) <= date:
-                sell_px = price_on_or_before(history, date, lot.stock_code)
+                exit_reason = "scheduled_hold_days"
+                sell_date = date
+                hit_exit = target_hit_exit(high_history, lot, date)
+                if hit_exit is not None:
+                    sell_date, sell_px = hit_exit
+                    exit_reason = "target_hit"
+                else:
+                    sell_px = price_on_or_before(history, date, lot.stock_code)
                 if not np.isfinite(sell_px) or sell_px <= 0:
                     still_open.append(lot)
                     continue
@@ -848,7 +896,7 @@ def simulate_portfolio(
                     model_type=lot.model_type,
                     sector=lot.sector,
                     buy_date=lot.buy_date,
-                    sell_date=date_dash,
+                    sell_date=sell_date.strftime("%Y-%m-%d"),
                     buy_price=lot.buy_price,
                     sell_price=sell_px,
                     shares=lot.shares,
@@ -859,15 +907,16 @@ def simulate_portfolio(
                     stamp_tax=stamp_tax,
                     pnl=pnl,
                     net_return=pnl / (lot.buy_amount + lot.buy_fee) if lot.buy_amount + lot.buy_fee > 0 else np.nan,
-                    hold_days_calendar=max(0, (date - pd.to_datetime(lot.buy_date)).days),
+                    hold_days_calendar=max(0, (sell_date - pd.to_datetime(lot.buy_date)).days),
                     ev_bps=lot.ev_bps,
                     utility_bps=lot.utility_bps,
+                    target_hit_bps=lot.target_hit_bps,
                     entry_policy=lot.entry_policy,
                     label_mode=lot.label_mode,
                     expected_return_col=lot.expected_return_col,
                     samples=lot.samples,
                     metadata_path=lot.metadata_path,
-                    exit_reason="scheduled_hold_days",
+                    exit_reason=exit_reason,
                 )
                 trades.append(rec)
                 realized_today.append(rec)
@@ -936,6 +985,7 @@ def simulate_portfolio(
                     sector=str(r.get("sector", "")),
                     ev_bps=as_float(r.get("ev_bps", np.nan), np.nan),
                     utility_bps=as_float(r.get("utility_bps", np.nan), np.nan),
+                    target_hit_bps=as_float(r.get("target_hit_bps", np.nan), np.nan),
                     entry_policy=str(r.get("entry_policy", "")),
                     label_mode=str(r.get("label_mode", "")),
                     expected_return_col=str(r.get("expected_return_col", "")),
@@ -984,7 +1034,14 @@ def simulate_portfolio(
         final_date = dates[-1]
         final_dash = final_date.strftime("%Y-%m-%d")
         for lot in list(open_lots):
-            sell_px = price_on_or_before(history, final_date, lot.stock_code)
+            exit_reason = "force_close_at_end"
+            sell_date = final_date
+            hit_exit = target_hit_exit(high_history, lot, final_date)
+            if hit_exit is not None:
+                sell_date, sell_px = hit_exit
+                exit_reason = "target_hit"
+            else:
+                sell_px = price_on_or_before(history, final_date, lot.stock_code)
             if not np.isfinite(sell_px) or sell_px <= 0:
                 continue
             sell_amount = lot.shares * sell_px
@@ -999,7 +1056,7 @@ def simulate_portfolio(
                 model_type=lot.model_type,
                 sector=lot.sector,
                 buy_date=lot.buy_date,
-                sell_date=final_dash,
+                sell_date=sell_date.strftime("%Y-%m-%d"),
                 buy_price=lot.buy_price,
                 sell_price=sell_px,
                 shares=lot.shares,
@@ -1010,15 +1067,16 @@ def simulate_portfolio(
                 stamp_tax=stamp_tax,
                 pnl=pnl,
                 net_return=pnl / (lot.buy_amount + lot.buy_fee) if lot.buy_amount + lot.buy_fee > 0 else np.nan,
-                hold_days_calendar=max(0, (final_date - pd.to_datetime(lot.buy_date)).days),
+                hold_days_calendar=max(0, (sell_date - pd.to_datetime(lot.buy_date)).days),
                 ev_bps=lot.ev_bps,
                 utility_bps=lot.utility_bps,
+                target_hit_bps=lot.target_hit_bps,
                 entry_policy=lot.entry_policy,
                 label_mode=lot.label_mode,
                 expected_return_col=lot.expected_return_col,
                 samples=lot.samples,
                 metadata_path=lot.metadata_path,
-                exit_reason="force_close_at_end",
+                exit_reason=exit_reason,
             ))
             open_lots.remove(lot)
         if equity_rows:
@@ -1178,6 +1236,7 @@ def main() -> int:
         history = build_history_close_from_states(states)
         portfolio_history_path = None
         history_source = "in_memory_from_model_samples"
+    high_history = build_history_high_from_states(states)
 
     eval_cfg = load_eval_config(config_path)
 
@@ -1208,6 +1267,7 @@ def main() -> int:
         dates=dates,
         signal_root=signal_root,
         history=history,
+        high_history=high_history,
         history_path=portfolio_history_path,
         saved_models=models_dir,
         config_path=config_path,
@@ -1231,7 +1291,7 @@ def main() -> int:
         "models_dir": str(models_dir),
         "history_source": history_source,
         "risk_history_mode": "point_in_time_daily_csv",
-        "risk_history_include_current_day": True,
+        "risk_history_include_current_day": False,
         "signal_root": str(signal_root),
         "start_date": dates[0].strftime("%Y-%m-%d"),
         "end_date": dates[-1].strftime("%Y-%m-%d"),

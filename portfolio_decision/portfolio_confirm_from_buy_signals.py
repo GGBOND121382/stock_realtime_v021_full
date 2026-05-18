@@ -314,7 +314,7 @@ def build_inputs(
 
         if str(label_mode).lower().startswith("hit") or str(label_mode).lower() == "hit":
             pred_prob = hit_score if np.isfinite(hit_score) else win_rate
-            pred_return_bps = np.nan
+            pred_return_bps = avg_return_bps * conf_mult if np.isfinite(avg_return_bps) else median_return_bps
         else:
             pred_return_bps = avg_return_bps * conf_mult if np.isfinite(avg_return_bps) else median_return_bps
             pred_prob = np.nan

@@ -50,6 +50,35 @@ def load_signal_codes(path: Optional[Path]) -> Set[str]:
     return {normalize_stock_code(x) for x in df["stock_code"].dropna().unique()}
 
 
+def load_account_codes(path: Optional[Path]) -> Set[str]:
+    if path is None or not path.exists():
+        return set()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return set()
+    holdings = data.get("holdings", {})
+    out: Set[str] = set()
+    if isinstance(holdings, dict):
+        for code, h in holdings.items():
+            if not isinstance(h, dict):
+                continue
+            shares = pd.to_numeric(pd.Series([h.get("shares", 0)]), errors="coerce").iloc[0]
+            mv = pd.to_numeric(pd.Series([h.get("market_value", 0)]), errors="coerce").iloc[0]
+            if pd.notna(shares) and shares > 0 or pd.notna(mv) and mv > 0:
+                out.add(normalize_stock_code(code))
+    elif isinstance(holdings, list):
+        for h in holdings:
+            if not isinstance(h, dict):
+                continue
+            code = h.get("stock_code")
+            shares = pd.to_numeric(pd.Series([h.get("shares", 0)]), errors="coerce").iloc[0]
+            mv = pd.to_numeric(pd.Series([h.get("market_value", 0)]), errors="coerce").iloc[0]
+            if code and (pd.notna(shares) and shares > 0 or pd.notna(mv) and mv > 0):
+                out.add(normalize_stock_code(code))
+    return out
+
+
 def _walk_json_strings(obj: Any) -> Iterable[str]:
     if isinstance(obj, dict):
         for v in obj.values():
@@ -189,6 +218,7 @@ def main() -> int:
     ap.add_argument("--saved-models", default="saved_models")
     ap.add_argument("--saved-data-dir", default="saved_data")
     ap.add_argument("--signals", default=None, help="Signal CSV or signal directory. Used to restrict stock universe.")
+    ap.add_argument("--account", default=None, help="Optional account JSON. Existing holdings are included in risk history.")
     ap.add_argument("--date", default=None, help="Decision date. Live mode should exclude this date.")
     ap.add_argument("--out", required=True)
     ap.add_argument("--min-rows", type=int, default=20)
@@ -197,6 +227,8 @@ def main() -> int:
 
     signals = Path(args.signals) if args.signals else None
     codes = load_signal_codes(signals)
+    if args.account:
+        codes |= load_account_codes(Path(args.account))
 
     hist = build_history(
         saved_models=Path(args.saved_models),

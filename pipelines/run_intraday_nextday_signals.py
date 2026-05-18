@@ -505,6 +505,12 @@ def build_intraday_rows(bars: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
     bars["date"] = bars["datetime"].dt.normalize()
     bars["time_str"] = bars["datetime"].dt.strftime("%H:%M:%S")
+    bars = bars[
+        ((bars["time_str"] >= "09:35:00") & (bars["time_str"] <= "11:30:00"))
+        | ((bars["time_str"] >= "13:05:00") & (bars["time_str"] <= "15:00:00"))
+    ].copy()
+    if bars.empty:
+        return pd.DataFrame()
     rows = []
     for date, g in bars.groupby("date", sort=True):
         g = g.sort_values("datetime")
@@ -574,12 +580,42 @@ def _normalize_realtime_minute_bars(bars: pd.DataFrame, trade_date: str) -> pd.D
         out["volume"] = out["bar_volume"].fillna(0)
     if "bar_amount" in out.columns and out["bar_amount"].notna().any():
         out["amount"] = out["bar_amount"].fillna(0)
+    out = normalize_volume_unit_if_lot(out)
     return out.dropna(subset=["datetime", "open", "high", "low", "close"])
 
 
-def _load_pending_intraday_rows(cache_dir: Path, stock_code: str, trade_date: str) -> pd.DataFrame:
+def normalize_volume_unit_if_lot(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize realtime volume from lots to shares when vendors expose lots.
+
+    Some AKShare snapshot sources report cumulative volume in hands/lots while
+    amount stays in yuan.  Training 5m raw uses shares, so amount / volume should
+    be close to price, not price * 100.
+    """
+    if not {"volume", "amount", "close"}.issubset(df.columns):
+        return df
+    out = df.copy()
+    vol = pd.to_numeric(out["volume"], errors="coerce")
+    amt = pd.to_numeric(out["amount"], errors="coerce")
+    close = pd.to_numeric(out["close"], errors="coerce").replace(0, np.nan)
+    ratio = (amt / vol.replace(0, np.nan)) / close
+    ratio = ratio.replace([np.inf, -np.inf], np.nan).dropna()
+    if ratio.empty:
+        return out
+    median_ratio = float(ratio.median())
+    if 50.0 <= median_ratio <= 150.0:
+        out["volume"] = vol * 100.0
+    return out
+
+
+def _load_pending_intraday_rows(
+    cache_dir: Path,
+    stock_code: str,
+    trade_date: str,
+    cutoff_time: Optional[str] = None,
+) -> pd.DataFrame:
     base = cache_symbol_dir(cache_dir, trade_date, stock_code)
     candidates = [base / "minute_bars_5min.csv", base / "minute_bars_1min.csv"]
+    cutoff_dt = parse_cutoff_dt(trade_date, cutoff_time)
     for path in candidates:
         if not path.exists():
             continue
@@ -590,6 +626,8 @@ def _load_pending_intraday_rows(cache_dir: Path, stock_code: str, trade_date: st
         if bars.empty:
             continue
         bars = _normalize_realtime_minute_bars(bars, trade_date)
+        if cutoff_dt is not None and not bars.empty:
+            bars = bars[bars["datetime"] <= cutoff_dt].copy()
         if bars.empty:
             continue
         rows = build_intraday_rows(bars)
@@ -598,7 +636,14 @@ def _load_pending_intraday_rows(cache_dir: Path, stock_code: str, trade_date: st
     return pd.DataFrame()
 
 
-def add_scoring_features(df: pd.DataFrame, intraday_path: Optional[Path], cache_dir: Path, stock_code: str) -> pd.DataFrame:
+def add_scoring_features(
+    df: pd.DataFrame,
+    intraday_path: Optional[Path],
+    cache_dir: Path,
+    stock_code: str,
+    cutoff_time: Optional[str] = None,
+    scoring_trade_date: Optional[str] = None,
+) -> pd.DataFrame:
     out = add_reversal_daily_features(df)
 
     intra = load_intraday_feature_cache(intraday_path, cache_dir, stock_code)
@@ -607,8 +652,15 @@ def add_scoring_features(df: pd.DataFrame, intraday_path: Optional[Path], cache_
     # morning/afternoon/last-30m segment features and triggers filled_features_gt_*.
     try:
         if "date" in out.columns and not out.empty:
-            trade_date = pd.to_datetime(out["date"].max()).strftime("%Y%m%d")
-            pending_intra = _load_pending_intraday_rows(cache_dir, stock_code, trade_date)
+            if scoring_trade_date:
+                scoring_date = pd.to_datetime(yyyymmdd_to_iso(scoring_trade_date)).normalize()
+            else:
+                scoring_date = pd.to_datetime(out["date"].max()).normalize()
+            trade_date = scoring_date.strftime("%Y%m%d")
+            if not intra.empty:
+                intra_dates = pd.to_datetime(intra["date"], errors="coerce").dt.normalize()
+                intra = intra.loc[intra_dates < scoring_date].copy()
+            pending_intra = _load_pending_intraday_rows(cache_dir, stock_code, trade_date, cutoff_time=cutoff_time)
             if not pending_intra.empty:
                 if intra.empty:
                     intra = pending_intra
@@ -621,6 +673,11 @@ def add_scoring_features(df: pd.DataFrame, intraday_path: Optional[Path], cache_
 
     if not intra.empty:
         out = out.merge(intra, on="date", how="left")
+        if "bar_count" in out.columns:
+            if "n_intraday_bars" not in out.columns:
+                out["n_intraday_bars"] = np.nan
+            bar_count = pd.to_numeric(out["bar_count"], errors="coerce")
+            out["n_intraday_bars"] = out["n_intraday_bars"].where(bar_count.isna(), bar_count)
         for col in ["morning_vwap", "afternoon_vwap", "last_30m_vwap"]:
             if col in out.columns and "close" in out.columns:
                 out[f"{col}_to_close"] = out["close"] / out[col].replace(0, np.nan) - 1.0
@@ -700,6 +757,10 @@ def live_daily_from_snapshots(stock_code: str, trade_date: str, cache_dir: Path,
         pct_chg = pct_chg / 100.0
     if (not np.isfinite(pct_chg)) and np.isfinite(prev_close) and prev_close > 0:
         pct_chg = close / prev_close - 1.0
+    if np.isfinite(amount) and np.isfinite(volume) and volume > 0 and close > 0:
+        vwap_ratio = (amount / volume) / close
+        if np.isfinite(vwap_ratio) and 50.0 <= vwap_ratio <= 150.0:
+            volume = volume * 100.0
 
     row = {
         "open": open_v,
@@ -760,7 +821,7 @@ def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date
     # Ensure diagnostics/liquidity/raw live columns always exist.
     live_columns = {
         "open", "high", "low", "close", "volume", "amount", "daily_vwap",
-        "daily_vwap_volume", "daily_vwap_pv", "n_intraday_bars",
+        "daily_vwap_volume", "daily_vwap_pv", "n_intraday_bars", "snapshot_count",
         "prev_close", "pct_chg", "overnight_ret",
         "_snapshot_time", "_source_used", "_core_complete", "_missing_core_fields",
     }
@@ -780,7 +841,7 @@ def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date
         ("daily_vwap", "daily_vwap"),
         ("volume", "daily_vwap_volume"),
         ("amount", "daily_vwap_pv"),
-        ("snapshots", "n_intraday_bars"),
+        ("snapshots", "snapshot_count"),
         ("prev_close", "prev_close"),
         ("pct_chg", "pct_chg"),
         ("overnight_ret", "overnight_ret"),
@@ -1013,8 +1074,14 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
 
     df = pd.read_csv(samples_path, parse_dates=["date"])
     df = overlay_current_day_from_cache(df, artifact.stock_code, trade_date, cache_dir, cutoff_time=args.cutoff_time)
-    df = overlay_current_day_from_intraday(df, trade_date, intraday_path, cutoff_time=args.cutoff_time)
-    df = add_scoring_features(df, intraday_path, cache_dir, artifact.stock_code)
+    df = add_scoring_features(
+        df,
+        intraday_path,
+        cache_dir,
+        artifact.stock_code,
+        cutoff_time=args.cutoff_time,
+        scoring_trade_date=trade_date,
+    )
     df, context_meta = apply_realtime_context_to_df(df, artifact, trade_date, req, args)
     df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
 
@@ -1039,6 +1106,8 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
 
     raw_x = day_df[cols].apply(pd.to_numeric, errors="coerce")
     filled_feature_count = int(raw_x.isna().sum(axis=1).iloc[-1]) if not raw_x.empty else len(cols)
+    intraday_cols_used = [c for c in cols if c in INTRADAY_BAR_FEATURES]
+    intraday_missing_count = int(raw_x[intraday_cols_used].isna().sum(axis=1).iloc[-1]) if intraday_cols_used and not raw_x.empty else 0
     x = raw_x.fillna(med)
     score = model.predict_proba(x)[:, 1] if hasattr(model, "predict_proba") else model.predict(x)
     threshold = float(artifact.metadata["threshold"])
@@ -1102,6 +1171,9 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
         "volume": volume_value,
         "pct_chg": pct_chg_value,
         "n_intraday_bars": n_intraday_bars,
+        "min_intraday_bars": int(args.min_intraday_bars) if args.min_intraday_bars is not None else "",
+        "intraday_feature_count": int(len(intraday_cols_used)),
+        "intraday_missing_count": int(intraday_missing_count),
         "hit_score": float(score[-1]),
         "threshold": threshold,
         "score_margin": float(score[-1]) - threshold,
@@ -1130,6 +1202,15 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
     if args.require_realtime_context and req.requires_realtime_context and str(context_meta.get("context_status", "")) not in {"ok", "not_required"}:
         row["signal"] = False
         append_reject_reason(row, "missing_required_realtime_context")
+    if (
+        req.requires_intraday_bars
+        and args.min_intraday_bars is not None
+        and (not np.isfinite(n_intraday_bars) or n_intraday_bars < args.min_intraday_bars)
+    ):
+        row["signal"] = False
+        append_reject_reason(row, f"intraday_bars_lt_{args.min_intraday_bars}")
+    if req.requires_intraday_bars and intraday_missing_count > 0:
+        append_reject_reason(row, f"intraday_features_missing_{intraday_missing_count}")
     if args.max_missing_features is not None and int(filled_feature_count) > args.max_missing_features:
         row["signal"] = False
         append_reject_reason(row, f"filled_features_gt_{args.max_missing_features}")
@@ -1433,6 +1514,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--require-core-complete", dest="require_core_complete", action="store_true", default=True, help="Force signal=False when required raw realtime fields are missing")
     p.add_argument("--allow-missing-core", dest="require_core_complete", action="store_false")
     p.add_argument("--max-missing-features", type=int, default=5, help="Force signal=False when live row misses more than this many trained features. Use -1 to disable.")
+    p.add_argument("--min-intraday-bars", type=int, default=40, help="Force signal=False for models using intraday-bar features when reconstructed same-day bars are below this count. Use -1 to disable.")
     p.add_argument("--min-amount-yuan", type=float, default=0.0, help="Optional liquidity gate for buy_signals.csv; force signal=False below this traded amount.")
     p.add_argument("--max-abs-pct-chg", type=float, default=None, help="Optional risk gate; force signal=False if abs(pct_chg) exceeds this value when pct_chg exists.")
     p.add_argument("--deadline-time", help="HH:MM. After this time, skip optional slow steps such as trade-detail collection.")
@@ -1447,6 +1529,8 @@ def main() -> None:
     args = parse_args()
     if args.max_missing_features is not None and args.max_missing_features < 0:
         args.max_missing_features = None
+    if args.min_intraday_bars is not None and args.min_intraday_bars < 0:
+        args.min_intraday_bars = None
     trade_date = args.date or today_yyyymmdd()
     if args.cmd == "list-models":
         list_models(args, trade_date)

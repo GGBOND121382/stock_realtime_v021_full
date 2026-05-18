@@ -372,6 +372,8 @@ def main() -> int:
                 "--watchlist", str(watchlist),
                 "--models-dir", str(models_dir),
                 "--model-policy", args.model_policy,
+                "--signal-out-dir", str(saved_data_dir / "intraday_nextday_signals"),
+                "--date", trade_date,
                 "--cutoff-time", args.cutoff_time,
             ]
             run_cmd(plan_cmd, cwd=root, log_file=log_file, dry_run=args.dry_run, check=True)
@@ -536,6 +538,7 @@ def main() -> int:
             "--model-policy", args.model_policy,
             "--cache-dir", str(realtime_cache_dir),
             "--signal-out-dir", str(saved_data_dir / "intraday_nextday_signals"),
+            "--date", trade_date,
             "--cutoff-time", args.cutoff_time,
             "--context-dir", str(context_dir),
             "--max-missing-features", str(args.max_missing_features),
