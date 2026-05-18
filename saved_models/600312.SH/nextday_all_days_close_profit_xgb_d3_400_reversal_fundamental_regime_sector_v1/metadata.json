@@ -1,5 +1,5 @@
 {
-  "artifact_created_at": "2026-05-13T02:04:39",
+  "artifact_created_at": "2026-05-18T01:34:41",
   "stock_code": "600312.SH",
   "artifact_name": "nextday_all_days_close_profit_xgb_d3_400_reversal_fundamental_regime_sector_v1",
   "samples": "/root/stock_realtime_v021_full/saved_data/600312_pipeline_out/03_sector/training_samples_with_sector.csv",
@@ -13,24 +13,26 @@
   "return_col": "trade_net_close_return",
   "target_hit_bps": 50.0,
   "round_trip_cost_bps": 1.7,
-  "threshold": 0.48655157685279854,
+  "threshold": 0.6057325005531311,
   "threshold_quantile": 0.8,
   "feature_count": 158,
-  "rows": 1536,
-  "train_rows_for_threshold": 1284,
-  "valid_rows_for_threshold": 252,
-  "final_train_entry_rows": 1536,
+  "rows": 1539,
+  "train_rows_for_threshold": 1413,
+  "valid_rows_for_threshold": 126,
+  "train_entry_rows_for_saved_model": 1413,
+  "saved_model_scope": "validation_train",
+  "saved_model_matches_validation_tail_predictions": true,
   "date_min": "2020-01-02",
-  "date_max": "2026-05-11",
-  "validation_tail_auc": 0.5304566929133858,
+  "date_max": "2026-05-14",
+  "validation_tail_auc": 0.5349306431273644,
   "validation_tail_trade_metrics": {
-    "trades": 51,
-    "win_rate": 0.6470588235294118,
-    "avg_return": 0.004312148599613158,
-    "median_return": 0.0041218454935623185,
-    "compound_return": 0.23325103184885831,
-    "max_drawdown": -0.06719407449341874,
-    "profit_factor": 1.848130739229245
+    "trades": 26,
+    "win_rate": 0.6923076923076923,
+    "avg_return": 0.010665872179562044,
+    "median_return": 0.006354635975878712,
+    "compound_return": 0.30915964271367025,
+    "max_drawdown": -0.029868286909251696,
+    "profit_factor": 3.601908876060036
   },
   "files": {
     "model": "saved_models/600312.SH/nextday_all_days_close_profit_xgb_d3_400_reversal_fundamental_regime_sector_v1/model.joblib",
@@ -39,5 +41,5 @@
     "validation_tail_predictions": "saved_models/600312.SH/nextday_all_days_close_profit_xgb_d3_400_reversal_fundamental_regime_sector_v1/validation_tail_predictions.csv",
     "metadata": "saved_models/600312.SH/nextday_all_days_close_profit_xgb_d3_400_reversal_fundamental_regime_sector_v1/metadata.json"
   },
-  "usage_note": "This artifact is stock-specific. Use only for 600312.SH with the same feature-building pipeline."
+  "usage_note": "This artifact is stock-specific. Use only for 600312.SH with the same feature-building pipeline. model.joblib is the validation-train model whose scores produced validation_tail_predictions.csv and threshold."
 }

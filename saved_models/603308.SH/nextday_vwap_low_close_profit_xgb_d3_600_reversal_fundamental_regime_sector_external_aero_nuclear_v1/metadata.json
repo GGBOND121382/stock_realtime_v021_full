@@ -1,5 +1,5 @@
 {
-  "artifact_created_at": "2026-05-13T02:08:27",
+  "artifact_created_at": "2026-05-18T01:43:33",
   "stock_code": "603308.SH",
   "artifact_name": "nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_external_aero_nuclear_v1",
   "samples": "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv",
@@ -13,24 +13,26 @@
   "return_col": "trade_net_close_return",
   "target_hit_bps": 50.0,
   "round_trip_cost_bps": 1.7,
-  "threshold": 0.5799820423126221,
+  "threshold": 0.6129077672958374,
   "threshold_quantile": 0.8,
-  "feature_count": 514,
-  "rows": 1536,
-  "train_rows_for_threshold": 1284,
-  "valid_rows_for_threshold": 252,
-  "final_train_entry_rows": 1399,
+  "feature_count": 570,
+  "rows": 1539,
+  "train_rows_for_threshold": 1413,
+  "valid_rows_for_threshold": 126,
+  "train_entry_rows_for_saved_model": 1317,
+  "saved_model_scope": "validation_train",
+  "saved_model_matches_validation_tail_predictions": true,
   "date_min": "2020-01-02",
-  "date_max": "2026-05-11",
-  "validation_tail_auc": 0.5598538306451614,
+  "date_max": "2026-05-14",
+  "validation_tail_auc": 0.5947036569987391,
   "validation_tail_trade_metrics": {
-    "trades": 34,
-    "win_rate": 0.7352941176470589,
-    "avg_return": 0.018616990208289448,
-    "median_return": 0.011057814207946607,
-    "compound_return": 0.8400513843861839,
-    "max_drawdown": -0.030814152595372124,
-    "profit_factor": 5.808553332147755
+    "trades": 17,
+    "win_rate": 0.7647058823529411,
+    "avg_return": 0.02328832334730379,
+    "median_return": 0.017199727047146233,
+    "compound_return": 0.4595724303282207,
+    "max_drawdown": -0.06580128255212447,
+    "profit_factor": 4.814060303406133
   },
   "files": {
     "model": "saved_models/603308.SH/nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_external_aero_nuclear_v1/model.joblib",
@@ -39,5 +41,5 @@
     "validation_tail_predictions": "saved_models/603308.SH/nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_external_aero_nuclear_v1/validation_tail_predictions.csv",
     "metadata": "saved_models/603308.SH/nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_external_aero_nuclear_v1/metadata.json"
   },
-  "usage_note": "This artifact is stock-specific. Use only for 603308.SH with the same feature-building pipeline."
+  "usage_note": "This artifact is stock-specific. Use only for 603308.SH with the same feature-building pipeline. model.joblib is the validation-train model whose scores produced validation_tail_predictions.csv and threshold."
 }
