@@ -328,7 +328,7 @@ score-now：14:54/14:55 只打分并输出买入信号
 推荐命令：
 
 ```bash
-python pipelines/run_trading_day_signal_pipeline.py \
+python3 pipelines/run_trading_day_signal_pipeline.py \
   --watchlist selected_watchlist.txt \
   --context-config configs/realtime_context_sources.toml \
   --cutoff-time 14:55 \

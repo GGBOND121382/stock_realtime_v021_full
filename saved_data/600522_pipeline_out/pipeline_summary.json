@@ -6,8 +6,13 @@
     "stock_code": "600522.SH",
     "baostock_symbol": "600522"
   },
+<<<<<<< HEAD
   "out_root": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out",
   "created_at": "2026-05-19T23:35:28",
+=======
+  "out_root": "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out",
+  "created_at": "2026-05-19T23:33:04",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
   "args": {
     "symbol": "600522.SH",
     "sector_symbol": "通信设备",
@@ -60,7 +65,11 @@
     "skip_stages": "",
     "excel": false
   },
+<<<<<<< HEAD
   "finished_at": "2026-05-19T23:37:24",
+=======
+  "finished_at": "2026-05-19T23:34:32",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
   "status": "ok",
   "feature_pipeline_effective": [
     "fundamental",
@@ -74,22 +83,22 @@
     "all_days"
   ],
   "entry_vwap_premium_bps": 50.0,
-  "final_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\04_external\\optical_cable_grid\\training_samples_with_optical_cable_grid_external.csv",
-  "intraday_bars": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\00_base\\600522_5m.csv",
+  "final_samples": "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/04_external/optical_cable_grid/training_samples_with_optical_cable_grid_external.csv",
+  "intraday_bars": "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/00_base/600522_5m.csv",
   "search_dirs": [
-    "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\10_search\\search_vwap_low_hit_50bps",
-    "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\10_search\\search_vwap_low_hit_80bps",
-    "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\10_search\\search_vwap_low_close_profit_50bps",
-    "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\10_search\\search_all_days_hit_50bps",
-    "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\10_search\\search_all_days_hit_80bps",
-    "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\10_search\\search_all_days_close_profit_50bps"
+    "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/10_search/search_vwap_low_hit_50bps",
+    "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/10_search/search_vwap_low_hit_80bps",
+    "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/10_search/search_vwap_low_close_profit_50bps",
+    "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/10_search/search_all_days_hit_50bps",
+    "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/10_search/search_all_days_hit_80bps",
+    "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/10_search/search_all_days_close_profit_50bps"
   ],
   "stages": [
     {
       "name": "update_data",
       "status": "ok",
       "command": [
-        "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe",
+        "/usr/bin/python3",
         "bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py",
         "--mode",
         "update_data",
@@ -106,7 +115,7 @@
         "--intraday_end",
         "2026-05-19 15:00:00",
         "--output_dir",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\00_base",
+        "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/00_base",
         "--cache_mode",
         "incremental",
         "--feature_cache_mode",
@@ -114,13 +123,19 @@
         "--adjust",
         "qfq"
       ],
+<<<<<<< HEAD
       "started_at": "2026-05-19T23:35:28",
       "ended_at": "2026-05-19T23:35:34",
       "elapsed_seconds": 5.584,
+=======
+      "started_at": "2026-05-19T23:33:04",
+      "ended_at": "2026-05-19T23:33:23",
+      "elapsed_seconds": 18.243,
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "returncode": 0,
       "outputs": {
-        "daily_features": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\00_base\\daily_features.csv",
-        "intraday_bars": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\00_base\\600522_5m.csv"
+        "daily_features": "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/00_base/daily_features.csv",
+        "intraday_bars": "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/00_base/600522_5m.csv"
       },
       "error": null
     },
@@ -128,24 +143,30 @@
       "name": "samples",
       "status": "ok",
       "command": [
-        "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe",
+        "/usr/bin/python3",
         "feature_building/build_nextday_samples_from_baostock.py",
         "--daily-features",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\00_base\\daily_features.csv",
+        "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/00_base/daily_features.csv",
         "--intraday-bars",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\00_base\\600522_5m.csv",
+        "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/00_base/600522_5m.csv",
         "--out-dir",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\01_samples",
+        "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/01_samples",
         "--min-bars",
         "40",
         "--keep-unlabeled-tail"
       ],
+<<<<<<< HEAD
       "started_at": "2026-05-19T23:35:34",
       "ended_at": "2026-05-19T23:35:34",
       "elapsed_seconds": 0.806,
+=======
+      "started_at": "2026-05-19T23:33:23",
+      "ended_at": "2026-05-19T23:33:24",
+      "elapsed_seconds": 1.159,
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "returncode": 0,
       "outputs": {
-        "samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\01_samples\\training_samples.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/01_samples/training_samples.csv"
       },
       "error": null
     },
@@ -153,14 +174,14 @@
       "name": "fundamental",
       "status": "ok",
       "command": [
-        "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe",
+        "/usr/bin/python3",
         "feature_building/build_fundamental_features.py",
         "--symbol",
         "600522.SH",
         "--daily-samples",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\01_samples\\training_samples.csv",
+        "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/01_samples/training_samples.csv",
         "--out-dir",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\02_fundamental",
+        "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/02_fundamental",
         "--start-date",
         "2018-01-01",
         "--end-date",
@@ -168,12 +189,18 @@
         "--fallback-lag-days",
         "120"
       ],
+<<<<<<< HEAD
       "started_at": "2026-05-19T23:35:34",
       "ended_at": "2026-05-19T23:36:05",
       "elapsed_seconds": 30.728,
+=======
+      "started_at": "2026-05-19T23:33:24",
+      "ended_at": "2026-05-19T23:33:47",
+      "elapsed_seconds": 23.012,
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "returncode": 0,
       "outputs": {
-        "samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\02_fundamental\\training_samples_with_fundamentals.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
       },
       "error": null
     },
@@ -181,12 +208,12 @@
       "name": "sector",
       "status": "ok",
       "command": [
-        "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe",
+        "/usr/bin/python3",
         "feature_building/build_sector_features.py",
         "--samples",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\02_fundamental\\training_samples_with_fundamentals.csv",
+        "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv",
         "--out-dir",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\03_sector",
+        "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/03_sector",
         "--sector-symbol",
         "通信设备",
         "--start-date",
@@ -194,12 +221,18 @@
         "--end-date",
         "2026-05-19"
       ],
+<<<<<<< HEAD
       "started_at": "2026-05-19T23:36:05",
       "ended_at": "2026-05-19T23:36:22",
       "elapsed_seconds": 16.77,
+=======
+      "started_at": "2026-05-19T23:33:47",
+      "ended_at": "2026-05-19T23:33:51",
+      "elapsed_seconds": 4.643,
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "returncode": 0,
       "outputs": {
-        "samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\03_sector\\training_samples_with_sector.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/03_sector/training_samples_with_sector.csv"
       },
       "error": null
     },
@@ -207,12 +240,12 @@
       "name": "external_optical_cable_grid",
       "status": "ok",
       "command": [
-        "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe",
+        "/usr/bin/python3",
         "feature_building/build_stock_external_features.py",
         "--samples",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\03_sector\\training_samples_with_sector.csv",
+        "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/03_sector/training_samples_with_sector.csv",
         "--out-dir",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\04_external\\optical_cable_grid",
+        "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/04_external/optical_cable_grid",
         "--profile",
         "optical_cable_grid",
         "--target-symbol",
@@ -230,12 +263,18 @@
         "--us-lag-days",
         "1"
       ],
+<<<<<<< HEAD
       "started_at": "2026-05-19T23:36:22",
       "ended_at": "2026-05-19T23:37:24",
       "elapsed_seconds": 61.779,
+=======
+      "started_at": "2026-05-19T23:33:51",
+      "ended_at": "2026-05-19T23:34:32",
+      "elapsed_seconds": 40.997,
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "returncode": 0,
       "outputs": {
-        "samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out\\04_external\\optical_cable_grid\\training_samples_with_optical_cable_grid_external.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out/04_external/optical_cable_grid/training_samples_with_optical_cable_grid_external.csv"
       },
       "error": null
     }

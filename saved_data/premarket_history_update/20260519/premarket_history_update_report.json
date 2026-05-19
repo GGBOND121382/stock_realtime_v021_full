@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "created_at": "2026-05-19 23:41:46",
+=======
+  "created_at": "2026-05-19 23:37:39",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
   "end_date": "2026-05-19",
   "n_plans": 11,
   "n_skipped": 0,
@@ -9,121 +13,209 @@
       "stock_code": "002270.SZ",
       "status": "ok",
       "returncode": 0,
+<<<<<<< HEAD
       "elapsed_seconds": 51.65,
       "sector_symbol": "电网设备",
       "external": "",
       "pipeline_out": "D:\\root\\stock_realtime_v021_full\\saved_data\\002270_pipeline_out",
       "command": "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe pipelines/run_nextday_pipeline.py --symbol 002270.SZ --sector-symbol 电网设备 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+=======
+      "elapsed_seconds": 58.89,
+      "sector_symbol": "电网设备",
+      "external": "",
+      "pipeline_out": "/root/stock_realtime_v021_full/saved_data/002270_pipeline_out",
+      "command": "/usr/bin/python3 pipelines/run_nextday_pipeline.py --symbol 002270.SZ --sector-symbol 电网设备 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "error": ""
     },
     {
       "stock_code": "002311.SZ",
       "status": "ok",
       "returncode": 0,
+<<<<<<< HEAD
       "elapsed_seconds": 58.83,
       "sector_symbol": "农产品加工",
       "external": "",
       "pipeline_out": "D:\\root\\stock_realtime_v021_full\\saved_data\\002311_pipeline_out",
       "command": "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe pipelines/run_nextday_pipeline.py --symbol 002311.SZ --sector-symbol 农产品加工 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+=======
+      "elapsed_seconds": 55.48,
+      "sector_symbol": "农产品加工",
+      "external": "",
+      "pipeline_out": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out",
+      "command": "/usr/bin/python3 pipelines/run_nextday_pipeline.py --symbol 002311.SZ --sector-symbol 农产品加工 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "error": ""
     },
     {
       "stock_code": "002714.SZ",
       "status": "ok",
       "returncode": 0,
+<<<<<<< HEAD
       "elapsed_seconds": 56.17,
       "sector_symbol": "养殖业",
       "external": "",
       "pipeline_out": "D:\\root\\stock_realtime_v021_full\\saved_data\\002714_pipeline_out",
       "command": "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe pipelines/run_nextday_pipeline.py --symbol 002714.SZ --sector-symbol 养殖业 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+=======
+      "elapsed_seconds": 54.72,
+      "sector_symbol": "养殖业",
+      "external": "",
+      "pipeline_out": "/root/stock_realtime_v021_full/saved_data/002714_pipeline_out",
+      "command": "/usr/bin/python3 pipelines/run_nextday_pipeline.py --symbol 002714.SZ --sector-symbol 养殖业 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "error": ""
     },
     {
       "stock_code": "600096.SH",
       "status": "ok",
       "returncode": 0,
+<<<<<<< HEAD
       "elapsed_seconds": 58.22,
       "sector_symbol": "农化制品",
       "external": "",
       "pipeline_out": "D:\\root\\stock_realtime_v021_full\\saved_data\\600096_pipeline_out",
       "command": "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe pipelines/run_nextday_pipeline.py --symbol 600096.SH --sector-symbol 农化制品 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+=======
+      "elapsed_seconds": 50.2,
+      "sector_symbol": "农化制品",
+      "external": "",
+      "pipeline_out": "/root/stock_realtime_v021_full/saved_data/600096_pipeline_out",
+      "command": "/usr/bin/python3 pipelines/run_nextday_pipeline.py --symbol 600096.SH --sector-symbol 农化制品 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "error": ""
     },
     {
       "stock_code": "600276.SH",
       "status": "ok",
       "returncode": 0,
+<<<<<<< HEAD
       "elapsed_seconds": 52.48,
       "sector_symbol": "化学制药",
       "external": "",
       "pipeline_out": "D:\\root\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out",
       "command": "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe pipelines/run_nextday_pipeline.py --symbol 600276.SH --sector-symbol 化学制药 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+=======
+      "elapsed_seconds": 56.77,
+      "sector_symbol": "化学制药",
+      "external": "",
+      "pipeline_out": "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out",
+      "command": "/usr/bin/python3 pipelines/run_nextday_pipeline.py --symbol 600276.SH --sector-symbol 化学制药 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "error": ""
     },
     {
       "stock_code": "600312.SH",
       "status": "ok",
       "returncode": 0,
+<<<<<<< HEAD
       "elapsed_seconds": 45.34,
       "sector_symbol": "电网设备",
       "external": "",
       "pipeline_out": "D:\\root\\stock_realtime_v021_full\\saved_data\\600312_pipeline_out",
       "command": "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe pipelines/run_nextday_pipeline.py --symbol 600312.SH --sector-symbol 电网设备 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+=======
+      "elapsed_seconds": 50.94,
+      "sector_symbol": "电网设备",
+      "external": "",
+      "pipeline_out": "/root/stock_realtime_v021_full/saved_data/600312_pipeline_out",
+      "command": "/usr/bin/python3 pipelines/run_nextday_pipeline.py --symbol 600312.SH --sector-symbol 电网设备 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "error": ""
     },
     {
       "stock_code": "600487.SH",
       "status": "ok",
       "returncode": 0,
+<<<<<<< HEAD
       "elapsed_seconds": 137.71,
       "sector_symbol": "通信设备",
       "external": "optical_cable_grid",
       "pipeline_out": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600487_pipeline_out",
       "command": "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe pipelines/run_nextday_pipeline.py --symbol 600487.SH --sector-symbol 通信设备 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector,external_optical_cable_grid --external optical_cable_grid --cache-mode incremental --feature-cache-mode incremental",
+=======
+      "elapsed_seconds": 87.62,
+      "sector_symbol": "通信设备",
+      "external": "optical_cable_grid",
+      "pipeline_out": "/root/stock_realtime_v021_full/saved_data/600487_pipeline_out",
+      "command": "/usr/bin/python3 pipelines/run_nextday_pipeline.py --symbol 600487.SH --sector-symbol 通信设备 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector,external_optical_cable_grid --external optical_cable_grid --cache-mode incremental --feature-cache-mode incremental",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "error": ""
     },
     {
       "stock_code": "600522.SH",
       "status": "ok",
       "returncode": 0,
+<<<<<<< HEAD
       "elapsed_seconds": 115.83,
       "sector_symbol": "通信设备",
       "external": "optical_cable_grid",
       "pipeline_out": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600522_pipeline_out",
       "command": "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe pipelines/run_nextday_pipeline.py --symbol 600522.SH --sector-symbol 通信设备 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector,external_optical_cable_grid --external optical_cable_grid --cache-mode incremental --feature-cache-mode incremental",
+=======
+      "elapsed_seconds": 88.17,
+      "sector_symbol": "通信设备",
+      "external": "optical_cable_grid",
+      "pipeline_out": "/root/stock_realtime_v021_full/saved_data/600522_pipeline_out",
+      "command": "/usr/bin/python3 pipelines/run_nextday_pipeline.py --symbol 600522.SH --sector-symbol 通信设备 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector,external_optical_cable_grid --external optical_cable_grid --cache-mode incremental --feature-cache-mode incremental",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "error": ""
     },
     {
       "stock_code": "601899.SH",
       "status": "ok",
       "returncode": 0,
+<<<<<<< HEAD
       "elapsed_seconds": 58.71,
       "sector_symbol": "贵金属",
       "external": "",
       "pipeline_out": "D:\\root\\stock_realtime_v021_full\\saved_data\\601899_pipeline_out",
       "command": "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe pipelines/run_nextday_pipeline.py --symbol 601899.SH --sector-symbol 贵金属 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+=======
+      "elapsed_seconds": 55.22,
+      "sector_symbol": "贵金属",
+      "external": "",
+      "pipeline_out": "/root/stock_realtime_v021_full/saved_data/601899_pipeline_out",
+      "command": "/usr/bin/python3 pipelines/run_nextday_pipeline.py --symbol 601899.SH --sector-symbol 贵金属 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "error": ""
     },
     {
       "stock_code": "601985.SH",
       "status": "ok",
       "returncode": 0,
+<<<<<<< HEAD
       "elapsed_seconds": 61.68,
       "sector_symbol": "电力",
       "external": "",
       "pipeline_out": "D:\\root\\stock_realtime_v021_full\\saved_data\\601985_pipeline_out",
       "command": "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe pipelines/run_nextday_pipeline.py --symbol 601985.SH --sector-symbol 电力 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+=======
+      "elapsed_seconds": 49.13,
+      "sector_symbol": "电力",
+      "external": "",
+      "pipeline_out": "/root/stock_realtime_v021_full/saved_data/601985_pipeline_out",
+      "command": "/usr/bin/python3 pipelines/run_nextday_pipeline.py --symbol 601985.SH --sector-symbol 电力 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector --cache-mode incremental --feature-cache-mode incremental",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "error": ""
     },
     {
       "stock_code": "603308.SH",
       "status": "ok",
       "returncode": 0,
+<<<<<<< HEAD
       "elapsed_seconds": 141.75,
       "sector_symbol": "通用设备",
       "external": "aero_nuclear_equipment",
       "pipeline_out": "D:\\root\\stock_realtime_v021_full\\saved_data\\603308_pipeline_out",
       "command": "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe pipelines/run_nextday_pipeline.py --symbol 603308.SH --sector-symbol 通用设备 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector,external_aero_nuclear_equipment --external aero_nuclear_equipment --cache-mode incremental --feature-cache-mode incremental",
+=======
+      "elapsed_seconds": 82.12,
+      "sector_symbol": "通用设备",
+      "external": "aero_nuclear_equipment",
+      "pipeline_out": "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out",
+      "command": "/usr/bin/python3 pipelines/run_nextday_pipeline.py --symbol 603308.SH --sector-symbol 通用设备 --end-date 2026-05-19 --feature-pipeline fundamental,sector --only-stages update_data,samples,fundamental,sector,external_aero_nuclear_equipment --external aero_nuclear_equipment --cache-mode incremental --feature-cache-mode incremental",
+>>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
       "error": ""
     }
   ],
