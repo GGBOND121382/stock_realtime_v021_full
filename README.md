@@ -280,14 +280,7 @@ xq：雪球慢速补洞源，只补仍缺核心字段的少量标的
 cd /opt/stock_realtime/stock_realtime
 source .venv/bin/activate
 
-python3 pipelines/run_premarket_history_update.py \
-  --models-dir saved_models \
-  --saved-data-dir saved_data \
-  --context-config configs/realtime_context_sources.toml \
-  --end-date today \
-  --cache-mode incremental \
-  --feature-cache-mode incremental \
-  --keep-going
+python pipelines/run_premarket_history_update.py   --models-dir saved_models   --saved-data-dir saved_data   --context-config configs/realtime_context_sources.toml   --end-date today   --cache-mode incremental   --feature-cache-mode incremental   --keep-going
 ```
 
 该脚本会扫描 `saved_models/`，只更新已有模型的标的；不会重新搜索模型、不会保存模型、不会输出交易信号。输出报告在：

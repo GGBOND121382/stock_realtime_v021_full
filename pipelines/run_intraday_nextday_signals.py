@@ -981,9 +981,12 @@ def overlay_benchmark_asof(df: pd.DataFrame, trade_date: str, cache_dir: Path, c
     if not (pd.to_datetime(out["date"], errors="coerce").dt.normalize() == trade_ts).any():
         return out
     idx = out.index[pd.to_datetime(out["date"], errors="coerce").dt.normalize() == trade_ts][-1]
-    for col in ["bench_close_asof", "bench_symbol_asof", "bench_snapshot_time", "bench_pct_chg_raw", "bench_source_used"]:
+    for col in ["bench_close_asof", "bench_pct_chg_raw"]:
         if col not in out.columns:
             out[col] = np.nan
+    for col in ["bench_symbol_asof", "bench_snapshot_time", "bench_source_used"]:
+        if col not in out.columns:
+            out[col] = ""
     out.at[idx, "bench_close"] = live["bench_close_asof"]
     for col, val in live.items():
         out.at[idx, col] = val
@@ -1254,6 +1257,8 @@ def apply_realtime_context_to_df(df: pd.DataFrame, artifact: ModelArtifact, trad
     for col, val in values.items():
         if col not in out.columns:
             out[col] = np.nan
+        else:
+            out[col] = pd.to_numeric(out[col], errors="coerce").astype("float64")
         out.at[idx, col] = val
     return out, meta
 

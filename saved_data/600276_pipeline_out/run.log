@@ -3797,3 +3797,722 @@ Traceback (most recent call last):
   File "D:\VSCodeWorkspace\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 118, in _rs_to_df
     raise RuntimeError(f"BaoStock query failed: {rs.error_code} {rs.error_msg}")
 RuntimeError: BaoStock query failed: 10001001 用户未登录
+=== nextday pipeline start: 2026-05-19T20:07:59 ===
+symbol=600276.SH, out_root=D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out
+
+[2026-05-19T20:07:59] RUN update_data
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 600276 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-19 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-19 15:00:00' --output_dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+login success!
+logout success!
+login success!
+logout success!
+login success!
+logout success!
+login success!
+logout success!
+{
+  "mode": "update_data",
+  "symbol": "600276",
+  "data_source": "baostock",
+  "daily_rows": 2029,
+  "intraday_rows": 74016,
+  "daily_min": "2018-01-02 00:00:00",
+  "daily_max": "2026-05-19 00:00:00",
+  "intraday_min": "2020-01-02 09:35:00",
+  "intraday_max": "2026-05-19 15:00:00",
+  "base_paths": {
+    "daily_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\600276_daily.csv",
+    "intraday_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\600276_5m.csv",
+    "benchmark_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\000300_benchmark_daily.csv",
+    "raw_daily_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\600276_daily_raw.csv",
+    "raw_intraday_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\600276_5m_raw.csv",
+    "raw_benchmark_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+    "daily_features_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\daily_features.csv",
+    "intraday_features_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\intraday_features.csv",
+    "daily_features_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\feature_cache\\daily_features_cache.csv",
+    "intraday_features_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\feature_cache\\intraday_features_cache.csv",
+    "feature_state_json": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\feature_cache\\feature_state.json"
+  },
+  "fetch_logs": {
+    "symbol": "600276",
+    "benchmark_symbol": "000300",
+    "daily_start": "2018-01-01",
+    "daily_end": "2026-05-19",
+    "intraday_start": "2018-01-01 09:30:00",
+    "intraday_end": "2026-05-19 15:00:00",
+    "perf_start": "2018-01-01",
+    "data_source": "baostock",
+    "cache_mode": "incremental",
+    "force_refresh": false,
+    "raw_cache_dir": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache",
+    "feature_cache_dir": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\feature_cache",
+    "feature_cache_mode": "incremental",
+    "daily": {
+      "cache_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\600276_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-19",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 2027,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-15 00:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600276",
+          "adjustflag": "2",
+          "rows": 0
+        },
+        {
+          "provider": "baostock",
+          "code": "sh.600276",
+          "adjustflag": "2",
+          "rows": 2,
+          "start": "2026-05-16",
+          "end": "2026-05-19"
+        }
+      ],
+      "cache_after": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      }
+    },
+    "intraday_5m": {
+      "cache_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\600276_5m_raw.csv",
+      "requested_start": "2018-01-01 09:30:00",
+      "requested_end": "2026-05-19 15:00:00",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600276",
+          "adjustflag": "2",
+          "requested_start": "2018-01-01 09:30:00",
+          "effective_start": "2018-01-01 09:30:00",
+          "requested_end": "2026-05-19 15:00:00",
+          "rows": 74016
+        }
+      ],
+      "cache_after": {
+        "rows": 74016,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-19 15:00:00"
+      }
+    },
+    "benchmark_daily": {
+      "cache_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-19",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.000300",
+          "rows": 2029,
+          "start": "2018-01-01",
+          "end": "2026-05-19"
+        }
+      ],
+      "cache_after": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      }
+    },
+    "feature_build": {
+      "mode": "full_rebuild",
+      "reason": "feature_cache_missing",
+      "daily_cache_after": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      },
+      "intraday_cache_after": {
+        "rows": 74016,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-19 15:00:00"
+      },
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "daily_appended_rows": 2029,
+      "intraday_appended_rows": 74016
+    },
+    "feature_state": {
+      "daily_feature_max": "2026-05-19 00:00:00",
+      "intraday_feature_max": "2026-05-19 15:00:00",
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "feature_build_mode": "full_rebuild"
+    }
+  }
+}
+
+[2026-05-19T20:11:38] RUN samples
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' feature_building/build_nextday_samples_from_baostock.py --daily-features 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\00_base\daily_features.csv' --intraday-bars 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\00_base\600276_5m.csv' --out-dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\01_samples' --min-bars 40 --keep-unlabeled-tail
+{
+  "rows": 1542,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-19",
+  "out": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\01_samples\\training_samples.csv"
+}
+
+[2026-05-19T20:11:38] RUN fundamental
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' feature_building/build_fundamental_features.py --symbol 600276.SH --daily-samples 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\01_samples\training_samples.csv' --out-dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\02_fundamental' --start-date 2018-01-01 --end-date 2026-05-19 --fallback-lag-days 120
+=== nextday pipeline start: 2026-05-19T20:33:51 ===
+symbol=600276.SH, out_root=D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out
+
+[2026-05-19T20:33:51] RUN update_data
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 600276 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-19 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-19 15:00:00' --output_dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+login success!
+logout success!
+login success!
+logout success!
+login success!
+logout success!
+{
+  "mode": "update_data",
+  "symbol": "600276",
+  "data_source": "baostock",
+  "daily_rows": 2029,
+  "intraday_rows": 74016,
+  "daily_min": "2018-01-02 00:00:00",
+  "daily_max": "2026-05-19 00:00:00",
+  "intraday_min": "2020-01-02 09:35:00",
+  "intraday_max": "2026-05-19 15:00:00",
+  "base_paths": {
+    "daily_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\600276_daily.csv",
+    "intraday_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\600276_5m.csv",
+    "benchmark_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\000300_benchmark_daily.csv",
+    "raw_daily_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\600276_daily_raw.csv",
+    "raw_intraday_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\600276_5m_raw.csv",
+    "raw_benchmark_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+    "daily_features_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\daily_features.csv",
+    "intraday_features_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\intraday_features.csv",
+    "daily_features_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\feature_cache\\daily_features_cache.csv",
+    "intraday_features_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\feature_cache\\intraday_features_cache.csv",
+    "feature_state_json": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\feature_cache\\feature_state.json"
+  },
+  "fetch_logs": {
+    "symbol": "600276",
+    "benchmark_symbol": "000300",
+    "daily_start": "2018-01-01",
+    "daily_end": "2026-05-19",
+    "intraday_start": "2018-01-01 09:30:00",
+    "intraday_end": "2026-05-19 15:00:00",
+    "perf_start": "2018-01-01",
+    "data_source": "baostock",
+    "cache_mode": "incremental",
+    "force_refresh": false,
+    "raw_cache_dir": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache",
+    "feature_cache_dir": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\feature_cache",
+    "feature_cache_mode": "incremental",
+    "daily": {
+      "cache_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\600276_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-19",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600276",
+          "adjustflag": "2",
+          "rows": 0
+        }
+      ],
+      "cache_after": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      }
+    },
+    "intraday_5m": {
+      "cache_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\600276_5m_raw.csv",
+      "requested_start": "2018-01-01 09:30:00",
+      "requested_end": "2026-05-19 15:00:00",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 74016,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-19 15:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600276",
+          "adjustflag": "2",
+          "requested_start": "2018-01-01 09:30:00",
+          "effective_start": "2018-01-01 09:30:00",
+          "requested_end": "2020-01-02 09:30:00",
+          "rows": 0
+        }
+      ],
+      "cache_after": {
+        "rows": 74016,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-19 15:00:00"
+      }
+    },
+    "benchmark_daily": {
+      "cache_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-19",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.000300",
+          "rows": 0,
+          "start": "2018-01-01",
+          "end": "2018-01-01"
+        }
+      ],
+      "cache_after": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      }
+    },
+    "feature_build": {
+      "mode": "cache_reuse_no_rebuild",
+      "daily_cache": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      },
+      "intraday_cache": {
+        "rows": 74016,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-19 15:00:00"
+      },
+      "daily_context_days": 260,
+      "intraday_context_days": 40
+    },
+    "feature_state": {
+      "daily_feature_max": "2026-05-19 00:00:00",
+      "intraday_feature_max": "2026-05-19 15:00:00",
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "feature_build_mode": "cache_reuse_no_rebuild"
+    }
+  }
+}
+
+[2026-05-19T20:33:56] RUN samples
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' feature_building/build_nextday_samples_from_baostock.py --daily-features 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\00_base\daily_features.csv' --intraday-bars 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\00_base\600276_5m.csv' --out-dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\01_samples' --min-bars 40 --keep-unlabeled-tail
+{
+  "rows": 1542,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-19",
+  "out": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\01_samples\\training_samples.csv"
+}
+
+[2026-05-19T20:33:57] RUN fundamental
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' feature_building/build_fundamental_features.py --symbol 600276.SH --daily-samples 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\01_samples\training_samples.csv' --out-dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\02_fundamental' --start-date 2018-01-01 --end-date 2026-05-19 --fallback-lag-days 120
+login success!
+logout success!
+{
+  "rows": 1542,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-19",
+  "source_errors": [],
+  "top_missing_rates": {
+    "cashflow_ebitToInterest_chg4q": 0.9928664072632944,
+    "cashflow_ebitToInterest": 0.9902723735408561,
+    "ak_fund_主力净流入-净额_sum10": 0.9241245136186771,
+    "ak_fund_涨跌幅_sum10": 0.9241245136186771,
+    "ak_fund_主力净流入-净占比_sum10": 0.9241245136186771,
+    "ak_fund_中单净流入-净额_sum10": 0.9241245136186771,
+    "ak_fund_中单净流入-净占比_sum10": 0.9241245136186771,
+    "ak_fund_小单净流入-净占比_sum10": 0.9241245136186771,
+    "ak_fund_小单净流入-净额_sum10": 0.9241245136186771,
+    "ak_fund_大单净流入-净额_sum10": 0.9241245136186771,
+    "ak_fund_大单净流入-净占比_sum10": 0.9241245136186771,
+    "ak_fund_超大单净流入-净占比_sum10": 0.9241245136186771,
+    "ak_fund_超大单净流入-净额_sum10": 0.9241245136186771,
+    "ak_fund_收盘价_sum10": 0.9241245136186771,
+    "ak_fund_主力净流入-净占比_sum5": 0.9228274967574579,
+    "ak_fund_收盘价_sum5": 0.9228274967574579,
+    "ak_fund_主力净流入-净额_sum5": 0.9228274967574579,
+    "ak_fund_中单净流入-净占比_sum5": 0.9228274967574579,
+    "ak_fund_中单净流入-净额_sum5": 0.9228274967574579,
+    "ak_fund_小单净流入-净额_sum5": 0.9228274967574579,
+    "ak_fund_小单净流入-净占比_sum5": 0.9228274967574579,
+    "ak_fund_大单净流入-净占比_sum5": 0.9228274967574579,
+    "ak_fund_大单净流入-净额_sum5": 0.9228274967574579,
+    "ak_fund_超大单净流入-净额_sum5": 0.9228274967574579,
+    "ak_fund_超大单净流入-净占比_sum5": 0.9228274967574579,
+    "ak_fund_涨跌幅_sum5": 0.9228274967574579,
+    "ak_fund_超大单净流入-净占比": 0.9215304798962386,
+    "ak_fund_收盘价": 0.9215304798962386,
+    "ak_fund_涨跌幅": 0.9215304798962386,
+    "ak_fund_中单净流入-净额": 0.9215304798962386
+  },
+  "valuation_non_null": {
+    "peTTM": 1542,
+    "pbMRQ": 1542,
+    "psTTM": 1542,
+    "pcfNcfTTM": 1542
+  },
+  "future_effective_date_violations": 0,
+  "rows_with_quarterly": 1542,
+  "sample_rows": 1542,
+  "quarterly_raw_rows": 37,
+  "quarterly_used_pubDate_rows": 37,
+  "quarterly_fallback_rows": 0,
+  "elapsed_seconds": 70.178,
+  "symbol": "600276",
+  "baostock_code": "sh.600276",
+  "valuation_rows": 2029,
+  "fund_flow_rows": 121,
+  "feature_columns": 125,
+  "merged_columns": 194,
+  "outputs": {
+    "daily_valuation": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\02_fundamental\\baostock_daily_valuation.csv",
+    "quarterly_fundamentals": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\02_fundamental\\baostock_quarterly_fundamentals_pit.csv",
+    "fundamental_features": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\02_fundamental\\fundamental_features.csv",
+    "merged_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\02_fundamental\\training_samples_with_fundamentals.csv"
+  }
+}
+
+[2026-05-19T20:35:07] RUN sector
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' feature_building/build_sector_features.py --samples 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\02_fundamental\training_samples_with_fundamentals.csv' --out-dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\03_sector' --sector-symbol '化学制药' --start-date 2018-01-01 --end-date 2026-05-19
+
+  0%|          | 0/9 [00:00<?, ?it/s]
+ 11%|█         | 1/9 [00:00<00:05,  1.53it/s]
+ 22%|██▏       | 2/9 [00:01<00:04,  1.59it/s]
+ 33%|███▎      | 3/9 [00:01<00:03,  1.65it/s]
+ 44%|████▍     | 4/9 [00:02<00:03,  1.65it/s]
+ 56%|█████▌    | 5/9 [00:03<00:02,  1.68it/s]
+ 67%|██████▋   | 6/9 [00:03<00:01,  1.70it/s]
+ 78%|███████▊  | 7/9 [00:04<00:01,  1.70it/s]
+ 89%|████████▉ | 8/9 [00:04<00:00,  1.69it/s]
+100%|██████████| 9/9 [00:05<00:00,  1.72it/s]
+                                             
+{
+  "sector_symbol": "化学制药",
+  "sector_rows": 2028,
+  "sector_date_min": "2018-01-02",
+  "sector_date_max": "2026-05-18",
+  "sample_rows": 1542,
+  "merged_rows": 1542,
+  "sector_feature_cols": 23,
+  "top_missing": {
+    "sector_ret60": 0.03955901426718547,
+    "sector_ma60_gap": 0.020103761348897537,
+    "stock_vs_sector_ret20": 0.013618677042801557,
+    "sector_ret20": 0.013618677042801557,
+    "sector_ma20_gap": 0.007133592736705577,
+    "sector_volume_shock20": 0.007133592736705577,
+    "sector_vol20": 0.007133592736705577,
+    "sector_range_z20": 0.007133592736705577,
+    "sector_amount_z20": 0.007133592736705577,
+    "sector_volume_z20": 0.007133592736705577,
+    "sector_amount_shock20": 0.007133592736705577,
+    "sector_ret5": 0.0038910505836575876,
+    "stock_vs_sector_ret5": 0.0038910505836575876,
+    "sector_vs_bench_ret5": 0.0038910505836575876,
+    "stock_vs_sector_ret1": 0.0012970168612191958,
+    "sector_ret1": 0.0012970168612191958,
+    "sector_high": 0.0006485084306095979,
+    "sector_amount": 0.0006485084306095979,
+    "sector_close": 0.0006485084306095979,
+    "sector_volume": 0.0006485084306095979
+  },
+  "outputs": {
+    "sector_index": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\03_sector\\sector_index_ths.csv",
+    "sector_features": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\03_sector\\sector_features.csv",
+    "merged_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\03_sector\\training_samples_with_sector.csv"
+  }
+}
+[INFO] final samples for search: D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\03_sector\training_samples_with_sector.csv
+=== nextday pipeline end: 2026-05-19T20:35:14 status=ok ===
+=== nextday pipeline start: 2026-05-19T23:31:33 ===
+symbol=600276.SH, out_root=D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out
+
+[2026-05-19T23:31:33] RUN update_data
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 600276 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-19 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-19 15:00:00' --output_dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+login success!
+logout success!
+login success!
+logout success!
+login success!
+logout success!
+{
+  "mode": "update_data",
+  "symbol": "600276",
+  "data_source": "baostock",
+  "daily_rows": 2029,
+  "intraday_rows": 74016,
+  "daily_min": "2018-01-02 00:00:00",
+  "daily_max": "2026-05-19 00:00:00",
+  "intraday_min": "2020-01-02 09:35:00",
+  "intraday_max": "2026-05-19 15:00:00",
+  "base_paths": {
+    "daily_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\600276_daily.csv",
+    "intraday_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\600276_5m.csv",
+    "benchmark_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\000300_benchmark_daily.csv",
+    "raw_daily_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\600276_daily_raw.csv",
+    "raw_intraday_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\600276_5m_raw.csv",
+    "raw_benchmark_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+    "daily_features_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\daily_features.csv",
+    "intraday_features_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\intraday_features.csv",
+    "daily_features_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\feature_cache\\daily_features_cache.csv",
+    "intraday_features_cache_csv": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\feature_cache\\intraday_features_cache.csv",
+    "feature_state_json": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\feature_cache\\feature_state.json"
+  },
+  "fetch_logs": {
+    "symbol": "600276",
+    "benchmark_symbol": "000300",
+    "daily_start": "2018-01-01",
+    "daily_end": "2026-05-19",
+    "intraday_start": "2018-01-01 09:30:00",
+    "intraday_end": "2026-05-19 15:00:00",
+    "perf_start": "2018-01-01",
+    "data_source": "baostock",
+    "cache_mode": "incremental",
+    "force_refresh": false,
+    "raw_cache_dir": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache",
+    "feature_cache_dir": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\feature_cache",
+    "feature_cache_mode": "incremental",
+    "daily": {
+      "cache_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\600276_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-19",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600276",
+          "adjustflag": "2",
+          "rows": 0
+        }
+      ],
+      "cache_after": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      }
+    },
+    "intraday_5m": {
+      "cache_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\600276_5m_raw.csv",
+      "requested_start": "2018-01-01 09:30:00",
+      "requested_end": "2026-05-19 15:00:00",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 74016,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-19 15:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600276",
+          "adjustflag": "2",
+          "requested_start": "2018-01-01 09:30:00",
+          "effective_start": "2018-01-01 09:30:00",
+          "requested_end": "2020-01-02 09:30:00",
+          "rows": 0
+        }
+      ],
+      "cache_after": {
+        "rows": 74016,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-19 15:00:00"
+      }
+    },
+    "benchmark_daily": {
+      "cache_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-19",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.000300",
+          "rows": 0,
+          "start": "2018-01-01",
+          "end": "2018-01-01"
+        }
+      ],
+      "cache_after": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      }
+    },
+    "feature_build": {
+      "mode": "cache_reuse_no_rebuild",
+      "daily_cache": {
+        "rows": 2029,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-19 00:00:00"
+      },
+      "intraday_cache": {
+        "rows": 74016,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-19 15:00:00"
+      },
+      "daily_context_days": 260,
+      "intraday_context_days": 40
+    },
+    "feature_state": {
+      "daily_feature_max": "2026-05-19 00:00:00",
+      "intraday_feature_max": "2026-05-19 15:00:00",
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "feature_build_mode": "cache_reuse_no_rebuild"
+    }
+  }
+}
+
+[2026-05-19T23:31:44] RUN samples
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' feature_building/build_nextday_samples_from_baostock.py --daily-features 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\00_base\daily_features.csv' --intraday-bars 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\00_base\600276_5m.csv' --out-dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\01_samples' --min-bars 40 --keep-unlabeled-tail
+{
+  "rows": 1542,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-19",
+  "out": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\01_samples\\training_samples.csv"
+}
+
+[2026-05-19T23:31:45] RUN fundamental
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' feature_building/build_fundamental_features.py --symbol 600276.SH --daily-samples 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\01_samples\training_samples.csv' --out-dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\02_fundamental' --start-date 2018-01-01 --end-date 2026-05-19 --fallback-lag-days 120
+login success!
+logout success!
+{
+  "rows": 1542,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-19",
+  "source_errors": [],
+  "top_missing_rates": {
+    "cashflow_ebitToInterest_chg4q": 0.9928664072632944,
+    "cashflow_ebitToInterest": 0.9902723735408561,
+    "ak_fund_主力净流入-净额_sum10": 0.9247730220492867,
+    "ak_fund_涨跌幅_sum10": 0.9247730220492867,
+    "ak_fund_主力净流入-净占比_sum10": 0.9247730220492867,
+    "ak_fund_中单净流入-净额_sum10": 0.9247730220492867,
+    "ak_fund_中单净流入-净占比_sum10": 0.9247730220492867,
+    "ak_fund_小单净流入-净占比_sum10": 0.9247730220492867,
+    "ak_fund_小单净流入-净额_sum10": 0.9247730220492867,
+    "ak_fund_大单净流入-净额_sum10": 0.9247730220492867,
+    "ak_fund_大单净流入-净占比_sum10": 0.9247730220492867,
+    "ak_fund_超大单净流入-净占比_sum10": 0.9247730220492867,
+    "ak_fund_超大单净流入-净额_sum10": 0.9247730220492867,
+    "ak_fund_收盘价_sum10": 0.9247730220492867,
+    "ak_fund_主力净流入-净占比_sum5": 0.9234760051880675,
+    "ak_fund_收盘价_sum5": 0.9234760051880675,
+    "ak_fund_主力净流入-净额_sum5": 0.9234760051880675,
+    "ak_fund_中单净流入-净占比_sum5": 0.9234760051880675,
+    "ak_fund_中单净流入-净额_sum5": 0.9234760051880675,
+    "ak_fund_小单净流入-净额_sum5": 0.9234760051880675,
+    "ak_fund_小单净流入-净占比_sum5": 0.9234760051880675,
+    "ak_fund_大单净流入-净占比_sum5": 0.9234760051880675,
+    "ak_fund_大单净流入-净额_sum5": 0.9234760051880675,
+    "ak_fund_超大单净流入-净额_sum5": 0.9234760051880675,
+    "ak_fund_超大单净流入-净占比_sum5": 0.9234760051880675,
+    "ak_fund_涨跌幅_sum5": 0.9234760051880675,
+    "ak_fund_超大单净流入-净占比": 0.9221789883268483,
+    "ak_fund_收盘价": 0.9221789883268483,
+    "ak_fund_涨跌幅": 0.9221789883268483,
+    "ak_fund_中单净流入-净额": 0.9221789883268483
+  },
+  "valuation_non_null": {
+    "peTTM": 1542,
+    "pbMRQ": 1542,
+    "psTTM": 1542,
+    "pcfNcfTTM": 1542
+  },
+  "future_effective_date_violations": 0,
+  "rows_with_quarterly": 1542,
+  "sample_rows": 1542,
+  "quarterly_raw_rows": 37,
+  "quarterly_used_pubDate_rows": 37,
+  "quarterly_fallback_rows": 0,
+  "elapsed_seconds": 29.705,
+  "symbol": "600276",
+  "baostock_code": "sh.600276",
+  "valuation_rows": 2029,
+  "fund_flow_rows": 120,
+  "feature_columns": 125,
+  "merged_columns": 194,
+  "outputs": {
+    "daily_valuation": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\02_fundamental\\baostock_daily_valuation.csv",
+    "quarterly_fundamentals": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\02_fundamental\\baostock_quarterly_fundamentals_pit.csv",
+    "fundamental_features": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\02_fundamental\\fundamental_features.csv",
+    "merged_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\02_fundamental\\training_samples_with_fundamentals.csv"
+  }
+}
+
+[2026-05-19T23:32:16] RUN sector
+  'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' feature_building/build_sector_features.py --samples 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\02_fundamental\training_samples_with_fundamentals.csv' --out-dir 'D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\03_sector' --sector-symbol '化学制药' --start-date 2018-01-01 --end-date 2026-05-19
+
+  0%|          | 0/9 [00:00<?, ?it/s]
+ 11%|█         | 1/9 [00:00<00:05,  1.38it/s]
+ 22%|██▏       | 2/9 [00:01<00:04,  1.41it/s]
+ 33%|███▎      | 3/9 [00:02<00:04,  1.46it/s]
+ 44%|████▍     | 4/9 [00:02<00:03,  1.46it/s]
+ 56%|█████▌    | 5/9 [00:03<00:02,  1.40it/s]
+ 67%|██████▋   | 6/9 [00:04<00:02,  1.41it/s]
+ 78%|███████▊  | 7/9 [00:04<00:01,  1.42it/s]
+ 89%|████████▉ | 8/9 [00:05<00:00,  1.27it/s]
+100%|██████████| 9/9 [00:06<00:00,  1.33it/s]
+                                             
+{
+  "sector_symbol": "化学制药",
+  "sector_rows": 2029,
+  "sector_date_min": "2018-01-02",
+  "sector_date_max": "2026-05-19",
+  "sample_rows": 1542,
+  "merged_rows": 1542,
+  "sector_feature_cols": 23,
+  "top_missing": {
+    "sector_ret60": 0.038910505836575876,
+    "sector_ma60_gap": 0.019455252918287938,
+    "stock_vs_sector_ret20": 0.01297016861219196,
+    "sector_ret20": 0.01297016861219196,
+    "sector_vol20": 0.007133592736705577,
+    "sector_ma20_gap": 0.00648508430609598,
+    "sector_range_z20": 0.00648508430609598,
+    "sector_volume_shock20": 0.00648508430609598,
+    "sector_amount_z20": 0.00648508430609598,
+    "sector_volume_z20": 0.00648508430609598,
+    "sector_amount_shock20": 0.00648508430609598,
+    "sector_ret5": 0.00324254215304799,
+    "stock_vs_sector_ret5": 0.00324254215304799,
+    "sector_vs_bench_ret5": 0.00324254215304799,
+    "stock_vs_sector_ret1": 0.0006485084306095979,
+    "sector_ret1": 0.0006485084306095979,
+    "sector_amount": 0.0,
+    "sector_volume": 0.0,
+    "sector_close": 0.0,
+    "sector_low": 0.0
+  },
+  "outputs": {
+    "sector_index": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\03_sector\\sector_index_ths.csv",
+    "sector_features": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\03_sector\\sector_features.csv",
+    "merged_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\03_sector\\training_samples_with_sector.csv"
+  }
+}
+[INFO] final samples for search: D:\VSCodeWorkspace\stock_realtime_v021_full\saved_data\600276_pipeline_out\03_sector\training_samples_with_sector.csv
+=== nextday pipeline end: 2026-05-19T23:32:25 status=ok ===

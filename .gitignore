@@ -20,6 +20,7 @@ portfolio_reports/backtests/rolling_retrain_20260105_available/
 portfolio_reports/backtests/tmp*
 portfolio_reports/backtests/weekly*
 saved_data/feature_reconstruction_audit
+.idea/
 
 # Ignore realtime/cache data
 saved_data/akshare_realtime_cache/

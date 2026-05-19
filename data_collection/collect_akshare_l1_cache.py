@@ -1206,7 +1206,8 @@ def build_bars(args: argparse.Namespace) -> None:
         if df.empty:
             continue
         symbol = str(df["symbol"].iloc[0])
-        px = pd.to_numeric(df["last_price"], errors="coerce").ffill()
+        px = pd.to_numeric(df["last_price"], errors="coerce").replace([np.inf, -np.inf], np.nan)
+        px = px.where(px > 0).ffill()
         if px.dropna().empty:
             print(f"skip {snap_path}: no valid last_price")
             continue

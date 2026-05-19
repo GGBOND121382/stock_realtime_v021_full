@@ -180,7 +180,8 @@ def rebuild_bars(snap: pd.DataFrame, symbol: str, cutoff: str | None) -> pd.Data
     prev_amt = np.nan
     for bt, g in s.groupby("bar_time", sort=True):
         g = g.sort_values("datetime")
-        px = pd.to_numeric(g["price"], errors="coerce").dropna()
+        px = pd.to_numeric(g["price"], errors="coerce").replace([np.inf, -np.inf], np.nan)
+        px = px[px > 0].dropna()
         if px.empty:
             continue
         cv = pd.to_numeric(g["cum_volume"], errors="coerce").dropna()
