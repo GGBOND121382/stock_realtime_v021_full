@@ -110,18 +110,10 @@ def oof_validation_scores(
     scored_parts = []
     valid_positions = list(valid.index)
     folds = [fold for fold in np.array_split(valid_positions, int(args.oof_folds)) if len(fold) > 0]
-    train_rows_cfg = int(getattr(args, "train_rows", 0) or 0)
     for fold in folds:
         fold_start_idx = int(fold[0])
         fold_valid = history.loc[fold].copy()
         fold_train = history.loc[history.index < fold_start_idx].copy()
-        if train_rows_cfg > 0:
-            # Match the pipeline-style rolling window inside OOF validation:
-            # each OOF fold may only train on the trailing train_rows before
-            # the fold's validation slice, not on all earlier history.
-            if len(fold_train) < train_rows_cfg:
-                return None
-            fold_train = fold_train.iloc[-train_rows_cfg:].copy()
         fold_fit = fold_train.loc[fold_train["entry_signal"].to_numpy(bool)].copy()
         fitted = fit_classifier_model(template, fold_fit, cols, label_col, int(args.min_train_entries))
         if fitted is None:
@@ -183,19 +175,8 @@ def train_score_one(
         valid_rows = min(configured_valid_rows, max(1, len(history) // 5))
         if len(history) <= valid_rows + 1:
             return None
-        train_pool = history.iloc[:-valid_rows].copy()
+        train = history.iloc[:-valid_rows].copy()
         valid = history.iloc[-valid_rows:].copy()
-        configured_train_rows = int(getattr(args, "train_rows", 0) or 0)
-        if configured_train_rows > 0:
-            # Pipeline-like mode: use only the trailing train_rows immediately
-            # before the validation window. This avoids using very old regimes
-            # while preserving the same trailing validation threshold logic.
-            if len(train_pool) < configured_train_rows:
-                return None
-            train = train_pool.iloc[-configured_train_rows:].copy()
-        else:
-            # Legacy mode: use all history before the validation tail.
-            train = train_pool.copy()
         fit_train = train.loc[train["entry_signal"].to_numpy(bool)].copy()
         if len(fit_train) < args.min_train_entries or fit_train[label_col].nunique() < 2:
             return None
@@ -232,14 +213,7 @@ def train_score_one(
         validation_metrics = trade_metrics(selected_ret)
 
         if args.final_refit_with_valid or args.threshold_mode == "oof":
-            if configured_train_rows > 0:
-                # Optional production-style refit uses the same finite rolling
-                # window plus the validation tail, not all history. Default is
-                # still no final refit, matching the old threshold-model flow.
-                final_window = history.iloc[-(configured_train_rows + valid_rows):].copy()
-            else:
-                final_window = history
-            final_fit = final_window.loc[final_window["entry_signal"].to_numpy(bool)].copy()
+            final_fit = history.loc[history["entry_signal"].to_numpy(bool)].copy()
             fitted = fit_classifier_model(template, final_fit, cols, label_col, int(args.min_train_entries))
             if fitted is None:
                 return None
@@ -258,9 +232,6 @@ def train_score_one(
             "train_rows": int(len(train)),
             "valid_rows": int(len(valid)),
             "fit_train_rows": int(len(fit_train)),
-            "train_pool_rows": int(len(train_pool)),
-            "configured_train_rows": int(configured_train_rows),
-            "train_window_mode": "fixed_tail" if configured_train_rows > 0 else "all_history",
             "final_fit_rows": final_fit_rows,
             "threshold_mode": str(args.threshold_mode),
             "valid_auc": float(roc_auc_score(valid_scored["eval_label"], valid_scored["hit_score"]))
@@ -330,9 +301,6 @@ def train_score_one(
         "rolling_threshold_mode": str(cached.get("threshold_mode", args.threshold_mode)),
         "rolling_train_rows": int(cached["train_rows"]),
         "rolling_valid_rows": int(cached["valid_rows"]),
-        "rolling_train_pool_rows": int(cached.get("train_pool_rows", cached["train_rows"])),
-        "rolling_configured_train_rows": int(cached.get("configured_train_rows", 0)),
-        "rolling_train_window_mode": str(cached.get("train_window_mode", "all_history")),
         "rolling_fit_train_entry_rows": int(cached["fit_train_rows"]),
         "rolling_final_fit_entry_rows": int(cached.get("final_fit_rows", cached["fit_train_rows"])),
         "rolling_valid_auc": as_float(cached["valid_auc"], np.nan),
@@ -406,17 +374,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--hold-days", type=int, default=1)
     p.add_argument("--min-amount-yuan", type=float, default=50000000.0)
     p.add_argument("--valid-rows", type=int, default=252)
-    p.add_argument(
-        "--train-rows",
-        type=int,
-        default=0,
-        help=(
-            "If >0, use only the trailing N rows before the validation window "
-            "for each rolling retrain. Example: --train-rows 756 makes the "
-            "backtest closer to the pipeline search window train=756, valid=126. "
-            "Default 0 preserves legacy all-history training."
-        ),
-    )
     p.add_argument("--use-metadata-valid-rows", action="store_true")
     p.add_argument("--final-refit-with-valid", action="store_true")
     p.add_argument("--threshold-mode", choices=["tail", "oof"], default="tail")
@@ -501,9 +458,6 @@ def main() -> int:
         "retrain_frequency": args.retrain_frequency,
         "threshold_mode": args.threshold_mode,
         "oof_folds": int(args.oof_folds),
-        "train_rows": int(args.train_rows),
-        "valid_rows": int(args.valid_rows),
-        "train_window_mode": "fixed_tail" if int(args.train_rows or 0) > 0 else "all_history",
         "label_cutoff_rule": "train rows date <= two trading sessions before trade date",
         "generated_at": datetime.now().isoformat(timespec="seconds"),
     })

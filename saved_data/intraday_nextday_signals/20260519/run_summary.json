@@ -1,0 +1,41 @@
+{
+  "trade_date": "2026-05-19",
+  "started_at": "2026-05-19T14:54:01",
+  "finished_at": "2026-05-19T14:55:14",
+  "n_artifacts": 18,
+  "n_all_scores": 18,
+  "n_buy_signals": 0,
+  "signal_counts": {
+    "False": 18
+  },
+  "date_status_counts": {
+    "exact_trade_date": 18
+  },
+  "feature_status_counts": {
+    "live_overlay_partial": 18
+  },
+  "source_usage": {
+    "sina_batch": 18
+  },
+  "core_complete_counts": {
+    "True": 18
+  },
+  "context_status_counts": {
+    "ok": 9,
+    "partial": 5,
+    "not_required": 4
+  },
+  "reject_reason_counts": {
+    "stale_snapshot_gt_180s;intraday_features_missing_5;score_below_threshold": 6,
+    "stale_snapshot_gt_180s;intraday_features_missing_5": 3,
+    "stale_snapshot_gt_180s;missing_required_realtime_context;intraday_features_missing_5;score_below_threshold": 2,
+    "stale_snapshot_gt_180s;intraday_features_missing_5;filled_features_gt_5;score_below_threshold": 1,
+    "stale_snapshot_gt_180s;intraday_features_missing_5;entry_signal_false;score_below_threshold": 1,
+    "stale_snapshot_gt_180s;intraday_features_missing_5;filled_features_gt_5": 1,
+    "stale_snapshot_gt_180s;missing_required_realtime_context;intraday_features_missing_5;prev_close_mismatch_gt_0.02;entry_signal_false;score_below_threshold": 1,
+    "stale_snapshot_gt_180s;intraday_features_missing_5;entry_signal_false": 1,
+    "missing_required_realtime_context;score_below_threshold": 1,
+    "stale_snapshot_gt_180s;missing_required_realtime_context;intraday_features_missing_5;entry_signal_false;score_below_threshold": 1
+  },
+  "error_count": 18
+}
