@@ -1,0 +1,27 @@
+{
+  "trade_date": "20260519",
+  "started_at": "2026-05-19 08:53:40",
+  "cutoff_time": "14:55",
+  "model_policy": "all",
+  "stock_collect_until": "14:52",
+  "context_collect_until": "14:52",
+  "build_time": "14:52",
+  "score_time": "14:54",
+  "steps": [
+    {
+      "step": "plan",
+      "status": "ok",
+      "time": "2026-05-19 08:53:42"
+    },
+    {
+      "step": "stock_collect_start",
+      "status": "ok",
+      "time": "2026-05-19 08:53:42"
+    },
+    {
+      "step": "context_collect_start",
+      "status": "ok",
+      "time": "2026-05-19 08:53:42"
+    }
+  ]
+}
