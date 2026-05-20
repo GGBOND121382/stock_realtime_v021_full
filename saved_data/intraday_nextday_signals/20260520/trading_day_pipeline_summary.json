@@ -1,0 +1,69 @@
+{
+  "trade_date": "20260520",
+  "started_at": "2026-05-20 09:12:52",
+  "cutoff_time": "14:55",
+  "model_policy": "all",
+  "stock_collect_until": "14:52",
+  "context_collect_until": "14:52",
+  "build_time": "14:52",
+  "score_time": "14:54",
+  "steps": [
+    {
+      "step": "plan",
+      "status": "ok",
+      "time": "2026-05-20 09:12:56"
+    },
+    {
+      "step": "stock_collect_start",
+      "status": "ok",
+      "time": "2026-05-20 09:12:56"
+    },
+    {
+      "step": "context_collect_start",
+      "status": "ok",
+      "time": "2026-05-20 09:12:56"
+    },
+    {
+      "step": "stock_collect_wait",
+      "status": "ok",
+      "time": "2026-05-20 14:52:08"
+    },
+    {
+      "step": "context_collect_wait",
+      "status": "ok",
+      "time": "2026-05-20 14:52:21"
+    },
+    {
+      "step": "build_bars",
+      "status": "ok",
+      "time": "2026-05-20 14:52:23"
+    },
+    {
+      "step": "fix_5m_ohlcv_from_snapshots",
+      "status": "ok",
+      "time": "2026-05-20 14:52:25"
+    },
+    {
+      "step": "context_build_features",
+      "status": "ok",
+      "time": "2026-05-20 14:52:47"
+    },
+    {
+      "step": "sector_range_z20_history_fill",
+      "status": "ok",
+      "time": "2026-05-20 14:52:48"
+    },
+    {
+      "step": "score_now",
+      "status": "ok",
+      "time": "2026-05-20 14:54:22"
+    },
+    {
+      "step": "pipeline",
+      "status": "ok",
+      "time": "2026-05-20 14:54:22",
+      "buy_signals": "/root/stock_realtime_v021_full/saved_data/intraday_nextday_signals/20260520/buy_signals.csv",
+      "all_scores": "/root/stock_realtime_v021_full/saved_data/intraday_nextday_signals/20260520/all_scores.csv"
+    }
+  ]
+}
