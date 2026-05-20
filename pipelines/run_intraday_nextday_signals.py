@@ -100,6 +100,33 @@ STOCK_EXTERNAL_RELATIVE_FAMILIES = (
 )
 
 
+def is_lagged_daily_external_feature(col: str) -> bool:
+    """External families whose training merge uses completed daily data."""
+    text = str(col)
+    return bool(
+        re.match(r"^[A-Za-z0-9]+_(?:fut_|future_basket_|us_|us_basket_)", text)
+        or re.fullmatch(r"[A-Za-z0-9]+_stock_vs_(future_basket|us_basket)_ret\d+", text)
+    )
+
+
+def context_status_for_missing(required: list[str], missing: list[str], has_daily_fallback: bool = False) -> str:
+    if not required:
+        return "not_required"
+    if not missing:
+        return "ok_with_daily_fallback" if has_daily_fallback else "ok"
+    if any(is_lagged_daily_external_feature(f) for f in missing):
+        return "lagged_daily_missing"
+    derived_suffixes = (
+        "_ret1", "_ret3", "_ret5", "_ret20", "_ret60",
+        "_ma20_gap", "_ma60_gap", "_z20", "_z60", "_vol20", "_shock20",
+    )
+    if all(f.endswith(derived_suffixes) or "_range_pct_" in f for f in missing):
+        return "derived_missing"
+    raw_suffixes = ("_open", "_high", "_low", "_close", "_volume", "_amount", "_range_pct")
+    if all(f.endswith(raw_suffixes) for f in missing):
+        return "raw_missing"
+    return "source_unavailable"
+
 
 @dataclass
 class RuntimeRequirement:
@@ -286,7 +313,11 @@ def context_dependencies_for_model_features(cols: list[str]) -> list[str]:
         m = re.fullmatch(r"([A-Za-z0-9]+)_stock_vs_(stock_basket|etf_basket|future_basket|board_basket|us_basket)_ret(\d+)", col)
         if m:
             pfx, family, suffix = m.group(1), m.group(2), m.group(3)
+            if family in {"future_basket", "us_basket"}:
+                continue
             deps.add(f"{pfx}_{family}_close_ret{suffix}")
+            continue
+        if is_lagged_daily_external_feature(col):
             continue
         deps.add(col)
     return sorted(deps)
@@ -300,7 +331,6 @@ def infer_runtime_requirement(artifact: ModelArtifact) -> RuntimeRequirement:
     bid_ask_cols = [c for c in cols if c.startswith(BID_ASK_FEATURE_PREFIXES)]
     fund_flow_cols = [c for c in cols if c.startswith(REALTIME_FUND_FLOW_PREFIXES)]
     context_cols = [c for c in cols if c in HISTORICAL_CONTEXT_COLUMNS or c.startswith(HISTORICAL_CONTEXT_PREFIXES)]
-    realtime_context_cols = [c for c in cols if is_realtime_context_feature(c)]
     realtime_context_deps = context_dependencies_for_model_features(cols)
     unsupported = []
     unsupported.extend(fund_flow_cols)
@@ -314,7 +344,7 @@ def infer_runtime_requirement(artifact: ModelArtifact) -> RuntimeRequirement:
         requires_bid_ask=bool(bid_ask_cols),
         requires_realtime_fund_flow=bool(fund_flow_cols),
         uses_historical_context=bool(context_cols),
-        requires_realtime_context=bool(realtime_context_cols),
+        requires_realtime_context=bool(realtime_context_deps),
         required_context_features=sorted(set(realtime_context_deps)),
         unsupported_realtime_features=unsupported,
         required_raw_fields=sorted(REQUIRED_REALTIME_CORE_FIELDS) if (requires_price or requires_intraday) else [],
@@ -1237,6 +1267,14 @@ def load_realtime_context_row(args: argparse.Namespace, artifact: ModelArtifact,
             val = pd.to_numeric(pd.Series([row[col]]), errors="coerce").iloc[0]
             if pd.notna(val):
                 values[col] = float(val)
+    missing = [col for col in req.required_context_features if col not in values]
+    meta["required_context_features"] = ",".join(req.required_context_features)
+    meta["missing_context_features"] = ",".join(missing)
+    meta["context_status"] = context_status_for_missing(
+        req.required_context_features,
+        missing,
+        str(meta.get("context_has_daily_fallback", "")).lower() == "true",
+    )
     # Keep also any columns that match trained feature names.  This lets the
     # generic context builder fill derived columns not explicitly classified.
     return values, meta
@@ -1261,6 +1299,49 @@ def apply_realtime_context_to_df(df: pd.DataFrame, artifact: ModelArtifact, trad
             out[col] = pd.to_numeric(out[col], errors="coerce").astype("float64")
         out.at[idx, col] = val
     return out, meta
+
+
+def fill_lagged_daily_features_from_current_sample(
+    df: pd.DataFrame,
+    samples: pd.DataFrame,
+    trade_date: str,
+    feature_cols: list[str],
+) -> tuple[pd.DataFrame, list[str], list[str]]:
+    """Fill futures/US external columns from the actual T sample row only.
+
+    If the input samples do not contain date=T, keep these columns missing on
+    the live scoring row instead of inheriting a copied T-1 row.
+    """
+    lagged_cols = [c for c in feature_cols if is_lagged_daily_external_feature(c)]
+    if not lagged_cols or "date" not in df.columns or "date" not in samples.columns:
+        return df, [], []
+
+    out = df.copy()
+    target_date = pd.to_datetime(yyyymmdd_to_iso(trade_date)).normalize()
+    day_mask = pd.to_datetime(out["date"], errors="coerce").dt.normalize() == target_date
+    if not day_mask.any():
+        return out, [], lagged_cols
+    idx = out.index[day_mask][-1]
+
+    sample_mask = pd.to_datetime(samples["date"], errors="coerce").dt.normalize() == target_date
+    cur = samples.loc[sample_mask].sort_values("date").tail(1)
+    filled: list[str] = []
+    missing: list[str] = []
+    for col in lagged_cols:
+        if col not in out.columns:
+            out[col] = np.nan
+        if cur.empty or col not in cur.columns:
+            out.at[idx, col] = np.nan
+            missing.append(col)
+            continue
+        val = pd.to_numeric(pd.Series([cur.iloc[-1][col]]), errors="coerce").iloc[0]
+        if pd.notna(val):
+            out.at[idx, col] = float(val)
+            filled.append(col)
+        else:
+            out.at[idx, col] = np.nan
+            missing.append(col)
+    return out, filled, missing
 
 
 def recompute_stock_vs_sector_features(day_df: pd.DataFrame, full_df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
@@ -1347,8 +1428,8 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
     if samples_path is None:
         raise FileNotFoundError(f"samples not found for {artifact.stock_code}: {artifact.metadata.get('samples')}")
 
-    df = pd.read_csv(samples_path, parse_dates=["date"])
-    df = overlay_current_day_from_cache(df, artifact.stock_code, trade_date, cache_dir, cutoff_time=args.cutoff_time)
+    samples = pd.read_csv(samples_path, parse_dates=["date"])
+    df = overlay_current_day_from_cache(samples, artifact.stock_code, trade_date, cache_dir, cutoff_time=args.cutoff_time)
     df = add_scoring_features(
         df,
         intraday_path,
@@ -1359,6 +1440,7 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
         benchmark_symbols=args.benchmark_symbols,
     )
     df, context_meta = apply_realtime_context_to_df(df, artifact, trade_date, req, args)
+    df, lagged_daily_filled, lagged_daily_missing = fill_lagged_daily_features_from_current_sample(df, samples, trade_date, cols)
     df = df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True)
 
     target_date = pd.to_datetime(yyyymmdd_to_iso(trade_date))
@@ -1469,6 +1551,8 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
         "context_has_daily_fallback": context_meta.get("context_has_daily_fallback", ""),
         "context_stale_features": context_meta.get("context_stale_features", ""),
         "context_source_modes": context_meta.get("context_source_modes", ""),
+        "lagged_daily_filled_features": ",".join(lagged_daily_filled),
+        "lagged_daily_missing_features": ",".join(lagged_daily_missing),
         "required_context_features": context_meta.get("required_context_features", ""),
         "missing_context_features": context_meta.get("missing_context_features", ""),
         "unsupported_realtime_features": ",".join(unsupported),

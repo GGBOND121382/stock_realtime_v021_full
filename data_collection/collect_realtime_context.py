@@ -65,6 +65,50 @@ METADATA_COLS = {
 }
 
 
+def is_lagged_daily_external_feature(feature: str) -> bool:
+    """External families whose training merge uses completed daily data."""
+    text = str(feature)
+    return bool(
+        re.match(r"^[A-Za-z0-9]+_(?:fut_|future_basket_|us_|us_basket_)", text)
+        or re.fullmatch(r"[A-Za-z0-9]+_stock_vs_(future_basket|us_basket)_ret\d+", text)
+    )
+
+
+def is_lagged_daily_external_relative_feature(feature: str) -> bool:
+    m = re.fullmatch(r"[A-Za-z0-9]+_stock_vs_(future_basket|us_basket)_ret\d+", str(feature))
+    return bool(m)
+
+
+def context_status_for_missing(required: list[str], missing: list[str], has_daily_fallback: bool = False) -> str:
+    if not required:
+        return "not_required"
+    if not missing:
+        return "ok_with_daily_fallback" if has_daily_fallback else "ok"
+    if any(is_lagged_daily_external_feature(f) for f in missing):
+        return "lagged_daily_missing"
+    derived_suffixes = (
+        "_ret1", "_ret3", "_ret5", "_ret20", "_ret60",
+        "_ma20_gap", "_ma60_gap", "_z20", "_z60", "_vol20", "_shock20",
+    )
+    if all(f.endswith(derived_suffixes) or "_range_pct_" in f for f in missing):
+        return "derived_missing"
+    raw_suffixes = ("_open", "_high", "_low", "_close", "_volume", "_amount", "_range_pct")
+    if all(f.endswith(raw_suffixes) for f in missing):
+        return "raw_missing"
+    return "source_unavailable"
+
+
+def split_csv_cell(value: Any) -> list[str]:
+    if value is None:
+        return []
+    try:
+        if pd.isna(value):
+            return []
+    except Exception:
+        pass
+    return [x.strip() for x in str(value).split(",") if x.strip() and x.strip().lower() != "nan"]
+
+
 def normalize_symbol(symbol: str) -> str:
     s = str(symbol).strip().upper().replace("_", ".")
     if not s or s.startswith("#"):
@@ -240,7 +284,11 @@ def context_dependencies_for_features(features: list[str]) -> list[str]:
         m = re.fullmatch(r"([A-Za-z0-9]+)_stock_vs_(stock_basket|etf_basket|future_basket|board_basket|us_basket)_ret(\d+)", feat)
         if m:
             pfx, family, suffix = m.group(1), m.group(2), m.group(3)
+            if family in {"future_basket", "us_basket"}:
+                continue
             deps.add(f"{pfx}_{family}_close_ret{suffix}")
+            continue
+        if is_lagged_daily_external_feature(feat):
             continue
         deps.add(feat)
     return sorted(deps)
@@ -252,6 +300,8 @@ def context_groups_for_features(features: list[str], stock_cfg: dict, contexts_c
     missing_config_features: list[str] = []
     for feat in features:
         if is_sector_feature(feat):
+            continue
+        if is_lagged_daily_external_feature(feat) or is_lagged_daily_external_relative_feature(feat):
             continue
         matched_any = False
         for group in configured_groups:
@@ -1532,6 +1582,12 @@ def estimate_feature(feature: str, current: dict[str, Any], hist: pd.DataFrame, 
                 return x
         except Exception:
             pass
+        if col.endswith("_range_pct"):
+            prefix = col[: -len("_range_pct")]
+            hi = cur_value(f"{prefix}_high")
+            lo = cur_value(f"{prefix}_low")
+            if np.isfinite(hi) and np.isfinite(lo) and lo != 0:
+                return float(hi / lo - 1.0)
         # Basket contexts may only expose current ret1.  Convert it back to the
         # historical basket index scale so direct close/ma/z/retN features remain
         # comparable with training-time basket_close columns.
@@ -1591,8 +1647,8 @@ def estimate_feature(feature: str, current: dict[str, Any], hist: pd.DataFrame, 
                 cur_close = hclose.iloc[-1] * (1.0 + cur_ret1)
                 return cur_close / h.mean() - 1.0
 
-    # retN convention: base_ret1/base_ret5/base_ret20/base_ret60
-    for suffix, n in [("_ret1", 1), ("_ret5", 5), ("_ret20", 20), ("_ret60", 60)]:
+    # retN convention: base_ret1/base_ret3/base_ret5/base_ret20/base_ret60
+    for suffix, n in [("_ret1", 1), ("_ret3", 3), ("_ret5", 5), ("_ret20", 20), ("_ret60", 60)]:
         if feature.endswith(suffix):
             base = feature[: -len(suffix)]
             cur = cur_value(base)
@@ -1631,21 +1687,18 @@ def estimate_feature(feature: str, current: dict[str, Any], hist: pd.DataFrame, 
             return np.nan
         return cur / h.mean() - 1.0
 
-    if feature.endswith("_z20"):
-        base = feature[: -len("_z20")]
-        cur = cur_value(base)
-        h = num_series(base).tail(20)
-        sd = h.std()
-        if not np.isfinite(cur) or len(h) < 10 or sd == 0 or not np.isfinite(sd):
-            return np.nan
-        return (cur - h.mean()) / sd
+    for suffix, window, minp in [("_z20", 20, 10), ("_z60", 60, 20)]:
+        if feature.endswith(suffix):
+            base = feature[: -len(suffix)]
+            cur = cur_value(base)
+            h = num_series(base).tail(window)
+            sd = h.std()
+            if not np.isfinite(cur) or len(h) < minp or sd == 0 or not np.isfinite(sd):
+                return np.nan
+            return (cur - h.mean()) / sd
 
     if feature.endswith("_range_pct"):
-        prefix = feature[: -len("_range_pct")]
-        hi = cur_value(f"{prefix}_high")
-        lo = cur_value(f"{prefix}_low")
-        if np.isfinite(hi) and np.isfinite(lo) and lo != 0:
-            return hi / lo - 1.0
+        return cur_value(feature)
 
     if feature.endswith("_range_z20"):
         prefix = feature[: -len("_range_z20")]
@@ -1719,9 +1772,9 @@ def build_features(args: argparse.Namespace) -> None:
     target = pd.to_datetime(yyyymmdd_to_iso(args.date))
     rows = []
     for _, row in plan.iterrows():
-        feats = [x.strip() for x in str(row.get("required_context_features") or "").split(",") if x.strip()]
-        sector_symbols = [x.strip() for x in str(row.get("sector_symbols") or "").split(",") if x.strip()]
-        context_groups = [x.strip() for x in str(row.get("context_groups") or "").split(",") if x.strip()]
+        feats = split_csv_cell(row.get("required_context_features"))
+        sector_symbols = split_csv_cell(row.get("sector_symbols"))
+        context_groups = split_csv_cell(row.get("context_groups"))
         hist = load_hist_samples(str(row.get("samples") or ""), str(row.get("stock_code") or ""))
         flat = snapshots_to_flat_current(snapshots, sector_symbols, context_groups, hist=hist, target_date=target)
         out = {
@@ -1770,14 +1823,7 @@ def build_features(args: argparse.Namespace) -> None:
                     stale_features.append(feat)
             except Exception:
                 pass
-        if not feats:
-            status = "not_required"
-        elif missing:
-            status = "partial" if len(missing) < len(feats) else "missing"
-        else:
-            status = "ok"
-        if status == "ok" and has_daily_fallback:
-            status = "ok_with_daily_fallback"
+        status = context_status_for_missing(feats, missing, has_daily_fallback)
         out["context_status"] = status
         out["missing_context_features"] = ",".join(missing)
         out["context_has_daily_fallback"] = bool(has_daily_fallback)

@@ -19,8 +19,8 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import subprocess
 import sys
-from dataclasses import asdict, dataclass
 from datetime import datetime, time as dtime
 from pathlib import Path
 from typing import Iterable, Optional
@@ -28,10 +28,23 @@ from typing import Iterable, Optional
 import numpy as np
 import pandas as pd
 
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
 
 PRICE_COLS = ["open", "high", "low", "close"]
 VOL_COLS = ["volume", "amount"]
 ALL_COMPARE_COLS = PRICE_COLS + VOL_COLS
+
+
+def empty_bar_frame(source: str | None = None) -> pd.DataFrame:
+    out = pd.DataFrame({"datetime": pd.Series(dtype="datetime64[ns]")})
+    for col in ALL_COMPARE_COLS:
+        out[col] = pd.Series(dtype="float64")
+    if source is not None:
+        out["source"] = pd.Series(dtype="object")
+    return out
 
 
 def normalize_symbol(symbol: str) -> str:
@@ -74,6 +87,9 @@ def safe_num(s) -> pd.Series:
 
 def ensure_datetime_col(df: pd.DataFrame, date: str) -> pd.DataFrame:
     out = df.copy()
+    if out.empty and "datetime" in out.columns:
+        out["datetime"] = pd.to_datetime(out["datetime"], errors="coerce")
+        return out
     if "datetime" in out.columns:
         out["datetime"] = pd.to_datetime(out["datetime"], errors="coerce")
     elif {"date", "time"}.issubset(out.columns):
@@ -104,6 +120,10 @@ def ensure_datetime_col(df: pd.DataFrame, date: str) -> pd.DataFrame:
 
 
 def normalize_bar_df(df: pd.DataFrame, date: str, source: str) -> pd.DataFrame:
+    if df is None or df.empty:
+        out = empty_bar_frame(source)
+        out["source"] = source
+        return out
     out = ensure_datetime_col(df, date)
     rename_map = {}
     aliases = {
@@ -142,6 +162,16 @@ def filter_cutoff(df: pd.DataFrame, cutoff: Optional[str]) -> pd.DataFrame:
     t = parse_hhmm(cutoff)
     if t is None:
         return df
+    if df.empty:
+        return df.copy()
+    if "datetime" not in df.columns:
+        return df.copy()
+    if not pd.api.types.is_datetime64_any_dtype(df["datetime"]):
+        df = df.copy()
+        df["datetime"] = pd.to_datetime(df["datetime"], errors="coerce")
+        df = df.dropna(subset=["datetime"])
+    if df.empty:
+        return df.copy()
     return df[df["datetime"].dt.time <= t].copy()
 
 
@@ -177,7 +207,7 @@ def query_baostock_5m(symbol: str, date: str, adjustflag: str = "3") -> pd.DataF
             rows.append(rs.get_row_data())
         df = pd.DataFrame(rows, columns=rs.fields)
         if df.empty:
-            return pd.DataFrame(columns=["datetime"] + ALL_COMPARE_COLS)
+            return empty_bar_frame("baostock")
         return normalize_bar_df(df, date, "baostock")
     finally:
         try:
@@ -193,7 +223,7 @@ def read_local_collected(cache_dir: Path, date: str, symbol: str) -> tuple[pd.Da
     daily_path = sym_dir / "daily_features.csv"
 
     if not bar_path.exists():
-        return pd.DataFrame(columns=["datetime"] + ALL_COMPARE_COLS), None, sym_dir
+        return empty_bar_frame("collected"), None, sym_dir
 
     bars = pd.read_csv(bar_path)
     bars = normalize_bar_df(bars, date, "collected")
@@ -325,6 +355,332 @@ def calc_summary(symbol: str, collected: pd.DataFrame, bao: pd.DataFrame, daily_
     return row, exact.sort_values("datetime"), missing_times.sort_values("datetime")
 
 
+def run_premarket_update(args: argparse.Namespace, symbols: list[str]) -> None:
+    cmd = [
+        args.python,
+        "pipelines/run_premarket_history_update.py",
+        "--models-dir", args.models_dir,
+        "--saved-data-dir", args.saved_data_dir,
+        "--context-config", args.context_config,
+        "--end-date", yyyymmdd_to_dash(args.date),
+        "--keep-going",
+    ]
+    if symbols:
+        cmd.extend(["--symbols", ",".join(symbols)])
+    if args.premarket_resume:
+        cmd.append("--resume")
+    if args.premarket_cache_mode:
+        cmd.extend(["--cache-mode", args.premarket_cache_mode])
+    if args.premarket_feature_cache_mode:
+        cmd.extend(["--feature-cache-mode", args.premarket_feature_cache_mode])
+    print("[PREMARKET]", " ".join(cmd), flush=True)
+    subprocess.run(cmd, cwd=PROJECT_DIR, check=True)
+
+
+def resolve_pipeline_out(path: Optional[Path]) -> Optional[Path]:
+    if path is None:
+        return None
+    parts = list(path.resolve().parts)
+    for i, part in enumerate(parts):
+        if "_pipeline_out" in part:
+            return Path(*parts[: i + 1])
+    return None
+
+
+def read_csv_meta(path: Path, date: str) -> dict:
+    row = {
+        "path": str(path),
+        "exists": path.exists(),
+        "kind": path.suffix.lower().lstrip("."),
+        "rows": np.nan,
+        "columns": "",
+        "has_date": False,
+        "has_target_date": False,
+        "max_date": "",
+        "error": "",
+    }
+    if not path.exists() or path.suffix.lower() != ".csv":
+        return row
+    try:
+        df = pd.read_csv(path, nrows=200000)
+        row["rows"] = int(len(df))
+        row["columns"] = ",".join(map(str, df.columns[:50]))
+        date_col = "date" if "date" in df.columns else ("datetime" if "datetime" in df.columns else None)
+        if date_col:
+            ds = pd.to_datetime(df[date_col], errors="coerce")
+            row["has_date"] = True
+            row["has_target_date"] = bool((ds.dt.strftime("%Y%m%d") == date).any()) if ds.notna().any() else False
+            row["max_date"] = str(ds.max()) if ds.notna().any() else ""
+    except Exception as exc:
+        row["error"] = f"{type(exc).__name__}: {exc}"
+    return row
+
+
+def pipeline_file_inventory(pipeline_dirs: Iterable[Path], date: str) -> pd.DataFrame:
+    rows = []
+    seen = set()
+    for pdir in pipeline_dirs:
+        if pdir is None or not pdir.exists():
+            continue
+        for path in sorted(pdir.rglob("*")):
+            if not path.is_file() or path.suffix.lower() not in {".csv", ".json"}:
+                continue
+            key = str(path.resolve())
+            if key in seen:
+                continue
+            seen.add(key)
+            meta = read_csv_meta(path, date) if path.suffix.lower() == ".csv" else {
+                "path": str(path), "exists": True, "kind": "json", "rows": np.nan,
+                "columns": "", "has_date": False, "has_target_date": False, "max_date": "", "error": "",
+            }
+            rows.append(meta)
+    return pd.DataFrame(rows)
+
+
+def compare_numeric_rows(left: dict, right: dict, keys: Iterable[str], left_name: str, right_name: str) -> list[dict]:
+    rows = []
+    for key in keys:
+        lv = pd.to_numeric(pd.Series([left.get(key, np.nan)]), errors="coerce").iloc[0]
+        rv = pd.to_numeric(pd.Series([right.get(key, np.nan)]), errors="coerce").iloc[0]
+        abs_diff = float(lv - rv) if pd.notna(lv) and pd.notna(rv) else np.nan
+        rel = float(abs_diff / rv) if pd.notna(abs_diff) and pd.notna(rv) and abs(rv) > 1e-12 else np.nan
+        rows.append({
+            "field": key,
+            left_name: lv,
+            right_name: rv,
+            "abs_diff": abs_diff,
+            "rel_diff": rel,
+            "diff_bps": rel * 10000.0 if pd.notna(rel) else np.nan,
+        })
+    return rows
+
+
+def compare_pipeline_vs_collected_data(symbols: list[str], artifacts: list, cache_dir: Path, date: str, cutoff: str) -> tuple[pd.DataFrame, pd.DataFrame, list[Path]]:
+    import pipelines.run_intraday_nextday_signals as rt
+
+    daily_rows = []
+    bar_rows = []
+    pipeline_dirs = []
+    seen_symbols = set(symbols)
+    for art in artifacts:
+        seen_symbols.add(art.stock_code)
+    for sym in sorted(seen_symbols):
+        arts = [a for a in artifacts if a.stock_code == sym]
+        pdir = None
+        if arts:
+            sp = rt.resolve_repo_path(arts[0].metadata.get("samples"), sym)
+            pdir = resolve_pipeline_out(sp)
+            if pdir:
+                pipeline_dirs.append(pdir)
+        code6 = normalize_symbol(sym).split(".", 1)[0]
+        collected, daily_row, _ = read_local_collected(cache_dir, date, sym)
+        daily_dict = daily_row.to_dict() if daily_row is not None else {}
+
+        pipeline_daily = {}
+        if pdir:
+            for cand in [pdir / "00_base" / "daily_features.csv", pdir / "00_base" / f"{code6}_daily.csv", pdir / "00_base" / "raw_cache" / f"{code6}_daily_raw.csv"]:
+                if cand.exists():
+                    try:
+                        df = pd.read_csv(cand)
+                        dcol = "date" if "date" in df.columns else None
+                        if dcol:
+                            ds = pd.to_datetime(df[dcol], errors="coerce")
+                            part = df[ds.dt.strftime("%Y%m%d") == date]
+                            if not part.empty:
+                                pipeline_daily = part.iloc[-1].to_dict()
+                                pipeline_daily["_pipeline_daily_path"] = str(cand)
+                                break
+                    except Exception:
+                        pass
+        for r in compare_numeric_rows(pipeline_daily, daily_dict, ALL_COMPARE_COLS + ["daily_vwap"], "pipeline", "collected"):
+            r.update({"symbol": sym, "pipeline_path": pipeline_daily.get("_pipeline_daily_path", "")})
+            daily_rows.append(r)
+
+        pipeline_5m = empty_bar_frame("pipeline")
+        raw_path = None
+        if arts:
+            raw_path = rt.resolve_intraday_path(arts[0], date, cache_dir)
+        if raw_path and raw_path.exists():
+            try:
+                pipeline_5m = normalize_bar_df(pd.read_csv(raw_path), date, "pipeline")
+                pipeline_5m = pipeline_5m[pipeline_5m["datetime"].dt.strftime("%Y%m%d") == date].copy()
+                pipeline_5m = filter_cutoff(pipeline_5m, cutoff)
+            except Exception:
+                pipeline_5m = empty_bar_frame("pipeline")
+        c = filter_cutoff(collected, cutoff)
+        merged = c.merge(pipeline_5m, on="datetime", how="outer", suffixes=("_collected", "_pipeline"), indicator=True)
+        exact = merged[merged["_merge"] == "both"]
+        row = {
+            "symbol": sym,
+            "pipeline_5m_path": str(raw_path or ""),
+            "collected_bars": int(len(c)),
+            "pipeline_bars": int(len(pipeline_5m)),
+            "aligned_bars": int(len(exact)),
+            "only_in_collected": int((merged["_merge"] == "left_only").sum()) if "_merge" in merged else 0,
+            "only_in_pipeline": int((merged["_merge"] == "right_only").sum()) if "_merge" in merged else 0,
+        }
+        for col in ALL_COMPARE_COLS:
+            lc, rp = f"{col}_collected", f"{col}_pipeline"
+            if lc in exact.columns and rp in exact.columns and not exact.empty:
+                diff = pd.to_numeric(exact[lc], errors="coerce") - pd.to_numeric(exact[rp], errors="coerce")
+                row[f"{col}_max_abs_diff"] = float(diff.abs().max()) if diff.notna().any() else np.nan
+                if col in PRICE_COLS:
+                    den = pd.to_numeric(exact[rp], errors="coerce").replace(0, np.nan)
+                    bps = diff / den * 10000.0
+                    row[f"{col}_max_abs_diff_bps"] = float(bps.abs().max()) if bps.notna().any() else np.nan
+        bar_rows.append(row)
+    return pd.DataFrame(daily_rows), pd.DataFrame(bar_rows), pipeline_dirs
+
+
+def safe_predict_score(model, x: pd.DataFrame) -> float:
+    if hasattr(model, "predict_proba"):
+        return float(model.predict_proba(x)[:, 1][0])
+    return float(model.predict(x)[0])
+
+
+def build_prediction_comparison(artifacts: list, cache_dir: Path, context_dir: Path, date: str, cutoff: str, benchmark_symbols: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    import joblib
+    import argparse as _argparse
+    import pipelines.run_intraday_nextday_signals as rt
+
+    feature_rows = []
+    signal_rows = []
+    args = _argparse.Namespace(
+        context_dir=str(context_dir),
+        cutoff_time=cutoff,
+        benchmark_symbols=benchmark_symbols,
+    )
+    target_date = pd.to_datetime(yyyymmdd_to_dash(date)).normalize()
+    for art in artifacts:
+        try:
+            samples_path = rt.resolve_repo_path(art.metadata.get("samples"), art.stock_code)
+            if samples_path is None or not samples_path.exists():
+                signal_rows.append({"stock_code": art.stock_code, "artifact_name": art.artifact_name, "error": "samples_missing"})
+                continue
+            cols = [x.strip() for x in (art.artifact_dir / "feature_columns.txt").read_text(encoding="utf-8").splitlines() if x.strip()]
+            med = pd.read_csv(art.artifact_dir / "feature_median.csv", index_col=0)["median"]
+            samples = pd.read_csv(samples_path, parse_dates=["date"])
+            pipe_df = samples.copy()
+            live_df = rt.overlay_current_day_from_cache(samples, art.stock_code, date, cache_dir, cutoff_time=cutoff)
+            intraday_path = rt.resolve_intraday_path(art, date, cache_dir)
+            live_df = rt.add_scoring_features(
+                live_df, intraday_path, cache_dir, art.stock_code,
+                cutoff_time=cutoff, scoring_trade_date=date, benchmark_symbols=benchmark_symbols,
+            )
+            req = rt.infer_runtime_requirement(art)
+            live_df, context_meta = rt.apply_realtime_context_to_df(live_df, art, date, req, args)
+            live_df, lagged_filled, lagged_missing = rt.fill_lagged_daily_features_from_current_sample(live_df, samples, date, cols)
+
+            def pick_day(df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
+                if "date" not in df.columns or df.empty:
+                    return pd.DataFrame(), "missing"
+                mask = pd.to_datetime(df["date"], errors="coerce").dt.normalize() == target_date
+                if mask.any():
+                    return df.loc[mask].tail(1).copy(), "exact"
+                return df.tail(1).copy(), "fallback_latest"
+
+            pipe_day, pipe_date_status = pick_day(pipe_df)
+            live_day, live_date_status = pick_day(live_df.replace([np.inf, -np.inf], np.nan).reset_index(drop=True))
+            for c in cols:
+                if c not in pipe_day.columns:
+                    pipe_day[c] = np.nan
+                if c not in live_day.columns:
+                    live_day[c] = np.nan
+            pipe_x_raw = pipe_day[cols].apply(pd.to_numeric, errors="coerce")
+            live_x_raw = live_day[cols].apply(pd.to_numeric, errors="coerce")
+            pipe_x = pipe_x_raw.fillna(med)
+            live_x = live_x_raw.fillna(med)
+            model = joblib.load(art.artifact_dir / "model.joblib")
+            pipe_score = safe_predict_score(model, pipe_x)
+            live_score = safe_predict_score(model, live_x)
+            threshold = float(art.metadata.get("threshold", np.nan))
+            feature_diff_count = 0
+            max_abs_diff = 0.0
+            for col in cols:
+                pv = pipe_x_raw[col].iloc[-1]
+                lv = live_x_raw[col].iloc[-1]
+                if pd.isna(pv) and pd.isna(lv):
+                    continue
+                abs_diff = float(abs((lv if pd.notna(lv) else np.nan) - (pv if pd.notna(pv) else np.nan))) if pd.notna(pv) and pd.notna(lv) else np.nan
+                changed = (pd.isna(pv) != pd.isna(lv)) or (pd.notna(abs_diff) and abs_diff > 1e-12)
+                if changed:
+                    feature_diff_count += 1
+                    if pd.notna(abs_diff):
+                        max_abs_diff = max(max_abs_diff, abs_diff)
+                    feature_rows.append({
+                        "stock_code": art.stock_code,
+                        "artifact_name": art.artifact_name,
+                        "feature": col,
+                        "pipeline_value": pv,
+                        "collected_value": lv,
+                        "abs_diff": abs_diff,
+                        "pipeline_missing": bool(pd.isna(pv)),
+                        "collected_missing": bool(pd.isna(lv)),
+                    })
+            signal_rows.append({
+                "stock_code": art.stock_code,
+                "artifact_name": art.artifact_name,
+                "pipeline_date_status": pipe_date_status,
+                "collected_date_status": live_date_status,
+                "pipeline_missing_features": int(pipe_x_raw.isna().sum(axis=1).iloc[-1]) if not pipe_x_raw.empty else len(cols),
+                "collected_missing_features": int(live_x_raw.isna().sum(axis=1).iloc[-1]) if not live_x_raw.empty else len(cols),
+                "feature_diff_count": feature_diff_count,
+                "feature_max_abs_diff": max_abs_diff,
+                "pipeline_score": pipe_score,
+                "collected_score": live_score,
+                "score_diff": live_score - pipe_score,
+                "threshold": threshold,
+                "pipeline_raw_pass": bool(pipe_score >= threshold) if np.isfinite(threshold) else "",
+                "collected_raw_pass": bool(live_score >= threshold) if np.isfinite(threshold) else "",
+                "context_status": context_meta.get("context_status", ""),
+                "lagged_daily_missing_features": ",".join(lagged_missing),
+            })
+        except Exception as exc:
+            signal_rows.append({"stock_code": getattr(art, "stock_code", ""), "artifact_name": getattr(art, "artifact_name", ""), "error": f"{type(exc).__name__}: {exc}"})
+    return pd.DataFrame(feature_rows), pd.DataFrame(signal_rows)
+
+
+def compare_signal_and_portfolio(date: str, signal_dir: Path, portfolio_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+    day_dir = signal_dir / date
+    date_dash = yyyymmdd_to_dash(date)
+    files = {
+        "all_scores": day_dir / "all_scores.csv",
+        "buy_signals": day_dir / "buy_signals.csv",
+        "rejected_scores": day_dir / "rejected_scores.csv",
+        "portfolio_orders": portfolio_dir / f"daily_portfolio_orders_{date_dash}.csv",
+        "portfolio_selected": portfolio_dir / f"daily_portfolio_selected_{date_dash}.csv",
+        "portfolio_rejected": portfolio_dir / f"daily_portfolio_rejected_{date_dash}.csv",
+        "portfolio_report": portfolio_dir / f"daily_portfolio_report_{date_dash}.json",
+    }
+    inv = []
+    for name, path in files.items():
+        inv.append({"name": name, "path": str(path), "exists": path.exists(), "size": path.stat().st_size if path.exists() else 0})
+
+    def read(path: Path) -> pd.DataFrame:
+        return pd.read_csv(path) if path.exists() else pd.DataFrame()
+
+    buy = read(files["buy_signals"])
+    selected = read(files["portfolio_selected"])
+    orders = read(files["portfolio_orders"])
+    rows = []
+    stock_cols = ["stock_code", "symbol", "code"]
+    def stock_set(df: pd.DataFrame) -> set[str]:
+        for c in stock_cols:
+            if c in df.columns:
+                return set(df[c].astype(str))
+        return set()
+    buy_set = stock_set(buy)
+    sel_set = stock_set(selected) or stock_set(orders)
+    for stock in sorted(buy_set | sel_set):
+        rows.append({
+            "stock_code": stock,
+            "in_buy_signals": stock in buy_set,
+            "in_portfolio": stock in sel_set,
+            "status": "ok" if (stock in buy_set and stock in sel_set) else ("portfolio_without_signal" if stock in sel_set else "signal_not_selected"),
+        })
+    return pd.DataFrame(inv), pd.DataFrame(rows)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--date", required=True, help="YYYYMMDD, e.g. 20260513")
@@ -333,6 +689,21 @@ def main() -> int:
     ap.add_argument("--out-dir", default=None)
     ap.add_argument("--cutoff-time", default="14:55")
     ap.add_argument("--adjustflag", default="3", help="BaoStock adjustflag: 3=none")
+    ap.add_argument("--python", default=sys.executable)
+    ap.add_argument("--models-dir", default="saved_models")
+    ap.add_argument("--saved-data-dir", default="saved_data")
+    ap.add_argument("--watchlist", default="selected_watchlist.txt")
+    ap.add_argument("--model-policy", choices=["preferred", "all"], default="all")
+    ap.add_argument("--context-dir", default="saved_data/realtime_context")
+    ap.add_argument("--context-config", default="configs/realtime_context_sources.toml")
+    ap.add_argument("--signal-dir", default="saved_data/intraday_nextday_signals")
+    ap.add_argument("--portfolio-dir", default="portfolio_reports")
+    ap.add_argument("--benchmark-symbols", default="000300.SH,000001.SH,399001.SZ,399006.SZ")
+    ap.add_argument("--run-premarket-update", action="store_true", help="Run run_premarket_history_update.py before comparing.")
+    ap.add_argument("--premarket-resume", action="store_true")
+    ap.add_argument("--premarket-cache-mode", default=None)
+    ap.add_argument("--premarket-feature-cache-mode", default=None)
+    ap.add_argument("--skip-baostock-query", action="store_true", help="Skip direct BaoStock 5m query; compare local pipeline/cache artifacts only.")
     ap.add_argument("--fail-fast", action="store_true")
     args = ap.parse_args()
 
@@ -341,6 +712,15 @@ def main() -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     symbols = discover_symbols(cache_dir, args.date, args.symbols)
+    if args.run_premarket_update:
+        run_premarket_update(args, symbols)
+
+    import pipelines.run_intraday_nextday_signals as rt
+    watchlist = set(rt.read_watchlist(Path(args.watchlist))) if Path(args.watchlist).exists() else set(symbols)
+    artifacts = rt.load_artifacts(Path(args.models_dir), watchlist, args.model_policy)
+    if symbols:
+        symbol_set = set(symbols)
+        artifacts = [a for a in artifacts if a.stock_code in symbol_set]
     print(f"[INFO] date={args.date} symbols={len(symbols)} out={out_dir}")
 
     rows = []
@@ -349,7 +729,7 @@ def main() -> int:
         print(f"[COMPARE] {sym}", flush=True)
         try:
             collected, daily_row, sym_dir = read_local_collected(cache_dir, args.date, sym)
-            bao = query_baostock_5m(sym, args.date, adjustflag=args.adjustflag)
+            bao = empty_bar_frame("baostock") if args.skip_baostock_query else query_baostock_5m(sym, args.date, adjustflag=args.adjustflag)
 
             bao.to_csv(out_dir / f"{sym}_baostock_5m.csv", index=False, encoding="utf-8-sig")
             collected.to_csv(out_dir / f"{sym}_collected_5m_normalized.csv", index=False, encoding="utf-8-sig")
@@ -364,6 +744,32 @@ def main() -> int:
             errors.append(err)
             if args.fail_fast:
                 raise
+
+    try:
+        daily_cmp, bar_cmp, pipeline_dirs = compare_pipeline_vs_collected_data(symbols, artifacts, cache_dir, args.date, args.cutoff_time)
+        inventory = pipeline_file_inventory(pipeline_dirs, args.date)
+        feature_diff, signal_diff = build_prediction_comparison(
+            artifacts,
+            cache_dir,
+            Path(args.context_dir),
+            args.date,
+            args.cutoff_time,
+            args.benchmark_symbols,
+        )
+        portfolio_files, portfolio_signal_diff = compare_signal_and_portfolio(args.date, Path(args.signal_dir), Path(args.portfolio_dir))
+        daily_cmp.to_csv(out_dir / "pipeline_vs_collected_daily.csv", index=False, encoding="utf-8-sig")
+        bar_cmp.to_csv(out_dir / "pipeline_vs_collected_5m.csv", index=False, encoding="utf-8-sig")
+        inventory.to_csv(out_dir / "pipeline_file_inventory.csv", index=False, encoding="utf-8-sig")
+        feature_diff.to_csv(out_dir / "prediction_feature_diff.csv", index=False, encoding="utf-8-sig")
+        signal_diff.to_csv(out_dir / "prediction_signal_diff.csv", index=False, encoding="utf-8-sig")
+        portfolio_files.to_csv(out_dir / "portfolio_file_inventory.csv", index=False, encoding="utf-8-sig")
+        portfolio_signal_diff.to_csv(out_dir / "portfolio_signal_diff.csv", index=False, encoding="utf-8-sig")
+    except Exception as exc:
+        err = {"stage": "pipeline_collected_prediction_portfolio_compare", "error": f"{type(exc).__name__}: {exc}"}
+        print("[ERROR]", err, file=sys.stderr)
+        errors.append(err)
+        if args.fail_fast:
+            raise
 
     summary = pd.DataFrame(rows)
     if not summary.empty:
@@ -381,6 +787,12 @@ def main() -> int:
         "summary_rows": rows,
         "outputs": {
             "comparison_summary_csv": str(out_dir / "comparison_summary.csv"),
+            "pipeline_vs_collected_daily_csv": str(out_dir / "pipeline_vs_collected_daily.csv"),
+            "pipeline_vs_collected_5m_csv": str(out_dir / "pipeline_vs_collected_5m.csv"),
+            "pipeline_file_inventory_csv": str(out_dir / "pipeline_file_inventory.csv"),
+            "prediction_feature_diff_csv": str(out_dir / "prediction_feature_diff.csv"),
+            "prediction_signal_diff_csv": str(out_dir / "prediction_signal_diff.csv"),
+            "portfolio_signal_diff_csv": str(out_dir / "portfolio_signal_diff.csv"),
             "out_dir": str(out_dir),
         },
     }

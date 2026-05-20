@@ -246,6 +246,46 @@ portfolio optimizer 生成最终组合订单
 PYTHON=python3 bash scripts/run_trading_day_signal_and_portfolio_all_models.sh
 ```
 
+端到端对比 pipeline、盯盘采集、BaoStock、预测特征、信号和 portfolio：
+
+```bash
+PYTHON=python3 bash scripts/compare_today_collected_vs_baostock.sh
+```
+
+默认会先调用 `pipelines/run_premarket_history_update.py` 补齐 pipeline 历史/样本/fundamental/sector/external 数据，再做对账。只对已有文件做离线对比时：
+
+```bash
+RUN_PREMARKET_UPDATE=0 PYTHON=python3 bash scripts/compare_today_collected_vs_baostock.sh
+```
+
+指定交易日、cutoff 和标的：
+
+```bash
+DATE=20260520 CUTOFF_TIME=14:55 SYMBOLS=600487.SH,300308.SZ PYTHON=python3 \
+bash scripts/compare_today_collected_vs_baostock.sh
+```
+
+跳过 BaoStock 联网查询，只比较盯盘缓存、pipeline 文件、预测特征、信号和 portfolio：
+
+```bash
+RUN_PREMARKET_UPDATE=0 SKIP_BAOSTOCK_QUERY=1 DATE=20260520 PYTHON=python3 \
+bash scripts/compare_today_collected_vs_baostock.sh
+```
+
+默认读取 `saved_data/akshare_realtime_cache`，输出到 `saved_data/baostock_compare/${DATE}/`：
+
+```text
+comparison_summary.csv          # 盯盘 5m vs BaoStock 5m
+pipeline_file_inventory.csv     # pipeline 文件清单、行数、是否含当日 date
+pipeline_vs_collected_daily.csv # pipeline 日线/汇总 vs 盯盘 daily_features
+pipeline_vs_collected_5m.csv    # pipeline 5m raw_cache vs 盯盘 minute_bars_5min
+prediction_feature_diff.csv     # pipeline 样本行 vs 盯盘 overlay 后预测特征逐字段差异
+prediction_signal_diff.csv      # 两套预测特征对应的模型分数/阈值通过情况
+portfolio_file_inventory.csv    # 信号和 portfolio 产物文件清单
+portfolio_signal_diff.csv       # buy_signals 与 portfolio selected/orders 标的差异
+comparison_summary.json
+```
+
 指定交易日回放/补跑时同时指定紧凑日期和横线日期：
 
 ```bash
@@ -347,24 +387,7 @@ python3 pipelines/run_trading_day_signal_pipeline.py \
 ```
 
 ```bash
-python3 pipelines/run_trading_day_signal_pipeline.py \
-  --watchlist selected_watchlist.txt \
-  --models-dir saved_models \
-  --model-policy all \
-  --context-config configs/realtime_context_sources.toml \
-  --cutoff-time 14:55 \
-  --stock-collect-until 14:52 \
-  --context-collect-until 14:52 \
-  --build-time 14:52 \
-  --score-time 14:54 \
-  --spot-source-priority sina_batch,ths_etf,xq \
-  --required-fields close,open,high,low,volume,amount \
-  --xq-max-symbols-per-round 10 \
-  --xq-per-symbol-timeout-seconds 2 \
-  --stock-collect-wait-timeout-seconds 45 \
-  --context-collect-wait-timeout-seconds 45 \
-  --max-missing-features 5 \
-  --min-amount-yuan 50000000
+python3 pipelines/run_trading_day_signal_pipeline.py   --watchlist selected_watchlist.txt   --models-dir saved_models   --model-policy all   --context-config configs/realtime_context_sources.toml   --cutoff-time 14:55   --stock-collect-until 14:52   --context-collect-until 14:52   --build-time 14:52   --score-time 14:54   --spot-source-priority sina_batch,ths_etf,xq   --required-fields close,open,high,low,volume,amount   --xq-max-symbols-per-round 10   --xq-per-symbol-timeout-seconds 2   --stock-collect-wait-timeout-seconds 45   --context-collect-wait-timeout-seconds 45   --max-missing-features 5   --min-amount-yuan 50000000
 ```
 
 先检查命令链可用性：
