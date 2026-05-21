@@ -1,0 +1,36 @@
+{
+  "trade_date": "2026-05-21",
+  "started_at": "2026-05-21T14:54:01",
+  "finished_at": "2026-05-21T14:54:30",
+  "n_artifacts": 18,
+  "n_all_scores": 18,
+  "n_buy_signals": 0,
+  "signal_counts": {
+    "False": 18
+  },
+  "date_status_counts": {
+    "exact_trade_date": 18
+  },
+  "feature_status_counts": {
+    "live_overlay_partial": 18
+  },
+  "source_usage": {
+    "sina_batch": 18
+  },
+  "core_complete_counts": {
+    "True": 18
+  },
+  "context_status_counts": {
+    "ok": 14,
+    "not_required": 4
+  },
+  "reject_reason_counts": {
+    "stale_snapshot_gt_180s;score_below_threshold": 6,
+    "stale_snapshot_gt_180s": 6,
+    "stale_snapshot_gt_180s;filled_features_gt_5": 2,
+    "stale_snapshot_gt_180s;filled_features_gt_5;score_below_threshold": 2,
+    "stale_snapshot_gt_180s;prev_close_mismatch_gt_0.02;filled_features_gt_5": 1,
+    "filled_features_gt_5": 1
+  },
+  "error_count": 18
+}

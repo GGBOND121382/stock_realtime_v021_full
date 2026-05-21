@@ -6,13 +6,8 @@
     "stock_code": "600276.SH",
     "baostock_symbol": "600276"
   },
-<<<<<<< HEAD
-  "out_root": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out",
-  "created_at": "2026-05-19T23:31:33",
-=======
   "out_root": "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out",
-  "created_at": "2026-05-19T23:29:49",
->>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
+  "created_at": "2026-05-21T22:48:46",
   "args": {
     "symbol": "600276.SH",
     "sector_symbol": "化学制药",
@@ -21,7 +16,7 @@
     "python": null,
     "dual_script": "bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py",
     "start_date": "2018-01-01",
-    "end_date": "2026-05-19",
+    "end_date": "2026-05-21",
     "intraday_start": null,
     "intraday_end": null,
     "benchmark_symbol": "000300",
@@ -65,11 +60,7 @@
     "skip_stages": "",
     "excel": false
   },
-<<<<<<< HEAD
-  "finished_at": "2026-05-19T23:32:25",
-=======
-  "finished_at": "2026-05-19T23:30:46",
->>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
+  "finished_at": "2026-05-21T22:49:49",
   "status": "ok",
   "feature_pipeline_effective": [
     "fundamental",
@@ -81,22 +72,22 @@
     "all_days"
   ],
   "entry_vwap_premium_bps": 50.0,
-  "final_samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\03_sector\\training_samples_with_sector.csv",
-  "intraday_bars": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\600276_5m.csv",
+  "final_samples": "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/03_sector/training_samples_with_sector.csv",
+  "intraday_bars": "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/00_base/600276_5m.csv",
   "search_dirs": [
-    "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\10_search\\search_vwap_low_hit_50bps",
-    "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\10_search\\search_vwap_low_hit_80bps",
-    "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\10_search\\search_vwap_low_close_profit_50bps",
-    "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\10_search\\search_all_days_hit_50bps",
-    "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\10_search\\search_all_days_hit_80bps",
-    "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\10_search\\search_all_days_close_profit_50bps"
+    "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/10_search/search_vwap_low_hit_50bps",
+    "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/10_search/search_vwap_low_hit_80bps",
+    "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/10_search/search_vwap_low_close_profit_50bps",
+    "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/10_search/search_all_days_hit_50bps",
+    "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/10_search/search_all_days_hit_80bps",
+    "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/10_search/search_all_days_close_profit_50bps"
   ],
   "stages": [
     {
       "name": "update_data",
       "status": "ok",
       "command": [
-        "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe",
+        "/usr/bin/python3",
         "bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py",
         "--mode",
         "update_data",
@@ -107,13 +98,13 @@
         "--daily_start",
         "2018-01-01",
         "--daily_end",
-        "2026-05-19",
+        "2026-05-21",
         "--intraday_start",
         "2018-01-01 09:30:00",
         "--intraday_end",
-        "2026-05-19 15:00:00",
+        "2026-05-21 15:00:00",
         "--output_dir",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base",
+        "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/00_base",
         "--cache_mode",
         "incremental",
         "--feature_cache_mode",
@@ -121,19 +112,13 @@
         "--adjust",
         "qfq"
       ],
-<<<<<<< HEAD
-      "started_at": "2026-05-19T23:31:33",
-      "ended_at": "2026-05-19T23:31:44",
-      "elapsed_seconds": 10.984,
-=======
-      "started_at": "2026-05-19T23:29:49",
-      "ended_at": "2026-05-19T23:30:07",
-      "elapsed_seconds": 18.021,
->>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
+      "started_at": "2026-05-21T22:48:46",
+      "ended_at": "2026-05-21T22:49:08",
+      "elapsed_seconds": 21.638,
       "returncode": 0,
       "outputs": {
-        "daily_features": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\daily_features.csv",
-        "intraday_bars": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\600276_5m.csv"
+        "daily_features": "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/00_base/daily_features.csv",
+        "intraday_bars": "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/00_base/600276_5m.csv"
       },
       "error": null
     },
@@ -141,30 +126,24 @@
       "name": "samples",
       "status": "ok",
       "command": [
-        "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe",
+        "/usr/bin/python3",
         "feature_building/build_nextday_samples_from_baostock.py",
         "--daily-features",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\daily_features.csv",
+        "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/00_base/daily_features.csv",
         "--intraday-bars",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\00_base\\600276_5m.csv",
+        "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/00_base/600276_5m.csv",
         "--out-dir",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\01_samples",
+        "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/01_samples",
         "--min-bars",
         "40",
         "--keep-unlabeled-tail"
       ],
-<<<<<<< HEAD
-      "started_at": "2026-05-19T23:31:44",
-      "ended_at": "2026-05-19T23:31:45",
-      "elapsed_seconds": 1.694,
-=======
-      "started_at": "2026-05-19T23:30:07",
-      "ended_at": "2026-05-19T23:30:08",
-      "elapsed_seconds": 1.263,
->>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
+      "started_at": "2026-05-21T22:49:08",
+      "ended_at": "2026-05-21T22:49:09",
+      "elapsed_seconds": 1.311,
       "returncode": 0,
       "outputs": {
-        "samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\01_samples\\training_samples.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/01_samples/training_samples.csv"
       },
       "error": null
     },
@@ -172,33 +151,27 @@
       "name": "fundamental",
       "status": "ok",
       "command": [
-        "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe",
+        "/usr/bin/python3",
         "feature_building/build_fundamental_features.py",
         "--symbol",
         "600276.SH",
         "--daily-samples",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\01_samples\\training_samples.csv",
+        "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/01_samples/training_samples.csv",
         "--out-dir",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\02_fundamental",
+        "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/02_fundamental",
         "--start-date",
         "2018-01-01",
         "--end-date",
-        "2026-05-19",
+        "2026-05-21",
         "--fallback-lag-days",
         "120"
       ],
-<<<<<<< HEAD
-      "started_at": "2026-05-19T23:31:45",
-      "ended_at": "2026-05-19T23:32:16",
-      "elapsed_seconds": 30.918,
-=======
-      "started_at": "2026-05-19T23:30:08",
-      "ended_at": "2026-05-19T23:30:41",
-      "elapsed_seconds": 32.579,
->>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
+      "started_at": "2026-05-21T22:49:09",
+      "ended_at": "2026-05-21T22:49:44",
+      "elapsed_seconds": 35.181,
       "returncode": 0,
       "outputs": {
-        "samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\02_fundamental\\training_samples_with_fundamentals.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
       },
       "error": null
     },
@@ -206,31 +179,25 @@
       "name": "sector",
       "status": "ok",
       "command": [
-        "D:\\VSCodeWorkspace\\stockAnalysis\\.venv\\Scripts\\python.exe",
+        "/usr/bin/python3",
         "feature_building/build_sector_features.py",
         "--samples",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\02_fundamental\\training_samples_with_fundamentals.csv",
+        "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv",
         "--out-dir",
-        "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\03_sector",
+        "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/03_sector",
         "--sector-symbol",
         "化学制药",
         "--start-date",
         "2018-01-01",
         "--end-date",
-        "2026-05-19"
+        "2026-05-21"
       ],
-<<<<<<< HEAD
-      "started_at": "2026-05-19T23:32:16",
-      "ended_at": "2026-05-19T23:32:25",
-      "elapsed_seconds": 8.625,
-=======
-      "started_at": "2026-05-19T23:30:41",
-      "ended_at": "2026-05-19T23:30:46",
-      "elapsed_seconds": 4.791,
->>>>>>> 2a2a5a75404252d90fc88ad35628cdabcc944dba
+      "started_at": "2026-05-21T22:49:44",
+      "ended_at": "2026-05-21T22:49:49",
+      "elapsed_seconds": 4.932,
       "returncode": 0,
       "outputs": {
-        "samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\600276_pipeline_out\\03_sector\\training_samples_with_sector.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/600276_pipeline_out/03_sector/training_samples_with_sector.csv"
       },
       "error": null
     }
