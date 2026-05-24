@@ -266,10 +266,14 @@ def predict_positive(model, x: pd.DataFrame) -> np.ndarray:
 
 def make_dataset(args) -> Tuple[pd.DataFrame, Dict[str, List[str]]]:
     df = pd.read_csv(args.samples, parse_dates=["date"])
-    df = add_reversal_features(df, args.intraday_bars)
+    feature_time_mode = getattr(args, "feature_time_mode", "eod")
+    if str(feature_time_mode).lower() not in {"asof", "asof1455"}:
+        df = add_reversal_features(df, args.intraday_bars)
     df = add_market_state_features(df)
+    entry_col = "close_asof1455" if str(feature_time_mode).lower() in {"asof", "asof1455"} and "close_asof1455" in df.columns else "close"
+    vwap_col = "vwap_asof1455" if str(feature_time_mode).lower() in {"asof", "asof1455"} and "vwap_asof1455" in df.columns else "daily_vwap"
     df = df.replace([np.inf, -np.inf], np.nan).dropna(
-        subset=["next_day_close", "close", "daily_vwap"]
+        subset=["next_day_close", entry_col, vwap_col]
     ).reset_index(drop=True)
     df = add_trade_returns(
         df,
@@ -277,11 +281,12 @@ def make_dataset(args) -> Tuple[pd.DataFrame, Dict[str, List[str]]]:
         args.target_hit_bps,
         getattr(args, "entry_policy", "vwap_low"),
         getattr(args, "entry_vwap_premium_bps", 50.0),
+        feature_time_mode,
     )
     df = df.replace([np.inf, -np.inf], np.nan).dropna(
         subset=["trade_net_close_return", "trade_net_high_return", "trade_target_or_close_return"]
     ).reset_index(drop=True)
-    return df, feature_groups(df, args.max_missing)
+    return df, feature_groups(df, args.max_missing, feature_time_mode)
 
 
 def run_one(
@@ -422,6 +427,8 @@ def main() -> None:
                    help="Entry universe: vwap_low=close<=daily_vwap*(1+premium), all_days=all valid labeled days")
     p.add_argument("--entry-vwap-premium-bps", type=float, default=50.0,
                    help="VWAP premium threshold for entry-policy=vwap_low; 50 means close <= VWAP*1.005")
+    p.add_argument("--feature-time-mode", choices=["eod", "asof", "asof1455"], default="eod")
+    p.add_argument("--feature-cutoff-time", default="")
     p.add_argument("--max-missing", type=float, default=0.35)
     p.add_argument("--groups", default="reversal_fundamental_regime,all_no_ak")
     p.add_argument("--models", default="xgb_d2_200_lr003_mcw5,xgb_d3_400_lr003_mcw3,xgb_d4_700_lr002_mcw2,xgb_d5_900_lr002_mcw1,lgbm_leaves7_400,lgbm_leaves15_700")
@@ -473,6 +480,8 @@ def main() -> None:
         "label_mode": args.label_mode,
         "entry_policy": args.entry_policy,
         "entry_vwap_premium_bps": args.entry_vwap_premium_bps,
+        "feature_time_mode": args.feature_time_mode,
+        "feature_cutoff_time": args.feature_cutoff_time,
         "groups": {k: len(groups.get(k, [])) for k in selected_groups},
         "models": [name for name, _ in configs],
         "top": summary.head(20).to_dict(orient="records") if not summary.empty else [],

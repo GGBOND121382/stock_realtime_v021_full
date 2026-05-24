@@ -1,0 +1,3 @@
+﻿feature_group,model_name,window_id,split,target_hit_bps,entry_policy,quantile,threshold,auc,train_start,train_end,valid_start,valid_end,test_start,test_end,trades,win_rate,avg_return,median_return,compound_return,max_drawdown,profit_factor
+all_no_ak,extra_trees_600_d3,1,valid,50.0,all_days,0.5,0.5000000000000001,0.5,2026-04-01,2026-04-17,2026-04-20,2026-04-29,2026-04-30,2026-05-14,8,0.5,0.004184795363261388,6.303172170546781e-05,0.032921812762191305,-0.0201973099681384,1.9964815691287818
+all_no_ak,extra_trees_600_d3,1,test,50.0,all_days,0.5,0.5000000000000001,0.5,2026-04-01,2026-04-17,2026-04-20,2026-04-29,2026-04-30,2026-05-14,8,0.5,-0.001861977449353605,0.002730855379144418,-0.018592161533969698,-0.082944753347436,0.8675492817114054

@@ -1,0 +1,8 @@
+{
+  "rows": 33,
+  "date_min": "2026-04-01",
+  "date_max": "2026-05-21",
+  "cutoff_time": "14:55",
+  "min_bars": 40,
+  "out": "saved_data\\asof1455_dryrun_check\\600312_asof_samples\\training_samples_asof1455.csv"
+}

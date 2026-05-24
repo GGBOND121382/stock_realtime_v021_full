@@ -382,6 +382,8 @@ def build_save_command(row: pd.Series, args: argparse.Namespace, artifact_name: 
         "--entry-policy", str(row["entry_policy"]),
         "--target-hit-bps", str(safe_float(row.get("target_hit_bps"), 50.0)),
         "--entry-vwap-premium-bps", str(args.entry_vwap_premium_bps),
+        "--feature-time-mode", str(row.get("feature_time_mode", "eod") or "eod"),
+        "--feature-cutoff-time", str(row.get("feature_cutoff_time", "") or ""),
         "--round-trip-cost-bps", str(args.round_trip_cost_bps),
         "--valid-rows", str(args.valid_rows),
         "--min-train-entries", str(args.min_train_entries),

@@ -1,0 +1,142 @@
+{
+  "profile": "aero_nuclear_equipment",
+  "description": "Aero-engine/military/nuclear-equipment/high-alloy proxy for 应流股份",
+  "sample_rows": 33,
+  "merged_rows": 33,
+  "raw_rows": 33,
+  "raw_date_min": "2026-04-01",
+  "raw_date_max": "2026-05-21",
+  "lag_days_legacy": null,
+  "lag_policy": {
+    "domestic": 0,
+    "futures": 1,
+    "us": 1
+  },
+  "enable_us_yf": false,
+  "feature_cols": 461,
+  "source_meta": {
+    "profile": {
+      "key": "aero_nuclear_equipment",
+      "prefix": "ane",
+      "description": "Aero-engine/military/nuclear-equipment/high-alloy proxy for 应流股份",
+      "stocks": [
+        "600893",
+        "600765",
+        "000768",
+        "003816",
+        "601985",
+        "601611",
+        "300034"
+      ],
+      "etfs": [
+        "512660",
+        "512670",
+        "512710"
+      ],
+      "futures": [
+        "NI0",
+        "SS0",
+        "AL0"
+      ],
+      "boards": [
+        "军工装备",
+        "军工电子",
+        "通用设备",
+        "专用设备"
+      ],
+      "us_tickers": []
+    },
+    "used": {
+      "stocks": [
+        "600893",
+        "600765",
+        "000768",
+        "003816",
+        "601985",
+        "601611",
+        "300034"
+      ],
+      "etfs": [
+        "512660",
+        "512670",
+        "512710"
+      ],
+      "futures": [
+        "NI0",
+        "SS0",
+        "AL0"
+      ],
+      "boards": [
+        "军工装备",
+        "军工电子",
+        "通用设备",
+        "专用设备"
+      ],
+      "us_yf": []
+    },
+    "start_date": "20260401",
+    "end_date": "20260521",
+    "target_symbol_excluded": "603308",
+    "em_sources_used": false,
+    "baostock_cache_dir": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\baostock_external_cache",
+    "us_yfinance_enabled": false
+  },
+  "errors": {},
+  "top_missing": {
+    "ane_stock_vs_future_basket_ret20": 0.6363636363636364,
+    "ane_fut_al0_range_pct_ret20": 0.6363636363636364,
+    "ane_fut_al0_close_z60": 0.6363636363636364,
+    "ane_fut_al0_close_ret20": 0.6363636363636364,
+    "ane_fut_ss0_close_ret20": 0.6363636363636364,
+    "ane_fut_ss0_range_pct_ret20": 0.6363636363636364,
+    "ane_fut_ss0_range_pct_z60": 0.6363636363636364,
+    "ane_fut_ss0_close_z60": 0.6363636363636364,
+    "ane_fut_ni0_close_ret20": 0.6363636363636364,
+    "ane_fut_ni0_range_pct_ret20": 0.6363636363636364,
+    "ane_fut_ni0_range_pct_z60": 0.6363636363636364,
+    "ane_fut_ni0_close_z60": 0.6363636363636364,
+    "ane_future_basket_close_ret20": 0.6363636363636364,
+    "ane_future_basket_close_z60": 0.6363636363636364,
+    "ane_fut_al0_range_pct_z60": 0.6363636363636364,
+    "ane_stk_600765_range_pct_ret20": 0.6060606060606061,
+    "ane_board_basket_close_z60": 0.6060606060606061,
+    "ane_board_basket_close_ret20": 0.6060606060606061,
+    "ane_board_b04_range_pct_z60": 0.6060606060606061,
+    "ane_board_b04_range_pct_ret20": 0.6060606060606061,
+    "ane_board_b04_close_z60": 0.6060606060606061,
+    "ane_stk_003816_close_ret20": 0.6060606060606061,
+    "ane_stk_003816_close_z60": 0.6060606060606061,
+    "ane_board_b03_range_pct_z60": 0.6060606060606061,
+    "ane_stk_000768_close_z60": 0.6060606060606061,
+    "ane_stk_000768_range_pct_ret20": 0.6060606060606061,
+    "ane_stk_000768_range_pct_z60": 0.6060606060606061,
+    "ane_stk_600893_range_pct_z60": 0.6060606060606061,
+    "ane_stk_600765_close_z60": 0.6060606060606061,
+    "ane_stk_600765_close_ret20": 0.6060606060606061,
+    "ane_stk_600765_range_pct_z60": 0.6060606060606061,
+    "ane_board_b03_close_z60": 0.6060606060606061,
+    "ane_board_b03_range_pct_ret20": 0.6060606060606061,
+    "ane_board_b04_close_ret20": 0.6060606060606061,
+    "ane_stk_000768_close_ret20": 0.6060606060606061,
+    "ane_stock_basket_close_ret20": 0.6060606060606061,
+    "ane_etf_512660_close_z60": 0.6060606060606061,
+    "ane_stk_601985_range_pct_ret20": 0.6060606060606061,
+    "ane_etf_512660_range_pct_z60": 0.6060606060606061,
+    "ane_etf_512670_close_z60": 0.6060606060606061,
+    "ane_etf_512670_close_ret20": 0.6060606060606061,
+    "ane_etf_512670_range_pct_z60": 0.6060606060606061,
+    "ane_etf_512670_range_pct_ret20": 0.6060606060606061,
+    "ane_etf_512710_close_ret20": 0.6060606060606061,
+    "ane_stk_601985_range_pct_z60": 0.6060606060606061,
+    "ane_stk_601985_close_ret20": 0.6060606060606061,
+    "ane_stk_601985_close_z60": 0.6060606060606061,
+    "ane_board_b01_close_z60": 0.6060606060606061,
+    "ane_board_b01_range_pct_ret20": 0.6060606060606061,
+    "ane_board_b02_close_ret20": 0.6060606060606061
+  },
+  "outputs": {
+    "features": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\stock_external_features_aero_nuclear_equipment.csv",
+    "merged_samples": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\training_samples_with_aero_nuclear_equipment_external.csv",
+    "report": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\validation_report.json"
+  }
+}

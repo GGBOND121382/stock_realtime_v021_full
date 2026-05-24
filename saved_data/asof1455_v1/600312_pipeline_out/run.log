@@ -1,0 +1,854 @@
+=== nextday pipeline start: 2026-05-25T00:41:52 ===
+symbol=600312.SH, out_root=C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out
+
+[2026-05-25T00:41:52] RUN update_data
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 600312 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-21 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-21 15:00:00' --output_dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+服务器连接失败，请稍后再试。
+[WinError 10057] 由于套接字没有连接并且(当使用一个 sendto 调用发送数据报套接字时)没有提供地址，发送或接收数据的请求没有被接受。
+接收数据异常，请稍后再试。
+Traceback (most recent call last):
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 2084, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 2075, in main
+    result = run_update_data(args)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 953, in run_update_data
+    mod, cfg, meta, daily_feat, intraday_feat, fetch_logs, base_paths = helper.build_feature_frames(args)
+                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 797, in build_feature_frames
+    daily_df, daily_logs = _incremental_fetch_daily(args.symbol, args.daily_start, args.daily_end, adjust=args.adjust, cache_path=daily_cache_path, force_refresh=force_refresh, cache_mode=cache_mode)
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 363, in _incremental_fetch_daily
+    fresh, meta = fetch_stock_daily_range(symbol, str(req_start.date()), str(req_end.date()), adjust)
+                  ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 273, in fetch_stock_daily_range
+    _login()
+    ~~~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 103, in _login
+    raise RuntimeError(f"BaoStock 登录失败: {lg.error_code} {lg.error_msg}")
+RuntimeError: BaoStock 登录失败: 10002007 网络接收错误。
+=== nextday pipeline start: 2026-05-25T00:42:41 ===
+symbol=600312.SH, out_root=C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out
+
+[2026-05-25T00:42:41] RUN update_data
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 600312 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-21 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-21 15:00:00' --output_dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+login success!
+logout success!
+login success!
+logout success!
+login success!
+logout success!
+{
+  "mode": "update_data",
+  "symbol": "600312",
+  "data_source": "baostock",
+  "daily_rows": 2031,
+  "intraday_rows": 74112,
+  "daily_min": "2018-01-02 00:00:00",
+  "daily_max": "2026-05-21 00:00:00",
+  "intraday_min": "2020-01-02 09:35:00",
+  "intraday_max": "2026-05-21 15:00:00",
+  "base_paths": {
+    "daily_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\600312_daily.csv",
+    "intraday_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\600312_5m.csv",
+    "benchmark_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\000300_benchmark_daily.csv",
+    "raw_daily_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\600312_daily_raw.csv",
+    "raw_intraday_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\600312_5m_raw.csv",
+    "raw_benchmark_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+    "daily_features_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\daily_features.csv",
+    "intraday_features_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\intraday_features.csv",
+    "daily_features_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\feature_cache\\daily_features_cache.csv",
+    "intraday_features_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\feature_cache\\intraday_features_cache.csv",
+    "feature_state_json": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\feature_cache\\feature_state.json"
+  },
+  "fetch_logs": {
+    "symbol": "600312",
+    "benchmark_symbol": "000300",
+    "daily_start": "2018-01-01",
+    "daily_end": "2026-05-21",
+    "intraday_start": "2018-01-01 09:30:00",
+    "intraday_end": "2026-05-21 15:00:00",
+    "perf_start": "2018-01-01",
+    "data_source": "baostock",
+    "cache_mode": "incremental",
+    "force_refresh": false,
+    "raw_cache_dir": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache",
+    "feature_cache_dir": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\feature_cache",
+    "feature_cache_mode": "incremental",
+    "daily": {
+      "cache_path": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\600312_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-21",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600312",
+          "adjustflag": "2",
+          "rows": 2031,
+          "start": "2018-01-01",
+          "end": "2026-05-21"
+        }
+      ],
+      "cache_after": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      }
+    },
+    "intraday_5m": {
+      "cache_path": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\600312_5m_raw.csv",
+      "requested_start": "2018-01-01 09:30:00",
+      "requested_end": "2026-05-21 15:00:00",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600312",
+          "adjustflag": "2",
+          "requested_start": "2018-01-01 09:30:00",
+          "effective_start": "2018-01-01 09:30:00",
+          "requested_end": "2026-05-21 15:00:00",
+          "rows": 74112
+        }
+      ],
+      "cache_after": {
+        "rows": 74112,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-21 15:00:00"
+      }
+    },
+    "benchmark_daily": {
+      "cache_path": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-21",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.000300",
+          "rows": 2031,
+          "start": "2018-01-01",
+          "end": "2026-05-21"
+        }
+      ],
+      "cache_after": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      }
+    },
+    "feature_build": {
+      "mode": "full_rebuild",
+      "reason": "feature_cache_missing",
+      "daily_cache_after": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      },
+      "intraday_cache_after": {
+        "rows": 74112,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-21 15:00:00"
+      },
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "daily_appended_rows": 2031,
+      "intraday_appended_rows": 74112
+    },
+    "feature_state": {
+      "daily_feature_max": "2026-05-21 00:00:00",
+      "intraday_feature_max": "2026-05-21 15:00:00",
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "feature_build_mode": "full_rebuild"
+    }
+  }
+}
+=== nextday pipeline start: 2026-05-25T00:46:02 ===
+symbol=600312.SH, out_root=C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out
+
+[2026-05-25T00:46:02] RUN update_data
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 600312 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-21 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-21 15:00:00' --output_dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+login success!
+logout success!
+login success!
+logout success!
+login success!
+logout success!
+{
+  "mode": "update_data",
+  "symbol": "600312",
+  "data_source": "baostock",
+  "daily_rows": 2031,
+  "intraday_rows": 74112,
+  "daily_min": "2018-01-02 00:00:00",
+  "daily_max": "2026-05-21 00:00:00",
+  "intraday_min": "2020-01-02 09:35:00",
+  "intraday_max": "2026-05-21 15:00:00",
+  "base_paths": {
+    "daily_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\600312_daily.csv",
+    "intraday_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\600312_5m.csv",
+    "benchmark_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\000300_benchmark_daily.csv",
+    "raw_daily_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\600312_daily_raw.csv",
+    "raw_intraday_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\600312_5m_raw.csv",
+    "raw_benchmark_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+    "daily_features_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\daily_features.csv",
+    "intraday_features_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\intraday_features.csv",
+    "daily_features_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\feature_cache\\daily_features_cache.csv",
+    "intraday_features_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\feature_cache\\intraday_features_cache.csv",
+    "feature_state_json": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\feature_cache\\feature_state.json"
+  },
+  "fetch_logs": {
+    "symbol": "600312",
+    "benchmark_symbol": "000300",
+    "daily_start": "2018-01-01",
+    "daily_end": "2026-05-21",
+    "intraday_start": "2018-01-01 09:30:00",
+    "intraday_end": "2026-05-21 15:00:00",
+    "perf_start": "2018-01-01",
+    "data_source": "baostock",
+    "cache_mode": "incremental",
+    "force_refresh": false,
+    "raw_cache_dir": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache",
+    "feature_cache_dir": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\feature_cache",
+    "feature_cache_mode": "incremental",
+    "daily": {
+      "cache_path": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\600312_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-21",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600312",
+          "adjustflag": "2",
+          "rows": 0
+        }
+      ],
+      "cache_after": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      }
+    },
+    "intraday_5m": {
+      "cache_path": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\600312_5m_raw.csv",
+      "requested_start": "2018-01-01 09:30:00",
+      "requested_end": "2026-05-21 15:00:00",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 74112,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-21 15:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600312",
+          "adjustflag": "2",
+          "requested_start": "2018-01-01 09:30:00",
+          "effective_start": "2018-01-01 09:30:00",
+          "requested_end": "2020-01-02 09:30:00",
+          "rows": 0
+        }
+      ],
+      "cache_after": {
+        "rows": 74112,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-21 15:00:00"
+      }
+    },
+    "benchmark_daily": {
+      "cache_path": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-21",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.000300",
+          "rows": 0,
+          "start": "2018-01-01",
+          "end": "2018-01-01"
+        }
+      ],
+      "cache_after": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      }
+    },
+    "feature_build": {
+      "mode": "cache_reuse_no_rebuild",
+      "daily_cache": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      },
+      "intraday_cache": {
+        "rows": 74112,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-21 15:00:00"
+      },
+      "daily_context_days": 260,
+      "intraday_context_days": 40
+    },
+    "feature_state": {
+      "daily_feature_max": "2026-05-21 00:00:00",
+      "intraday_feature_max": "2026-05-21 15:00:00",
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "feature_build_mode": "cache_reuse_no_rebuild"
+    }
+  }
+}
+
+[2026-05-25T00:46:13] RUN samples
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_nextday_samples_from_baostock.py --daily-features 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\00_base\daily_features.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\00_base\600312_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\01_samples' --min-bars 40
+{
+  "rows": 1543,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-20",
+  "out": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\01_samples\\training_samples.csv"
+}
+
+[2026-05-25T00:46:14] RUN asof_samples
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_asof1455_training_samples.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\01_samples\training_samples.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\00_base\600312_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\01_samples_asof1455' --cutoff-time 14:55 --min-bars 40
+{
+  "rows": 1543,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-20",
+  "cutoff_time": "14:55",
+  "min_bars": 40,
+  "out": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\01_samples_asof1455\\training_samples_asof1455.csv"
+}
+
+[2026-05-25T00:46:15] RUN fundamental
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_fundamental_features.py --symbol 600312.SH --daily-samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\01_samples_asof1455\training_samples_asof1455.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\02_fundamental' --start-date 2018-01-01 --end-date 2026-05-21 --fallback-lag-days 120
+login success!
+logout success!
+{
+  "rows": 1543,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-20",
+  "source_errors": [
+    "stock_individual_fund_flow failed: ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/fflow/daykline/get?lmt=0&klt=101&secid=1.600312&fields1=f1%2Cf2%2Cf3%2Cf7&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61%2Cf62%2Cf63%2Cf64%2Cf65&ut=b2884a393a59ad64002292a3e90d46a5&_=1779641230462 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))"
+  ],
+  "top_missing_rates": {
+    "profit_MBRevenue_chg4q": 0.9559300064808814,
+    "profit_MBRevenue": 0.9429682436811406,
+    "cashflow_ebitToInterest_chg4q": 0.5100453661697991,
+    "cashflow_ebitToInterest": 0.5048606610499028,
+    "cashflow_CFOToNP_chg4q": 0.060272197018794556,
+    "cashflow_CFOToNP": 0.05508749189889825,
+    "psTTM_rank252": 0.03823720025923526,
+    "pbMRQ_rank252": 0.03823720025923526,
+    "pcfNcfTTM_rank252": 0.03823720025923526,
+    "peTTM_rank252": 0.03823720025923526,
+    "profit_npMargin_chg4q": 0.002592352559948153,
+    "cashflow_CFOToOR_chg4q": 0.002592352559948153,
+    "profit_roeAvg_chg4q": 0.002592352559948153,
+    "cashflow_tangibleAssetToAsset_chg4q": 0.002592352559948153,
+    "cashflow_NCAToAsset_chg4q": 0.002592352559948153,
+    "cashflow_CFOToGr_chg4q": 0.002592352559948153,
+    "cashflow_CAToAsset_chg4q": 0.002592352559948153,
+    "growth_YOYNI_chg4q": 0.002592352559948153,
+    "growth_YOYEPSBasic_chg4q": 0.002592352559948153,
+    "growth_YOYPNI_chg4q": 0.002592352559948153,
+    "solvency_currentRatio_chg4q": 0.002592352559948153,
+    "solvency_quickRatio_chg4q": 0.002592352559948153,
+    "solvency_cashRatio_chg4q": 0.002592352559948153,
+    "growth_YOYEquity_chg4q": 0.002592352559948153,
+    "growth_YOYAsset_chg4q": 0.002592352559948153,
+    "dupont_dupontROE_chg4q": 0.002592352559948153,
+    "dupont_dupontAssetStoEquity_chg4q": 0.002592352559948153,
+    "dupont_dupontAssetTurn_chg4q": 0.002592352559948153,
+    "dupont_dupontPnitoni_chg4q": 0.002592352559948153,
+    "dupont_dupontNitogr_chg4q": 0.002592352559948153
+  },
+  "valuation_non_null": {
+    "peTTM": 1543,
+    "pbMRQ": 1543,
+    "psTTM": 1543,
+    "pcfNcfTTM": 1543
+  },
+  "future_effective_date_violations": 0,
+  "rows_with_quarterly": 1543,
+  "sample_rows": 1543,
+  "quarterly_raw_rows": 37,
+  "quarterly_used_pubDate_rows": 37,
+  "quarterly_fallback_rows": 0,
+  "elapsed_seconds": 60.496,
+  "symbol": "600312",
+  "baostock_code": "sh.600312",
+  "valuation_rows": 2031,
+  "fund_flow_rows": 0,
+  "feature_columns": 89,
+  "merged_columns": 179,
+  "outputs": {
+    "daily_valuation": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\02_fundamental\\baostock_daily_valuation.csv",
+    "quarterly_fundamentals": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\02_fundamental\\baostock_quarterly_fundamentals_pit.csv",
+    "fundamental_features": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\02_fundamental\\fundamental_features.csv",
+    "merged_samples": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\02_fundamental\\training_samples_with_fundamentals.csv"
+  }
+}
+
+[2026-05-25T00:47:16] RUN sector
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_sector_features.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\02_fundamental\training_samples_with_fundamentals.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\03_sector' --sector-symbol '电网设备' --start-date 2018-01-01 --end-date 2026-05-21
+
+  0%|          | 0/9 [00:00<?, ?it/s]
+ 11%|█         | 1/9 [00:03<00:25,  3.15s/it]
+ 22%|██▏       | 2/9 [00:05<00:19,  2.73s/it]
+ 33%|███▎      | 3/9 [00:08<00:16,  2.79s/it]
+ 44%|████▍     | 4/9 [00:10<00:13,  2.68s/it]
+ 56%|█████▌    | 5/9 [00:14<00:11,  2.96s/it]
+ 67%|██████▋   | 6/9 [00:18<00:09,  3.30s/it]
+ 78%|███████▊  | 7/9 [00:20<00:06,  3.03s/it]
+ 89%|████████▉ | 8/9 [00:23<00:02,  2.93s/it]
+100%|██████████| 9/9 [00:26<00:00,  2.90s/it]
+                                             
+{
+  "sector_symbol": "电网设备",
+  "sector_rows": 2031,
+  "sector_date_min": "2018-01-02",
+  "sector_date_max": "2026-05-21",
+  "sample_rows": 1543,
+  "merged_rows": 1543,
+  "sector_feature_cols": 23,
+  "top_missing": {
+    "sector_ret60": 0.03888528839922229,
+    "sector_ma60_gap": 0.019442644199611146,
+    "stock_vs_sector_ret20": 0.012961762799740765,
+    "sector_ret20": 0.012961762799740765,
+    "sector_vol20": 0.007128969539857421,
+    "sector_ma20_gap": 0.0064808813998703824,
+    "sector_range_z20": 0.0064808813998703824,
+    "sector_volume_shock20": 0.0064808813998703824,
+    "sector_amount_z20": 0.0064808813998703824,
+    "sector_volume_z20": 0.0064808813998703824,
+    "sector_amount_shock20": 0.0064808813998703824,
+    "sector_ret5": 0.0032404406999351912,
+    "stock_vs_sector_ret5": 0.0032404406999351912,
+    "sector_vs_bench_ret5": 0.0032404406999351912,
+    "stock_vs_sector_ret1": 0.0006480881399870382,
+    "sector_ret1": 0.0006480881399870382,
+    "sector_amount": 0.0,
+    "sector_volume": 0.0,
+    "sector_close": 0.0,
+    "sector_low": 0.0
+  },
+  "outputs": {
+    "sector_index": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\03_sector\\sector_index_ths.csv",
+    "sector_features": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\03_sector\\sector_features.csv",
+    "merged_samples": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\03_sector\\training_samples_with_sector.csv"
+  }
+}
+[INFO] final samples for search: C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\03_sector\training_samples_with_sector.csv
+
+[2026-05-25T00:47:48] RUN search_vwap_low_hit_50bps
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' model_training/search_walk_forward_model_complexity.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\03_sector\training_samples_with_sector.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\00_base\600312_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\10_search\search_vwap_low_hit_50bps' --round-trip-cost-bps 1.7 --target-hit-bps 50.0 --label-mode hit --entry-policy vwap_low --entry-vwap-premium-bps 50.0 --feature-time-mode asof1455 --feature-cutoff-time 14:55 --max-missing 0.35 --groups all_no_ak --models xgb_d3_400_lr003_mcw3,extra_trees_600_d3,lgbm_leaves7_400 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
+{
+  "rows": 1543,
+  "target_hit_bps": 50.0,
+  "label_mode": "hit",
+  "entry_policy": "vwap_low",
+  "entry_vwap_premium_bps": 50.0,
+  "feature_time_mode": "asof1455",
+  "feature_cutoff_time": "14:55",
+  "groups": {
+    "all_no_ak": 96
+  },
+  "models": [
+    "xgb_d3_400_lr003_mcw3",
+    "extra_trees_600_d3",
+    "lgbm_leaves7_400"
+  ],
+  "top": [
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "all_no_ak",
+      "model_name": "lgbm_leaves7_400",
+      "target_hit_bps": 50.0,
+      "trades": 181,
+      "win_rate": 0.7679558011049724,
+      "avg_return": -0.0007596432645841507,
+      "median_return": 0.005,
+      "compound_return": -0.1408902047907138,
+      "max_drawdown": -0.23178975939266333,
+      "profit_factor": 0.8340398974175965,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "all_no_ak",
+      "model_name": "extra_trees_600_d3",
+      "target_hit_bps": 50.0,
+      "trades": 203,
+      "win_rate": 0.7093596059113301,
+      "avg_return": -0.0009222741673205673,
+      "median_return": 0.005,
+      "compound_return": -0.1813748269366462,
+      "max_drawdown": -0.21760520509238346,
+      "profit_factor": 0.7904519584019353,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "all_no_ak",
+      "model_name": "xgb_d3_400_lr003_mcw3",
+      "target_hit_bps": 50.0,
+      "trades": 195,
+      "win_rate": 0.7384615384615385,
+      "avg_return": -0.0017430668584353557,
+      "median_return": 0.005,
+      "compound_return": -0.3017654031691416,
+      "max_drawdown": -0.33131479379712603,
+      "profit_factor": 0.677479990481841,
+      "windows": 10
+    }
+  ]
+}
+
+[2026-05-25T00:48:20] RUN search_vwap_low_hit_80bps
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' model_training/search_walk_forward_model_complexity.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\03_sector\training_samples_with_sector.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\00_base\600312_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\10_search\search_vwap_low_hit_80bps' --round-trip-cost-bps 1.7 --target-hit-bps 80.0 --label-mode hit --entry-policy vwap_low --entry-vwap-premium-bps 50.0 --feature-time-mode asof1455 --feature-cutoff-time 14:55 --max-missing 0.35 --groups all_no_ak --models xgb_d3_400_lr003_mcw3,extra_trees_600_d3,lgbm_leaves7_400 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
+{
+  "rows": 1543,
+  "target_hit_bps": 80.0,
+  "label_mode": "hit",
+  "entry_policy": "vwap_low",
+  "entry_vwap_premium_bps": 50.0,
+  "feature_time_mode": "asof1455",
+  "feature_cutoff_time": "14:55",
+  "groups": {
+    "all_no_ak": 96
+  },
+  "models": [
+    "xgb_d3_400_lr003_mcw3",
+    "extra_trees_600_d3",
+    "lgbm_leaves7_400"
+  ],
+  "top": [
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "all_no_ak",
+      "model_name": "lgbm_leaves7_400",
+      "target_hit_bps": 80.0,
+      "trades": 196,
+      "win_rate": 0.6836734693877551,
+      "avg_return": -2.5166073860280355e-05,
+      "median_return": 0.008,
+      "compound_return": -0.023650508777561807,
+      "max_drawdown": -0.1413432318603176,
+      "profit_factor": 0.9953715979626341,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "all_no_ak",
+      "model_name": "extra_trees_600_d3",
+      "target_hit_bps": 80.0,
+      "trades": 207,
+      "win_rate": 0.642512077294686,
+      "avg_return": -0.0007674488977394197,
+      "median_return": 0.008,
+      "compound_return": -0.1625179993981637,
+      "max_drawdown": -0.20903697469290317,
+      "profit_factor": 0.8624716490916251,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "all_no_ak",
+      "model_name": "xgb_d3_400_lr003_mcw3",
+      "target_hit_bps": 80.0,
+      "trades": 189,
+      "win_rate": 0.6666666666666666,
+      "avg_return": -0.0010016165652882692,
+      "median_return": 0.008,
+      "compound_return": -0.19087979147863898,
+      "max_drawdown": -0.28419308188857706,
+      "profit_factor": 0.8403948312581837,
+      "windows": 10
+    }
+  ]
+}
+
+[2026-05-25T00:48:52] RUN search_vwap_low_close_profit_50bps
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' model_training/search_walk_forward_model_complexity.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\03_sector\training_samples_with_sector.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\00_base\600312_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\10_search\search_vwap_low_close_profit_50bps' --round-trip-cost-bps 1.7 --target-hit-bps 50.0 --label-mode close_profit --entry-policy vwap_low --entry-vwap-premium-bps 50.0 --feature-time-mode asof1455 --feature-cutoff-time 14:55 --max-missing 0.35 --groups all_no_ak --models xgb_d3_400_lr003_mcw3,extra_trees_600_d3,lgbm_leaves7_400 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
+{
+  "rows": 1543,
+  "target_hit_bps": 50.0,
+  "label_mode": "close_profit",
+  "entry_policy": "vwap_low",
+  "entry_vwap_premium_bps": 50.0,
+  "feature_time_mode": "asof1455",
+  "feature_cutoff_time": "14:55",
+  "groups": {
+    "all_no_ak": 96
+  },
+  "models": [
+    "xgb_d3_400_lr003_mcw3",
+    "extra_trees_600_d3",
+    "lgbm_leaves7_400"
+  ],
+  "top": [
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "all_no_ak",
+      "model_name": "extra_trees_600_d3",
+      "target_hit_bps": 50.0,
+      "trades": 253,
+      "win_rate": 0.525691699604743,
+      "avg_return": 0.0036691055209538996,
+      "median_return": 0.0015013091922007095,
+      "compound_return": 1.338533608058185,
+      "max_drawdown": -0.22920646108685339,
+      "profit_factor": 1.5175613335604081,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "all_no_ak",
+      "model_name": "xgb_d3_400_lr003_mcw3",
+      "target_hit_bps": 50.0,
+      "trades": 229,
+      "win_rate": 0.5327510917030568,
+      "avg_return": 0.002895981888569786,
+      "median_return": 0.0014897510373443924,
+      "compound_return": 0.8141620875619602,
+      "max_drawdown": -0.15341865433745883,
+      "profit_factor": 1.4054236624488834,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "all_no_ak",
+      "model_name": "lgbm_leaves7_400",
+      "target_hit_bps": 50.0,
+      "trades": 178,
+      "win_rate": 0.5,
+      "avg_return": 0.0029398488340941194,
+      "median_return": 0.00012655990510080165,
+      "compound_return": 0.5855675348921883,
+      "max_drawdown": -0.21937441243723732,
+      "profit_factor": 1.3652508993443557,
+      "windows": 10
+    }
+  ]
+}
+
+[2026-05-25T00:49:24] RUN search_all_days_hit_50bps
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' model_training/search_walk_forward_model_complexity.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\03_sector\training_samples_with_sector.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\00_base\600312_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\10_search\search_all_days_hit_50bps' --round-trip-cost-bps 1.7 --target-hit-bps 50.0 --label-mode hit --entry-policy all_days --entry-vwap-premium-bps 50.0 --feature-time-mode asof1455 --feature-cutoff-time 14:55 --max-missing 0.35 --groups all_no_ak --models xgb_d3_400_lr003_mcw3,extra_trees_600_d3,lgbm_leaves7_400 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
+{
+  "rows": 1543,
+  "target_hit_bps": 50.0,
+  "label_mode": "hit",
+  "entry_policy": "all_days",
+  "entry_vwap_premium_bps": 50.0,
+  "feature_time_mode": "asof1455",
+  "feature_cutoff_time": "14:55",
+  "groups": {
+    "all_no_ak": 96
+  },
+  "models": [
+    "xgb_d3_400_lr003_mcw3",
+    "extra_trees_600_d3",
+    "lgbm_leaves7_400"
+  ],
+  "top": [
+    {
+      "entry_policy": "all_days",
+      "feature_group": "all_no_ak",
+      "model_name": "lgbm_leaves7_400",
+      "target_hit_bps": 50.0,
+      "trades": 171,
+      "win_rate": 0.7660818713450293,
+      "avg_return": -0.0007907452174638939,
+      "median_return": 0.005,
+      "compound_return": -0.13835446521771466,
+      "max_drawdown": -0.22408845173057468,
+      "profit_factor": 0.8280129055598351,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
+      "feature_group": "all_no_ak",
+      "model_name": "extra_trees_600_d3",
+      "target_hit_bps": 50.0,
+      "trades": 179,
+      "win_rate": 0.6927374301675978,
+      "avg_return": -0.0010954787684143354,
+      "median_return": 0.005,
+      "compound_return": -0.1874144903774,
+      "max_drawdown": -0.20976169727343486,
+      "profit_factor": 0.7555965005051479,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
+      "feature_group": "all_no_ak",
+      "model_name": "xgb_d3_400_lr003_mcw3",
+      "target_hit_bps": 50.0,
+      "trades": 199,
+      "win_rate": 0.7437185929648241,
+      "avg_return": -0.0015115878116740726,
+      "median_return": 0.005,
+      "compound_return": -0.2733921757356671,
+      "max_drawdown": -0.3279713677661118,
+      "profit_factor": 0.709307213500523,
+      "windows": 10
+    }
+  ]
+}
+
+[2026-05-25T00:49:55] RUN search_all_days_hit_80bps
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' model_training/search_walk_forward_model_complexity.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\03_sector\training_samples_with_sector.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\00_base\600312_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\10_search\search_all_days_hit_80bps' --round-trip-cost-bps 1.7 --target-hit-bps 80.0 --label-mode hit --entry-policy all_days --entry-vwap-premium-bps 50.0 --feature-time-mode asof1455 --feature-cutoff-time 14:55 --max-missing 0.35 --groups all_no_ak --models xgb_d3_400_lr003_mcw3,extra_trees_600_d3,lgbm_leaves7_400 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
+{
+  "rows": 1543,
+  "target_hit_bps": 80.0,
+  "label_mode": "hit",
+  "entry_policy": "all_days",
+  "entry_vwap_premium_bps": 50.0,
+  "feature_time_mode": "asof1455",
+  "feature_cutoff_time": "14:55",
+  "groups": {
+    "all_no_ak": 96
+  },
+  "models": [
+    "xgb_d3_400_lr003_mcw3",
+    "extra_trees_600_d3",
+    "lgbm_leaves7_400"
+  ],
+  "top": [
+    {
+      "entry_policy": "all_days",
+      "feature_group": "all_no_ak",
+      "model_name": "lgbm_leaves7_400",
+      "target_hit_bps": 80.0,
+      "trades": 202,
+      "win_rate": 0.698019801980198,
+      "avg_return": 0.0005442476831889244,
+      "median_return": 0.008,
+      "compound_return": 0.09633669467500283,
+      "max_drawdown": -0.10496638611319631,
+      "profit_factor": 1.1091908493969822,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
+      "feature_group": "all_no_ak",
+      "model_name": "xgb_d3_400_lr003_mcw3",
+      "target_hit_bps": 80.0,
+      "trades": 204,
+      "win_rate": 0.6764705882352942,
+      "avg_return": -0.0006568001615858545,
+      "median_return": 0.008,
+      "compound_return": -0.1451721547040169,
+      "max_drawdown": -0.2736875605868614,
+      "profit_factor": 0.8911537171648243,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
+      "feature_group": "all_no_ak",
+      "model_name": "extra_trees_600_d3",
+      "target_hit_bps": 80.0,
+      "trades": 223,
+      "win_rate": 0.6412556053811659,
+      "avg_return": -0.0008610931421926779,
+      "median_return": 0.008,
+      "compound_return": -0.1913696183574558,
+      "max_drawdown": -0.2362794568280936,
+      "profit_factor": 0.8485954992733552,
+      "windows": 10
+    }
+  ]
+}
+
+[2026-05-25T00:50:27] RUN search_all_days_close_profit_50bps
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' model_training/search_walk_forward_model_complexity.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\03_sector\training_samples_with_sector.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\00_base\600312_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\10_search\search_all_days_close_profit_50bps' --round-trip-cost-bps 1.7 --target-hit-bps 50.0 --label-mode close_profit --entry-policy all_days --entry-vwap-premium-bps 50.0 --feature-time-mode asof1455 --feature-cutoff-time 14:55 --max-missing 0.35 --groups all_no_ak --models xgb_d3_400_lr003_mcw3,extra_trees_600_d3,lgbm_leaves7_400 --quantiles 0.5,0.6,0.7,0.8 --train-rows 756 --valid-rows 126 --test-rows 63 --min-valid-trades 8 --min-train-entries 80
+{
+  "rows": 1543,
+  "target_hit_bps": 50.0,
+  "label_mode": "close_profit",
+  "entry_policy": "all_days",
+  "entry_vwap_premium_bps": 50.0,
+  "feature_time_mode": "asof1455",
+  "feature_cutoff_time": "14:55",
+  "groups": {
+    "all_no_ak": 96
+  },
+  "models": [
+    "xgb_d3_400_lr003_mcw3",
+    "extra_trees_600_d3",
+    "lgbm_leaves7_400"
+  ],
+  "top": [
+    {
+      "entry_policy": "all_days",
+      "feature_group": "all_no_ak",
+      "model_name": "extra_trees_600_d3",
+      "target_hit_bps": 50.0,
+      "trades": 239,
+      "win_rate": 0.5188284518828452,
+      "avg_return": 0.003449278943135523,
+      "median_return": 0.0014897510373443924,
+      "compound_return": 1.1255391423181336,
+      "max_drawdown": -0.22920646108685339,
+      "profit_factor": 1.494927847283393,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
+      "feature_group": "all_no_ak",
+      "model_name": "xgb_d3_400_lr003_mcw3",
+      "target_hit_bps": 50.0,
+      "trades": 238,
+      "win_rate": 0.5336134453781513,
+      "avg_return": 0.0030020318435492565,
+      "median_return": 0.001495530114772551,
+      "compound_return": 0.9020402913133112,
+      "max_drawdown": -0.15341865433745883,
+      "profit_factor": 1.4137075152065666,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
+      "feature_group": "all_no_ak",
+      "model_name": "lgbm_leaves7_400",
+      "target_hit_bps": 50.0,
+      "trades": 186,
+      "win_rate": 0.4946236559139785,
+      "avg_return": 0.0029666766295209242,
+      "median_return": -0.00016999999999999999,
+      "compound_return": 0.6290028090310855,
+      "max_drawdown": -0.21937441243723732,
+      "profit_factor": 1.3731731641648883,
+      "windows": 10
+    }
+  ]
+}
+
+[2026-05-25T00:50:58] RUN summarize
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' model_training/summarize_nextday_search_results.py --pipeline-out 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_v1\600312_pipeline_out\99_summary'
+{
+  "rows": 18,
+  "outputs": {
+    "final_leaderboard": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\99_summary\\final_leaderboard.csv",
+    "best_by_target_top5": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\99_summary\\best_by_target_top5.csv",
+    "best_by_entry_policy_top5": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\99_summary\\best_by_entry_policy_top5.csv",
+    "summary_manifest": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\99_summary\\summary_manifest.json"
+  }
+}
+=== nextday pipeline end: 2026-05-25T00:50:59 status=ok ===

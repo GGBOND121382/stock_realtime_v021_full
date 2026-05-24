@@ -1,0 +1,36 @@
+{
+  "sector_symbol": "通用设备",
+  "sector_rows": 2031,
+  "sector_date_min": "2018-01-02",
+  "sector_date_max": "2026-05-21",
+  "sample_rows": 1543,
+  "merged_rows": 1543,
+  "sector_feature_cols": 23,
+  "top_missing": {
+    "sector_ret60": 0.03888528839922229,
+    "sector_ma60_gap": 0.019442644199611146,
+    "stock_vs_sector_ret20": 0.012961762799740765,
+    "sector_ret20": 0.012961762799740765,
+    "sector_vol20": 0.007128969539857421,
+    "sector_ma20_gap": 0.0064808813998703824,
+    "sector_range_z20": 0.0064808813998703824,
+    "sector_volume_shock20": 0.0064808813998703824,
+    "sector_amount_z20": 0.0064808813998703824,
+    "sector_volume_z20": 0.0064808813998703824,
+    "sector_amount_shock20": 0.0064808813998703824,
+    "sector_ret5": 0.0032404406999351912,
+    "stock_vs_sector_ret5": 0.0032404406999351912,
+    "sector_vs_bench_ret5": 0.0032404406999351912,
+    "stock_vs_sector_ret1": 0.0006480881399870382,
+    "sector_ret1": 0.0006480881399870382,
+    "sector_amount": 0.0,
+    "sector_volume": 0.0,
+    "sector_close": 0.0,
+    "sector_low": 0.0
+  },
+  "outputs": {
+    "sector_index": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\603308_pipeline_out\\03_sector\\sector_index_ths.csv",
+    "sector_features": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\603308_pipeline_out\\03_sector\\sector_features.csv",
+    "merged_samples": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\603308_pipeline_out\\03_sector\\training_samples_with_sector.csv"
+  }
+}

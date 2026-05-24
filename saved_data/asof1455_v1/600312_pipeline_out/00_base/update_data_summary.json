@@ -1,0 +1,137 @@
+{
+  "mode": "update_data",
+  "symbol": "600312",
+  "data_source": "baostock",
+  "daily_rows": 2031,
+  "intraday_rows": 74112,
+  "daily_min": "2018-01-02 00:00:00",
+  "daily_max": "2026-05-21 00:00:00",
+  "intraday_min": "2020-01-02 09:35:00",
+  "intraday_max": "2026-05-21 15:00:00",
+  "base_paths": {
+    "daily_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\600312_daily.csv",
+    "intraday_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\600312_5m.csv",
+    "benchmark_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\000300_benchmark_daily.csv",
+    "raw_daily_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\600312_daily_raw.csv",
+    "raw_intraday_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\600312_5m_raw.csv",
+    "raw_benchmark_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+    "daily_features_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\daily_features.csv",
+    "intraday_features_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\intraday_features.csv",
+    "daily_features_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\feature_cache\\daily_features_cache.csv",
+    "intraday_features_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\feature_cache\\intraday_features_cache.csv",
+    "feature_state_json": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\feature_cache\\feature_state.json"
+  },
+  "fetch_logs": {
+    "symbol": "600312",
+    "benchmark_symbol": "000300",
+    "daily_start": "2018-01-01",
+    "daily_end": "2026-05-21",
+    "intraday_start": "2018-01-01 09:30:00",
+    "intraday_end": "2026-05-21 15:00:00",
+    "perf_start": "2018-01-01",
+    "data_source": "baostock",
+    "cache_mode": "incremental",
+    "force_refresh": false,
+    "raw_cache_dir": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache",
+    "feature_cache_dir": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\feature_cache",
+    "feature_cache_mode": "incremental",
+    "daily": {
+      "cache_path": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\600312_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-21",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600312",
+          "adjustflag": "2",
+          "rows": 0
+        }
+      ],
+      "cache_after": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      }
+    },
+    "intraday_5m": {
+      "cache_path": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\600312_5m_raw.csv",
+      "requested_start": "2018-01-01 09:30:00",
+      "requested_end": "2026-05-21 15:00:00",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 74112,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-21 15:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600312",
+          "adjustflag": "2",
+          "requested_start": "2018-01-01 09:30:00",
+          "effective_start": "2018-01-01 09:30:00",
+          "requested_end": "2020-01-02 09:30:00",
+          "rows": 0
+        }
+      ],
+      "cache_after": {
+        "rows": 74112,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-21 15:00:00"
+      }
+    },
+    "benchmark_daily": {
+      "cache_path": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\600312_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-21",
+      "mode": "incremental",
+      "cache_before": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      },
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.000300",
+          "rows": 0,
+          "start": "2018-01-01",
+          "end": "2018-01-01"
+        }
+      ],
+      "cache_after": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      }
+    },
+    "feature_build": {
+      "mode": "cache_reuse_no_rebuild",
+      "daily_cache": {
+        "rows": 2031,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      },
+      "intraday_cache": {
+        "rows": 74112,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-21 15:00:00"
+      },
+      "daily_context_days": 260,
+      "intraday_context_days": 40
+    },
+    "feature_state": {
+      "daily_feature_max": "2026-05-21 00:00:00",
+      "intraday_feature_max": "2026-05-21 15:00:00",
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "feature_build_mode": "cache_reuse_no_rebuild"
+    }
+  }
+}

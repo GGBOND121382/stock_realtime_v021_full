@@ -230,7 +230,52 @@ def add_market_state_features(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def feature_groups(df: pd.DataFrame, max_missing: float) -> Dict[str, List[str]]:
+def is_first_asof_drop_feature(col: str) -> bool:
+    text = str(col)
+    return bool(
+        "range_pct" in text
+        or "_range_pct_ret" in text
+        or text.endswith("_range_pct_z20")
+        or text.endswith("_range_pct_z60")
+        or text.endswith("_range_pct_ma20_gap")
+        or text.endswith("_amount_shock20")
+        or text.endswith("_amount_z20")
+        or text.endswith("_volume_shock20")
+        or text.endswith("_volume_z20")
+        or text in {"range_pct_shock20", "range_pct_z20", "range_pct_z60"}
+        or text.startswith(("last_30m_", "last_60m_", "afternoon_"))
+    )
+
+
+def is_lagged_daily_external_feature_name(col: str) -> bool:
+    text = str(col).lower()
+    return (
+        "_fut_" in text
+        or "_future_basket_" in text
+        or "_us_" in text
+        or "_us_basket_" in text
+        or "_stock_vs_future_basket_ret" in text
+        or "_stock_vs_us_basket_ret" in text
+    )
+
+
+def is_asof_allowed_feature(col: str) -> bool:
+    text = str(col)
+    fund_prefixes = (
+        "peTTM", "pbMRQ", "psTTM", "pcfNcfTTM",
+        "profit_", "operation_", "growth_", "solvency_", "cashflow_", "dupont_",
+        "fund_days_since_effective",
+    )
+    return (
+        "_asof" in text
+        or text.endswith("_asof1455")
+        or text.startswith(fund_prefixes)
+        or text in {"peTTM", "pbMRQ", "psTTM", "pcfNcfTTM"}
+        or is_lagged_daily_external_feature_name(text)
+    )
+
+
+def feature_groups(df: pd.DataFrame, max_missing: float, feature_time_mode: str | None = "eod") -> Dict[str, List[str]]:
     leak = {
         "date", "next_date", "next_day_vwap", "next_day_close",
         "next_day_low",
@@ -240,12 +285,16 @@ def feature_groups(df: pd.DataFrame, max_missing: float) -> Dict[str, List[str]]
         "pubDate", "statDate", "effective_date", "used_pubDate",
         "entry_signal", "trade_net_close_return", "trade_net_high_return", "trade_target_or_close_return",
         "trade_label_profit", "trade_hit_label", "trade_close_profit_label",
+        "entry_price", "entry_price_source",
+        "feature_time_mode", "feature_cutoff_time", "asof_last_bar_time",
         "selected", "selected_return", "selected_eval_return", "eval_label",
         "score", "hit_score", "threshold", "chosen_threshold", "chosen_quantile",
         "signal", "signal_raw_score_pass",
     }
     numeric = [c for c in df.columns if c not in leak and pd.api.types.is_numeric_dtype(df[c])]
     numeric = [c for c in numeric if df[c].isna().mean() <= max_missing]
+    if str(feature_time_mode or "eod").strip().lower() in {"asof", "asof1455"}:
+        numeric = [c for c in numeric if is_asof_allowed_feature(c) and not is_first_asof_drop_feature(c)]
     fund_prefixes = (
         "peTTM", "pbMRQ", "psTTM", "pcfNcfTTM",
         "profit_", "operation_", "growth_", "solvency_", "cashflow_", "dupont_",
@@ -398,6 +447,7 @@ def compute_entry_signal(
     df: pd.DataFrame,
     entry_policy: str | None = "vwap_low",
     entry_vwap_premium_bps: float = 50.0,
+    feature_time_mode: str | None = "eod",
 ) -> pd.Series:
     """Return tradable-row mask for a given entry policy.
 
@@ -405,15 +455,19 @@ def compute_entry_signal(
     all_days: allow all rows with valid close.
     """
     policy = normalize_entry_policy(entry_policy)
+    mode = str(feature_time_mode or "eod").strip().lower()
+    close_col = "close_asof1455" if mode in {"asof", "asof1455"} and "close_asof1455" in df.columns else "close"
+    vwap_col = "vwap_asof1455" if mode in {"asof", "asof1455"} and "vwap_asof1455" in df.columns else "daily_vwap"
+
     if policy == "all_days":
-        if "close" in df.columns:
-            return pd.to_numeric(df["close"], errors="coerce").notna()
+        if close_col in df.columns:
+            return pd.to_numeric(df[close_col], errors="coerce").notna()
         return pd.Series(True, index=df.index)
 
-    if not {"close", "daily_vwap"}.issubset(df.columns):
+    if close_col not in df.columns or vwap_col not in df.columns:
         return pd.Series(False, index=df.index)
-    close = pd.to_numeric(df["close"], errors="coerce")
-    vwap = pd.to_numeric(df["daily_vwap"], errors="coerce")
+    close = pd.to_numeric(df[close_col], errors="coerce")
+    vwap = pd.to_numeric(df[vwap_col], errors="coerce")
     premium = float(entry_vwap_premium_bps) / 10000.0
     return (close <= vwap * (1.0 + premium)).fillna(False)
 
@@ -424,15 +478,21 @@ def add_trade_returns(
     target_bps: float,
     entry_policy: str | None = "vwap_low",
     entry_vwap_premium_bps: float = 50.0,
+    feature_time_mode: str | None = "eod",
 ) -> pd.DataFrame:
     out = df.copy()
     cost = cost_bps / 10000.0
     target_ret = target_bps / 10000.0
-    out["entry_signal"] = compute_entry_signal(out, entry_policy, entry_vwap_premium_bps).astype(bool)
+    mode = str(feature_time_mode or "eod").strip().lower()
+    entry_col = "close_asof1455" if mode in {"asof", "asof1455"} and "close_asof1455" in out.columns else "close"
+    entry_price = pd.to_numeric(out[entry_col], errors="coerce")
+    out["entry_price"] = entry_price
+    out["entry_price_source"] = entry_col
+    out["entry_signal"] = compute_entry_signal(out, entry_policy, entry_vwap_premium_bps, feature_time_mode).astype(bool)
     if "next_day_high" not in out.columns and "high" in out.columns:
         out["next_day_high"] = out["high"].shift(-1)
-    out["trade_net_close_return"] = out["next_day_close"] / out["close"] - 1.0 - cost
-    out["trade_net_high_return"] = out["next_day_high"] / out["close"] - 1.0 - cost
+    out["trade_net_close_return"] = out["next_day_close"] / entry_price - 1.0 - cost
+    out["trade_net_high_return"] = out["next_day_high"] / entry_price - 1.0 - cost
     out["trade_hit_label"] = (out["trade_net_high_return"] >= target_ret).astype(int)
     out["trade_target_or_close_return"] = np.where(
         out["trade_hit_label"] == 1,
@@ -745,17 +805,32 @@ def main() -> None:
     p.add_argument("--walk-forward-valid-rows", type=int, default=126)
     p.add_argument("--walk-forward-test-rows", type=int, default=63)
     p.add_argument("--walk-forward-min-valid-trades", type=int, default=12)
+    p.add_argument("--entry-policy", choices=["vwap_low", "all_days"], default="vwap_low")
+    p.add_argument("--entry-vwap-premium-bps", type=float, default=50.0)
+    p.add_argument("--feature-time-mode", choices=["eod", "asof", "asof1455"], default="eod")
+    p.add_argument("--feature-cutoff-time", default="")
     args = p.parse_args()
 
     out_dir = ensure_dir(args.out_dir)
     df = pd.read_csv(args.samples, parse_dates=["date"])
-    df = add_reversal_features(df, args.intraday_bars)
+    feature_time_mode = getattr(args, "feature_time_mode", "eod")
+    if str(feature_time_mode).lower() not in {"asof", "asof1455"}:
+        df = add_reversal_features(df, args.intraday_bars)
     df = add_market_state_features(df)
-    df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=[args.target, "next_day_close", "close", "daily_vwap"]).reset_index(drop=True)
-    df = add_trade_returns(df, args.round_trip_cost_bps, args.target_hit_bps)
+    entry_col = "close_asof1455" if str(feature_time_mode).lower() in {"asof", "asof1455"} and "close_asof1455" in df.columns else "close"
+    vwap_col = "vwap_asof1455" if str(feature_time_mode).lower() in {"asof", "asof1455"} and "vwap_asof1455" in df.columns else "daily_vwap"
+    df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=[args.target, "next_day_close", entry_col, vwap_col]).reset_index(drop=True)
+    df = add_trade_returns(
+        df,
+        args.round_trip_cost_bps,
+        args.target_hit_bps,
+        getattr(args, "entry_policy", "vwap_low"),
+        getattr(args, "entry_vwap_premium_bps", 50.0),
+        feature_time_mode,
+    )
     df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["trade_net_close_return", "trade_net_high_return", "trade_target_or_close_return"]).reset_index(drop=True)
     train, valid, test = split_chrono(df)
-    groups = feature_groups(df, args.max_missing)
+    groups = feature_groups(df, args.max_missing, feature_time_mode)
     if args.walk_forward:
         run_walk_forward(df, groups, out_dir, args)
         return
@@ -859,6 +934,8 @@ def main() -> None:
     summary = {
         "rows": int(len(df)),
         "splits": {"train": int(len(train)), "valid": int(len(valid)), "test": int(len(test))},
+        "feature_time_mode": feature_time_mode,
+        "feature_cutoff_time": getattr(args, "feature_cutoff_time", ""),
         "feature_groups": {k: len(v) for k, v in groups.items()},
         "top_test_by_avg_return": threshold_df[threshold_df["split"] == "test"].sort_values("avg_return", ascending=False).head(15).to_dict(orient="records"),
         "outputs": {

@@ -138,6 +138,8 @@ def train_saved_model(args: argparse.Namespace) -> Dict:
         "label_mode": args.label_mode,
         "entry_policy": getattr(args, "entry_policy", "vwap_low"),
         "entry_vwap_premium_bps": getattr(args, "entry_vwap_premium_bps", 50.0),
+        "feature_time_mode": getattr(args, "feature_time_mode", "eod"),
+        "feature_cutoff_time": getattr(args, "feature_cutoff_time", ""),
         "label_col": label_col,
         "return_col": return_col,
         "target_hit_bps": args.target_hit_bps,
@@ -187,6 +189,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--entry-policy", choices=["vwap_low", "all_days"], default="vwap_low",
                    help="Must match the entry policy used when selecting this configuration")
     p.add_argument("--entry-vwap-premium-bps", type=float, default=50.0)
+    p.add_argument("--feature-time-mode", choices=["eod", "asof", "asof1455"], default="eod")
+    p.add_argument("--feature-cutoff-time", default="")
     p.add_argument("--round-trip-cost-bps", type=float, default=1.7)
     p.add_argument("--target-hit-bps", type=float, default=50.0)
     p.add_argument("--max-missing", type=float, default=0.35)

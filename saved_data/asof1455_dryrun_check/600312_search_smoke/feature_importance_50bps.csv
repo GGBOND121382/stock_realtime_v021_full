@@ -1,0 +1,15 @@
+﻿feature_group,model_name,window_id,feature,importance
+all_no_ak,extra_trees_600_d3,1,open_asof1455,0.0
+all_no_ak,extra_trees_600_d3,1,high_asof1455,0.0
+all_no_ak,extra_trees_600_d3,1,low_asof1455,0.0
+all_no_ak,extra_trees_600_d3,1,close_asof1455,0.0
+all_no_ak,extra_trees_600_d3,1,amount_asof1455,0.0
+all_no_ak,extra_trees_600_d3,1,n_intraday_bars_asof1455,0.0
+all_no_ak,extra_trees_600_d3,1,vwap_asof1455,0.0
+all_no_ak,extra_trees_600_d3,1,close_ret1_asof,0.0
+all_no_ak,extra_trees_600_d3,1,close_ret3_asof,0.0
+all_no_ak,extra_trees_600_d3,1,close_ret5_asof,0.0
+all_no_ak,extra_trees_600_d3,1,close_ret20_asof,0.0
+all_no_ak,extra_trees_600_d3,1,close_ma20_gap_asof,0.0
+all_no_ak,extra_trees_600_d3,1,close_z20_asof,0.0
+all_no_ak,extra_trees_600_d3,1,volume_asof1455,0.0

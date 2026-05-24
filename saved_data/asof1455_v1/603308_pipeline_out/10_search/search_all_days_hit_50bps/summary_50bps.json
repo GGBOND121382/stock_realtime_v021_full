@@ -1,0 +1,61 @@
+{
+  "rows": 1543,
+  "target_hit_bps": 50.0,
+  "label_mode": "hit",
+  "entry_policy": "all_days",
+  "entry_vwap_premium_bps": 50.0,
+  "feature_time_mode": "asof1455",
+  "feature_cutoff_time": "14:55",
+  "groups": {
+    "all_no_ak": 164
+  },
+  "models": [
+    "xgb_d3_400_lr003_mcw3",
+    "extra_trees_600_d3",
+    "lgbm_leaves7_400"
+  ],
+  "top": [
+    {
+      "entry_policy": "all_days",
+      "feature_group": "all_no_ak",
+      "model_name": "xgb_d3_400_lr003_mcw3",
+      "target_hit_bps": 50.0,
+      "trades": 215,
+      "win_rate": 0.827906976744186,
+      "avg_return": -0.0010810623927699301,
+      "median_return": 0.005,
+      "compound_return": -0.2277421203689035,
+      "max_drawdown": -0.3190298034184381,
+      "profit_factor": 0.7929236185985619,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
+      "feature_group": "all_no_ak",
+      "model_name": "lgbm_leaves7_400",
+      "target_hit_bps": 50.0,
+      "trades": 172,
+      "win_rate": 0.8081395348837209,
+      "avg_return": -0.0017561284730540235,
+      "median_return": 0.005,
+      "compound_return": -0.27899405036637925,
+      "max_drawdown": -0.32752701178995525,
+      "profit_factor": 0.6970534515995996,
+      "windows": 10
+    },
+    {
+      "entry_policy": "all_days",
+      "feature_group": "all_no_ak",
+      "model_name": "extra_trees_600_d3",
+      "target_hit_bps": 50.0,
+      "trades": 323,
+      "win_rate": 0.7894736842105263,
+      "avg_return": -0.0021181148375465993,
+      "median_return": 0.005,
+      "compound_return": -0.5188365681994795,
+      "max_drawdown": -0.542246160018321,
+      "profit_factor": 0.6507920725782764,
+      "windows": 10
+    }
+  ]
+}

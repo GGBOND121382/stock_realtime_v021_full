@@ -1,0 +1,799 @@
+=== nextday pipeline start: 2026-05-24T16:42:31 ===
+symbol=603308.SH, out_root=C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out
+
+[2026-05-24T16:42:31] RUN update_data
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 603308 --benchmark_symbol 000300 --daily_start 2026-04-01 --daily_end 2026-05-21 --intraday_start '2026-04-01 09:30:00' --intraday_end '2026-05-21 15:00:00' --output_dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+Could not save font_manager cache [Errno 13] Permission denied: 'C:\\Users\\23853\\.matplotlib\\fontlist-v390.json.matplotlib-lock'
+服务器连接失败，请稍后再试。
+[WinError 10057] 由于套接字没有连接并且(当使用一个 sendto 调用发送数据报套接字时)没有提供地址，发送或接收数据的请求没有被接受。
+接收数据异常，请稍后再试。
+Traceback (most recent call last):
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 2084, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 2075, in main
+    result = run_update_data(args)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 953, in run_update_data
+    mod, cfg, meta, daily_feat, intraday_feat, fetch_logs, base_paths = helper.build_feature_frames(args)
+                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 797, in build_feature_frames
+    daily_df, daily_logs = _incremental_fetch_daily(args.symbol, args.daily_start, args.daily_end, adjust=args.adjust, cache_path=daily_cache_path, force_refresh=force_refresh, cache_mode=cache_mode)
+                           ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 363, in _incremental_fetch_daily
+    fresh, meta = fetch_stock_daily_range(symbol, str(req_start.date()), str(req_end.date()), adjust)
+                  ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 273, in fetch_stock_daily_range
+    _login()
+    ~~~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 103, in _login
+    raise RuntimeError(f"BaoStock 登录失败: {lg.error_code} {lg.error_msg}")
+RuntimeError: BaoStock 登录失败: 10002007 网络接收错误。
+=== nextday pipeline start: 2026-05-24T16:46:03 ===
+symbol=603308.SH, out_root=C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out
+
+[2026-05-24T16:46:03] RUN update_data
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 603308 --benchmark_symbol 000300 --daily_start 2026-04-01 --daily_end 2026-05-21 --intraday_start '2026-04-01 09:30:00' --intraday_end '2026-05-21 15:00:00' --output_dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+login success!
+logout success!
+login success!
+logout success!
+login success!
+logout success!
+{
+  "mode": "update_data",
+  "symbol": "603308",
+  "data_source": "baostock",
+  "daily_rows": 33,
+  "intraday_rows": 1584,
+  "daily_min": "2026-04-01 00:00:00",
+  "daily_max": "2026-05-21 00:00:00",
+  "intraday_min": "2026-04-01 09:35:00",
+  "intraday_max": "2026-05-21 15:00:00",
+  "base_paths": {
+    "daily_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\603308_daily.csv",
+    "intraday_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\603308_5m.csv",
+    "benchmark_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\000300_benchmark_daily.csv",
+    "raw_daily_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\raw_cache\\603308_daily_raw.csv",
+    "raw_intraday_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\raw_cache\\603308_5m_raw.csv",
+    "raw_benchmark_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+    "daily_features_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\daily_features.csv",
+    "intraday_features_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\intraday_features.csv",
+    "daily_features_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\feature_cache\\daily_features_cache.csv",
+    "intraday_features_cache_csv": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\feature_cache\\intraday_features_cache.csv",
+    "feature_state_json": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\feature_cache\\feature_state.json"
+  },
+  "fetch_logs": {
+    "symbol": "603308",
+    "benchmark_symbol": "000300",
+    "daily_start": "2026-04-01",
+    "daily_end": "2026-05-21",
+    "intraday_start": "2026-04-01 09:30:00",
+    "intraday_end": "2026-05-21 15:00:00",
+    "perf_start": "2026-04-01",
+    "data_source": "baostock",
+    "cache_mode": "incremental",
+    "force_refresh": false,
+    "raw_cache_dir": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\raw_cache",
+    "feature_cache_dir": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\feature_cache",
+    "feature_cache_mode": "incremental",
+    "daily": {
+      "cache_path": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\raw_cache\\603308_daily_raw.csv",
+      "requested_start": "2026-04-01",
+      "requested_end": "2026-05-21",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.603308",
+          "adjustflag": "2",
+          "rows": 33,
+          "start": "2026-04-01",
+          "end": "2026-05-21"
+        }
+      ],
+      "cache_after": {
+        "rows": 33,
+        "min": "2026-04-01 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      }
+    },
+    "intraday_5m": {
+      "cache_path": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\raw_cache\\603308_5m_raw.csv",
+      "requested_start": "2026-04-01 09:30:00",
+      "requested_end": "2026-05-21 15:00:00",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.603308",
+          "adjustflag": "2",
+          "requested_start": "2026-04-01 09:30:00",
+          "effective_start": "2026-04-01 09:30:00",
+          "requested_end": "2026-05-21 15:00:00",
+          "rows": 1584
+        }
+      ],
+      "cache_after": {
+        "rows": 1584,
+        "min": "2026-04-01 09:35:00",
+        "max": "2026-05-21 15:00:00"
+      }
+    },
+    "benchmark_daily": {
+      "cache_path": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\00_base\\raw_cache\\000300_benchmark_daily_raw.csv",
+      "requested_start": "2026-04-01",
+      "requested_end": "2026-05-21",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.000300",
+          "rows": 33,
+          "start": "2026-04-01",
+          "end": "2026-05-21"
+        }
+      ],
+      "cache_after": {
+        "rows": 33,
+        "min": "2026-04-01 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      }
+    },
+    "feature_build": {
+      "mode": "full_rebuild",
+      "reason": "feature_cache_missing",
+      "daily_cache_after": {
+        "rows": 33,
+        "min": "2026-04-01 00:00:00",
+        "max": "2026-05-21 00:00:00"
+      },
+      "intraday_cache_after": {
+        "rows": 1584,
+        "min": "2026-04-01 09:35:00",
+        "max": "2026-05-21 15:00:00"
+      },
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "daily_appended_rows": 33,
+      "intraday_appended_rows": 1584
+    },
+    "feature_state": {
+      "daily_feature_max": "2026-05-21 00:00:00",
+      "intraday_feature_max": "2026-05-21 15:00:00",
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "feature_build_mode": "full_rebuild"
+    }
+  }
+}
+
+[2026-05-24T16:46:13] RUN samples
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_nextday_samples_from_baostock.py --daily-features 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\00_base\daily_features.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\00_base\603308_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\01_samples' --min-bars 40
+{
+  "rows": 32,
+  "date_min": "2026-04-01",
+  "date_max": "2026-05-20",
+  "out": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\01_samples\\training_samples.csv"
+}
+
+[2026-05-24T16:46:14] RUN fundamental
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_fundamental_features.py --symbol 603308.SH --daily-samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\01_samples\training_samples.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\02_fundamental' --start-date 2026-04-01 --end-date 2026-05-21 --fallback-lag-days 120
+login success!
+logout success!
+{
+  "rows": 32,
+  "date_min": "2026-04-01",
+  "date_max": "2026-05-20",
+  "source_errors": [
+    "stock_individual_fund_flow failed: ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/fflow/daykline/get?lmt=0&klt=101&secid=1.603308&fields1=f1%2Cf2%2Cf3%2Cf7&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61%2Cf62%2Cf63%2Cf64%2Cf65&ut=b2884a393a59ad64002292a3e90d46a5&_=1779612385372 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))"
+  ],
+  "top_missing_rates": {
+    "profit_MBRevenue": 1.0,
+    "psTTM_rank252": 1.0,
+    "pcfNcfTTM_rank252": 1.0,
+    "peTTM_rank252": 1.0,
+    "profit_MBRevenue_chg4q": 1.0,
+    "pbMRQ_rank252": 1.0,
+    "growth_YOYNI_chg4q": 0.125,
+    "growth_YOYPNI_chg4q": 0.125,
+    "growth_YOYEPSBasic_chg4q": 0.125,
+    "dupont_dupontROE_chg4q": 0.125,
+    "cashflow_CAToAsset_chg4q": 0.125,
+    "cashflow_NCAToAsset_chg4q": 0.125,
+    "cashflow_tangibleAssetToAsset_chg4q": 0.125,
+    "cashflow_ebitToInterest_chg4q": 0.125,
+    "cashflow_CFOToOR_chg4q": 0.125,
+    "cashflow_CFOToNP_chg4q": 0.125,
+    "cashflow_CFOToGr_chg4q": 0.125,
+    "profit_npMargin_chg4q": 0.125,
+    "dupont_dupontAssetStoEquity_chg4q": 0.125,
+    "profit_roeAvg_chg4q": 0.125,
+    "solvency_currentRatio_chg4q": 0.125,
+    "solvency_quickRatio_chg4q": 0.125,
+    "solvency_cashRatio_chg4q": 0.125,
+    "solvency_YOYLiability_chg4q": 0.125,
+    "solvency_liabilityToAsset_chg4q": 0.125,
+    "dupont_dupontNitogr_chg4q": 0.125,
+    "dupont_dupontTaxBurden_chg4q": 0.125,
+    "dupont_dupontAssetTurn_chg4q": 0.125,
+    "dupont_dupontPnitoni_chg4q": 0.125,
+    "dupont_dupontIntburden_chg4q": 0.125
+  },
+  "valuation_non_null": {
+    "peTTM": 32,
+    "pbMRQ": 32,
+    "psTTM": 32,
+    "pcfNcfTTM": 32
+  },
+  "future_effective_date_violations": 0,
+  "rows_with_quarterly": 32,
+  "sample_rows": 32,
+  "quarterly_raw_rows": 5,
+  "quarterly_used_pubDate_rows": 5,
+  "quarterly_fallback_rows": 0,
+  "elapsed_seconds": 17.48,
+  "symbol": "603308",
+  "baostock_code": "sh.603308",
+  "valuation_rows": 33,
+  "fund_flow_rows": 0,
+  "feature_columns": 89,
+  "merged_columns": 158,
+  "outputs": {
+    "daily_valuation": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\02_fundamental\\baostock_daily_valuation.csv",
+    "quarterly_fundamentals": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\02_fundamental\\baostock_quarterly_fundamentals_pit.csv",
+    "fundamental_features": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\02_fundamental\\fundamental_features.csv",
+    "merged_samples": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\02_fundamental\\training_samples_with_fundamentals.csv"
+  }
+}
+
+[2026-05-24T16:46:32] RUN sector
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_sector_features.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\02_fundamental\training_samples_with_fundamentals.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\03_sector' --sector-symbol '通用设备' --start-date 2026-04-01 --end-date 2026-05-21
+
+  0%|          | 0/1 [00:00<?, ?it/s]
+100%|██████████| 1/1 [00:03<00:00,  3.27s/it]
+                                             
+{
+  "sector_symbol": "通用设备",
+  "sector_rows": 33,
+  "sector_date_min": "2026-04-01",
+  "sector_date_max": "2026-05-21",
+  "sample_rows": 32,
+  "merged_rows": 32,
+  "sector_feature_cols": 23,
+  "top_missing": {
+    "sector_ret60": 1.0,
+    "sector_ma60_gap": 0.9375,
+    "stock_vs_sector_ret20": 0.625,
+    "sector_ret20": 0.625,
+    "sector_vol20": 0.34375,
+    "sector_ma20_gap": 0.3125,
+    "sector_range_z20": 0.3125,
+    "sector_volume_shock20": 0.3125,
+    "sector_amount_z20": 0.3125,
+    "sector_volume_z20": 0.3125,
+    "sector_amount_shock20": 0.3125,
+    "sector_ret5": 0.15625,
+    "stock_vs_sector_ret5": 0.15625,
+    "sector_vs_bench_ret5": 0.15625,
+    "stock_vs_sector_ret1": 0.03125,
+    "sector_ret1": 0.03125,
+    "sector_amount": 0.0,
+    "sector_volume": 0.0,
+    "sector_close": 0.0,
+    "sector_low": 0.0
+  },
+  "outputs": {
+    "sector_index": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\03_sector\\sector_index_ths.csv",
+    "sector_features": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\03_sector\\sector_features.csv",
+    "merged_samples": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\03_sector\\training_samples_with_sector.csv"
+  }
+}
+
+[2026-05-24T16:46:39] RUN external_aero_nuclear_equipment
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_stock_external_features.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\03_sector\training_samples_with_sector.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\04_external\aero_nuclear_equipment' --profile aero_nuclear_equipment --target-symbol 603308.SH --start-date 2026-04-01 --end-date 2026-05-21 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+login success!
+
+  0%|          | 0/1 [00:00<?, ?it/s]
+100%|██████████| 1/1 [00:02<00:00,  2.94s/it]
+                                             
+
+  0%|          | 0/1 [00:00<?, ?it/s]
+100%|██████████| 1/1 [00:02<00:00,  2.06s/it]
+                                             
+
+  0%|          | 0/1 [00:00<?, ?it/s]
+100%|██████████| 1/1 [00:02<00:00,  2.43s/it]
+                                             
+
+  0%|          | 0/1 [00:00<?, ?it/s]
+100%|██████████| 1/1 [00:02<00:00,  2.02s/it]
+                                             
+{
+  "profile": "aero_nuclear_equipment",
+  "description": "Aero-engine/military/nuclear-equipment/high-alloy proxy for 应流股份",
+  "sample_rows": 32,
+  "merged_rows": 32,
+  "raw_rows": 33,
+  "raw_date_min": "2026-04-01",
+  "raw_date_max": "2026-05-21",
+  "lag_days_legacy": null,
+  "lag_policy": {
+    "domestic": 0,
+    "futures": 1,
+    "us": 1
+  },
+  "enable_us_yf": false,
+  "feature_cols": 461,
+  "source_meta": {
+    "profile": {
+      "key": "aero_nuclear_equipment",
+      "prefix": "ane",
+      "description": "Aero-engine/military/nuclear-equipment/high-alloy proxy for 应流股份",
+      "stocks": [
+        "600893",
+        "600765",
+        "000768",
+        "003816",
+        "601985",
+        "601611",
+        "300034"
+      ],
+      "etfs": [
+        "512660",
+        "512670",
+        "512710"
+      ],
+      "futures": [
+        "NI0",
+        "SS0",
+        "AL0"
+      ],
+      "boards": [
+        "军工装备",
+        "军工电子",
+        "通用设备",
+        "专用设备"
+      ],
+      "us_tickers": []
+    },
+    "used": {
+      "stocks": [
+        "600893",
+        "600765",
+        "000768",
+        "003816",
+        "601985",
+        "601611",
+        "300034"
+      ],
+      "etfs": [
+        "512660",
+        "512670",
+        "512710"
+      ],
+      "futures": [
+        "NI0",
+        "SS0",
+        "AL0"
+      ],
+      "boards": [
+        "军工装备",
+        "军工电子",
+        "通用设备",
+        "专用设备"
+      ],
+      "us_yf": []
+    },
+    "start_date": "20260401",
+    "end_date": "20260521",
+    "target_symbol_excluded": "603308",
+    "em_sources_used": false,
+    "baostock_cache_dir": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\baostock_external_cache",
+    "us_yfinance_enabled": false
+  },
+  "errors": {},
+  "top_missing": {
+    "ane_stock_vs_future_basket_ret20": 0.65625,
+    "ane_fut_al0_range_pct_ret20": 0.65625,
+    "ane_fut_al0_close_z60": 0.65625,
+    "ane_fut_al0_close_ret20": 0.65625,
+    "ane_fut_ss0_close_ret20": 0.65625,
+    "ane_fut_ss0_range_pct_ret20": 0.65625,
+    "ane_fut_ss0_range_pct_z60": 0.65625,
+    "ane_fut_ss0_close_z60": 0.65625,
+    "ane_fut_ni0_close_ret20": 0.65625,
+    "ane_fut_ni0_range_pct_ret20": 0.65625,
+    "ane_fut_ni0_range_pct_z60": 0.65625,
+    "ane_fut_ni0_close_z60": 0.65625,
+    "ane_future_basket_close_ret20": 0.65625,
+    "ane_future_basket_close_z60": 0.65625,
+    "ane_fut_al0_range_pct_z60": 0.65625,
+    "ane_stk_600765_range_pct_ret20": 0.625,
+    "ane_board_basket_close_z60": 0.625,
+    "ane_board_basket_close_ret20": 0.625,
+    "ane_board_b04_range_pct_z60": 0.625,
+    "ane_board_b04_range_pct_ret20": 0.625,
+    "ane_board_b04_close_z60": 0.625,
+    "ane_stk_003816_close_ret20": 0.625,
+    "ane_stk_003816_close_z60": 0.625,
+    "ane_board_b03_range_pct_z60": 0.625,
+    "ane_stk_000768_close_z60": 0.625,
+    "ane_stk_000768_range_pct_ret20": 0.625,
+    "ane_stk_000768_range_pct_z60": 0.625,
+    "ane_stk_600893_range_pct_z60": 0.625,
+    "ane_stk_600765_close_z60": 0.625,
+    "ane_stk_600765_close_ret20": 0.625,
+    "ane_stk_600765_range_pct_z60": 0.625,
+    "ane_board_b03_close_z60": 0.625,
+    "ane_board_b03_range_pct_ret20": 0.625,
+    "ane_board_b04_close_ret20": 0.625,
+    "ane_stk_000768_close_ret20": 0.625,
+    "ane_stock_basket_close_ret20": 0.625,
+    "ane_etf_512660_close_z60": 0.625,
+    "ane_stk_601985_range_pct_ret20": 0.625,
+    "ane_etf_512660_range_pct_z60": 0.625,
+    "ane_etf_512670_close_z60": 0.625,
+    "ane_etf_512670_close_ret20": 0.625,
+    "ane_etf_512670_range_pct_z60": 0.625,
+    "ane_etf_512670_range_pct_ret20": 0.625,
+    "ane_etf_512710_close_ret20": 0.625,
+    "ane_stk_601985_range_pct_z60": 0.625,
+    "ane_stk_601985_close_ret20": 0.625,
+    "ane_stk_601985_close_z60": 0.625,
+    "ane_board_b01_close_z60": 0.625,
+    "ane_board_b01_range_pct_ret20": 0.625,
+    "ane_board_b02_close_ret20": 0.625
+  },
+  "outputs": {
+    "features": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\stock_external_features_aero_nuclear_equipment.csv",
+    "merged_samples": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\training_samples_with_aero_nuclear_equipment_external.csv",
+    "report": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\validation_report.json"
+  }
+}
+logout success!
+[INFO] final samples for search: C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\04_external\aero_nuclear_equipment\training_samples_with_aero_nuclear_equipment_external.csv
+=== nextday pipeline end: 2026-05-24T16:47:06 status=ok ===
+=== nextday pipeline start: 2026-05-24T16:53:31 ===
+symbol=603308.SH, out_root=C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out
+
+[2026-05-24T16:53:31] RUN update_data
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 603308 --benchmark_symbol 000300 --daily_start 2026-04-01 --daily_end 2026-05-21 --intraday_start '2026-04-01 09:30:00' --intraday_end '2026-05-21 15:00:00' --output_dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+服务器连接失败，请稍后再试。
+[WinError 10057] 由于套接字没有连接并且(当使用一个 sendto 调用发送数据报套接字时)没有提供地址，发送或接收数据的请求没有被接受。
+接收数据异常，请稍后再试。
+Traceback (most recent call last):
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 2084, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 2075, in main
+    result = run_update_data(args)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 953, in run_update_data
+    mod, cfg, meta, daily_feat, intraday_feat, fetch_logs, base_paths = helper.build_feature_frames(args)
+                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 801, in build_feature_frames
+    intraday_df, intra_logs = _incremental_fetch_intraday(args.symbol, args.intraday_start, args.intraday_end, adjust=args.adjust, cache_path=intraday_cache_path, force_refresh=force_refresh, cache_mode=cache_mode)
+                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 416, in _incremental_fetch_intraday
+    pre_df, pre_meta = fetch_stock_intraday_5m_range(symbol, str(req_start), str(pre_end), adjust)
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 311, in fetch_stock_intraday_5m_range
+    _login()
+    ~~~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 103, in _login
+    raise RuntimeError(f"BaoStock 登录失败: {lg.error_code} {lg.error_msg}")
+RuntimeError: BaoStock 登录失败: 10002007 网络接收错误。
+=== nextday pipeline start: 2026-05-24T16:54:09 ===
+symbol=603308.SH, out_root=C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out
+
+[2026-05-24T16:54:09] RUN samples
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_nextday_samples_from_baostock.py --daily-features 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\00_base\daily_features.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\00_base\603308_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\01_samples' --min-bars 40 --keep-unlabeled-tail
+{
+  "rows": 33,
+  "date_min": "2026-04-01",
+  "date_max": "2026-05-21",
+  "out": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\01_samples\\training_samples.csv"
+}
+
+[2026-05-24T16:54:11] RUN fundamental
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_fundamental_features.py --symbol 603308.SH --daily-samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\01_samples\training_samples.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\02_fundamental' --start-date 2026-04-01 --end-date 2026-05-21 --fallback-lag-days 120
+服务器连接失败，请稍后再试。
+[WinError 10057] 由于套接字没有连接并且(当使用一个 sendto 调用发送数据报套接字时)没有提供地址，发送或接收数据的请求没有被接受。
+接收数据异常，请稍后再试。
+Traceback (most recent call last):
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_fundamental_features.py", line 335, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_fundamental_features.py", line 281, in main
+    bs = baostock_login()
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_fundamental_features.py", line 69, in baostock_login
+    raise RuntimeError(f"BaoStock login failed: {lg.error_code} {lg.error_msg}")
+RuntimeError: BaoStock login failed: 10002007 网络接收错误。
+=== nextday pipeline start: 2026-05-24T16:57:19 ===
+symbol=603308.SH, out_root=C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out
+
+[2026-05-24T16:57:19] RUN samples
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_nextday_samples_from_baostock.py --daily-features 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\00_base\daily_features.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\00_base\603308_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\01_samples' --min-bars 40 --keep-unlabeled-tail
+{
+  "rows": 33,
+  "date_min": "2026-04-01",
+  "date_max": "2026-05-21",
+  "out": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\01_samples\\training_samples.csv"
+}
+
+[2026-05-24T16:57:20] RUN fundamental
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_fundamental_features.py --symbol 603308.SH --daily-samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\01_samples\training_samples.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\02_fundamental' --start-date 2026-04-01 --end-date 2026-05-21 --fallback-lag-days 120
+login success!
+logout failed!
+{
+  "rows": 33,
+  "date_min": "2026-04-01",
+  "date_max": "2026-05-21",
+  "source_errors": [
+    "stock_individual_fund_flow failed: ProxyError: HTTPSConnectionPool(host='push2his.eastmoney.com', port=443): Max retries exceeded with url: /api/qt/stock/fflow/daykline/get?lmt=0&klt=101&secid=1.603308&fields1=f1%2Cf2%2Cf3%2Cf7&fields2=f51%2Cf52%2Cf53%2Cf54%2Cf55%2Cf56%2Cf57%2Cf58%2Cf59%2Cf60%2Cf61%2Cf62%2Cf63%2Cf64%2Cf65&ut=b2884a393a59ad64002292a3e90d46a5&_=1779613051583 (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response')))"
+  ],
+  "top_missing_rates": {
+    "profit_MBRevenue": 1.0,
+    "profit_MBRevenue_chg4q": 1.0,
+    "peTTM_rank252": 1.0,
+    "pbMRQ_rank252": 1.0,
+    "psTTM_rank252": 1.0,
+    "pcfNcfTTM_rank252": 1.0,
+    "cashflow_CFOToGr_chg4q": 0.12121212121212122,
+    "growth_YOYEPSBasic_chg4q": 0.12121212121212122,
+    "solvency_liabilityToAsset_chg4q": 0.12121212121212122,
+    "growth_YOYNI_chg4q": 0.12121212121212122,
+    "profit_gpMargin_chg4q": 0.12121212121212122,
+    "growth_YOYAsset_chg4q": 0.12121212121212122,
+    "growth_YOYEquity_chg4q": 0.12121212121212122,
+    "profit_epsTTM_chg4q": 0.12121212121212122,
+    "profit_netProfit_chg4q": 0.12121212121212122,
+    "profit_liqaShare_chg4q": 0.12121212121212122,
+    "profit_totalShare_chg4q": 0.12121212121212122,
+    "profit_npMargin_chg4q": 0.12121212121212122,
+    "solvency_YOYLiability_chg4q": 0.12121212121212122,
+    "solvency_cashRatio_chg4q": 0.12121212121212122,
+    "cashflow_CFOToNP_chg4q": 0.12121212121212122,
+    "cashflow_tangibleAssetToAsset_chg4q": 0.12121212121212122,
+    "cashflow_NCAToAsset_chg4q": 0.12121212121212122,
+    "cashflow_CFOToOR_chg4q": 0.12121212121212122,
+    "cashflow_ebitToInterest_chg4q": 0.12121212121212122,
+    "solvency_currentRatio_chg4q": 0.12121212121212122,
+    "growth_YOYPNI_chg4q": 0.12121212121212122,
+    "profit_roeAvg_chg4q": 0.12121212121212122,
+    "solvency_quickRatio_chg4q": 0.12121212121212122,
+    "cashflow_CAToAsset_chg4q": 0.12121212121212122
+  },
+  "valuation_non_null": {
+    "peTTM": 33,
+    "pbMRQ": 33,
+    "psTTM": 33,
+    "pcfNcfTTM": 33
+  },
+  "future_effective_date_violations": 0,
+  "rows_with_quarterly": 33,
+  "sample_rows": 33,
+  "quarterly_raw_rows": 5,
+  "quarterly_used_pubDate_rows": 5,
+  "quarterly_fallback_rows": 0,
+  "elapsed_seconds": 16.689,
+  "symbol": "603308",
+  "baostock_code": "sh.603308",
+  "valuation_rows": 33,
+  "fund_flow_rows": 0,
+  "feature_columns": 73,
+  "merged_columns": 142,
+  "outputs": {
+    "daily_valuation": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\02_fundamental\\baostock_daily_valuation.csv",
+    "quarterly_fundamentals": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\02_fundamental\\baostock_quarterly_fundamentals_pit.csv",
+    "fundamental_features": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\02_fundamental\\fundamental_features.csv",
+    "merged_samples": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\02_fundamental\\training_samples_with_fundamentals.csv"
+  }
+}
+
+[2026-05-24T16:57:37] RUN sector
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_sector_features.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\02_fundamental\training_samples_with_fundamentals.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\03_sector' --sector-symbol '通用设备' --start-date 2026-04-01 --end-date 2026-05-21
+
+  0%|          | 0/1 [00:00<?, ?it/s]
+100%|██████████| 1/1 [00:03<00:00,  3.78s/it]
+                                             
+{
+  "sector_symbol": "通用设备",
+  "sector_rows": 33,
+  "sector_date_min": "2026-04-01",
+  "sector_date_max": "2026-05-21",
+  "sample_rows": 33,
+  "merged_rows": 33,
+  "sector_feature_cols": 23,
+  "top_missing": {
+    "sector_ret60": 1.0,
+    "sector_ma60_gap": 0.9090909090909091,
+    "stock_vs_sector_ret20": 0.6060606060606061,
+    "sector_ret20": 0.6060606060606061,
+    "sector_vol20": 0.3333333333333333,
+    "sector_ma20_gap": 0.30303030303030304,
+    "sector_range_z20": 0.30303030303030304,
+    "sector_volume_shock20": 0.30303030303030304,
+    "sector_amount_z20": 0.30303030303030304,
+    "sector_volume_z20": 0.30303030303030304,
+    "sector_amount_shock20": 0.30303030303030304,
+    "sector_ret5": 0.15151515151515152,
+    "stock_vs_sector_ret5": 0.15151515151515152,
+    "sector_vs_bench_ret5": 0.15151515151515152,
+    "stock_vs_sector_ret1": 0.030303030303030304,
+    "sector_ret1": 0.030303030303030304,
+    "sector_amount": 0.0,
+    "sector_volume": 0.0,
+    "sector_close": 0.0,
+    "sector_low": 0.0
+  },
+  "outputs": {
+    "sector_index": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\03_sector\\sector_index_ths.csv",
+    "sector_features": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\03_sector\\sector_features.csv",
+    "merged_samples": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\03_sector\\training_samples_with_sector.csv"
+  }
+}
+
+[2026-05-24T16:57:45] RUN external_aero_nuclear_equipment
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_stock_external_features.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\03_sector\training_samples_with_sector.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\04_external\aero_nuclear_equipment' --profile aero_nuclear_equipment --target-symbol 603308.SH --start-date 2026-04-01 --end-date 2026-05-21 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+login success!
+
+  0%|          | 0/1 [00:00<?, ?it/s]
+100%|██████████| 1/1 [00:04<00:00,  4.14s/it]
+                                             
+
+  0%|          | 0/1 [00:00<?, ?it/s]
+100%|██████████| 1/1 [00:05<00:00,  5.19s/it]
+                                             
+
+  0%|          | 0/1 [00:00<?, ?it/s]
+100%|██████████| 1/1 [00:05<00:00,  5.28s/it]
+                                             
+
+  0%|          | 0/1 [00:00<?, ?it/s]
+100%|██████████| 1/1 [00:03<00:00,  3.26s/it]
+                                             
+{
+  "profile": "aero_nuclear_equipment",
+  "description": "Aero-engine/military/nuclear-equipment/high-alloy proxy for 应流股份",
+  "sample_rows": 33,
+  "merged_rows": 33,
+  "raw_rows": 33,
+  "raw_date_min": "2026-04-01",
+  "raw_date_max": "2026-05-21",
+  "lag_days_legacy": null,
+  "lag_policy": {
+    "domestic": 0,
+    "futures": 1,
+    "us": 1
+  },
+  "enable_us_yf": false,
+  "feature_cols": 461,
+  "source_meta": {
+    "profile": {
+      "key": "aero_nuclear_equipment",
+      "prefix": "ane",
+      "description": "Aero-engine/military/nuclear-equipment/high-alloy proxy for 应流股份",
+      "stocks": [
+        "600893",
+        "600765",
+        "000768",
+        "003816",
+        "601985",
+        "601611",
+        "300034"
+      ],
+      "etfs": [
+        "512660",
+        "512670",
+        "512710"
+      ],
+      "futures": [
+        "NI0",
+        "SS0",
+        "AL0"
+      ],
+      "boards": [
+        "军工装备",
+        "军工电子",
+        "通用设备",
+        "专用设备"
+      ],
+      "us_tickers": []
+    },
+    "used": {
+      "stocks": [
+        "600893",
+        "600765",
+        "000768",
+        "003816",
+        "601985",
+        "601611",
+        "300034"
+      ],
+      "etfs": [
+        "512660",
+        "512670",
+        "512710"
+      ],
+      "futures": [
+        "NI0",
+        "SS0",
+        "AL0"
+      ],
+      "boards": [
+        "军工装备",
+        "军工电子",
+        "通用设备",
+        "专用设备"
+      ],
+      "us_yf": []
+    },
+    "start_date": "20260401",
+    "end_date": "20260521",
+    "target_symbol_excluded": "603308",
+    "em_sources_used": false,
+    "baostock_cache_dir": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\baostock_external_cache",
+    "us_yfinance_enabled": false
+  },
+  "errors": {},
+  "top_missing": {
+    "ane_stock_vs_future_basket_ret20": 0.6363636363636364,
+    "ane_fut_al0_range_pct_ret20": 0.6363636363636364,
+    "ane_fut_al0_close_z60": 0.6363636363636364,
+    "ane_fut_al0_close_ret20": 0.6363636363636364,
+    "ane_fut_ss0_close_ret20": 0.6363636363636364,
+    "ane_fut_ss0_range_pct_ret20": 0.6363636363636364,
+    "ane_fut_ss0_range_pct_z60": 0.6363636363636364,
+    "ane_fut_ss0_close_z60": 0.6363636363636364,
+    "ane_fut_ni0_close_ret20": 0.6363636363636364,
+    "ane_fut_ni0_range_pct_ret20": 0.6363636363636364,
+    "ane_fut_ni0_range_pct_z60": 0.6363636363636364,
+    "ane_fut_ni0_close_z60": 0.6363636363636364,
+    "ane_future_basket_close_ret20": 0.6363636363636364,
+    "ane_future_basket_close_z60": 0.6363636363636364,
+    "ane_fut_al0_range_pct_z60": 0.6363636363636364,
+    "ane_stk_600765_range_pct_ret20": 0.6060606060606061,
+    "ane_board_basket_close_z60": 0.6060606060606061,
+    "ane_board_basket_close_ret20": 0.6060606060606061,
+    "ane_board_b04_range_pct_z60": 0.6060606060606061,
+    "ane_board_b04_range_pct_ret20": 0.6060606060606061,
+    "ane_board_b04_close_z60": 0.6060606060606061,
+    "ane_stk_003816_close_ret20": 0.6060606060606061,
+    "ane_stk_003816_close_z60": 0.6060606060606061,
+    "ane_board_b03_range_pct_z60": 0.6060606060606061,
+    "ane_stk_000768_close_z60": 0.6060606060606061,
+    "ane_stk_000768_range_pct_ret20": 0.6060606060606061,
+    "ane_stk_000768_range_pct_z60": 0.6060606060606061,
+    "ane_stk_600893_range_pct_z60": 0.6060606060606061,
+    "ane_stk_600765_close_z60": 0.6060606060606061,
+    "ane_stk_600765_close_ret20": 0.6060606060606061,
+    "ane_stk_600765_range_pct_z60": 0.6060606060606061,
+    "ane_board_b03_close_z60": 0.6060606060606061,
+    "ane_board_b03_range_pct_ret20": 0.6060606060606061,
+    "ane_board_b04_close_ret20": 0.6060606060606061,
+    "ane_stk_000768_close_ret20": 0.6060606060606061,
+    "ane_stock_basket_close_ret20": 0.6060606060606061,
+    "ane_etf_512660_close_z60": 0.6060606060606061,
+    "ane_stk_601985_range_pct_ret20": 0.6060606060606061,
+    "ane_etf_512660_range_pct_z60": 0.6060606060606061,
+    "ane_etf_512670_close_z60": 0.6060606060606061,
+    "ane_etf_512670_close_ret20": 0.6060606060606061,
+    "ane_etf_512670_range_pct_z60": 0.6060606060606061,
+    "ane_etf_512670_range_pct_ret20": 0.6060606060606061,
+    "ane_etf_512710_close_ret20": 0.6060606060606061,
+    "ane_stk_601985_range_pct_z60": 0.6060606060606061,
+    "ane_stk_601985_close_ret20": 0.6060606060606061,
+    "ane_stk_601985_close_z60": 0.6060606060606061,
+    "ane_board_b01_close_z60": 0.6060606060606061,
+    "ane_board_b01_range_pct_ret20": 0.6060606060606061,
+    "ane_board_b02_close_ret20": 0.6060606060606061
+  },
+  "outputs": {
+    "features": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\stock_external_features_aero_nuclear_equipment.csv",
+    "merged_samples": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\training_samples_with_aero_nuclear_equipment_external.csv",
+    "report": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_audit_minidata\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\validation_report.json"
+  }
+}
+logout failed!
+[INFO] final samples for search: C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\04_external\aero_nuclear_equipment\training_samples_with_aero_nuclear_equipment_external.csv
+=== nextday pipeline end: 2026-05-24T16:58:25 status=ok ===

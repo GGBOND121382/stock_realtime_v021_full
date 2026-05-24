@@ -1,0 +1,12 @@
+﻿sample_path,read_status,target_date,date_t_exists,sample_min_date,sample_max_date,lagged_col_count,lagged_nonempty_count,lagged_missing_count,lagged_missing_features
+C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\600312_pipeline_out\01_samples\training_samples.csv,ok,2026-05-21,True,2026-04-01,2026-05-21,0,0,0,
+C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\600312_pipeline_out\02_fundamental\training_samples_with_fundamentals.csv,ok,2026-05-21,True,2026-04-01,2026-05-21,0,0,0,
+C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\600312_pipeline_out\03_sector\training_samples_with_sector.csv,ok,2026-05-21,True,2026-04-01,2026-05-21,0,0,0,
+C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\600487_pipeline_out\01_samples\training_samples.csv,ok,2026-05-21,True,2026-04-01,2026-05-21,0,0,0,
+C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\600487_pipeline_out\02_fundamental\training_samples_with_fundamentals.csv,ok,2026-05-21,True,2026-04-01,2026-05-21,0,0,0,
+C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\600487_pipeline_out\03_sector\training_samples_with_sector.csv,ok,2026-05-21,True,2026-04-01,2026-05-21,0,0,0,
+C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\600487_pipeline_out\04_external\optical_cable_grid\training_samples_with_optical_cable_grid_external.csv,ok,2026-05-21,True,2026-04-01,2026-05-21,65,65,0,
+C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\01_samples\training_samples.csv,ok,2026-05-21,True,2026-04-01,2026-05-21,0,0,0,
+C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\02_fundamental\training_samples_with_fundamentals.csv,ok,2026-05-21,True,2026-04-01,2026-05-21,0,0,0,
+C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\03_sector\training_samples_with_sector.csv,ok,2026-05-21,True,2026-04-01,2026-05-21,0,0,0,
+C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_audit_minidata\603308_pipeline_out\04_external\aero_nuclear_equipment\training_samples_with_aero_nuclear_equipment_external.csv,ok,2026-05-21,True,2026-04-01,2026-05-21,92,92,0,

@@ -49,6 +49,7 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 SAVED_DATA_DIR = PROJECT_DIR / "saved_data"
 DEFAULT_DUAL_SCRIPT = "bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py"
 BUILD_SAMPLES_SCRIPT = "feature_building/build_nextday_samples_from_baostock.py"
+BUILD_ASOF_SAMPLES_SCRIPT = "feature_building/build_asof1455_training_samples.py"
 BUILD_FUNDAMENTAL_SCRIPT = "feature_building/build_fundamental_features.py"
 BUILD_SECTOR_SCRIPT = "feature_building/build_sector_features.py"
 SEARCH_SCRIPT = "model_training/search_walk_forward_model_complexity.py"
@@ -463,6 +464,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
     require_scripts([
         args.dual_script,
         BUILD_SAMPLES_SCRIPT,
+        BUILD_ASOF_SAMPLES_SCRIPT,
         BUILD_FUNDAMENTAL_SCRIPT,
         BUILD_SECTOR_SCRIPT,
         SEARCH_SCRIPT,
@@ -484,6 +486,7 @@ def run_pipeline(args: argparse.Namespace) -> int:
 
     base_dir = out_root / "00_base"
     samples_dir = out_root / "01_samples"
+    asof_samples_dir = out_root / "01_samples_asof1455"
     fund_dir = out_root / "02_fundamental"
     sector_dir = out_root / "03_sector"
     external_base_dir = out_root / "04_external"
@@ -495,6 +498,9 @@ def run_pipeline(args: argparse.Namespace) -> int:
 
     feature_pipeline = split_csv(args.feature_pipeline)
     external_steps = split_csv(args.external)
+    feature_time_mode = str(args.feature_time_mode or "eod").strip().lower()
+    if feature_time_mode == "asof":
+        feature_time_mode = "asof1455"
     search_targets = [parse_search_target(x) for x in split_csv(args.search_targets)]
     entry_policies = [parse_entry_policy(x) for x in split_csv(args.entry_policies)]
 
@@ -508,6 +514,10 @@ def run_pipeline(args: argparse.Namespace) -> int:
     # 0. update_data
     daily_features = base_dir / "daily_features.csv"
     intraday_bars = base_dir / f"{info.raw_code}_5m.csv"
+    if args.intraday_bars_override:
+        intraday_bars = Path(args.intraday_bars_override)
+        if not intraday_bars.is_absolute():
+            intraday_bars = PROJECT_DIR / intraday_bars
     if should_run("update_data", selector):
         cmd = [
             py, args.dual_script,
@@ -537,13 +547,20 @@ def run_pipeline(args: argparse.Namespace) -> int:
         stages.append(result)
 
     # Some older runs may only have raw cache; keep a fallback but prefer exported request CSV.
-    intraday_bars = choose_existing([
+    intraday_candidates = [
         base_dir / f"{info.raw_code}_5m.csv",
         base_dir / "raw_cache" / f"{info.raw_code}_5m_raw.csv",
-    ]) or (base_dir / f"{info.raw_code}_5m.csv")
+    ]
+    if args.intraday_bars_override:
+        intraday_candidates.insert(0, intraday_bars)
+    intraday_bars = choose_existing(intraday_candidates) or (base_dir / f"{info.raw_code}_5m.csv")
 
     # 1. build next-day samples
     current_samples = samples_dir / "training_samples.csv"
+    if args.base_samples_override:
+        current_samples = Path(args.base_samples_override)
+        if not current_samples.is_absolute():
+            current_samples = PROJECT_DIR / current_samples
     if should_run("samples", selector):
         cmd = [
             py, BUILD_SAMPLES_SCRIPT,
@@ -563,6 +580,28 @@ def run_pipeline(args: argparse.Namespace) -> int:
             continue_on_error=args.continue_on_error,
         )
         stages.append(result)
+
+    if feature_time_mode == "asof1455":
+        out_file = asof_samples_dir / "training_samples_asof1455.csv"
+        if should_run("asof_samples", selector):
+            cmd = [
+                py, BUILD_ASOF_SAMPLES_SCRIPT,
+                "--samples", str(current_samples),
+                "--intraday-bars", str(intraday_bars),
+                "--out-dir", str(asof_samples_dir),
+                "--cutoff-time", args.feature_cutoff_time,
+                "--min-bars", str(args.min_bars),
+            ]
+            result = run_stage(
+                "asof_samples", cmd,
+                {"samples": out_file},
+                log_path,
+                dry_run=args.dry_run,
+                resume=args.resume,
+                continue_on_error=args.continue_on_error,
+            )
+            stages.append(result)
+        current_samples = out_file
 
     # 2. optional features
     if "fundamental" in feature_pipeline and should_run("fundamental", selector):
@@ -721,6 +760,8 @@ def run_pipeline(args: argparse.Namespace) -> int:
                 "--label-mode", target.label_mode,
                 "--entry-policy", entry_policy,
                 "--entry-vwap-premium-bps", str(args.entry_vwap_premium_bps),
+                "--feature-time-mode", feature_time_mode,
+                "--feature-cutoff-time", args.feature_cutoff_time if feature_time_mode == "asof1455" else "",
                 "--max-missing", str(args.max_missing),
                 "--groups", args.groups,
                 "--models", args.models,
@@ -747,6 +788,8 @@ def run_pipeline(args: argparse.Namespace) -> int:
                 "target_hit_bps": target.target_hit_bps,
                 "entry_policy": entry_policy,
                 "entry_vwap_premium_bps": args.entry_vwap_premium_bps,
+                "feature_time_mode": feature_time_mode,
+                "feature_cutoff_time": args.feature_cutoff_time if feature_time_mode == "asof1455" else "",
                 "sample_file": str(final_samples),
                 "intraday_bars": str(intraday_bars),
                 "feature_pipeline": feature_pipeline,
@@ -784,6 +827,8 @@ def run_pipeline(args: argparse.Namespace) -> int:
         "external_effective": external_steps,
         "entry_policies_effective": entry_policies,
         "entry_vwap_premium_bps": args.entry_vwap_premium_bps,
+        "feature_time_mode": feature_time_mode,
+        "feature_cutoff_time": args.feature_cutoff_time if feature_time_mode == "asof1455" else "",
         "final_samples": str(final_samples),
         "intraday_bars": str(intraday_bars),
         "search_dirs": [str(x) for x in search_dirs],
@@ -824,10 +869,17 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--min-bars", type=int, default=40)
     p.add_argument("--keep-unlabeled-tail", action="store_true", default=True)
     p.add_argument("--no-keep-unlabeled-tail", action="store_false", dest="keep_unlabeled_tail")
+    p.add_argument("--feature-time-mode", choices=["eod", "asof", "asof1455"], default="eod",
+                   help="Feature timestamp policy. asof/asof1455 adds cutoff-time entry features and labels")
+    p.add_argument("--feature-cutoff-time", default="14:55", help="Cutoff time for --feature-time-mode asof/asof1455")
 
     p.add_argument("--feature-pipeline", default="fundamental,sector", help="Comma list: fundamental,sector")
     p.add_argument("--samples-override", default=None,
                    help="Explicit samples CSV for search/summarize-only workflows; overrides automatic final sample resolution")
+    p.add_argument("--base-samples-override", default=None,
+                   help="Reuse an existing base training_samples.csv before optional asof/fundamental/sector/external stages")
+    p.add_argument("--intraday-bars-override", default=None,
+                   help="Reuse an existing 5m bar CSV before optional asof/search stages")
     p.add_argument("--no-fundamental", action="store_true", help="Do not build fundamental features")
     p.add_argument("--fallback-lag-days", type=int, default=120)
     p.add_argument("--skip-akshare-fund-flow", action="store_true")

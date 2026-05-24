@@ -1,0 +1,61 @@
+{
+  "rows": 1543,
+  "target_hit_bps": 80.0,
+  "label_mode": "hit",
+  "entry_policy": "vwap_low",
+  "entry_vwap_premium_bps": 50.0,
+  "feature_time_mode": "asof1455",
+  "feature_cutoff_time": "14:55",
+  "groups": {
+    "all_no_ak": 96
+  },
+  "models": [
+    "xgb_d3_400_lr003_mcw3",
+    "extra_trees_600_d3",
+    "lgbm_leaves7_400"
+  ],
+  "top": [
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "all_no_ak",
+      "model_name": "lgbm_leaves7_400",
+      "target_hit_bps": 80.0,
+      "trades": 196,
+      "win_rate": 0.6836734693877551,
+      "avg_return": -2.5166073860280355e-05,
+      "median_return": 0.008,
+      "compound_return": -0.023650508777561807,
+      "max_drawdown": -0.1413432318603176,
+      "profit_factor": 0.9953715979626341,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "all_no_ak",
+      "model_name": "extra_trees_600_d3",
+      "target_hit_bps": 80.0,
+      "trades": 207,
+      "win_rate": 0.642512077294686,
+      "avg_return": -0.0007674488977394197,
+      "median_return": 0.008,
+      "compound_return": -0.1625179993981637,
+      "max_drawdown": -0.20903697469290317,
+      "profit_factor": 0.8624716490916251,
+      "windows": 10
+    },
+    {
+      "entry_policy": "vwap_low",
+      "feature_group": "all_no_ak",
+      "model_name": "xgb_d3_400_lr003_mcw3",
+      "target_hit_bps": 80.0,
+      "trades": 189,
+      "win_rate": 0.6666666666666666,
+      "avg_return": -0.0010016165652882692,
+      "median_return": 0.008,
+      "compound_return": -0.19087979147863898,
+      "max_drawdown": -0.28419308188857706,
+      "profit_factor": 0.8403948312581837,
+      "windows": 10
+    }
+  ]
+}

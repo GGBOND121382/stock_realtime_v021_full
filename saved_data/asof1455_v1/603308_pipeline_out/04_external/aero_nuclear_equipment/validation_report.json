@@ -1,0 +1,143 @@
+{
+  "profile": "aero_nuclear_equipment",
+  "description": "Aero-engine/military/nuclear-equipment/high-alloy proxy for 应流股份",
+  "sample_rows": 1543,
+  "merged_rows": 1543,
+  "raw_rows": 2031,
+  "raw_date_min": "2018-01-02",
+  "raw_date_max": "2026-05-21",
+  "lag_days_legacy": null,
+  "lag_policy": {
+    "domestic": 0,
+    "futures": 1,
+    "us": 1
+  },
+  "enable_us_yf": false,
+  "feature_cols": 471,
+  "source_meta": {
+    "profile": {
+      "key": "aero_nuclear_equipment",
+      "prefix": "ane",
+      "description": "Aero-engine/military/nuclear-equipment/high-alloy proxy for 应流股份",
+      "stocks": [
+        "600893",
+        "600765",
+        "000768",
+        "003816",
+        "601985",
+        "601611",
+        "300034"
+      ],
+      "etfs": [
+        "512660",
+        "512670",
+        "512710"
+      ],
+      "futures": [
+        "NI0",
+        "SS0",
+        "AL0"
+      ],
+      "boards": [
+        "军工装备",
+        "军工电子",
+        "通用设备",
+        "专用设备"
+      ],
+      "us_tickers": []
+    },
+    "used": {
+      "stocks": [
+        "600893",
+        "600765",
+        "000768",
+        "003816",
+        "601985",
+        "601611",
+        "300034"
+      ],
+      "etfs": [
+        "512660",
+        "512670",
+        "512710"
+      ],
+      "futures": [
+        "NI0",
+        "SS0",
+        "AL0"
+      ],
+      "boards": [
+        "军工装备",
+        "通用设备",
+        "专用设备"
+      ],
+      "us_yf": []
+    },
+    "start_date": "20180101",
+    "end_date": "20260521",
+    "target_symbol_excluded": "603308",
+    "em_sources_used": false,
+    "baostock_cache_dir": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\baostock_external_cache",
+    "us_yfinance_enabled": false
+  },
+  "errors": {
+    "board_军工电子": "stock_board_industry_index_ths: ProxyError: HTTPSConnectionPool(host='d.10jqka.com.cn', port=443): Max retries exceeded with url: /v4/line/bk_881276/01/2024.js (Caused by ProxyError('Unable to connect to proxy', RemoteDisconnected('Remote end closed connection without response'))) | stock_board_concept_hist_ths: not_available"
+  },
+  "top_missing": {
+    "ane_etf_basket_close_ret60": 0.981853532080363,
+    "ane_etf_512710_range_pct_ret60": 0.981853532080363,
+    "ane_etf_512660_range_pct_ret60": 0.981853532080363,
+    "ane_etf_512670_range_pct_ret60": 0.981853532080363,
+    "ane_etf_512670_close_ret60": 0.981853532080363,
+    "ane_etf_512660_close_ret60": 0.981853532080363,
+    "ane_etf_512710_close_ret60": 0.981853532080363,
+    "ane_etf_basket_close_z60": 0.9559300064808814,
+    "ane_etf_512710_close_z60": 0.9559300064808814,
+    "ane_etf_512710_range_pct_ret20": 0.9559300064808814,
+    "ane_etf_512670_range_pct_z60": 0.9559300064808814,
+    "ane_etf_512710_close_ret20": 0.9559300064808814,
+    "ane_etf_512670_range_pct_ret20": 0.9559300064808814,
+    "ane_etf_512660_range_pct_ret20": 0.9559300064808814,
+    "ane_etf_512660_close_ret20": 0.9559300064808814,
+    "ane_stock_vs_etf_basket_ret20": 0.9559300064808814,
+    "ane_etf_512660_range_pct_z60": 0.9559300064808814,
+    "ane_etf_512660_close_z60": 0.9559300064808814,
+    "ane_etf_512710_range_pct_z60": 0.9559300064808814,
+    "ane_etf_512670_close_ret20": 0.9559300064808814,
+    "ane_etf_512670_close_z60": 0.9559300064808814,
+    "ane_etf_basket_close_ret20": 0.9559300064808814,
+    "ane_etf_512670_close_vol20": 0.950097213220998,
+    "ane_etf_basket_close_vol20": 0.950097213220998,
+    "ane_etf_512710_close_vol20": 0.950097213220998,
+    "ane_etf_512660_close_vol20": 0.950097213220998,
+    "ane_etf_basket_close_z20": 0.949449125081011,
+    "ane_etf_512660_range_pct_z20": 0.949449125081011,
+    "ane_etf_512660_range_pct_ma20_gap": 0.949449125081011,
+    "ane_etf_512670_volume_shock20": 0.949449125081011,
+    "ane_etf_512660_close_ma20_gap": 0.949449125081011,
+    "ane_etf_512660_volume_z20": 0.949449125081011,
+    "ane_etf_512660_volume_shock20": 0.949449125081011,
+    "ane_etf_512710_volume_z20": 0.949449125081011,
+    "ane_etf_512710_volume_shock20": 0.949449125081011,
+    "ane_etf_512710_range_pct_z20": 0.949449125081011,
+    "ane_etf_512710_range_pct_ma20_gap": 0.949449125081011,
+    "ane_etf_basket_close_ma20_gap": 0.949449125081011,
+    "ane_etf_512710_close_ma20_gap": 0.949449125081011,
+    "ane_etf_512710_close_z20": 0.949449125081011,
+    "ane_etf_512670_range_pct_ma20_gap": 0.949449125081011,
+    "ane_etf_512670_range_pct_z20": 0.949449125081011,
+    "ane_etf_512670_volume_z20": 0.949449125081011,
+    "ane_etf_512670_close_ma20_gap": 0.949449125081011,
+    "ane_etf_512670_close_z20": 0.949449125081011,
+    "ane_etf_512660_close_z20": 0.949449125081011,
+    "ane_etf_512670_close_ret5": 0.9462086843810759,
+    "ane_etf_512710_range_pct_ret5": 0.9462086843810759,
+    "ane_etf_basket_close_ret5": 0.9462086843810759,
+    "ane_etf_512660_close_ret5": 0.9462086843810759
+  },
+  "outputs": {
+    "features": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\stock_external_features_aero_nuclear_equipment.csv",
+    "merged_samples": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\training_samples_with_aero_nuclear_equipment_external.csv",
+    "report": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_v1\\603308_pipeline_out\\04_external\\aero_nuclear_equipment\\validation_report.json"
+  }
+}

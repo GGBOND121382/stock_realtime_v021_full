@@ -269,6 +269,8 @@ def save_candidate(row: pd.Series, args) -> dict:
         "--entry-policy", row["entry_policy"],
         "--target-hit-bps", str(row.get("target_hit_bps", 50.0)),
         "--entry-vwap-premium-bps", "50",
+        "--feature-time-mode", str(row.get("feature_time_mode", "eod") or "eod"),
+        "--feature-cutoff-time", str(row.get("feature_cutoff_time", "") or ""),
         "--round-trip-cost-bps", "1.7",
         "--valid-rows", "126",
         "--min-train-entries", "80",

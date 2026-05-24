@@ -1050,6 +1050,27 @@ def add_benchmark_asof_aliases(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
+def add_stock_asof_aliases(df: pd.DataFrame, cutoff_time: Optional[str] = None) -> pd.DataFrame:
+    """Expose the live current-day row under asof1455 training column names."""
+    out = df.copy()
+    aliases = [
+        ("open", "open_asof1455"),
+        ("high", "high_asof1455"),
+        ("low", "low_asof1455"),
+        ("close", "close_asof1455"),
+        ("volume", "volume_asof1455"),
+        ("amount", "amount_asof1455"),
+        ("daily_vwap", "vwap_asof1455"),
+        ("n_intraday_bars", "n_intraday_bars_asof1455"),
+    ]
+    for src, dst in aliases:
+        if src in out.columns:
+            out[dst] = out[src]
+    out["feature_time_mode"] = "asof1455"
+    out["feature_cutoff_time"] = cutoff_time or "14:55"
+    return out
+
+
 def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date: str, cache_dir: Path, cutoff_time: Optional[str] = None) -> pd.DataFrame:
     """Overlay current-day live daily fields onto the last scoring row.
 
@@ -1166,7 +1187,7 @@ def overlay_current_day_from_cache(df: pd.DataFrame, stock_code: str, trade_date
 
     out = out[pd.to_datetime(out["date"], errors="coerce").dt.normalize() != trade_ts]
     out = pd.concat([out, pd.DataFrame([row])], ignore_index=True)
-    return out.sort_values("date").reset_index(drop=True)
+    return add_stock_asof_aliases(out.sort_values("date").reset_index(drop=True), cutoff_time)
 
 def overlay_current_day_from_intraday(df: pd.DataFrame, trade_date: str, intraday_path: Optional[Path], cutoff_time: Optional[str] = None) -> pd.DataFrame:
     if intraday_path is None or not intraday_path.exists():
@@ -1211,7 +1232,10 @@ def overlay_current_day_from_intraday(df: pd.DataFrame, trade_date: str, intrada
         if col in out.columns:
             row[col] = pd.NA
     keep = out[pd.to_datetime(out["date"]) != target_date].copy()
-    return pd.concat([keep, pd.DataFrame([row])], ignore_index=True).sort_values("date").reset_index(drop=True)
+    return add_stock_asof_aliases(
+        pd.concat([keep, pd.DataFrame([row])], ignore_index=True).sort_values("date").reset_index(drop=True),
+        cutoff_time,
+    )
 
 
 
@@ -1471,10 +1495,12 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
     threshold = float(artifact.metadata["threshold"])
     entry_policy = str(artifact.metadata.get("entry_policy") or "vwap_low")
     entry_vwap_premium_bps = float(artifact.metadata.get("entry_vwap_premium_bps", 50.0))
+    feature_time_mode = str(artifact.metadata.get("feature_time_mode") or "eod")
+    feature_cutoff_time = str(artifact.metadata.get("feature_cutoff_time") or "")
     # Always recompute from artifact metadata; do not trust an entry_signal
     # column inherited from saved samples because it may have been generated
     # under a different entry policy.
-    entry_signal = bool(compute_entry_signal(day_df, entry_policy, entry_vwap_premium_bps).iloc[-1])
+    entry_signal = bool(compute_entry_signal(day_df, entry_policy, entry_vwap_premium_bps, feature_time_mode).iloc[-1])
     signal_raw_score_pass = bool(float(score[-1]) >= threshold)
     signal = entry_signal and signal_raw_score_pass
 
@@ -1560,6 +1586,8 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
         "artifact_name": artifact.artifact_name,
         "entry_policy": entry_policy,
         "entry_vwap_premium_bps": entry_vwap_premium_bps,
+        "feature_time_mode": feature_time_mode,
+        "feature_cutoff_time": feature_cutoff_time,
         "entry_signal": entry_signal,
         "close": close_value,
         "daily_vwap": daily_vwap_value,
@@ -1633,6 +1661,9 @@ def score_artifact(artifact: ModelArtifact, trade_date: str, out_dir: Path, cach
     if args.require_realtime_context and req.requires_realtime_context and str(context_meta.get("context_status", "")) not in {"ok", "not_required"}:
         row["signal"] = False
         append_reject_reason(row, "missing_required_realtime_context")
+    if lagged_daily_missing:
+        row["signal"] = False
+        append_reject_reason(row, "lagged_daily_features_missing")
     if (
         req.requires_intraday_bars
         and args.min_intraday_bars is not None
@@ -1914,6 +1945,8 @@ def list_models(args: argparse.Namespace, trade_date: str) -> None:
             "threshold": a.metadata.get("threshold"),
             "feature_group": a.metadata.get("feature_group"),
             "entry_policy": a.metadata.get("entry_policy"),
+            "feature_time_mode": a.metadata.get("feature_time_mode", "eod"),
+            "feature_cutoff_time": a.metadata.get("feature_cutoff_time", ""),
             "artifact_dir": str(a.artifact_dir),
         }
         for a in artifacts

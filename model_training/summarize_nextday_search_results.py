@@ -160,6 +160,8 @@ def load_one_summary(path: Path, pipeline_meta: Dict) -> pd.DataFrame:
     df["feature_pipeline"] = ",".join(manifest.get("feature_pipeline", []) or pipeline_meta.get("feature_pipeline_effective", []) or [])
     df["external"] = ",".join(manifest.get("external", []) or pipeline_meta.get("external_effective", []) or [])
     df["entry_vwap_premium_bps"] = manifest.get("entry_vwap_premium_bps") or pipeline_meta.get("entry_vwap_premium_bps")
+    df["feature_time_mode"] = manifest.get("feature_time_mode") or pipeline_meta.get("feature_time_mode") or "eod"
+    df["feature_cutoff_time"] = manifest.get("feature_cutoff_time") or pipeline_meta.get("feature_cutoff_time") or ""
     return df
 
 
