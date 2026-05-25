@@ -1,0 +1,21 @@
+{
+  "cmd": [
+    "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\.venv\\Scripts\\python.exe",
+    "tools/compare_asof1455_training_vs_live.py",
+    "--pipeline-root",
+    "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_week_check",
+    "--dates",
+    "auto",
+    "--cutoff-time",
+    "14:55",
+    "--feature-group",
+    "all_no_ak",
+    "--max-missing",
+    "0.35",
+    "--out-dir",
+    "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\reports\\asof1455_target_week_compare"
+  ],
+  "returncode": 0,
+  "status": "ok",
+  "stdout_tail": "WROTE C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\reports\\asof1455_target_week_compare\\summary.csv rows=70\nWROTE C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\reports\\asof1455_target_week_compare\\feature_diffs.csv rows=9005\nWROTE C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\reports\\asof1455_target_week_compare\\category_summary.csv rows=50\nWROTE C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\reports\\asof1455_target_week_compare\\input_report.csv rows=71\n"
+}

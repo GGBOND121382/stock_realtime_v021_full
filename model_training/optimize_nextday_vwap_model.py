@@ -261,6 +261,8 @@ def is_lagged_daily_external_feature_name(col: str) -> bool:
 
 def is_asof_allowed_feature(col: str) -> bool:
     text = str(col)
+    if text.endswith("_eod"):
+        return False
     fund_prefixes = (
         "peTTM", "pbMRQ", "psTTM", "pcfNcfTTM",
         "profit_", "operation_", "growth_", "solvency_", "cashflow_", "dupont_",

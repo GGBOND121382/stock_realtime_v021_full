@@ -109,6 +109,16 @@ def is_lagged_daily_external_feature(col: str) -> bool:
     )
 
 
+def is_daily_known_sample_feature(col: str) -> bool:
+    """Features that live scoring should copy from samples[date=T]."""
+    text = str(col)
+    return (
+        is_lagged_daily_external_feature(text)
+        or text in {"peTTM", "pbMRQ", "psTTM", "pcfNcfTTM", "fund_days_since_effective"}
+        or text in {"peTTM_rank252", "pbMRQ_rank252", "psTTM_rank252", "pcfNcfTTM_rank252"}
+    )
+
+
 def context_status_for_missing(required: list[str], missing: list[str], has_daily_fallback: bool = False) -> str:
     if not required:
         return "not_required"
@@ -832,7 +842,8 @@ def add_scoring_features(
     bench_trade_date = scoring_trade_date or (pd.to_datetime(out["date"].max()).strftime("%Y%m%d") if "date" in out.columns and not out.empty else "")
     out = overlay_benchmark_asof(out, bench_trade_date, cache_dir, cutoff_time, benchmark_symbols)
     out = add_market_state_features(out)
-    return add_benchmark_asof_aliases(out)
+    out = add_benchmark_asof_aliases(out)
+    return add_stock_asof_aliases(out, cutoff_time)
 
 def parse_cutoff_dt(trade_date: str, cutoff_time: Optional[str]) -> Optional[pd.Timestamp]:
     if not cutoff_time:
@@ -1336,7 +1347,7 @@ def fill_lagged_daily_features_from_current_sample(
     If the input samples do not contain date=T, keep these columns missing on
     the live scoring row instead of inheriting a copied T-1 row.
     """
-    lagged_cols = [c for c in feature_cols if is_lagged_daily_external_feature(c)]
+    lagged_cols = [c for c in feature_cols if is_daily_known_sample_feature(c)]
     if not lagged_cols or "date" not in df.columns or "date" not in samples.columns:
         return df, [], []
 

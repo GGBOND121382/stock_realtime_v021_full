@@ -1,0 +1,208 @@
+=== nextday pipeline start: 2026-05-26T00:29:27 ===
+symbol=600584.SH, out_root=C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out
+
+[2026-05-26T00:29:27] RUN update_data
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 600584 --benchmark_symbol 000300 --daily_start 2025-01-01 --daily_end 2026-05-25 --intraday_start '2025-01-01 09:30:00' --intraday_end '2026-05-25 15:00:00' --output_dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\00_base' --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+login success!
+logout success!
+login success!
+[WinError 10053] 你的主机中的软件中止了一个已建立的连接。
+接收数据异常，请稍后再试。
+[WinError 10054] 远程主机强迫关闭了一个现有的连接。
+接收数据异常，请稍后再试。
+Traceback (most recent call last):
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 2084, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 2075, in main
+    result = run_update_data(args)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py", line 953, in run_update_data
+    mod, cfg, meta, daily_feat, intraday_feat, fetch_logs, base_paths = helper.build_feature_frames(args)
+                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 801, in build_feature_frames
+    intraday_df, intra_logs = _incremental_fetch_intraday(args.symbol, args.intraday_start, args.intraday_end, adjust=args.adjust, cache_path=intraday_cache_path, force_refresh=force_refresh, cache_mode=cache_mode)
+                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 402, in _incremental_fetch_intraday
+    fresh, meta = fetch_stock_intraday_5m_range(symbol, str(req_start), str(req_end), adjust)
+                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 321, in fetch_stock_intraday_5m_range
+    df = _rs_to_df(rs)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\bootstrap\ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py", line 118, in _rs_to_df
+    raise RuntimeError(f"BaoStock query failed: {rs.error_code} {rs.error_msg}")
+RuntimeError: BaoStock query failed: 10002007 网络接收错误。
+
+[2026-05-26T06:32:10] RUN samples
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_nextday_samples_from_baostock.py --daily-features 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\00_base\daily_features.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\00_base\600584_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\01_samples' --min-bars 40 --keep-unlabeled-tail
+Traceback (most recent call last):
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_nextday_samples_from_baostock.py", line 75, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_nextday_samples_from_baostock.py", line 61, in main
+    samples = build_samples(Path(args.daily_features), Path(args.intraday_bars), args.min_bars, args.keep_unlabeled_tail)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_nextday_samples_from_baostock.py", line 34, in build_samples
+    daily = pd.read_csv(daily_features, parse_dates=["date"]).sort_values("date")
+            ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 873, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 300, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 1645, in __init__
+    self._engine = self._make_engine(f, self.engine)
+                   ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 1904, in _make_engine
+    self.handles = get_handle(
+                   ~~~~~~~~~~^
+        f,
+        ^^
+    ...<6 lines>...
+        storage_options=self.options.get("storage_options", None),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\common.py", line 930, in get_handle
+    handle = open(
+        handle,
+    ...<3 lines>...
+        newline="",
+    )
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_week_check\\600584_pipeline_out\\00_base\\daily_features.csv'
+
+[2026-05-26T06:32:18] RUN asof_samples
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_asof1455_training_samples.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\01_samples\training_samples.csv' --intraday-bars 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\00_base\600584_5m.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\01_samples_asof1455' --cutoff-time 14:55 --min-bars 40
+Traceback (most recent call last):
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_asof1455_training_samples.py", line 116, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_asof1455_training_samples.py", line 100, in main
+    df = build_asof_samples(Path(args.samples), Path(args.intraday_bars), args.cutoff_time, args.min_bars)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_asof1455_training_samples.py", line 80, in build_asof_samples
+    base = pd.read_csv(samples, parse_dates=["date"]).sort_values("date")
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 873, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 300, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 1645, in __init__
+    self._engine = self._make_engine(f, self.engine)
+                   ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 1904, in _make_engine
+    self.handles = get_handle(
+                   ~~~~~~~~~~^
+        f,
+        ^^
+    ...<6 lines>...
+        storage_options=self.options.get("storage_options", None),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\common.py", line 930, in get_handle
+    handle = open(
+        handle,
+    ...<3 lines>...
+        newline="",
+    )
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_week_check\\600584_pipeline_out\\01_samples\\training_samples.csv'
+
+[2026-05-26T06:32:19] RUN fundamental
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_fundamental_features.py --symbol 600584.SH --daily-samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\01_samples_asof1455\training_samples_asof1455.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\02_fundamental' --start-date 2025-01-01 --end-date 2026-05-25 --fallback-lag-days 120 --skip-akshare
+Traceback (most recent call last):
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_fundamental_features.py", line 373, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_fundamental_features.py", line 313, in main
+    samples = pd.read_csv(args.daily_samples, parse_dates=["date"]).sort_values("date")
+              ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 873, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 300, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 1645, in __init__
+    self._engine = self._make_engine(f, self.engine)
+                   ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 1904, in _make_engine
+    self.handles = get_handle(
+                   ~~~~~~~~~~^
+        f,
+        ^^
+    ...<6 lines>...
+        storage_options=self.options.get("storage_options", None),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\common.py", line 930, in get_handle
+    handle = open(
+        handle,
+    ...<3 lines>...
+        newline="",
+    )
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_week_check\\600584_pipeline_out\\01_samples_asof1455\\training_samples_asof1455.csv'
+
+[2026-05-26T06:32:20] RUN sector
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_sector_features.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\02_fundamental\training_samples_with_fundamentals.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\03_sector' --sector-symbol '半导体' --start-date 2025-01-01 --end-date 2026-05-25
+Traceback (most recent call last):
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_sector_features.py", line 133, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_sector_features.py", line 97, in main
+    samples = pd.read_csv(args.samples, parse_dates=["date"]).sort_values("date")
+              ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 873, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 300, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 1645, in __init__
+    self._engine = self._make_engine(f, self.engine)
+                   ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 1904, in _make_engine
+    self.handles = get_handle(
+                   ~~~~~~~~~~^
+        f,
+        ^^
+    ...<6 lines>...
+        storage_options=self.options.get("storage_options", None),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\common.py", line 930, in get_handle
+    handle = open(
+        handle,
+    ...<3 lines>...
+        newline="",
+    )
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_week_check\\600584_pipeline_out\\02_fundamental\\training_samples_with_fundamentals.csv'
+
+[2026-05-26T06:32:21] RUN external_ai_compute
+  'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Scripts\python.exe' feature_building/build_stock_external_features.py --samples 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\03_sector\training_samples_with_sector.csv' --out-dir 'C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\04_external\ai_compute' --profile ai_compute --target-symbol 600584.SH --start-date 2025-01-01 --end-date 2026-05-25 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+Traceback (most recent call last):
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_stock_external_features.py", line 837, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\feature_building\build_stock_external_features.py", line 757, in main
+    samples = pd.read_csv(args.samples, parse_dates=["date"]).sort_values("date")
+              ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 873, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 300, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 1645, in __init__
+    self._engine = self._make_engine(f, self.engine)
+                   ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\parsers\readers.py", line 1904, in _make_engine
+    self.handles = get_handle(
+                   ~~~~~~~~~~^
+        f,
+        ^^
+    ...<6 lines>...
+        storage_options=self.options.get("storage_options", None),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\23853\PycharmProjects\stock_realtime_v021_full\.venv\Lib\site-packages\pandas\io\common.py", line 930, in get_handle
+    handle = open(
+        handle,
+    ...<3 lines>...
+        newline="",
+    )
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_week_check\\600584_pipeline_out\\03_sector\\training_samples_with_sector.csv'
+[INFO] final samples for search: C:\Users\23853\PycharmProjects\stock_realtime_v021_full\saved_data\asof1455_week_check\600584_pipeline_out\04_external\ai_compute\training_samples_with_ai_compute_external.csv
+=== nextday pipeline end: 2026-05-26T06:32:22 status=partial_failed ===

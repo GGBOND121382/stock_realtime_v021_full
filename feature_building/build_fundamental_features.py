@@ -220,6 +220,43 @@ def merge_features(
     return out.sort_values("date").reset_index(drop=True)
 
 
+def apply_asof1455_valuation_policy(features: pd.DataFrame, sample_dates: pd.DataFrame) -> pd.DataFrame:
+    """Convert daily valuation fields to a strict 14:55-known scale.
+
+    BaoStock daily valuation fields are date-level and may only be stable after
+    the close.  For asof1455 samples, use the previous trading day's known
+    valuation and scale it by today's 14:55 price over previous EOD close:
+
+        valuation_asof_T = valuation_eod_T-1 * close_asof1455_T / close_eod_T-1
+
+    The public feature names are intentionally kept as peTTM/pbMRQ/psTTM/
+    pcfNcfTTM so downstream model definitions do not need a new feature set.
+    Raw BaoStock same-day values are preserved as *_eod for audit only.
+    """
+    if "close_asof1455" not in sample_dates.columns or "close" not in sample_dates.columns:
+        return features
+    out = features.sort_values("date").reset_index(drop=True).copy()
+    sample = sample_dates[["date", "close", "close_asof1455"]].drop_duplicates("date").sort_values("date").copy()
+    sample["date"] = pd.to_datetime(sample["date"], errors="coerce")
+    out = out.merge(sample.rename(columns={"close": "_sample_close_eod", "close_asof1455": "_sample_close_asof1455"}), on="date", how="left")
+    prev_close = pd.to_numeric(out["_sample_close_eod"], errors="coerce").shift(1)
+    close_asof = pd.to_numeric(out["_sample_close_asof1455"], errors="coerce")
+    ratio = close_asof / prev_close.replace(0, np.nan)
+    valuation_cols = ["peTTM", "pbMRQ", "psTTM", "pcfNcfTTM"]
+    applied_cols = []
+    for col in valuation_cols:
+        if col not in out.columns:
+            continue
+        out[f"{col}_eod"] = out[col]
+        prev_val = pd.to_numeric(out[col], errors="coerce").shift(1)
+        asof_val = prev_val * ratio
+        out[col] = asof_val.where(asof_val.notna(), out[col])
+        applied_cols.append(col)
+    out["valuation_time_mode"] = "asof1455_from_lagged_eod" if applied_cols else ""
+    out["valuation_reference_lag_days"] = 1 if applied_cols else np.nan
+    return out.drop(columns=["_sample_close_eod", "_sample_close_asof1455"], errors="ignore")
+
+
 def add_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     out = df.copy()
     for col in ["peTTM", "pbMRQ", "psTTM", "pcfNcfTTM"]:
@@ -301,6 +338,7 @@ def main() -> None:
             errors.append(err)
 
     features = merge_features(samples, valuation, quarterly, fund_flow)
+    features = apply_asof1455_valuation_policy(features, samples)
     features = add_derived_features(features)
     merged = samples.merge(features, on="date", how="left", suffixes=("", "_fund"))
 

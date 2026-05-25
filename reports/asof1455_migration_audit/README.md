@@ -126,3 +126,44 @@ Interpretation:
 - `lagged_daily_sample_check.csv`
 - `minidata_sample_inventory.csv`
 - `top_model_risk_compact.csv`
+
+
+
+
+脚本已写好并通过 `py_compile` 和 dry-run。
+
+位置：
+
+[tools/run_asof1455_week_check_targets.py](c:/Users/23853/PycharmProjects/stock_realtime_v021_full/tools/run_asof1455_week_check_targets.py:1)
+
+它会完成：
+
+- 为指定标的获取/更新基础数据；
+- 构造 `training_samples`；
+- 构造 `training_samples_asof1455`；
+- 构造 fundamental / sector / external 特征；
+- 不跑训练、不跑 search；
+- 调用 [tools/compare_asof1455_training_vs_live.py](c:/Users/23853/PycharmProjects/stock_realtime_v021_full/tools/compare_asof1455_training_vs_live.py:1) 做近一周训练特征 vs 14:55 盯盘特征差异对比；
+- 输出 `build_report.json`、`compare_report.json` 和对比 CSV。
+
+跑剩下 6 只可以用：
+
+```powershell
+& '.\.venv\Scripts\python.exe' tools\run_asof1455_week_check_targets.py `
+  --targets 600584.SH,600919.SH,601818.SH,601899.SH,603308.SH,603986.SH `
+  --resume
+```
+
+输出目录默认是：
+
+- 特征数据：`saved_data/asof1455_week_check`
+- 对比报告：`reports/asof1455_target_week_compare`
+
+如果只想先补特征、不跑对比：
+
+```powershell
+& '.\.venv\Scripts\python.exe' tools\run_asof1455_week_check_targets.py `
+  --targets 600584.SH,600919.SH,601818.SH,601899.SH,603308.SH,603986.SH `
+  --resume `
+  --skip-compare
+```
