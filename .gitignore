@@ -24,6 +24,8 @@ saved_data/feature_reconstruction_audit
 saved_data/asof1455_week_check/
 saved_data/asof1455_audit_minidata/
 saved_data/asof1455_v1/
+portfolio_reports/backtests/*smoke
+portfolio_reports/backtests/*smoke*
 
 # Ignore realtime/cache data
 saved_data/akshare_realtime_cache/
