@@ -1,7 +1,0 @@
-{
-  "daily_feature_max": "2026-05-21 00:00:00",
-  "intraday_feature_max": "2026-05-21 15:00:00",
-  "daily_context_days": 260,
-  "intraday_context_days": 40,
-  "feature_build_mode": "cache_reuse_no_rebuild"
-}

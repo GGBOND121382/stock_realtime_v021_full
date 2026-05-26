@@ -1,8 +1,0 @@
-{
-  "rows": 334,
-  "date_min": "2025-01-02",
-  "date_max": "2026-05-25",
-  "cutoff_time": "14:55",
-  "min_bars": 40,
-  "out": "C:\\Users\\23853\\PycharmProjects\\stock_realtime_v021_full\\saved_data\\asof1455_week_check\\600312_pipeline_out\\01_samples_asof1455\\training_samples_asof1455.csv"
-}
