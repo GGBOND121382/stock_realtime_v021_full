@@ -1,0 +1,32 @@
+{
+  "artifact_created_at": "2026-05-26T16:50:31",
+  "stock_code": "600522.SH",
+  "artifact_name": "a_active_021_close_exit_close_vwap_low_sector_lgbm_leaves7_400",
+  "samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\asof1455_week_check\\600522_pipeline_out\\04_external\\optical_cable_grid\\training_samples_with_optical_cable_grid_external.csv",
+  "intraday_bars": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\asof1455_week_check\\600522_pipeline_out\\00_base\\600522_5m.csv",
+  "feature_group": "reversal_fundamental_regime_sector",
+  "model_name": "lgbm_leaves7_400",
+  "label_mode": "close_profit",
+  "entry_policy": "vwap_low",
+  "entry_vwap_premium_bps": 50.0,
+  "feature_time_mode": "asof1455",
+  "feature_cutoff_time": "14:55",
+  "target_hit_bps": 50.0,
+  "round_trip_cost_bps": 1.7,
+  "feature_count": 80,
+  "rows": 333,
+  "validation_tail_trade_metrics": {
+    "trades": 127.0,
+    "win_rate": 0.5905511811023622,
+    "avg_return": 0.0061721929649023,
+    "median_return": 0.0042678698224851,
+    "max_drawdown": -0.1205048443127538,
+    "profit_factor": 2.1655156405204505
+  },
+  "a_active_row": 21,
+  "a_active_tier": "A-Active",
+  "a_active_strategy": "close_exit",
+  "a_active_origin": "600522_pipeline_out_v2_all14/99_summary",
+  "asof_pipeline": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\asof1455_week_check\\600522_pipeline_out",
+  "usage_note": "Synthetic metadata for A_Active rolling asof1455 backtest."
+}

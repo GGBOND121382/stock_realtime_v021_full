@@ -1,0 +1,32 @@
+{
+  "artifact_created_at": "2026-05-26T16:50:31",
+  "stock_code": "600312.SH",
+  "artifact_name": "a_active_010_close_exit_close_all_days_reversal_xgb_d3_600_lr002_mcw3",
+  "samples": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\asof1455_week_check\\600312_pipeline_out\\03_sector\\training_samples_with_sector.csv",
+  "intraday_bars": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\asof1455_week_check\\600312_pipeline_out\\00_base\\600312_5m.csv",
+  "feature_group": "reversal_fundamental_regime",
+  "model_name": "xgb_d3_600_lr002_mcw3",
+  "label_mode": "close_profit",
+  "entry_policy": "all_days",
+  "entry_vwap_premium_bps": 50.0,
+  "feature_time_mode": "asof1455",
+  "feature_cutoff_time": "14:55",
+  "target_hit_bps": 50.0,
+  "round_trip_cost_bps": 1.7,
+  "feature_count": 80,
+  "rows": 333,
+  "validation_tail_trade_metrics": {
+    "trades": 170.0,
+    "win_rate": 0.5705882352941176,
+    "avg_return": 0.004548732685383,
+    "median_return": 0.0027160654282665,
+    "max_drawdown": -0.0776675638268629,
+    "profit_factor": 1.8549275880827123
+  },
+  "a_active_row": 10,
+  "a_active_tier": "A-Active",
+  "a_active_strategy": "close_exit",
+  "a_active_origin": "600312_pipeline_out/99_summary;600312_pipeline_out_v2_all14/99_summary",
+  "asof_pipeline": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\asof1455_week_check\\600312_pipeline_out",
+  "usage_note": "Synthetic metadata for A_Active rolling asof1455 backtest."
+}

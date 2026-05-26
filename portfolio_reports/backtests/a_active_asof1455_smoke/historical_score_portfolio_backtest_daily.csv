@@ -1,0 +1,3 @@
+﻿date,signal_dir,orders_path,orders,executed_buys,realized_sells,buy_cost,realized_pnl,cash,market_value,equity,skipped_buys
+2026-05-19,portfolio_reports\backtests\a_active_asof1455_smoke\generated_signals\20260519,portfolio_reports\backtests\a_active_asof1455_smoke\portfolio_runs\20260519\daily_portfolio_orders_2026-05-19.csv,1,1,0,19504.557215,0.0,180495.442785,19499.0,199994.442785,[]
+2026-05-20,portfolio_reports\backtests\a_active_asof1455_smoke\generated_signals\20260520,portfolio_reports\backtests\a_active_asof1455_smoke\portfolio_runs\20260520\daily_portfolio_orders_2026-05-20.csv,1,1,1,14702.188929999998,999.061735,186296.872805,14697.999999999998,200994.872805,[]
