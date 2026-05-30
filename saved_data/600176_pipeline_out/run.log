@@ -2155,3 +2155,173 @@ symbol=600176.SH, out_root=/root/workspace/stock_realtime_v021_full/saved_data/6
   }
 }
 === nextday pipeline end: 2026-05-11T12:28:34 status=ok ===
+=== nextday pipeline start: 2026-05-29T20:07:49 ===
+symbol=600176.SH, out_root=/root/stock_realtime_v021_full/saved_data/600176_pipeline_out
+
+[2026-05-29T20:07:49] RUN update_data
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 600176 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-29 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-29 15:00:00' --output_dir /root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:246: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  merged = _normalize_daily_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:248: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  merged = _normalize_intraday_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:254: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  merged = _normalize_bench_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:250: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  merged = _normalize_daily_feature_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
+/root/stock_realtime_v021_full/bootstrap/ashare_fetch_and_train_xgb_sell_signal_baostock_state_cache_helper_fix2.py:252: FutureWarning: The behavior of DataFrame concatenation with empty or all-NA entries is deprecated. In a future version, this will no longer exclude empty or all-NA columns when determining the result dtypes. To retain the old behavior, exclude the relevant entries before the concat operation.
+  merged = _normalize_intraday_feature_df(pd.concat([df_old, df_new], axis=0, ignore_index=True))
+login success!
+logout success!
+login success!
+logout success!
+login success!
+logout success!
+{
+  "mode": "update_data",
+  "symbol": "600176",
+  "data_source": "baostock",
+  "daily_rows": 2037,
+  "intraday_rows": 73920,
+  "daily_min": "2018-01-02 00:00:00",
+  "daily_max": "2026-05-29 00:00:00",
+  "intraday_min": "2020-01-02 09:35:00",
+  "intraday_max": "2026-05-29 15:00:00",
+  "base_paths": {
+    "daily_csv": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/600176_daily.csv",
+    "intraday_csv": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/600176_5m.csv",
+    "benchmark_csv": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/000300_benchmark_daily.csv",
+    "raw_daily_cache_csv": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/raw_cache/600176_daily_raw.csv",
+    "raw_intraday_cache_csv": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/raw_cache/600176_5m_raw.csv",
+    "raw_benchmark_cache_csv": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/raw_cache/000300_benchmark_daily_raw.csv",
+    "daily_features_csv": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/daily_features.csv",
+    "intraday_features_csv": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/intraday_features.csv",
+    "daily_features_cache_csv": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/feature_cache/daily_features_cache.csv",
+    "intraday_features_cache_csv": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/feature_cache/intraday_features_cache.csv",
+    "feature_state_json": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/feature_cache/feature_state.json"
+  },
+  "fetch_logs": {
+    "symbol": "600176",
+    "benchmark_symbol": "000300",
+    "daily_start": "2018-01-01",
+    "daily_end": "2026-05-29",
+    "intraday_start": "2018-01-01 09:30:00",
+    "intraday_end": "2026-05-29 15:00:00",
+    "perf_start": "2018-01-01",
+    "data_source": "baostock",
+    "cache_mode": "incremental",
+    "force_refresh": false,
+    "raw_cache_dir": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/raw_cache",
+    "feature_cache_dir": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/feature_cache",
+    "feature_cache_mode": "incremental",
+    "daily": {
+      "cache_path": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/raw_cache/600176_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-29",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600176",
+          "adjustflag": "2",
+          "rows": 2037,
+          "start": "2018-01-01",
+          "end": "2026-05-29"
+        }
+      ],
+      "cache_after": {
+        "rows": 2037,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-29 00:00:00"
+      }
+    },
+    "intraday_5m": {
+      "cache_path": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/raw_cache/600176_5m_raw.csv",
+      "requested_start": "2018-01-01 09:30:00",
+      "requested_end": "2026-05-29 15:00:00",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.600176",
+          "adjustflag": "2",
+          "requested_start": "2018-01-01 09:30:00",
+          "effective_start": "2018-01-01 09:30:00",
+          "requested_end": "2026-05-29 15:00:00",
+          "rows": 73920
+        }
+      ],
+      "cache_after": {
+        "rows": 73920,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-29 15:00:00"
+      }
+    },
+    "benchmark_daily": {
+      "cache_path": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/raw_cache/000300_benchmark_daily_raw.csv",
+      "requested_start": "2018-01-01",
+      "requested_end": "2026-05-29",
+      "mode": "initial_fetch",
+      "fetch_segments": [
+        {
+          "provider": "baostock",
+          "code": "sh.000300",
+          "rows": 2037,
+          "start": "2018-01-01",
+          "end": "2026-05-29"
+        }
+      ],
+      "cache_after": {
+        "rows": 2037,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-29 00:00:00"
+      }
+    },
+    "feature_build": {
+      "mode": "full_rebuild",
+      "reason": "feature_cache_missing",
+      "daily_cache_after": {
+        "rows": 2037,
+        "min": "2018-01-02 00:00:00",
+        "max": "2026-05-29 00:00:00"
+      },
+      "intraday_cache_after": {
+        "rows": 73920,
+        "min": "2020-01-02 09:35:00",
+        "max": "2026-05-29 15:00:00"
+      },
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "daily_appended_rows": 2037,
+      "intraday_appended_rows": 73920
+    },
+    "feature_state": {
+      "daily_feature_max": "2026-05-29 00:00:00",
+      "intraday_feature_max": "2026-05-29 15:00:00",
+      "daily_context_days": 260,
+      "intraday_context_days": 40,
+      "feature_build_mode": "full_rebuild"
+    }
+  }
+}
+
+[2026-05-29T20:10:44] RUN samples
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/daily_features.csv --intraday-bars /root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/600176_5m.csv --out-dir /root/stock_realtime_v021_full/saved_data/600176_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+{
+  "rows": 1540,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-29",
+  "out": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/01_samples/training_samples.csv"
+}
+
+[2026-05-29T20:10:45] RUN asof_samples
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /root/stock_realtime_v021_full/saved_data/600176_pipeline_out/01_samples/training_samples.csv --intraday-bars /root/stock_realtime_v021_full/saved_data/600176_pipeline_out/00_base/600176_5m.csv --out-dir /root/stock_realtime_v021_full/saved_data/600176_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+{
+  "rows": 1540,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-29",
+  "cutoff_time": "14:55",
+  "min_bars": 40,
+  "out": "/root/stock_realtime_v021_full/saved_data/600176_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv"
+}
+[INFO] final samples for search: /root/stock_realtime_v021_full/saved_data/600176_pipeline_out/01_samples/training_samples.csv
+=== nextday pipeline end: 2026-05-29T20:10:46 status=ok ===

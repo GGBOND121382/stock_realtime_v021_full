@@ -646,3 +646,25 @@ python3 data_collection/collect_realtime_context.py plan \
 601991
 002518
 600584
+
+# ML4T脚本
+python3 scripts/backtest_ml4t_asof1455_lgbm.py \
+  --sample-glob "saved_data/asof1455_week_check/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv" \
+  --bars-glob "saved_data/asof1455_week_check/*_pipeline_out/00_base/*_5m.csv" \
+  --out-dir saved_data/asof1455_week_check/ml4t_asof1455_lgbm_backtest \
+  --entry-price-col close_asof1455 \
+  --exit-price-col next_day_close \
+  --entry-policy all_days \
+  --round-trip-cost-bps 1.7 \
+  --train-days 756 \
+  --test-days 21 \
+  --embargo-days 1 \
+  --selection-rule strict_top_decile_positive \
+  --min-pred-return-bps 0.0 \
+  --max-positions 3 \
+  --n-estimators 500 \
+  --learning-rate 0.03 \
+  --num-leaves 15 \
+  --min-data-in-leaf 250 \
+  --bagging-fraction 0.75 \
+  --feature-fraction 0.75
