@@ -646,3 +646,11 @@ python3 data_collection/collect_realtime_context.py plan \
 601991
 002518
 600584
+
+
+## 近一年回测（A; A+B）
+python3 scripts/rolling_retrain_a_active_asof1455_backtest.py \
+  --start-date 2025-05-27 \
+  --end-date 2026-05-27 \
+  --out-dir portfolio_reports/backtests/a_active_vs_backup_asof1455_1y \
+  --keep-going
