@@ -1,2 +1,0 @@
-﻿entry_policy,feature_group,model_name,target_hit_bps,trades,win_rate,avg_return,median_return,compound_return,max_drawdown,profit_factor,windows
-all_days,all_no_ak,extra_trees_600_d3,50.0,8,0.5,-0.001861977449353605,0.002730855379144418,-0.018592161533969698,-0.082944753347436,0.8675492817114054,1

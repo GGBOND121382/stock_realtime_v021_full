@@ -1,9 +1,0 @@
-[START] 2026-05-11 22:47:15 002714.SZ external=hog,muyuan_hk
-{
-  "status": "ok",
-  "symbol": "002714.SZ",
-  "out_root": "/root/workspace/stock_realtime_v021_full/saved_data/002714_pipeline_out",
-  "final_samples": "/root/workspace/stock_realtime_v021_full/saved_data/002714_pipeline_out/04_external/muyuan_hk/training_samples_with_hk_external.csv",
-  "leaderboard": "/root/workspace/stock_realtime_v021_full/saved_data/002714_pipeline_out/99_summary/final_leaderboard.csv",
-  "manifest": "/root/workspace/stock_realtime_v021_full/saved_data/002714_pipeline_out/pipeline_summary.json"
-}

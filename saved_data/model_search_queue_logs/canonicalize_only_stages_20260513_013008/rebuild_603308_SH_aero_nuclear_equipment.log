@@ -1,8 +1,0 @@
-{
-  "status": "ok",
-  "symbol": "603308.SH",
-  "out_root": "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out",
-  "final_samples": "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv",
-  "leaderboard": "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out/99_summary/final_leaderboard.csv",
-  "manifest": "/root/stock_realtime_v021_full/saved_data/603308_pipeline_out/pipeline_summary.json"
-}

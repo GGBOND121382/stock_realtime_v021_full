@@ -13,9 +13,8 @@ For each configured stock it:
 1. Calls `pipelines/run_nextday_pipeline.py` with only data/feature stages:
    `update_data`, `samples`, `asof_samples`, `fundamental`, `sector`, and any
    configured external feature builders.
-2. Writes each stock into an isolated output directory under
-   `saved_data/asof1455_week_check`, so existing pipeline outputs are not
-   overwritten.
+2. Writes each stock into the canonical per-stock output directory under
+   `saved_data/<code>_pipeline_out`.
 3. Runs `tools/compare_asof1455_training_vs_live.py` over the generated outputs.
    That comparator builds synthetic 14:55 watch rows from the same 5m bars and
    checks the selected feature group column by column.
@@ -279,7 +278,7 @@ def write_reports(report_dir: Path, build_report: list[dict], compare_report: di
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build and compare asof1455 feature scale for selected targets")
     parser.add_argument("--targets", default="", help="Comma list of symbols. Empty means the default 15-stock set.")
-    parser.add_argument("--out-root", default=str(ROOT / "saved_data" / "asof1455_week_check"))
+    parser.add_argument("--out-root", default=str(ROOT / "saved_data"))
     parser.add_argument("--report-dir", default=str(ROOT / "reports" / "asof1455_target_week_compare"))
     parser.add_argument("--start-date", default="2025-01-01")
     parser.add_argument("--end-date", default="2026-05-25")

@@ -28,6 +28,7 @@ portfolio_reports/backtests/*smoke
 portfolio_reports/backtests/*smoke*
 portfolio_reports/backtests/a_active_vs_backup_asof1455_1y/a_active_plus_b_backup/
 portfolio_reports/backtests/a_active_vs_backup_asof1455_1y/a_active/
+saved_data/_recycle_data_cleanup*/
 
 # Ignore realtime/cache data
 saved_data/akshare_realtime_cache/

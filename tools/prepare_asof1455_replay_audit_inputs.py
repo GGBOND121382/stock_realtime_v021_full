@@ -13,18 +13,18 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MINI = ROOT / "saved_data" / "asof1455_audit_minidata"
+DATA_ROOT = ROOT / "saved_data"
 OUT = ROOT / "saved_data" / "feature_reconstruction_audit" / "asof1455_replay_inputs"
 
 SAMPLE_BY_STOCK = {
-    "603308.SH": MINI / "603308_pipeline_out" / "04_external" / "aero_nuclear_equipment" / "training_samples_with_aero_nuclear_equipment_external.csv",
-    "600487.SH": MINI / "600487_pipeline_out" / "04_external" / "optical_cable_grid" / "training_samples_with_optical_cable_grid_external.csv",
-    "600312.SH": MINI / "600312_pipeline_out" / "03_sector" / "training_samples_with_sector.csv",
+    "603308.SH": DATA_ROOT / "603308_pipeline_out" / "04_external" / "aero_nuclear_equipment" / "training_samples_with_aero_nuclear_equipment_external.csv",
+    "600487.SH": DATA_ROOT / "600487_pipeline_out" / "04_external" / "optical_cable_grid" / "training_samples_with_optical_cable_grid_external.csv",
+    "600312.SH": DATA_ROOT / "600312_pipeline_out" / "03_sector" / "training_samples_with_sector.csv",
 }
 INTRADAY_BY_STOCK = {
-    "603308.SH": MINI / "603308_pipeline_out" / "00_base" / "603308_5m.csv",
-    "600487.SH": MINI / "600487_pipeline_out" / "00_base" / "600487_5m.csv",
-    "600312.SH": MINI / "600312_pipeline_out" / "00_base" / "600312_5m.csv",
+    "603308.SH": DATA_ROOT / "603308_pipeline_out" / "00_base" / "603308_5m.csv",
+    "600487.SH": DATA_ROOT / "600487_pipeline_out" / "00_base" / "600487_5m.csv",
+    "600312.SH": DATA_ROOT / "600312_pipeline_out" / "00_base" / "600312_5m.csv",
 }
 
 
@@ -113,7 +113,7 @@ def prepare_models(saved_models: Path, out_models: Path) -> pd.DataFrame:
         sample = SAMPLE_BY_STOCK[stock]
         intraday = INTRADAY_BY_STOCK[stock]
         if not sample.exists() or not intraday.exists():
-            rows.append({"stock_code": stock, "artifact_name": meta_path.parent.name, "status": "missing_minidata"})
+            rows.append({"stock_code": stock, "artifact_name": meta_path.parent.name, "status": "missing_canonical_data"})
             continue
         dst = out_models / stock / meta_path.parent.name
         dst.mkdir(parents=True, exist_ok=True)

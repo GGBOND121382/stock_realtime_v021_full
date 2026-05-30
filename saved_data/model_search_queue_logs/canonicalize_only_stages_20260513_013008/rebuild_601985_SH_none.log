@@ -1,8 +1,0 @@
-{
-  "status": "ok",
-  "symbol": "601985.SH",
-  "out_root": "/root/stock_realtime_v021_full/saved_data/601985_pipeline_out",
-  "final_samples": "/root/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector/training_samples_with_sector.csv",
-  "leaderboard": "/root/stock_realtime_v021_full/saved_data/601985_pipeline_out/99_summary/final_leaderboard.csv",
-  "manifest": "/root/stock_realtime_v021_full/saved_data/601985_pipeline_out/pipeline_summary.json"
-}

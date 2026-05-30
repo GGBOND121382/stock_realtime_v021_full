@@ -53,7 +53,11 @@ def load_pipeline_meta(pipeline_dir: Path) -> dict:
 
 
 def find_pipeline_dirs(root: Path) -> list[Path]:
-    return sorted(p.parent for p in root.rglob("pipeline_summary.json") if "pipeline_out" in p.parent.name)
+    return sorted(
+        p.parent
+        for p in root.glob("*_pipeline_out/pipeline_summary.json")
+        if p.parent.name[:6].isdigit()
+    )
 
 
 def find_existing_sample(pipeline_dir: Path) -> Path | None:
@@ -287,7 +291,7 @@ def compare_one(pipeline_dir: Path, dates: list[str], out_cache: Path, cutoff_ti
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pipeline-root", default=str(ROOT / "saved_data" / "asof1455_v1"))
+    ap.add_argument("--pipeline-root", default=str(ROOT / "saved_data"))
     ap.add_argument("--out-dir", default=str(ROOT / "reports" / "asof1455_feature_scale_compare"))
     ap.add_argument("--dates", default="20260519,20260520,20260521", help="Comma dates, or 'auto' for recent sample dates per pipeline")
     ap.add_argument("--cutoff-time", default="14:55")

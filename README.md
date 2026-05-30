@@ -658,9 +658,9 @@ python3 scripts/rolling_retrain_a_active_asof1455_backtest.py \
 =======
 # ML4T脚本
 python3 scripts/backtest_ml4t_asof1455_lgbm.py \
-  --sample-glob "saved_data/asof1455_week_check/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv" \
-  --bars-glob "saved_data/asof1455_week_check/*_pipeline_out/00_base/*_5m.csv" \
-  --out-dir saved_data/asof1455_week_check/ml4t_asof1455_lgbm_backtest \
+  --sample-glob "saved_data/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv" \
+  --bars-glob "saved_data/*_pipeline_out/00_base/*_5m.csv" \
+  --out-root saved_data/ml4t_asof1455_lgbm_pipeline_out \
   --entry-price-col close_asof1455 \
   --exit-price-col next_day_close \
   --entry-policy all_days \

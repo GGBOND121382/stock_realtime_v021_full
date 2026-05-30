@@ -1,9 +1,0 @@
-symbol,sector,external,only_stages,status,returncode,start_time,end_time,log_file
-600312.SH,电网设备,none,update_data,samples,fundamental,sector,ok,0,2026-05-13 01:30:08,2026-05-13 01:34:06,saved_data/model_search_queue_logs/canonicalize_only_stages_20260513_013008/rebuild_600312_SH_none.log
-601899.SH,贵金属,none,update_data,samples,fundamental,sector,ok,0,2026-05-13 01:34:06,2026-05-13 01:38:19,saved_data/model_search_queue_logs/canonicalize_only_stages_20260513_013008/rebuild_601899_SH_none.log
-603308.SH,通用设备,aero_nuclear_equipment,update_data,samples,fundamental,sector,external_aero_nuclear_equipment,ok,0,2026-05-13 01:38:19,2026-05-13 01:42:44,saved_data/model_search_queue_logs/canonicalize_only_stages_20260513_013008/rebuild_603308_SH_aero_nuclear_equipment.log
-600096.SH,农化制品,none,update_data,samples,fundamental,sector,ok,0,2026-05-13 01:42:44,2026-05-13 01:46:42,saved_data/model_search_queue_logs/canonicalize_only_stages_20260513_013008/rebuild_600096_SH_none.log
-002311.SZ,农产品加工,none,update_data,samples,fundamental,sector,ok,0,2026-05-13 01:46:42,2026-05-13 01:50:52,saved_data/model_search_queue_logs/canonicalize_only_stages_20260513_013008/rebuild_002311_SZ_none.log
-601985.SH,电力,none,update_data,samples,fundamental,sector,ok,0,2026-05-13 01:50:52,2026-05-13 01:55:13,saved_data/model_search_queue_logs/canonicalize_only_stages_20260513_013008/rebuild_601985_SH_none.log
-600276.SH,化学制药,none,update_data,samples,fundamental,sector,ok,0,2026-05-13 01:55:13,2026-05-13 01:59:26,saved_data/model_search_queue_logs/canonicalize_only_stages_20260513_013008/rebuild_600276_SH_none.log
-002714.SZ,养殖业,none,update_data,samples,fundamental,sector,ok,0,2026-05-13 01:59:26,2026-05-13 02:03:37,saved_data/model_search_queue_logs/canonicalize_only_stages_20260513_013008/rebuild_002714_SZ_none.log

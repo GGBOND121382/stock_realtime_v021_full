@@ -1,5 +1,0 @@
-============================================================
-[START] 2026-05-11 05:37:35 symbol=600176.SH, sector=玻璃玻纤, mode=baseline, external=none
-============================================================
-[ERROR] RuntimeError: stage sector failed with returncode=1
-[FAIL] 2026-05-11 05:40:20 symbol=600176.SH, mode=baseline, returncode=1

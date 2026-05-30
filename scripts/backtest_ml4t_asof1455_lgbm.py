@@ -26,7 +26,7 @@ Required columns:
 Typical command
 ---------------
 python3 model_training/backtest_ml4t_asof1455_lgbm.py \
-  --sample-glob "saved_data/**/training_samples_asof1455.csv" \
+  --sample-glob "saved_data/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv" \
   --bars-glob "saved_data/*_pipeline_out/00_base/*_5m.csv" \
   --out-root saved_data/ml4t_asof1455_lgbm_pipeline_out \
   --entry-price-col close_asof1455 \
@@ -396,19 +396,23 @@ def stock_pipeline_dir(symbol: str, root: Optional[Path] = None) -> Path:
     return root / "saved_data" / f"{stock_code6(symbol)}_pipeline_out"
 
 
-def ml4t_asof_stage_dir(symbol: str, stage_name: str = "05_ml4t_asof1455", root: Optional[Path] = None) -> Path:
+def canonical_asof_stage_dir(symbol: str, stage_name: str = "01_samples_asof1455", root: Optional[Path] = None) -> Path:
     return stock_pipeline_dir(symbol, root=root) / stage_name
 
 
-def find_project_asof_sample(symbol: str, stage_name: str = "05_ml4t_asof1455", root: Optional[Path] = None) -> Optional[Path]:
-    """Find the best per-stock asof1455 sample, preferring the ML4T stage directory."""
+def find_project_asof_sample(symbol: str, stage_name: str = "01_samples_asof1455", root: Optional[Path] = None) -> Optional[Path]:
+    """Find the best project-generated per-stock asof1455 sample.
+
+    Prefer source stages that are rebuilt by run_nextday_pipeline. The ML4T
+    stage is a stable copy target and may be stale if a newer 01 sample exists.
+    """
     root = root or resolve_project_root()
     pipe = stock_pipeline_dir(symbol, root=root)
     candidates = [
-        pipe / stage_name / "training_samples_asof1455.csv",
         pipe / "01_samples_asof1455" / "training_samples_asof1455.csv",
-        pipe / "04_asof1455" / "training_samples_asof1455.csv",
     ]
+    if stage_name != "01_samples_asof1455":
+        candidates.insert(0, pipe / stage_name / "training_samples_asof1455.csv")
     candidates += sorted(
         pipe.glob("**/training_samples_asof1455.csv"),
         key=lambda x: x.stat().st_mtime if x.exists() else 0,
@@ -424,13 +428,13 @@ def find_project_asof_sample(symbol: str, stage_name: str = "05_ml4t_asof1455", 
     return None
 
 
-def copy_asof_sample_to_ml4t_stage(symbol: str, stage_name: str = "05_ml4t_asof1455", root: Optional[Path] = None) -> Optional[Path]:
-    """Copy project-generated asof samples into a stable ML4T stage dir under each stock pipeline_out."""
+def copy_asof_sample_to_ml4t_stage(symbol: str, stage_name: str = "01_samples_asof1455", root: Optional[Path] = None) -> Optional[Path]:
+    """Ensure the canonical per-stock asof1455 sample exists."""
     root = root or resolve_project_root()
     src = find_project_asof_sample(symbol, stage_name=stage_name, root=root)
     if src is None:
         return None
-    dst_dir = ml4t_asof_stage_dir(symbol, stage_name=stage_name, root=root)
+    dst_dir = canonical_asof_stage_dir(symbol, stage_name=stage_name, root=root)
     dst_dir.mkdir(parents=True, exist_ok=True)
     dst = dst_dir / "training_samples_asof1455.csv"
     if src.resolve() != dst.resolve():
@@ -442,7 +446,7 @@ def copy_asof_sample_to_ml4t_stage(symbol: str, stage_name: str = "05_ml4t_asof1
     manifest = {
         "stock_code": stock_code6(symbol),
         "source_sample": str(src),
-        "ml4t_sample": str(dst),
+        "canonical_asof_sample": str(dst),
         "stage_name": stage_name,
         "created_by": Path(__file__).name,
         "created_at": dt.datetime.now().isoformat(timespec="seconds"),
@@ -489,6 +493,138 @@ def infer_symbols_from_pipeline_dirs(project_root: Path) -> List[str]:
             continue
         symbols.append(normalize_stock_code(m.group(1)))
     return sorted(set(symbols))
+
+
+def pipeline_universe_dirs(project_root: Path) -> Dict[str, Path]:
+    """Return the allowed per-stock data roots under saved_data.
+
+    Only exact saved_data/<6-digit-code>_pipeline_out directories are allowed.
+    This deliberately excludes lookalike experiment folders such as
+    000657_pipeline_out_v2_new27_full and non-stock summary/cache folders.
+    """
+    saved_data = project_root / "saved_data"
+    if not saved_data.exists() or not saved_data.is_dir():
+        return {}
+    out: Dict[str, Path] = {}
+    for d in sorted(saved_data.iterdir()):
+        if not d.is_dir():
+            continue
+        m = re.fullmatch(r"(\d{6})_pipeline_out", d.name)
+        if not m:
+            continue
+        out[m.group(1)] = d
+    return out
+
+
+def is_relative_to_path(path: Path, parent: Path) -> bool:
+    try:
+        path.resolve().relative_to(parent.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+def filter_paths_to_pipeline_universe(paths: Sequence[Path], project_root: Path, label: str) -> List[Path]:
+    """Keep only files that live inside exact saved_data/<code>_pipeline_out roots."""
+    allowed_dirs = pipeline_universe_dirs(project_root)
+    if not allowed_dirs:
+        if paths:
+            print(f"[INFO] filtered {len(paths)} {label}: no saved_data/<code>_pipeline_out directories found")
+        return []
+    out: List[Path] = []
+    dropped: List[Path] = []
+    for p in paths:
+        if any(is_relative_to_path(p, d) for d in allowed_dirs.values()):
+            out.append(p)
+        else:
+            dropped.append(p)
+    if dropped:
+        print(
+            f"[INFO] filtered {len(dropped)} {label} outside saved_data/<code>_pipeline_out "
+            f"(kept {len(out)}, allowed_symbols={len(allowed_dirs)})"
+        )
+        for p in dropped[:20]:
+            print(f"  - filtered {p}")
+        if len(dropped) > 20:
+            print(f"  ... ({len(dropped) - 20} more filtered)")
+    return out
+
+
+def pipeline_code_for_path(path: Path, project_root: Path) -> Optional[str]:
+    for code, root in pipeline_universe_dirs(project_root).items():
+        if is_relative_to_path(path, root):
+            return code
+    return None
+
+
+def asof_sample_stage_rank(path: Path, stage_name: str) -> int:
+    parts = path.parts
+    if stage_name in parts:
+        return 0
+    if "01_samples_asof1455" in parts:
+        return 0
+    return 1
+
+
+def select_one_asof_sample_per_symbol(paths: Sequence[Path], project_root: Path, stage_name: str) -> List[Path]:
+    """Avoid mixing 01/05/etc. samples for the same stock.
+
+    Preference is:
+      1) configured canonical stage, default 01_samples_asof1455
+      2) any other explicitly supplied matching asof sample inside that stock pipeline
+    """
+    by_code: Dict[str, List[Path]] = {}
+    no_code: List[Path] = []
+    for p in paths:
+        code = pipeline_code_for_path(p, project_root)
+        if code:
+            by_code.setdefault(code, []).append(p)
+        else:
+            no_code.append(p)
+
+    selected: List[Path] = []
+    dropped: List[Path] = []
+    for code, code_paths in sorted(by_code.items()):
+        ranked = sorted(
+            code_paths,
+            key=lambda p: (
+                asof_sample_stage_rank(p, stage_name),
+                -(p.stat().st_mtime if p.exists() else 0),
+                str(p),
+            ),
+        )
+        selected.append(ranked[0])
+        dropped.extend(ranked[1:])
+    selected.extend(no_code)
+    if dropped:
+        print(
+            f"[INFO] dropped {len(dropped)} duplicate asof sample files to avoid 01/05 stage mixing "
+            f"(kept {len(selected)})"
+        )
+        for p in dropped[:20]:
+            print(f"  - dropped {p}")
+        if len(dropped) > 20:
+            print(f"  ... ({len(dropped) - 20} more dropped)")
+    return sorted(selected)
+
+
+def filter_bars_map_to_pipeline_universe(bars_map: Dict[str, Path], project_root: Path) -> Dict[str, Path]:
+    allowed_dirs = pipeline_universe_dirs(project_root)
+    if not allowed_dirs:
+        if bars_map:
+            print(f"[INFO] filtered {len(bars_map)} 5m bar mappings: no saved_data/<code>_pipeline_out directories found")
+        return {}
+    out: Dict[str, Path] = {}
+    dropped: Dict[str, Path] = {}
+    for code, path in bars_map.items():
+        allowed_dir = allowed_dirs.get(stock_code6(code))
+        if allowed_dir is not None and is_relative_to_path(path, allowed_dir):
+            out[code] = path
+        else:
+            dropped[code] = path
+    if dropped:
+        print(f"[INFO] filtered {len(dropped)} 5m bar mappings outside saved_data/<code>_pipeline_out (kept {len(out)})")
+    return out
 
 
 def read_symbols_file(path: Path) -> List[str]:
@@ -571,52 +707,17 @@ def infer_symbols_for_auto_update(sample_paths: Sequence[Path], raw: Optional[pd
         print(f"[INFO] inferred auto-update symbols from saved_data/*_pipeline_out dirs: {len(symbols)}")
         return symbols
 
-    # Optional explicit watchlist file, then common project watchlist names.
-    # Used only when no per-stock pipeline_out folders exist yet.
-    symbol_files: List[Path] = []
-    if getattr(args, "auto_symbols_file", ""):
-        f = Path(args.auto_symbols_file)
-        symbol_files.append(f if f.is_absolute() else project_root / f)
-    symbol_files.extend([
-        project_root / "selected_watchlist.txt",
-        project_root / "watchlist.txt",
-        project_root / "effective_watchlist.txt",
-    ])
-    for f in symbol_files:
-        symbols = read_symbols_file(f)
-        if symbols:
-            print(f"[INFO] inferred auto-update symbols from {f}: {len(symbols)}")
-            return symbols
-
-    if raw is not None and not raw.empty and "stock_code" in raw.columns:
-        symbols = sorted({normalize_stock_code(x) for x in raw["stock_code"].dropna().astype(str)})
-        symbols = [s for s in symbols if re.search(r"\d{6}", s)]
-        if symbols:
-            print(f"[INFO] inferred auto-update symbols from loaded samples: {len(symbols)}")
-            return symbols
-
-    symbols = infer_symbols_from_paths(sample_paths)
-    if symbols:
-        print(f"[INFO] inferred auto-update symbols from sample paths: {len(symbols)}")
-        return symbols
-
-    symbol_paths = discover_symbol_paths_for_auto_update(args, project_root)
-    symbols = infer_symbols_from_paths(symbol_paths)
-    if symbols:
-        print(f"[INFO] inferred auto-update symbols from existing bar/model paths: {len(symbols)}")
-        return symbols
-
+    print("[INFO] no saved_data/<code>_pipeline_out dirs found for auto-update symbol inference")
     return []
 
 
-def discover_asof_sample_paths(project_root: Path, stage_name: str = "05_ml4t_asof1455") -> List[Path]:
+def discover_asof_sample_paths(project_root: Path, stage_name: str = "01_samples_asof1455") -> List[Path]:
     # Prefer the organized ML4T stage under each stock pipeline_out.
     patterns = [
-        f"saved_data/*_pipeline_out/{stage_name}/training_samples_asof1455.csv",
         "saved_data/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv",
-        "saved_data/*_pipeline_out/04_asof1455/training_samples_asof1455.csv",
-        "saved_data/**/training_samples_asof1455.csv",
     ]
+    if stage_name != "01_samples_asof1455":
+        patterns.insert(0, f"saved_data/*_pipeline_out/{stage_name}/training_samples_asof1455.csv")
     paths: List[Path] = []
     for pat in patterns:
         paths.extend(project_root.glob(pat))
@@ -628,7 +729,8 @@ def discover_asof_sample_paths(project_root: Path, stage_name: str = "05_ml4t_as
             if key not in seen:
                 seen.add(key)
                 out.append(p)
-    return sorted(out)
+    out = filter_paths_to_pipeline_universe(out, project_root, "auto-discovered sample files")
+    return select_one_asof_sample_per_symbol(out, project_root, stage_name)
 
 
 def required_window_dates(args) -> int:
@@ -1445,7 +1547,7 @@ def parse_args(argv: Optional[Sequence[str]] = None):
     p.add_argument("--out-dir", default="", help="Exact run output directory. If omitted, writes under --out-root/99_summary/<run-name>.")
     p.add_argument("--out-root", default="saved_data/ml4t_asof1455_lgbm_pipeline_out", help="Organized ML4T pipeline root, similar to saved_data/<code>_pipeline_out.")
     p.add_argument("--run-name", default="", help="Optional subfolder name under --out-root/99_summary.")
-    p.add_argument("--ml4t-sample-stage", default="05_ml4t_asof1455", help="Per-stock pipeline_out stage used to store ML4T asof1455 samples.")
+    p.add_argument("--ml4t-sample-stage", default="01_samples_asof1455", help="Canonical per-stock pipeline_out stage for asof1455 samples.")
 
     p.add_argument("--auto-update-data", action="store_true", help="If sample files are missing or too short for the requested rolling window, run the project-native pipelines/run_nextday_pipeline.py to download/build longer asof1455 samples, then reload.")
     p.add_argument("--auto-symbols", default="", help="Comma-separated symbols for --auto-update-data; if empty, infer from loaded samples, watchlist, bars, or pipeline dirs.")
@@ -1510,16 +1612,19 @@ def parse_args(argv: Optional[Sequence[str]] = None):
 
 def main(argv: Optional[Sequence[str]] = None) -> None:
     args = parse_args(argv)
+    root = resolve_project_root()
     out_root, out_dir = resolve_output_dirs(args)
 
     sample_paths = expand_inputs(args.samples, args.sample_glob)
+    sample_paths = filter_paths_to_pipeline_universe(sample_paths, root, "sample files")
+    sample_paths = select_one_asof_sample_per_symbol(sample_paths, root, args.ml4t_sample_stage)
     print(f"[INFO] sample files: {len(sample_paths)}")
     for p in sample_paths[:20]:
         print(f"  - {p}")
     if len(sample_paths) > 20:
         print(f"  ... ({len(sample_paths) - 20} more)")
 
-    bars_map = build_bars_map(args.bars_glob)
+    bars_map = filter_bars_map_to_pipeline_universe(build_bars_map(args.bars_glob), root)
     if bars_map:
         print(f"[INFO] 5m bar files mapped: {len(bars_map)}")
 
@@ -1536,7 +1641,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     if args.auto_update_data:
         # Bars may have been created/extended by the project pipeline.
         auto_bar_patterns = list(args.bars_glob) + ["saved_data/*_pipeline_out/00_base/*_5m.csv"]
-        bars_map = build_bars_map(auto_bar_patterns)
+        bars_map = filter_bars_map_to_pipeline_universe(build_bars_map(auto_bar_patterns), root)
         if bars_map:
             print(f"[INFO] 5m bar files mapped after auto-update: {len(bars_map)}")
 
