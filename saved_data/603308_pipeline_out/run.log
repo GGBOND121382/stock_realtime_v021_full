@@ -4481,3 +4481,121 @@ logout success!
 }
 [INFO] final samples for search: /root/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv
 === nextday pipeline end: 2026-05-29T20:16:03 status=ok ===
+=== nextday pipeline start: 2026-05-31T00:00:21 ===
+symbol=603308.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out
+
+[2026-05-31T00:00:21] SKIP update_data: outputs exist
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 603308 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-30 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-30 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+
+[2026-05-31T00:00:21] SKIP samples: outputs exist
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/603308_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+
+[2026-05-31T00:00:21] RUN asof_samples
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/603308_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+{
+  "rows": 1542,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-19",
+  "cutoff_time": "14:55",
+  "min_bars": 40,
+  "out": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv"
+}
+
+[2026-05-31T00:00:22] SKIP fundamental: outputs exist
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 603308.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-30 --fallback-lag-days 120 --skip-akshare
+
+[2026-05-31T00:00:22] SKIP sector: outputs exist
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/03_sector --sector-symbol '通用设备' --start-date 2018-01-01 --end-date 2026-05-30
+
+[2026-05-31T00:00:22] SKIP external_aero_nuclear_equipment: outputs exist
+  /usr/bin/python3 feature_building/build_stock_external_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/03_sector/training_samples_with_sector.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment --profile aero_nuclear_equipment --target-symbol 603308.SH --start-date 2018-01-01 --end-date 2026-05-30 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv
+=== nextday pipeline end: 2026-05-31T00:00:22 status=ok ===
+=== nextday pipeline start: 2026-05-31T00:00:57 ===
+symbol=603308.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out
+
+[2026-05-31T00:00:57] SKIP update_data: outputs exist
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 603308 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-30 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-30 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+
+[2026-05-31T00:00:57] SKIP samples: outputs exist
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/603308_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+
+[2026-05-31T00:00:57] SKIP asof_samples: outputs exist
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/603308_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+
+[2026-05-31T00:00:57] SKIP fundamental: outputs exist
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 603308.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-30 --fallback-lag-days 120 --skip-akshare
+
+[2026-05-31T00:00:57] SKIP sector: outputs exist
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/03_sector --sector-symbol '通用设备' --start-date 2018-01-01 --end-date 2026-05-30
+
+[2026-05-31T00:00:57] SKIP external_aero_nuclear_equipment: outputs exist
+  /usr/bin/python3 feature_building/build_stock_external_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/03_sector/training_samples_with_sector.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment --profile aero_nuclear_equipment --target-symbol 603308.SH --start-date 2018-01-01 --end-date 2026-05-30 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv
+=== nextday pipeline end: 2026-05-31T00:00:57 status=ok ===
+=== nextday pipeline start: 2026-05-31T00:01:06 ===
+symbol=603308.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out
+
+[2026-05-31T00:01:06] SKIP update_data: outputs exist
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 603308 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-30 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-30 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+
+[2026-05-31T00:01:06] SKIP samples: outputs exist
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/603308_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+
+[2026-05-31T00:01:06] SKIP asof_samples: outputs exist
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/603308_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+
+[2026-05-31T00:01:06] SKIP fundamental: outputs exist
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 603308.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-30 --fallback-lag-days 120 --skip-akshare
+
+[2026-05-31T00:01:06] SKIP sector: outputs exist
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/03_sector --sector-symbol '通用设备' --start-date 2018-01-01 --end-date 2026-05-30
+
+[2026-05-31T00:01:06] SKIP external_aero_nuclear_equipment: outputs exist
+  /usr/bin/python3 feature_building/build_stock_external_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/03_sector/training_samples_with_sector.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment --profile aero_nuclear_equipment --target-symbol 603308.SH --start-date 2018-01-01 --end-date 2026-05-30 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv
+=== nextday pipeline end: 2026-05-31T00:01:06 status=ok ===
+=== nextday pipeline start: 2026-05-31T00:03:38 ===
+symbol=603308.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out
+
+[2026-05-31T00:03:38] SKIP update_data: outputs exist
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 603308 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-31 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-31 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+
+[2026-05-31T00:03:38] SKIP samples: outputs exist
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/603308_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+
+[2026-05-31T00:03:38] SKIP asof_samples: outputs exist
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/603308_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+
+[2026-05-31T00:03:38] SKIP fundamental: outputs exist
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 603308.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-31 --fallback-lag-days 120 --skip-akshare
+
+[2026-05-31T00:03:38] SKIP sector: outputs exist
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/03_sector --sector-symbol '通用设备' --start-date 2018-01-01 --end-date 2026-05-31
+
+[2026-05-31T00:03:38] SKIP external_aero_nuclear_equipment: outputs exist
+  /usr/bin/python3 feature_building/build_stock_external_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/03_sector/training_samples_with_sector.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment --profile aero_nuclear_equipment --target-symbol 603308.SH --start-date 2018-01-01 --end-date 2026-05-31 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv
+=== nextday pipeline end: 2026-05-31T00:03:38 status=ok ===
+=== nextday pipeline start: 2026-05-31T00:22:53 ===
+symbol=603308.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out
+
+[2026-05-31T00:22:53] SKIP update_data: outputs exist
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 603308 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-31 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-31 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+
+[2026-05-31T00:22:53] SKIP samples: outputs exist
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/603308_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+
+[2026-05-31T00:22:53] SKIP asof_samples: outputs exist
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/00_base/603308_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+
+[2026-05-31T00:22:53] SKIP fundamental: outputs exist
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 603308.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-31 --fallback-lag-days 120 --skip-akshare
+
+[2026-05-31T00:22:53] SKIP sector: outputs exist
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/03_sector --sector-symbol '通用设备' --start-date 2018-01-01 --end-date 2026-05-31
+
+[2026-05-31T00:22:53] SKIP external_aero_nuclear_equipment: outputs exist
+  /usr/bin/python3 feature_building/build_stock_external_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/03_sector/training_samples_with_sector.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment --profile aero_nuclear_equipment --target-symbol 603308.SH --start-date 2018-01-01 --end-date 2026-05-31 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/603308_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv
+=== nextday pipeline end: 2026-05-31T00:22:53 status=ok ===

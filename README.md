@@ -647,7 +647,6 @@ python3 data_collection/collect_realtime_context.py plan \
 002518
 600584
 
-<<<<<<< HEAD
 
 ## 近一年回测（A; A+B）
 python3 scripts/rolling_retrain_a_active_asof1455_backtest.py \
@@ -655,7 +654,6 @@ python3 scripts/rolling_retrain_a_active_asof1455_backtest.py \
   --end-date 2026-05-27 \
   --out-dir portfolio_reports/backtests/a_active_vs_backup_asof1455_1y \
   --keep-going
-=======
 # ML4T脚本
 python3 scripts/backtest_ml4t_asof1455_lgbm.py \
   --sample-glob "saved_data/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv" \
@@ -677,4 +675,242 @@ python3 scripts/backtest_ml4t_asof1455_lgbm.py \
   --min-data-in-leaf 250 \
   --bagging-fraction 0.75 \
   --feature-fraction 0.75
->>>>>>> fd7c352016465c57b8366180a06f745a1066e355
+
+## Asof1455 pooled regression rebuild workflow
+
+This section documents the 14:55 point-in-time regression workflow used for
+full-universe model search. The workflow rebuilds canonical per-stock data,
+then runs pooled cross-sectional return models by feature group. Time
+availability is mandatory: day T features may only use information available
+by 14:55 or lagged data; the supervised target may use T+1.
+
+### Canonical data layout
+
+Use only canonical per-stock directories for this workflow:
+
+```text
+saved_data/
+  <code>_pipeline_out/
+    00_base/
+      <code>_5m.csv
+      <code>_daily.csv
+      raw_cache/
+      feature_cache/
+    01_samples/
+      training_samples.csv
+    01_samples_asof1455/
+      training_samples_asof1455.csv
+    02_fundamental/
+      training_samples_with_fundamentals.csv
+    03_sector/
+      training_samples_with_sector.csv
+    04_external/
+      <profile>/
+        training_samples*.csv
+    pipeline_summary.json
+    run.log
+  ml4t_asof1455_lgbm_pipeline_out/
+    logs/
+      build_universe_<timestamp>/build_summary.csv
+      regression_pool_<timestamp>/regression_pool_summary.csv
+    99_summary/
+      reg_<feature_group>_<model_family>_train<days>_test<days>_pos<n>/
+        summary.json
+        feature_manifest.json
+        feature_time_policy_report.csv
+        window_metrics.csv
+        daily_ic.csv
+        quantile_lift.csv
+        daily_portfolio_returns.csv
+        selected_trades_test.csv
+```
+
+Retired or experimental top-level directories such as
+`saved_data/<code>_pipeline_out_*`, `saved_data/asof1455_*`, and old
+`05_ml4t_asof1455` stages should not be read by the regression scripts.
+`tools/cleanup_saved_data_layout.py` moves these into
+`saved_data/_recycle_data_cleanup_<timestamp>/` instead of deleting them.
+
+### Core universe
+
+`scripts/build_asof1455_regression_universe.sh` rebuilds the 43-symbol
+historical regression universe:
+
+```text
+000657.SZ 000786.SZ 002028.SZ 002080.SZ 002128.SZ 002261.SZ
+002270.SZ 002297.SZ 002311.SZ 002364.SZ 002460.SZ 002518.SZ
+002601.SZ 002714.SZ 002895.SZ 003816.SZ 600016.SH 600030.SH
+600096.SH 600176.SH 600276.SH 600309.SH 600312.SH 600361.SH
+600438.SH 600487.SH 600522.SH 600584.SH 600885.SH 600919.SH
+601100.SH 601138.SH 601186.SH 601336.SH 601390.SH 601818.SH
+601899.SH 601985.SH 601991.SH 603259.SH 603308.SH 603986.SH
+605499.SH
+```
+
+### Feature groups and sample selection
+
+`scripts/backtest_ml4t_asof1455_lgbm.py` supports grouped feature selection
+through `--feature-group`. For each stock, it selects one deepest available
+sample file for the requested group, with fallback to shallower asof1455
+stages:
+
+```text
+ml4t_intraday:
+  01_samples_asof1455/training_samples_asof1455.csv
+
+ml4t_fundamental:
+  02_fundamental/training_samples_with_fundamentals.csv
+  -> 01_samples_asof1455/training_samples_asof1455.csv
+
+ml4t_sector:
+  03_sector/training_samples_with_sector.csv
+  -> 02_fundamental/training_samples_with_fundamentals.csv
+  -> 01_samples_asof1455/training_samples_asof1455.csv
+
+ml4t_external:
+  04_external/*/training_samples*.csv
+  -> 03_sector/training_samples_with_sector.csv
+  -> 02_fundamental/training_samples_with_fundamentals.csv
+  -> 01_samples_asof1455/training_samples_asof1455.csv
+```
+
+Every run writes `feature_time_policy_report.csv`. The feature selector blocks
+obvious leakage columns containing strings such as `next_day`, `target`,
+`label`, `future`, and `tomorrow`.
+
+### Model families
+
+`--model-family` supports:
+
+```text
+ridge
+elasticnet
+extratrees
+randomforest
+lgbm_l1
+lgbm_l2
+lgbm_huber
+lgbm_quantile
+catboost_rmse
+catboost_huber
+catboost_quantile
+```
+
+The model-pool wrapper defaults to:
+
+```text
+feature groups:
+  ml4t_intraday, ml4t_fundamental, ml4t_sector, ml4t_external
+
+models:
+  ridge, elasticnet, extratrees, lgbm_l1, lgbm_huber, lgbm_quantile,
+  catboost_rmse, catboost_huber, catboost_quantile, randomforest, lgbm_l2
+```
+
+### Server install commands
+
+Recommended server setup:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements_server.txt
+```
+
+If the server already has a virtualenv:
+
+```bash
+source .venv/bin/activate
+python -m pip install -U -r requirements_server.txt
+```
+
+For this workflow, `requirements_server.txt` must include at least
+`numpy`, `pandas`, `scipy`, `scikit-learn`, `lightgbm`, and `catboost`.
+
+### Execution checklist
+
+Run from the repository root on the server:
+
+Preferred one-click entry:
+
+```bash
+# Smoke: cleanup plan + first 2 symbols + first 2 model jobs.
+SMOKE=1 DRY_RUN=1 PYTHON=python3 \
+  bash scripts/run_asof1455_regression_rebuild_and_search.sh
+
+# Full run: cleanup plan only, then rebuild samples and run pooled model search.
+PYTHON=python3 START_DATE=2018-01-01 END_DATE=$(date +%F) JOB_TIMEOUT=8h \
+  bash scripts/run_asof1455_regression_rebuild_and_search.sh
+
+# Full run with cleanup execution after reviewing the cleanup plan.
+CLEANUP_MODE=execute PYTHON=python3 START_DATE=2018-01-01 END_DATE=$(date +%F) JOB_TIMEOUT=8h \
+  bash scripts/run_asof1455_regression_rebuild_and_search.sh
+```
+
+Useful one-click switches:
+
+```text
+SMOKE=1                         first 2 symbols and first 2 model jobs
+DRY_RUN=1                       print child commands without rebuild/training
+CLEANUP_MODE=skip|plan|execute  default: plan
+RUN_BUILD=0                     skip sample rebuild
+RUN_MODEL=0                     skip model search
+CHECK_SUMMARIES=0               do not fail wrapper on failed/timeout rows
+FEATURE_GROUPS=...              override model feature groups
+MODEL_FAMILIES=...              override model families
+MASTER_LOG_DIR=...              override workflow log root
+```
+
+Manual step-by-step equivalent:
+
+```bash
+# 1. Inspect cleanup plan. This does not move data.
+python3 tools/cleanup_saved_data_layout.py --saved-data saved_data
+
+# 2. Execute cleanup after reviewing the PLAN lines.
+#    Files are moved into saved_data/_recycle_data_cleanup_<timestamp>/.
+python3 tools/cleanup_saved_data_layout.py --saved-data saved_data --execute
+
+# 3. Dry-run the first two rebuild commands.
+DRY_RUN=1 MAX_SYMBOLS=2 JOB_TIMEOUT=1m \
+  bash scripts/build_asof1455_regression_universe.sh
+
+# 4. Rebuild all 43 canonical asof1455 pipelines.
+PYTHON=python3 START_DATE=2018-01-01 END_DATE=$(date +%F) JOB_TIMEOUT=8h \
+  bash scripts/build_asof1455_regression_universe.sh
+
+# 5. Review failed or timed-out symbols.
+find saved_data/ml4t_asof1455_lgbm_pipeline_out/logs -name build_summary.csv -print
+
+# 6. Dry-run the first two pooled model commands.
+DRY_RUN=1 MAX_RUNS=2 JOB_TIMEOUT=1m \
+  bash scripts/run_asof1455_regression_model_pool.sh
+
+# 7. Run the full pooled model search.
+PYTHON=python3 JOB_TIMEOUT=8h \
+  bash scripts/run_asof1455_regression_model_pool.sh
+```
+
+Optional smaller first pass:
+
+```bash
+PYTHON=python3 JOB_TIMEOUT=4h \
+FEATURE_GROUPS=ml4t_intraday,ml4t_sector \
+MODEL_FAMILIES=ridge,elasticnet,extratrees,lgbm_l1,lgbm_huber,lgbm_quantile \
+  bash scripts/run_asof1455_regression_model_pool.sh
+```
+
+### Important safeguards
+
+- Do not delete `saved_data` manually. Use `tools/cleanup_saved_data_layout.py`
+  so old data is moved to a recycle directory.
+- Use Python 3.10+; Python 3.12 was used for local syntax validation.
+- `python` may point to Python 2 on old servers. Prefer `PYTHON=python3` or
+  the virtualenv interpreter explicitly.
+- The default model pool includes CatBoost. Remove CatBoost from
+  `MODEL_FAMILIES` if it is not installed or if the first pass should be
+  lighter.
+- `scripts/run_asof1455_regression_model_pool.sh` intentionally avoids the
+  Bash reserved `GROUPS` variable; keep the internal list variable names as
+  `FEATURE_GROUP_LIST` and `MODEL_FAMILY_LIST`.

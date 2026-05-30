@@ -1,0 +1,356 @@
+=== nextday pipeline start: 2026-05-31T00:00:06 ===
+symbol=601818.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out
+
+[2026-05-31T00:00:06] RUN update_data
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 601818 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-30 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-30 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+未安装 xgboost。请先执行: pip install -U xgboost
+原始错误: ModuleNotFoundError: No module named 'xgboost'
+
+[2026-05-31T00:00:07] RUN samples
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/601818_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_nextday_samples_from_baostock.py", line 75, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_nextday_samples_from_baostock.py", line 61, in main
+    samples = build_samples(Path(args.daily_features), Path(args.intraday_bars), args.min_bars, args.keep_unlabeled_tail)
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_nextday_samples_from_baostock.py", line 34, in build_samples
+    daily = pd.read_csv(daily_features, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/daily_features.csv'
+
+[2026-05-31T00:00:07] RUN asof_samples
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/601818_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_asof1455_training_samples.py", line 116, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_asof1455_training_samples.py", line 100, in main
+    df = build_asof_samples(Path(args.samples), Path(args.intraday_bars), args.cutoff_time, args.min_bars)
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_asof1455_training_samples.py", line 80, in build_asof_samples
+    base = pd.read_csv(samples, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples/training_samples.csv'
+
+[2026-05-31T00:00:08] RUN fundamental
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 601818.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-30 --fallback-lag-days 120 --skip-akshare
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_fundamental_features.py", line 373, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_fundamental_features.py", line 313, in main
+    samples = pd.read_csv(args.daily_samples, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv'
+
+[2026-05-31T00:00:09] RUN sector
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/03_sector --sector-symbol '银行' --start-date 2018-01-01 --end-date 2026-05-30
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 133, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 97, in main
+    samples = pd.read_csv(args.samples, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv'
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/03_sector/training_samples_with_sector.csv
+=== nextday pipeline end: 2026-05-31T00:00:09 status=partial_failed ===
+=== nextday pipeline start: 2026-05-31T00:00:44 ===
+symbol=601818.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out
+
+[2026-05-31T00:00:44] RUN update_data
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 601818 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-30 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-30 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+未安装 xgboost。请先执行: pip install -U xgboost
+原始错误: ModuleNotFoundError: No module named 'xgboost'
+
+[2026-05-31T00:00:45] RUN samples
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/601818_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_nextday_samples_from_baostock.py", line 75, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_nextday_samples_from_baostock.py", line 61, in main
+    samples = build_samples(Path(args.daily_features), Path(args.intraday_bars), args.min_bars, args.keep_unlabeled_tail)
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_nextday_samples_from_baostock.py", line 34, in build_samples
+    daily = pd.read_csv(daily_features, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/daily_features.csv'
+
+[2026-05-31T00:00:45] RUN asof_samples
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/601818_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_asof1455_training_samples.py", line 116, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_asof1455_training_samples.py", line 100, in main
+    df = build_asof_samples(Path(args.samples), Path(args.intraday_bars), args.cutoff_time, args.min_bars)
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_asof1455_training_samples.py", line 80, in build_asof_samples
+    base = pd.read_csv(samples, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples/training_samples.csv'
+
+[2026-05-31T00:00:46] RUN fundamental
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 601818.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-30 --fallback-lag-days 120 --skip-akshare
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_fundamental_features.py", line 373, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_fundamental_features.py", line 313, in main
+    samples = pd.read_csv(args.daily_samples, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv'
+
+[2026-05-31T00:00:47] RUN sector
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/03_sector --sector-symbol '银行' --start-date 2018-01-01 --end-date 2026-05-30
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 133, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 97, in main
+    samples = pd.read_csv(args.samples, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv'
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/03_sector/training_samples_with_sector.csv
+=== nextday pipeline end: 2026-05-31T00:00:47 status=partial_failed ===
+=== nextday pipeline start: 2026-05-31T00:03:26 ===
+symbol=601818.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out
+
+[2026-05-31T00:03:26] RUN update_data
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 601818 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-31 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-31 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+未安装 xgboost。请先执行: pip install -U xgboost
+原始错误: ModuleNotFoundError: No module named 'xgboost'
+
+[2026-05-31T00:03:27] RUN samples
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/601818_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_nextday_samples_from_baostock.py", line 75, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_nextday_samples_from_baostock.py", line 61, in main
+    samples = build_samples(Path(args.daily_features), Path(args.intraday_bars), args.min_bars, args.keep_unlabeled_tail)
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_nextday_samples_from_baostock.py", line 34, in build_samples
+    daily = pd.read_csv(daily_features, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/daily_features.csv'
+
+[2026-05-31T00:03:27] RUN asof_samples
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/601818_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_asof1455_training_samples.py", line 116, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_asof1455_training_samples.py", line 100, in main
+    df = build_asof_samples(Path(args.samples), Path(args.intraday_bars), args.cutoff_time, args.min_bars)
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_asof1455_training_samples.py", line 80, in build_asof_samples
+    base = pd.read_csv(samples, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples/training_samples.csv'
+
+[2026-05-31T00:03:28] RUN fundamental
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 601818.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-31 --fallback-lag-days 120 --skip-akshare
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_fundamental_features.py", line 373, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_fundamental_features.py", line 313, in main
+    samples = pd.read_csv(args.daily_samples, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv'
+
+[2026-05-31T00:03:28] RUN sector
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/03_sector --sector-symbol '银行' --start-date 2018-01-01 --end-date 2026-05-31
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 133, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 97, in main
+    samples = pd.read_csv(args.samples, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv'
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/03_sector/training_samples_with_sector.csv
+=== nextday pipeline end: 2026-05-31T00:03:29 status=partial_failed ===
+=== nextday pipeline start: 2026-05-31T00:22:41 ===
+symbol=601818.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out
+
+[2026-05-31T00:22:41] RUN update_data
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 601818 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-31 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-31 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+未安装 xgboost。请先执行: pip install -U xgboost
+原始错误: ModuleNotFoundError: No module named 'xgboost'
+
+[2026-05-31T00:22:41] RUN samples
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/601818_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_nextday_samples_from_baostock.py", line 75, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_nextday_samples_from_baostock.py", line 61, in main
+    samples = build_samples(Path(args.daily_features), Path(args.intraday_bars), args.min_bars, args.keep_unlabeled_tail)
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_nextday_samples_from_baostock.py", line 34, in build_samples
+    daily = pd.read_csv(daily_features, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/daily_features.csv'
+
+[2026-05-31T00:22:42] RUN asof_samples
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/00_base/601818_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_asof1455_training_samples.py", line 116, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_asof1455_training_samples.py", line 100, in main
+    df = build_asof_samples(Path(args.samples), Path(args.intraday_bars), args.cutoff_time, args.min_bars)
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_asof1455_training_samples.py", line 80, in build_asof_samples
+    base = pd.read_csv(samples, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples/training_samples.csv'
+
+[2026-05-31T00:22:42] RUN fundamental
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 601818.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-31 --fallback-lag-days 120 --skip-akshare
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_fundamental_features.py", line 373, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_fundamental_features.py", line 313, in main
+    samples = pd.read_csv(args.daily_samples, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv'
+
+[2026-05-31T00:22:43] RUN sector
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/03_sector --sector-symbol '银行' --start-date 2018-01-01 --end-date 2026-05-31
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 133, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_sector_features.py", line 97, in main
+    samples = pd.read_csv(args.samples, parse_dates=["date"]).sort_values("date")
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1026, in read_csv
+    return _read(filepath_or_buffer, kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 620, in _read
+    parser = TextFileReader(filepath_or_buffer, **kwds)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1620, in __init__
+    self._engine = self._make_engine(f, self.engine)
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/parsers/readers.py", line 1880, in _make_engine
+    self.handles = get_handle(
+  File "/usr/local/lib/python3.10/dist-packages/pandas/io/common.py", line 873, in get_handle
+    handle = open(
+FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv'
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601818_pipeline_out/03_sector/training_samples_with_sector.csv
+=== nextday pipeline end: 2026-05-31T00:22:43 status=partial_failed ===

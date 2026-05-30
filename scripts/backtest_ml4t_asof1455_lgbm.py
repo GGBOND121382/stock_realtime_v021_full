@@ -73,6 +73,27 @@ except Exception as exc:  # pragma: no cover
 else:
     _LIGHTGBM_IMPORT_ERROR = None
 
+try:
+    from sklearn.ensemble import ExtraTreesRegressor, RandomForestRegressor
+    from sklearn.impute import SimpleImputer
+    from sklearn.linear_model import ElasticNet, Ridge
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+except Exception as exc:  # pragma: no cover
+    ExtraTreesRegressor = RandomForestRegressor = None
+    SimpleImputer = ElasticNet = Ridge = make_pipeline = StandardScaler = None
+    _SKLEARN_IMPORT_ERROR = exc
+else:
+    _SKLEARN_IMPORT_ERROR = None
+
+try:
+    from catboost import CatBoostRegressor
+except Exception as exc:  # pragma: no cover
+    CatBoostRegressor = None
+    _CATBOOST_IMPORT_ERROR = exc
+else:
+    _CATBOOST_IMPORT_ERROR = None
+
 RANDOM_STATE = 42
 EPS = 1e-12
 
@@ -107,7 +128,73 @@ ML4T_FEATURE_PREFIXES = (
     "intraday_stochrsi",
     "intraday_mfi",
 )
-ML4T_FEATURE_EXACT = {"year", "month", "weekday"}
+ML4T_FEATURE_EXACT = {"year", "month", "weekday", "ml4t_dollar_volume_prev"}
+
+FUNDAMENTAL_FEATURE_PREFIXES = (
+    "profit_",
+    "operation_",
+    "growth_",
+    "solvency_",
+    "cashflow_",
+    "dupont_",
+    "fund_",
+)
+FUNDAMENTAL_FEATURE_EXACT = {
+    "peTTM",
+    "pbMRQ",
+    "psTTM",
+    "pcfNcfTTM",
+    "peTTM_rank252",
+    "pbMRQ_rank252",
+    "psTTM_rank252",
+    "pcfNcfTTM_rank252",
+}
+SECTOR_FEATURE_PREFIXES = (
+    "sector_",
+    "industry_",
+    "ths_",
+    "sw_",
+    "rank_sector_",
+    "stock_vs_sector_",
+)
+EXTERNAL_FEATURE_PREFIXES = (
+    "external_",
+    "ext_",
+    "feed_",
+    "hog_",
+    "fert_",
+    "zijin_",
+    "ane_",
+    "optical_",
+    "storage_",
+    "power_",
+    "ai_",
+    "material_",
+    "muyuan_",
+)
+EXTERNAL_FEATURE_SUBSTRINGS = (
+    "_fut_",
+    "_hk_",
+    "_etf_",
+    "_board_",
+    "_external",
+)
+
+BASE_NON_FEATURE_COLUMNS = {
+    "date",
+    "stock_code",
+    "symbol",
+    "code",
+    "ts_code",
+    "sample_path",
+    "entry_signal",
+    "entry_price",
+    "exit_price",
+    "feature_time_mode",
+    "feature_cutoff_time",
+    "valuation_time_mode",
+    "asof_last_bar_time",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -557,21 +644,28 @@ def pipeline_code_for_path(path: Path, project_root: Path) -> Optional[str]:
     return None
 
 
-def asof_sample_stage_rank(path: Path, stage_name: str) -> int:
+def sample_stage_rank(path: Path, stage_name: str, feature_group: str) -> int:
     parts = path.parts
-    if stage_name in parts:
-        return 0
-    if "01_samples_asof1455" in parts:
-        return 0
-    return 1
+    group = str(feature_group or "ml4t_intraday").strip().lower()
+    if group in {"external", "ml4t_external", "core_external", "core_sector_external_lagged", "all"}:
+        order = ["04_external", "03_sector", "02_fundamental", "01_samples_asof1455"]
+    elif group in {"sector", "ml4t_sector", "core_sector"}:
+        order = ["03_sector", "02_fundamental", "01_samples_asof1455"]
+    elif group in {"fundamental", "ml4t_fundamental", "core_fundamental"}:
+        order = ["02_fundamental", "01_samples_asof1455"]
+    else:
+        order = [stage_name, "01_samples_asof1455"]
+    for i, name in enumerate(order):
+        if name in parts:
+            return i
+    return len(order)
 
 
-def select_one_asof_sample_per_symbol(paths: Sequence[Path], project_root: Path, stage_name: str) -> List[Path]:
-    """Avoid mixing 01/05/etc. samples for the same stock.
+def select_one_sample_per_symbol(paths: Sequence[Path], project_root: Path, stage_name: str, feature_group: str) -> List[Path]:
+    """Avoid mixing sample stages for the same stock.
 
-    Preference is:
-      1) configured canonical stage, default 01_samples_asof1455
-      2) any other explicitly supplied matching asof sample inside that stock pipeline
+    The preferred stage depends on --feature-group, with deeper asof-derived
+    feature files preferred and shallower stages used only as fallback.
     """
     by_code: Dict[str, List[Path]] = {}
     no_code: List[Path] = []
@@ -588,7 +682,7 @@ def select_one_asof_sample_per_symbol(paths: Sequence[Path], project_root: Path,
         ranked = sorted(
             code_paths,
             key=lambda p: (
-                asof_sample_stage_rank(p, stage_name),
+                sample_stage_rank(p, stage_name, feature_group),
                 -(p.stat().st_mtime if p.exists() else 0),
                 str(p),
             ),
@@ -598,7 +692,7 @@ def select_one_asof_sample_per_symbol(paths: Sequence[Path], project_root: Path,
     selected.extend(no_code)
     if dropped:
         print(
-            f"[INFO] dropped {len(dropped)} duplicate asof sample files to avoid 01/05 stage mixing "
+            f"[INFO] dropped {len(dropped)} duplicate sample files to avoid cross-stage mixing "
             f"(kept {len(selected)})"
         )
         for p in dropped[:20]:
@@ -730,7 +824,7 @@ def discover_asof_sample_paths(project_root: Path, stage_name: str = "01_samples
                 seen.add(key)
                 out.append(p)
     out = filter_paths_to_pipeline_universe(out, project_root, "auto-discovered sample files")
-    return select_one_asof_sample_per_symbol(out, project_root, stage_name)
+    return select_one_sample_per_symbol(out, project_root, stage_name, "ml4t_intraday")
 
 
 def required_window_dates(args) -> int:
@@ -1125,22 +1219,78 @@ def add_target_and_entry(
 # Modeling and evaluation
 # ---------------------------------------------------------------------------
 
-def candidate_features(df: pd.DataFrame, max_missing: float) -> List[str]:
+def is_ml4t_feature(c: str) -> bool:
+    return c in ML4T_FEATURE_EXACT or c.startswith(ML4T_FEATURE_PREFIXES)
+
+
+def is_fundamental_feature(c: str) -> bool:
+    return c in FUNDAMENTAL_FEATURE_EXACT or c.startswith(FUNDAMENTAL_FEATURE_PREFIXES)
+
+
+def is_sector_feature(c: str) -> bool:
+    return c.startswith(SECTOR_FEATURE_PREFIXES)
+
+
+def is_external_feature(c: str) -> bool:
+    text = c.lower()
+    return c.startswith(EXTERNAL_FEATURE_PREFIXES) or any(s in text for s in EXTERNAL_FEATURE_SUBSTRINGS)
+
+
+def feature_allowed_by_group(c: str, feature_group: str) -> bool:
+    group = str(feature_group or "ml4t_intraday").strip().lower()
+    if group in {"ml4t", "core", "ml4t_core", "ml4t_intraday", "core_intraday"}:
+        return is_ml4t_feature(c)
+    if group in {"fundamental", "ml4t_fundamental", "core_fundamental"}:
+        return is_ml4t_feature(c) or is_fundamental_feature(c)
+    if group in {"sector", "ml4t_sector", "core_sector"}:
+        return is_ml4t_feature(c) or is_fundamental_feature(c) or is_sector_feature(c)
+    if group in {"external", "ml4t_external", "core_external", "core_sector_external_lagged", "all"}:
+        return is_ml4t_feature(c) or is_fundamental_feature(c) or is_sector_feature(c) or is_external_feature(c)
+    if group in {"all_numeric_asof", "all_numeric"}:
+        return True
+    raise ValueError(f"unknown --feature-group={feature_group}")
+
+
+def feature_time_policy(c: str) -> str:
+    if is_ml4t_feature(c):
+        return "asof1455_or_lagged_price_volume"
+    if is_fundamental_feature(c):
+        return "fundamental_point_in_time_or_asof1455_valuation"
+    if is_sector_feature(c):
+        return "sector_lagged_or_asof_source_required"
+    if is_external_feature(c):
+        return "external_lagged_or_asof_source_required"
+    return "other_numeric_allowed_by_group"
+
+
+def candidate_features(df: pd.DataFrame, max_missing: float, feature_group: str = "ml4t_intraday") -> List[str]:
     feats: List[str] = []
     for c in df.columns:
-        if c in ML4T_FEATURE_EXACT or c.startswith(ML4T_FEATURE_PREFIXES):
-            if any(s in c.lower() for s in LEAK_SUBSTRINGS):
-                continue
-            if pd.api.types.is_numeric_dtype(df[c]) and df[c].isna().mean() <= float(max_missing):
-                feats.append(c)
+        if c in BASE_NON_FEATURE_COLUMNS:
+            continue
+        if any(s in c.lower() for s in LEAK_SUBSTRINGS):
+            continue
+        if not feature_allowed_by_group(c, feature_group):
+            continue
+        if pd.api.types.is_numeric_dtype(df[c]) and df[c].isna().mean() <= float(max_missing):
+            feats.append(c)
     return sorted(dict.fromkeys(feats))
 
 
 def make_lgbm(args) -> LGBMRegressor:
     if LGBMRegressor is None:
         raise ImportError(f"lightgbm is required for this script: {_LIGHTGBM_IMPORT_ERROR}")
+    family = str(args.model_family).strip().lower()
+    objective = {
+        "lgbm_l2": "regression",
+        "lgbm": "regression",
+        "lgbm_l1": "regression_l1",
+        "lgbm_huber": "huber",
+        "lgbm_quantile": "quantile",
+    }.get(family, "regression")
     return LGBMRegressor(
-        objective="regression",
+        objective=objective,
+        alpha=float(args.objective_alpha),
         random_state=RANDOM_STATE,
         n_estimators=int(args.n_estimators),
         learning_rate=float(args.learning_rate),
@@ -1155,12 +1305,96 @@ def make_lgbm(args) -> LGBMRegressor:
     )
 
 
+def make_model(args):
+    family = str(args.model_family).strip().lower()
+    if family in {"lgbm", "lgbm_l2", "lgbm_l1", "lgbm_huber", "lgbm_quantile"}:
+        return make_lgbm(args), "lgbm"
+    if family == "ridge":
+        if Ridge is None:
+            raise ImportError(f"scikit-learn is required for ridge: {_SKLEARN_IMPORT_ERROR}")
+        return make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), Ridge(alpha=float(args.ridge_alpha))), "sklearn"
+    if family == "elasticnet":
+        if ElasticNet is None:
+            raise ImportError(f"scikit-learn is required for elasticnet: {_SKLEARN_IMPORT_ERROR}")
+        return make_pipeline(
+            SimpleImputer(strategy="median"),
+            StandardScaler(),
+            ElasticNet(
+                alpha=float(args.elasticnet_alpha),
+                l1_ratio=float(args.elasticnet_l1_ratio),
+                max_iter=int(args.elasticnet_max_iter),
+                random_state=RANDOM_STATE,
+            ),
+        ), "sklearn"
+    if family == "extratrees":
+        if ExtraTreesRegressor is None:
+            raise ImportError(f"scikit-learn is required for extratrees: {_SKLEARN_IMPORT_ERROR}")
+        return ExtraTreesRegressor(
+            n_estimators=int(args.tree_n_estimators),
+            max_depth=None if int(args.tree_max_depth) <= 0 else int(args.tree_max_depth),
+            min_samples_leaf=int(args.tree_min_samples_leaf),
+            min_samples_split=int(args.tree_min_samples_split),
+            max_features=float(args.tree_max_features),
+            bootstrap=False,
+            random_state=RANDOM_STATE,
+            n_jobs=int(args.n_jobs),
+        ), "sklearn_tree"
+    if family == "randomforest":
+        if RandomForestRegressor is None:
+            raise ImportError(f"scikit-learn is required for randomforest: {_SKLEARN_IMPORT_ERROR}")
+        return RandomForestRegressor(
+            n_estimators=int(args.tree_n_estimators),
+            max_depth=None if int(args.tree_max_depth) <= 0 else int(args.tree_max_depth),
+            min_samples_leaf=int(args.tree_min_samples_leaf),
+            min_samples_split=int(args.tree_min_samples_split),
+            max_features=float(args.tree_max_features),
+            bootstrap=True,
+            random_state=RANDOM_STATE,
+            n_jobs=int(args.n_jobs),
+        ), "sklearn_tree"
+    if family in {"catboost_rmse", "catboost_huber", "catboost_quantile"}:
+        if CatBoostRegressor is None:
+            raise ImportError(f"catboost is required for {family}: {_CATBOOST_IMPORT_ERROR}")
+        loss = {
+            "catboost_rmse": "RMSE",
+            "catboost_huber": f"Huber:delta={float(args.catboost_huber_delta):g}",
+            "catboost_quantile": f"Quantile:alpha={float(args.objective_alpha):g}",
+        }[family]
+        return CatBoostRegressor(
+            loss_function=loss,
+            iterations=int(args.catboost_iterations),
+            learning_rate=float(args.catboost_learning_rate),
+            depth=int(args.catboost_depth),
+            l2_leaf_reg=float(args.catboost_l2_leaf_reg),
+            random_seed=RANDOM_STATE,
+            allow_writing_files=False,
+            verbose=False,
+        ), "catboost"
+    raise ValueError(f"unknown --model-family={args.model_family}")
+
+
 def prepare_x(train: pd.DataFrame, apply: pd.DataFrame, features: Sequence[str]) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
     med = train.loc[:, features].apply(pd.to_numeric, errors="coerce").median(numeric_only=True)
     med = med.fillna(0.0)
     x_train = train.loc[:, features].apply(pd.to_numeric, errors="coerce").fillna(med)
     x_apply = apply.loc[:, features].apply(pd.to_numeric, errors="coerce").fillna(med)
     return x_train, x_apply, med
+
+
+def training_target(train_fit: pd.DataFrame, args) -> Tuple[pd.Series, Dict[str, float]]:
+    y = to_num(train_fit["target_1d_forward_return_bps"])
+    meta = {"target_winsor_q_low": np.nan, "target_winsor_q_high": np.nan}
+    if not bool(getattr(args, "winsorize_target", False)):
+        return y, meta
+    q_low = float(getattr(args, "winsor_q_low", 0.01))
+    q_high = float(getattr(args, "winsor_q_high", 0.99))
+    if not 0.0 <= q_low < q_high <= 1.0:
+        raise ValueError("--winsor-q-low/--winsor-q-high must satisfy 0 <= low < high <= 1")
+    lo = float(y.quantile(q_low))
+    hi = float(y.quantile(q_high))
+    meta["target_winsor_q_low"] = lo
+    meta["target_winsor_q_high"] = hi
+    return y.clip(lo, hi), meta
 
 
 def add_rank_candidates(scored: pd.DataFrame, require_liquidity_ok: bool) -> pd.DataFrame:
@@ -1325,11 +1559,14 @@ def fit_predict_window(
     if apply.empty:
         return [], [], [], [], pd.DataFrame(), pd.DataFrame()
     X_train, X_apply, med = prepare_x(train_fit, apply, features)
-    y_train = to_num(train_fit["target_1d_forward_return_bps"])
-    model = make_lgbm(args)
+    y_train, target_meta = training_target(train_fit, args)
+    model, model_kind = make_model(args)
     categorical_feature = [c for c in ["year", "month", "weekday"] if c in X_train.columns]
-    fit_kwargs = {"categorical_feature": categorical_feature} if categorical_feature else {}
-    model.fit(X_train, y_train, **fit_kwargs)
+    if model_kind == "lgbm":
+        fit_kwargs = {"categorical_feature": categorical_feature} if categorical_feature else {}
+        model.fit(X_train, y_train, **fit_kwargs)
+    else:
+        model.fit(X_train, y_train)
     pred = model.predict(X_apply)
     scored = apply[[
         "date", "stock_code", "entry_signal", "entry_price", "exit_price",
@@ -1350,6 +1587,9 @@ def fit_predict_window(
         if part.empty:
             continue
         row, daily_port = evaluate_selected(part, window_id, split)
+        row.update(target_meta)
+        row["model_family"] = str(args.model_family)
+        row["feature_group"] = str(args.feature_group)
         metrics_rows.append(row)
         daily_port_parts.append(daily_port)
         daily_ic_parts.append(daily_ic_frame(part, window_id, split))
@@ -1360,6 +1600,8 @@ def fit_predict_window(
         "window_id": window_id,
         "feature": list(features),
         "importance": getattr(model, "feature_importances_", np.zeros(len(features))),
+        "model_family": str(args.model_family),
+        "feature_group": str(args.feature_group),
     })
     return metrics_rows, [scored], daily_ic_parts, quantile_parts, pd.concat(daily_port_parts, ignore_index=True) if daily_port_parts else pd.DataFrame(), importance
 
@@ -1440,7 +1682,7 @@ def run_backtest(df: pd.DataFrame, features: Sequence[str], args, out_dir: Path)
         if not imp.empty:
             importance_parts.append(imp)
 
-    metrics_cols = ["window_id", "split", "start_date", "end_date", "n_rows", "n_eval_rows", "n_dates", "n_stocks", "overall_ic", "overall_pearson", "selected_trades", "selected_dates"]
+    metrics_cols = ["window_id", "split", "model_family", "feature_group", "start_date", "end_date", "n_rows", "n_eval_rows", "n_dates", "n_stocks", "overall_ic", "overall_pearson", "selected_trades", "selected_dates", "target_winsor_q_low", "target_winsor_q_high"]
     metrics = ensure_columns(pd.DataFrame(metrics_rows), metrics_cols)
     preds = ensure_columns(pd.concat(pred_parts, ignore_index=True, sort=False) if pred_parts else pd.DataFrame(), expected_prediction_columns())
     daily_ic = ensure_columns(pd.concat(daily_ic_parts, ignore_index=True, sort=False) if daily_ic_parts else pd.DataFrame(), ["window_id", "split", "date", "n", "daily_ic", "daily_pearson"])
@@ -1462,6 +1704,14 @@ def run_backtest(df: pd.DataFrame, features: Sequence[str], args, out_dir: Path)
         importance.to_csv(out_dir / "feature_importance_by_window.csv", index=False, encoding="utf-8-sig")
         imp_sum.to_csv(out_dir / "feature_importance_summary.csv", index=False, encoding="utf-8-sig")
 
+    feature_policy = pd.DataFrame({
+        "feature": list(features),
+        "policy": [feature_time_policy(f) for f in features],
+        "missing_rate": [float(df[f].isna().mean()) if f in df.columns else np.nan for f in features],
+        "feature_group": str(args.feature_group),
+    })
+    feature_policy.to_csv(out_dir / "feature_time_policy_report.csv", index=False, encoding="utf-8-sig")
+
     test_metrics = metrics[metrics["split"] == "test"].copy() if not metrics.empty else pd.DataFrame()
     selected = selected_test.copy()
     test_daily_port = daily_port[daily_port["split"] == "test"].copy() if not daily_port.empty else pd.DataFrame()
@@ -1473,6 +1723,8 @@ def run_backtest(df: pd.DataFrame, features: Sequence[str], args, out_dir: Path)
         "n_stocks": int(df["stock_code"].nunique()),
         "n_features": int(len(features)),
         "features": list(features),
+        "feature_group": str(args.feature_group),
+        "model_family": str(args.model_family),
         "n_windows": int(len(windows)),
         "test_selected_trades": int(len(selected)),
         "test_selected_dates": int(test_daily_port["date"].nunique()) if not test_daily_port.empty else 0,
@@ -1587,6 +1839,11 @@ def parse_args(argv: Optional[Sequence[str]] = None):
     p.add_argument("--require-liquidity-ok", action="store_true", help="require ml4t_liquidity_ok for selected trades")
     p.add_argument("--max-missing", type=float, default=0.70)
     p.add_argument("--save-prepared", action="store_true")
+    p.add_argument("--feature-group", default="ml4t_intraday", choices=["ml4t", "core", "ml4t_core", "ml4t_intraday", "core_intraday", "fundamental", "ml4t_fundamental", "core_fundamental", "sector", "ml4t_sector", "core_sector", "external", "ml4t_external", "core_external", "core_sector_external_lagged", "all", "all_numeric_asof", "all_numeric"])
+    p.add_argument("--model-family", default="lgbm_l2", choices=["ridge", "elasticnet", "extratrees", "randomforest", "lgbm", "lgbm_l2", "lgbm_l1", "lgbm_huber", "lgbm_quantile", "catboost_rmse", "catboost_huber", "catboost_quantile"])
+    p.add_argument("--winsorize-target", action="store_true", help="Clip the training target within each rolling train window only.")
+    p.add_argument("--winsor-q-low", type=float, default=0.01)
+    p.add_argument("--winsor-q-high", type=float, default=0.99)
 
     # LightGBM defaults: deliberately small/regularized. The book-style knobs are exposed.
     p.add_argument("--n-estimators", type=int, default=500)
@@ -1598,6 +1855,21 @@ def parse_args(argv: Optional[Sequence[str]] = None):
     p.add_argument("--reg-lambda", type=float, default=2.0)
     p.add_argument("--n-jobs", type=int, default=4)
     p.add_argument("--max-intraday-lag", type=int, default=10)
+    p.add_argument("--objective-alpha", type=float, default=0.90, help="Huber/quantile alpha where supported.")
+    p.add_argument("--ridge-alpha", type=float, default=10.0)
+    p.add_argument("--elasticnet-alpha", type=float, default=0.01)
+    p.add_argument("--elasticnet-l1-ratio", type=float, default=0.15)
+    p.add_argument("--elasticnet-max-iter", type=int, default=20000)
+    p.add_argument("--tree-n-estimators", type=int, default=600)
+    p.add_argument("--tree-max-depth", type=int, default=0, help="<=0 means unlimited")
+    p.add_argument("--tree-min-samples-leaf", type=int, default=20)
+    p.add_argument("--tree-min-samples-split", type=int, default=40)
+    p.add_argument("--tree-max-features", type=float, default=0.6)
+    p.add_argument("--catboost-iterations", type=int, default=1000)
+    p.add_argument("--catboost-learning-rate", type=float, default=0.03)
+    p.add_argument("--catboost-depth", type=int, default=6)
+    p.add_argument("--catboost-l2-leaf-reg", type=float, default=10.0)
+    p.add_argument("--catboost-huber-delta", type=float, default=100.0)
     args = p.parse_args(argv)
     if args.step_days <= 0:
         args.step_days = args.test_days
@@ -1617,7 +1889,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
 
     sample_paths = expand_inputs(args.samples, args.sample_glob)
     sample_paths = filter_paths_to_pipeline_universe(sample_paths, root, "sample files")
-    sample_paths = select_one_asof_sample_per_symbol(sample_paths, root, args.ml4t_sample_stage)
+    sample_paths = select_one_sample_per_symbol(sample_paths, root, args.ml4t_sample_stage, args.feature_group)
     print(f"[INFO] sample files: {len(sample_paths)}")
     for p in sample_paths[:20]:
         print(f"  - {p}")
@@ -1666,7 +1938,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     df = df.dropna(subset=["date", "stock_code", "entry_price", "exit_price", "target_1d_forward_return_bps"])
     df = df.sort_values(["date", "stock_code"]).reset_index(drop=True)
 
-    features = candidate_features(df, max_missing=args.max_missing)
+    features = candidate_features(df, max_missing=args.max_missing, feature_group=args.feature_group)
     if not features:
         raise RuntimeError("no ML4T feature columns survived; check input asof columns and --max-missing")
 
@@ -1678,6 +1950,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         "date_max": str(df["date"].max().date()) if len(df) else None,
         "n_stocks": int(df["stock_code"].nunique()),
         "features": features,
+        "feature_group": args.feature_group,
+        "model_family": args.model_family,
         "target": "target_1d_forward_return_bps",
         "entry_price_col": args.entry_price_col,
         "exit_price_col": args.exit_price_col,

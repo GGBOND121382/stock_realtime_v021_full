@@ -48,6 +48,7 @@ saved_data/*/07*/
 saved_data/*/08*/
 saved_data/*/09*/
 saved_data/*/10*/
+saved_data/*/logs/
 
 # 明确保留摘要目录和根目录摘要文件
 !saved_data/*/99_summary/

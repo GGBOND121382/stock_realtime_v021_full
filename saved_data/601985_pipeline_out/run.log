@@ -6309,3 +6309,139 @@ logout success!
 }
 [INFO] final samples for search: /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples/training_samples.csv
 === nextday pipeline end: 2026-05-29T20:15:46 status=ok ===
+=== nextday pipeline start: 2026-05-31T00:00:11 ===
+symbol=601985.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out
+
+[2026-05-31T00:00:11] SKIP update_data: outputs exist
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 601985 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-30 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-30 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+
+[2026-05-31T00:00:11] SKIP samples: outputs exist
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/601985_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+
+[2026-05-31T00:00:11] RUN asof_samples
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/601985_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+{
+  "rows": 1542,
+  "date_min": "2020-01-02",
+  "date_max": "2026-05-19",
+  "cutoff_time": "14:55",
+  "min_bars": 40,
+  "out": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv"
+}
+
+[2026-05-31T00:00:12] SKIP fundamental: outputs exist
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 601985.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-30 --fallback-lag-days 120 --skip-akshare
+
+[2026-05-31T00:00:12] SKIP sector: outputs exist
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector --sector-symbol '电力' --start-date 2018-01-01 --end-date 2026-05-30
+
+[2026-05-31T00:00:12] RUN external_power_utility_rate
+  /usr/bin/python3 feature_building/build_stock_external_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector/training_samples_with_sector.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/04_external/power_utility_rate --profile power_utility_rate --target-symbol 601985.SH --start-date 2018-01-01 --end-date 2026-05-30 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 837, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 762, in main
+    features, errors, source_meta = build_external_features(
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 568, in build_external_features
+    frame, err = fetch_future(symbol, col_prefix, start_date, end_date)
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 378, in fetch_future
+    import akshare as ak
+ModuleNotFoundError: No module named 'akshare'
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector/training_samples_with_sector.csv
+=== nextday pipeline end: 2026-05-31T00:00:13 status=partial_failed ===
+=== nextday pipeline start: 2026-05-31T00:00:48 ===
+symbol=601985.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out
+
+[2026-05-31T00:00:49] SKIP update_data: outputs exist
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 601985 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-30 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-30 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+
+[2026-05-31T00:00:49] SKIP samples: outputs exist
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/601985_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+
+[2026-05-31T00:00:49] SKIP asof_samples: outputs exist
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/601985_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+
+[2026-05-31T00:00:49] SKIP fundamental: outputs exist
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 601985.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-30 --fallback-lag-days 120 --skip-akshare
+
+[2026-05-31T00:00:49] SKIP sector: outputs exist
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector --sector-symbol '电力' --start-date 2018-01-01 --end-date 2026-05-30
+
+[2026-05-31T00:00:49] RUN external_power_utility_rate
+  /usr/bin/python3 feature_building/build_stock_external_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector/training_samples_with_sector.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/04_external/power_utility_rate --profile power_utility_rate --target-symbol 601985.SH --start-date 2018-01-01 --end-date 2026-05-30 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 837, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 762, in main
+    features, errors, source_meta = build_external_features(
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 568, in build_external_features
+    frame, err = fetch_future(symbol, col_prefix, start_date, end_date)
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 378, in fetch_future
+    import akshare as ak
+ModuleNotFoundError: No module named 'akshare'
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector/training_samples_with_sector.csv
+=== nextday pipeline end: 2026-05-31T00:00:49 status=partial_failed ===
+=== nextday pipeline start: 2026-05-31T00:03:30 ===
+symbol=601985.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out
+
+[2026-05-31T00:03:30] SKIP update_data: outputs exist
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 601985 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-31 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-31 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+
+[2026-05-31T00:03:30] SKIP samples: outputs exist
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/601985_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+
+[2026-05-31T00:03:30] SKIP asof_samples: outputs exist
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/601985_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+
+[2026-05-31T00:03:30] SKIP fundamental: outputs exist
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 601985.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-31 --fallback-lag-days 120 --skip-akshare
+
+[2026-05-31T00:03:30] SKIP sector: outputs exist
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector --sector-symbol '电力' --start-date 2018-01-01 --end-date 2026-05-31
+
+[2026-05-31T00:03:30] RUN external_power_utility_rate
+  /usr/bin/python3 feature_building/build_stock_external_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector/training_samples_with_sector.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/04_external/power_utility_rate --profile power_utility_rate --target-symbol 601985.SH --start-date 2018-01-01 --end-date 2026-05-31 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 837, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 762, in main
+    features, errors, source_meta = build_external_features(
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 568, in build_external_features
+    frame, err = fetch_future(symbol, col_prefix, start_date, end_date)
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 378, in fetch_future
+    import akshare as ak
+ModuleNotFoundError: No module named 'akshare'
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector/training_samples_with_sector.csv
+=== nextday pipeline end: 2026-05-31T00:03:30 status=partial_failed ===
+=== nextday pipeline start: 2026-05-31T00:22:45 ===
+symbol=601985.SH, out_root=/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out
+
+[2026-05-31T00:22:45] SKIP update_data: outputs exist
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 601985 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-31 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-31 15:00:00' --output_dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+
+[2026-05-31T00:22:45] SKIP samples: outputs exist
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/daily_features.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/601985_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+
+[2026-05-31T00:22:45] SKIP asof_samples: outputs exist
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples/training_samples.csv --intraday-bars /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/601985_5m.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+
+[2026-05-31T00:22:45] SKIP fundamental: outputs exist
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 601985.SH --daily-samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-31 --fallback-lag-days 120 --skip-akshare
+
+[2026-05-31T00:22:45] SKIP sector: outputs exist
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector --sector-symbol '电力' --start-date 2018-01-01 --end-date 2026-05-31
+
+[2026-05-31T00:22:45] RUN external_power_utility_rate
+  /usr/bin/python3 feature_building/build_stock_external_features.py --samples /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector/training_samples_with_sector.csv --out-dir /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/04_external/power_utility_rate --profile power_utility_rate --target-symbol 601985.SH --start-date 2018-01-01 --end-date 2026-05-31 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+Traceback (most recent call last):
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 837, in <module>
+    main()
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 762, in main
+    features, errors, source_meta = build_external_features(
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 568, in build_external_features
+    frame, err = fetch_future(symbol, col_prefix, start_date, end_date)
+  File "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/feature_building/build_stock_external_features.py", line 378, in fetch_future
+    import akshare as ak
+ModuleNotFoundError: No module named 'akshare'
+[INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector/training_samples_with_sector.csv
+=== nextday pipeline end: 2026-05-31T00:22:46 status=partial_failed ===
