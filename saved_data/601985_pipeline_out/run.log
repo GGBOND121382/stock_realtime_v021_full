@@ -6445,3 +6445,183 @@ Traceback (most recent call last):
 ModuleNotFoundError: No module named 'akshare'
 [INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector/training_samples_with_sector.csv
 === nextday pipeline end: 2026-05-31T00:22:46 status=partial_failed ===
+=== nextday pipeline start: 2026-05-31T03:26:15 ===
+symbol=601985.SH, out_root=/root/stock_realtime_v021_full/saved_data/601985_pipeline_out
+
+[2026-05-31T03:26:15] SKIP update_data: outputs exist
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 601985 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-31 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-31 15:00:00' --output_dir /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+
+[2026-05-31T03:26:15] SKIP samples: outputs exist
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/daily_features.csv --intraday-bars /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/601985_5m.csv --out-dir /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+
+[2026-05-31T03:26:15] SKIP asof_samples: outputs exist
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples/training_samples.csv --intraday-bars /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/00_base/601985_5m.csv --out-dir /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+
+[2026-05-31T03:26:15] SKIP fundamental: outputs exist
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 601985.SH --daily-samples /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-31 --fallback-lag-days 120 --skip-akshare
+
+[2026-05-31T03:26:15] SKIP sector: outputs exist
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector --sector-symbol '电力' --start-date 2018-01-01 --end-date 2026-05-31
+
+[2026-05-31T03:26:15] RUN external_power_utility_rate
+  /usr/bin/python3 feature_building/build_stock_external_features.py --samples /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/03_sector/training_samples_with_sector.csv --out-dir /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/04_external/power_utility_rate --profile power_utility_rate --target-symbol 601985.SH --start-date 2018-01-01 --end-date 2026-05-31 --adjust qfq --domestic-lag-days 0 --future-lag-days 1 --us-lag-days 1
+login success!
+
+  0%|          | 0/9 [00:00<?, ?it/s]
+ 11%|█         | 1/9 [00:00<00:01,  4.82it/s]
+ 22%|██▏       | 2/9 [00:00<00:01,  4.43it/s]
+ 33%|███▎      | 3/9 [00:00<00:01,  4.54it/s]
+ 44%|████▍     | 4/9 [00:00<00:01,  4.34it/s]
+ 56%|█████▌    | 5/9 [00:01<00:00,  4.36it/s]
+ 67%|██████▋   | 6/9 [00:01<00:00,  4.48it/s]
+ 78%|███████▊  | 7/9 [00:01<00:00,  4.51it/s]
+ 89%|████████▉ | 8/9 [00:01<00:00,  4.57it/s]
+100%|██████████| 9/9 [00:01<00:00,  4.55it/s]
+                                             
+
+  0%|          | 0/9 [00:00<?, ?it/s]
+ 11%|█         | 1/9 [00:00<00:01,  4.16it/s]
+ 22%|██▏       | 2/9 [00:00<00:01,  4.37it/s]
+ 33%|███▎      | 3/9 [00:00<00:01,  4.55it/s]
+ 44%|████▍     | 4/9 [00:00<00:01,  4.51it/s]
+ 56%|█████▌    | 5/9 [00:01<00:00,  4.60it/s]
+ 67%|██████▋   | 6/9 [00:01<00:00,  4.57it/s]
+ 78%|███████▊  | 7/9 [00:01<00:00,  4.62it/s]
+ 89%|████████▉ | 8/9 [00:01<00:00,  4.58it/s]
+100%|██████████| 9/9 [00:01<00:00,  4.83it/s]
+                                             
+{
+  "profile": "power_utility_rate",
+  "description": "Utility/power/defensive style proxy for 中国核电",
+  "sample_rows": 1544,
+  "merged_rows": 1544,
+  "raw_rows": 2037,
+  "raw_date_min": "2018-01-02",
+  "raw_date_max": "2026-05-29",
+  "lag_days_legacy": null,
+  "lag_policy": {
+    "domestic": 0,
+    "futures": 1,
+    "us": 1
+  },
+  "enable_us_yf": false,
+  "feature_cols": 360,
+  "source_meta": {
+    "profile": {
+      "key": "power_utility_rate",
+      "prefix": "pur",
+      "description": "Utility/power/defensive style proxy for 中国核电",
+      "stocks": [
+        "003816",
+        "600900",
+        "600025",
+        "600011",
+        "601991",
+        "601611"
+      ],
+      "etfs": [
+        "512890",
+        "159611",
+        "516260"
+      ],
+      "futures": [
+        "ZC0"
+      ],
+      "boards": [
+        "电力",
+        "燃气"
+      ],
+      "us_tickers": []
+    },
+    "used": {
+      "stocks": [
+        "003816",
+        "600900",
+        "600025",
+        "600011",
+        "601991",
+        "601611"
+      ],
+      "etfs": [
+        "512890",
+        "159611",
+        "516260"
+      ],
+      "futures": [
+        "ZC0"
+      ],
+      "boards": [
+        "电力",
+        "燃气"
+      ],
+      "us_yf": []
+    },
+    "start_date": "20180101",
+    "end_date": "20260531",
+    "target_symbol_excluded": "601985",
+    "em_sources_used": false,
+    "baostock_cache_dir": "/root/stock_realtime_v021_full/saved_data/601985_pipeline_out/04_external/power_utility_rate/baostock_external_cache",
+    "us_yfinance_enabled": false
+  },
+  "errors": {},
+  "top_missing": {
+    "pur_etf_512890_range_pct_ret60": 0.9812176165803109,
+    "pur_etf_basket_close_ret60": 0.9812176165803109,
+    "pur_etf_516260_close_ret60": 0.9812176165803109,
+    "pur_etf_159611_close_ret60": 0.9812176165803109,
+    "pur_etf_516260_range_pct_ret60": 0.9812176165803109,
+    "pur_etf_159611_range_pct_ret60": 0.9812176165803109,
+    "pur_etf_512890_close_ret60": 0.9812176165803109,
+    "pur_etf_159611_range_pct_z60": 0.9553108808290155,
+    "pur_etf_512890_range_pct_ret20": 0.9553108808290155,
+    "pur_etf_512890_close_z60": 0.9553108808290155,
+    "pur_etf_basket_close_ret20": 0.9553108808290155,
+    "pur_etf_159611_range_pct_ret20": 0.9553108808290155,
+    "pur_etf_516260_close_ret20": 0.9553108808290155,
+    "pur_etf_basket_close_z60": 0.9553108808290155,
+    "pur_etf_516260_range_pct_z60": 0.9553108808290155,
+    "pur_etf_512890_range_pct_z60": 0.9553108808290155,
+    "pur_etf_159611_close_ret20": 0.9553108808290155,
+    "pur_etf_512890_close_ret20": 0.9553108808290155,
+    "pur_etf_516260_close_z60": 0.9553108808290155,
+    "pur_etf_516260_range_pct_ret20": 0.9553108808290155,
+    "pur_etf_159611_close_z60": 0.9553108808290155,
+    "pur_stock_vs_etf_basket_ret20": 0.9553108808290155,
+    "pur_etf_516260_close_vol20": 0.9494818652849741,
+    "pur_etf_512890_close_vol20": 0.9494818652849741,
+    "pur_etf_159611_close_vol20": 0.9494818652849741,
+    "pur_etf_basket_close_vol20": 0.9494818652849741,
+    "pur_etf_159611_range_pct_z20": 0.9488341968911918,
+    "pur_etf_159611_range_pct_ma20_gap": 0.9488341968911918,
+    "pur_etf_516260_close_z20": 0.9488341968911918,
+    "pur_etf_159611_volume_z20": 0.9488341968911918,
+    "pur_etf_159611_close_z20": 0.9488341968911918,
+    "pur_etf_159611_close_ma20_gap": 0.9488341968911918,
+    "pur_etf_516260_close_ma20_gap": 0.9488341968911918,
+    "pur_etf_516260_range_pct_ma20_gap": 0.9488341968911918,
+    "pur_etf_516260_range_pct_z20": 0.9488341968911918,
+    "pur_etf_512890_close_ma20_gap": 0.9488341968911918,
+    "pur_etf_516260_volume_shock20": 0.9488341968911918,
+    "pur_etf_516260_volume_z20": 0.9488341968911918,
+    "pur_etf_512890_range_pct_z20": 0.9488341968911918,
+    "pur_etf_512890_range_pct_ma20_gap": 0.9488341968911918,
+    "pur_etf_basket_close_z20": 0.9488341968911918,
+    "pur_etf_512890_volume_shock20": 0.9488341968911918,
+    "pur_etf_basket_close_ma20_gap": 0.9488341968911918,
+    "pur_etf_512890_volume_z20": 0.9488341968911918,
+    "pur_etf_512890_close_z20": 0.9488341968911918,
+    "pur_etf_159611_volume_shock20": 0.9488341968911918,
+    "pur_etf_512890_range_pct_ret5": 0.9455958549222798,
+    "pur_etf_516260_range_pct_ret5": 0.9455958549222798,
+    "pur_etf_516260_close_ret5": 0.9455958549222798,
+    "pur_etf_basket_close_ret5": 0.9455958549222798
+  },
+  "outputs": {
+    "features": "/root/stock_realtime_v021_full/saved_data/601985_pipeline_out/04_external/power_utility_rate/stock_external_features_power_utility_rate.csv",
+    "merged_samples": "/root/stock_realtime_v021_full/saved_data/601985_pipeline_out/04_external/power_utility_rate/training_samples_with_power_utility_rate_external.csv",
+    "report": "/root/stock_realtime_v021_full/saved_data/601985_pipeline_out/04_external/power_utility_rate/validation_report.json"
+  }
+}
+logout success!
+[INFO] final samples for search: /root/stock_realtime_v021_full/saved_data/601985_pipeline_out/04_external/power_utility_rate/training_samples_with_power_utility_rate_external.csv
+=== nextday pipeline end: 2026-05-31T03:26:28 status=ok ===

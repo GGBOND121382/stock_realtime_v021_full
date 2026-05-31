@@ -6,8 +6,8 @@
     "stock_code": "600885.SH",
     "baostock_symbol": "600885"
   },
-  "out_root": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out",
-  "created_at": "2026-05-31T00:22:14",
+  "out_root": "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out",
+  "created_at": "2026-05-31T02:47:14",
   "args": {
     "symbol": "600885.SH",
     "sector_symbol": "电网设备",
@@ -64,8 +64,8 @@
     "skip_stages": "",
     "excel": false
   },
-  "finished_at": "2026-05-31T00:22:19",
-  "status": "partial_failed",
+  "finished_at": "2026-05-31T02:51:00",
+  "status": "ok",
   "feature_pipeline_effective": [
     "fundamental",
     "sector"
@@ -80,20 +80,20 @@
   "entry_vwap_premium_bps": 50.0,
   "feature_time_mode": "asof1455",
   "feature_cutoff_time": "14:55",
-  "final_samples": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/04_external/storage_power/training_samples_with_storage_power_external.csv",
-  "intraday_bars": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base/600885_5m.csv",
+  "final_samples": "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/04_external/storage_power/training_samples_with_storage_power_external.csv",
+  "intraday_bars": "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base/600885_5m.csv",
   "search_dirs": [
-    "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/10_search/search_vwap_low_hit_50bps",
-    "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/10_search/search_vwap_low_hit_80bps",
-    "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/10_search/search_vwap_low_close_profit_50bps",
-    "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/10_search/search_all_days_hit_50bps",
-    "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/10_search/search_all_days_hit_80bps",
-    "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/10_search/search_all_days_close_profit_50bps"
+    "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/10_search/search_vwap_low_hit_50bps",
+    "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/10_search/search_vwap_low_hit_80bps",
+    "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/10_search/search_vwap_low_close_profit_50bps",
+    "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/10_search/search_all_days_hit_50bps",
+    "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/10_search/search_all_days_hit_80bps",
+    "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/10_search/search_all_days_close_profit_50bps"
   ],
   "stages": [
     {
       "name": "update_data",
-      "status": "failed",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py",
@@ -112,7 +112,7 @@
         "--intraday_end",
         "2026-05-31 15:00:00",
         "--output_dir",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base",
         "--cache_mode",
         "incremental",
         "--feature_cache_mode",
@@ -120,79 +120,79 @@
         "--adjust",
         "qfq"
       ],
-      "started_at": "2026-05-31T00:22:14",
-      "ended_at": "2026-05-31T00:22:15",
-      "elapsed_seconds": 0.606,
-      "returncode": 1,
+      "started_at": "2026-05-31T02:47:14",
+      "ended_at": "2026-05-31T02:50:04",
+      "elapsed_seconds": 170.11,
+      "returncode": 0,
       "outputs": {
-        "daily_features": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base/daily_features.csv",
-        "intraday_bars": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base/600885_5m.csv"
+        "daily_features": "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base/daily_features.csv",
+        "intraday_bars": "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base/600885_5m.csv"
       },
-      "error": "stage update_data failed with returncode=1"
+      "error": null
     },
     {
       "name": "samples",
-      "status": "failed",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_nextday_samples_from_baostock.py",
         "--daily-features",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base/daily_features.csv",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base/daily_features.csv",
         "--intraday-bars",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base/600885_5m.csv",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base/600885_5m.csv",
         "--out-dir",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/01_samples",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/01_samples",
         "--min-bars",
         "40",
         "--keep-unlabeled-tail"
       ],
-      "started_at": "2026-05-31T00:22:15",
-      "ended_at": "2026-05-31T00:22:16",
-      "elapsed_seconds": 0.573,
-      "returncode": 1,
+      "started_at": "2026-05-31T02:50:04",
+      "ended_at": "2026-05-31T02:50:05",
+      "elapsed_seconds": 1.083,
+      "returncode": 0,
       "outputs": {
-        "samples": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/01_samples/training_samples.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/01_samples/training_samples.csv"
       },
-      "error": "stage samples failed with returncode=1"
+      "error": null
     },
     {
       "name": "asof_samples",
-      "status": "failed",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_asof1455_training_samples.py",
         "--samples",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/01_samples/training_samples.csv",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/01_samples/training_samples.csv",
         "--intraday-bars",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base/600885_5m.csv",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/00_base/600885_5m.csv",
         "--out-dir",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/01_samples_asof1455",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/01_samples_asof1455",
         "--cutoff-time",
         "14:55",
         "--min-bars",
         "40"
       ],
-      "started_at": "2026-05-31T00:22:16",
-      "ended_at": "2026-05-31T00:22:16",
-      "elapsed_seconds": 0.816,
-      "returncode": 1,
+      "started_at": "2026-05-31T02:50:05",
+      "ended_at": "2026-05-31T02:50:06",
+      "elapsed_seconds": 1.217,
+      "returncode": 0,
       "outputs": {
-        "samples": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv"
       },
-      "error": "stage asof_samples failed with returncode=1"
+      "error": null
     },
     {
       "name": "fundamental",
-      "status": "failed",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_fundamental_features.py",
         "--symbol",
         "600885.SH",
         "--daily-samples",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv",
         "--out-dir",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/02_fundamental",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/02_fundamental",
         "--start-date",
         "2018-01-01",
         "--end-date",
@@ -201,25 +201,25 @@
         "120",
         "--skip-akshare"
       ],
-      "started_at": "2026-05-31T00:22:16",
-      "ended_at": "2026-05-31T00:22:17",
-      "elapsed_seconds": 0.78,
-      "returncode": 1,
+      "started_at": "2026-05-31T02:50:06",
+      "ended_at": "2026-05-31T02:50:36",
+      "elapsed_seconds": 29.857,
+      "returncode": 0,
       "outputs": {
-        "samples": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
       },
-      "error": "stage fundamental failed with returncode=1"
+      "error": null
     },
     {
       "name": "sector",
-      "status": "failed",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_sector_features.py",
         "--samples",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv",
         "--out-dir",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/03_sector",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/03_sector",
         "--sector-symbol",
         "电网设备",
         "--start-date",
@@ -227,25 +227,25 @@
         "--end-date",
         "2026-05-31"
       ],
-      "started_at": "2026-05-31T00:22:17",
-      "ended_at": "2026-05-31T00:22:18",
-      "elapsed_seconds": 0.612,
-      "returncode": 1,
+      "started_at": "2026-05-31T02:50:36",
+      "ended_at": "2026-05-31T02:50:40",
+      "elapsed_seconds": 4.079,
+      "returncode": 0,
       "outputs": {
-        "samples": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/03_sector/training_samples_with_sector.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/03_sector/training_samples_with_sector.csv"
       },
-      "error": "stage sector failed with returncode=1"
+      "error": null
     },
     {
       "name": "external_storage_power",
-      "status": "failed",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_stock_external_features.py",
         "--samples",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/03_sector/training_samples_with_sector.csv",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/03_sector/training_samples_with_sector.csv",
         "--out-dir",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/04_external/storage_power",
+        "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/04_external/storage_power",
         "--profile",
         "storage_power",
         "--target-symbol",
@@ -263,14 +263,14 @@
         "--us-lag-days",
         "1"
       ],
-      "started_at": "2026-05-31T00:22:18",
-      "ended_at": "2026-05-31T00:22:18",
-      "elapsed_seconds": 0.668,
-      "returncode": 1,
+      "started_at": "2026-05-31T02:50:40",
+      "ended_at": "2026-05-31T02:51:00",
+      "elapsed_seconds": 19.853,
+      "returncode": 0,
       "outputs": {
-        "samples": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/600885_pipeline_out/04_external/storage_power/training_samples_with_storage_power_external.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/600885_pipeline_out/04_external/storage_power/training_samples_with_storage_power_external.csv"
       },
-      "error": "stage external_storage_power failed with returncode=1"
+      "error": null
     }
   ]
 }

@@ -6,8 +6,8 @@
     "stock_code": "601100.SH",
     "baostock_symbol": "601100"
   },
-  "out_root": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out",
-  "created_at": "2026-05-31T00:22:23",
+  "out_root": "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out",
+  "created_at": "2026-05-31T02:54:12",
   "args": {
     "symbol": "601100.SH",
     "sector_symbol": "工程机械",
@@ -64,8 +64,8 @@
     "skip_stages": "",
     "excel": false
   },
-  "finished_at": "2026-05-31T00:22:26",
-  "status": "partial_failed",
+  "finished_at": "2026-05-31T02:57:39",
+  "status": "ok",
   "feature_pipeline_effective": [
     "fundamental",
     "sector"
@@ -80,20 +80,20 @@
   "entry_vwap_premium_bps": 50.0,
   "feature_time_mode": "asof1455",
   "feature_cutoff_time": "14:55",
-  "final_samples": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv",
-  "intraday_bars": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base/601100_5m.csv",
+  "final_samples": "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv",
+  "intraday_bars": "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base/601100_5m.csv",
   "search_dirs": [
-    "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/10_search/search_vwap_low_hit_50bps",
-    "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/10_search/search_vwap_low_hit_80bps",
-    "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/10_search/search_vwap_low_close_profit_50bps",
-    "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/10_search/search_all_days_hit_50bps",
-    "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/10_search/search_all_days_hit_80bps",
-    "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/10_search/search_all_days_close_profit_50bps"
+    "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/10_search/search_vwap_low_hit_50bps",
+    "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/10_search/search_vwap_low_hit_80bps",
+    "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/10_search/search_vwap_low_close_profit_50bps",
+    "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/10_search/search_all_days_hit_50bps",
+    "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/10_search/search_all_days_hit_80bps",
+    "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/10_search/search_all_days_close_profit_50bps"
   ],
   "stages": [
     {
       "name": "update_data",
-      "status": "failed",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py",
@@ -112,7 +112,7 @@
         "--intraday_end",
         "2026-05-31 15:00:00",
         "--output_dir",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base",
         "--cache_mode",
         "incremental",
         "--feature_cache_mode",
@@ -120,79 +120,79 @@
         "--adjust",
         "qfq"
       ],
-      "started_at": "2026-05-31T00:22:23",
-      "ended_at": "2026-05-31T00:22:23",
-      "elapsed_seconds": 0.664,
-      "returncode": 1,
+      "started_at": "2026-05-31T02:54:12",
+      "ended_at": "2026-05-31T02:56:55",
+      "elapsed_seconds": 162.421,
+      "returncode": 0,
       "outputs": {
-        "daily_features": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base/daily_features.csv",
-        "intraday_bars": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base/601100_5m.csv"
+        "daily_features": "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base/daily_features.csv",
+        "intraday_bars": "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base/601100_5m.csv"
       },
-      "error": "stage update_data failed with returncode=1"
+      "error": null
     },
     {
       "name": "samples",
-      "status": "failed",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_nextday_samples_from_baostock.py",
         "--daily-features",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base/daily_features.csv",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base/daily_features.csv",
         "--intraday-bars",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base/601100_5m.csv",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base/601100_5m.csv",
         "--out-dir",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/01_samples",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/01_samples",
         "--min-bars",
         "40",
         "--keep-unlabeled-tail"
       ],
-      "started_at": "2026-05-31T00:22:23",
-      "ended_at": "2026-05-31T00:22:24",
-      "elapsed_seconds": 0.462,
-      "returncode": 1,
+      "started_at": "2026-05-31T02:56:55",
+      "ended_at": "2026-05-31T02:56:56",
+      "elapsed_seconds": 1.086,
+      "returncode": 0,
       "outputs": {
-        "samples": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/01_samples/training_samples.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/01_samples/training_samples.csv"
       },
-      "error": "stage samples failed with returncode=1"
+      "error": null
     },
     {
       "name": "asof_samples",
-      "status": "failed",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_asof1455_training_samples.py",
         "--samples",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/01_samples/training_samples.csv",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/01_samples/training_samples.csv",
         "--intraday-bars",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base/601100_5m.csv",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/00_base/601100_5m.csv",
         "--out-dir",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/01_samples_asof1455",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/01_samples_asof1455",
         "--cutoff-time",
         "14:55",
         "--min-bars",
         "40"
       ],
-      "started_at": "2026-05-31T00:22:24",
-      "ended_at": "2026-05-31T00:22:24",
-      "elapsed_seconds": 0.459,
-      "returncode": 1,
+      "started_at": "2026-05-31T02:56:56",
+      "ended_at": "2026-05-31T02:56:57",
+      "elapsed_seconds": 1.206,
+      "returncode": 0,
       "outputs": {
-        "samples": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv"
       },
-      "error": "stage asof_samples failed with returncode=1"
+      "error": null
     },
     {
       "name": "fundamental",
-      "status": "failed",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_fundamental_features.py",
         "--symbol",
         "601100.SH",
         "--daily-samples",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv",
         "--out-dir",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/02_fundamental",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/02_fundamental",
         "--start-date",
         "2018-01-01",
         "--end-date",
@@ -201,25 +201,25 @@
         "120",
         "--skip-akshare"
       ],
-      "started_at": "2026-05-31T00:22:24",
-      "ended_at": "2026-05-31T00:22:25",
-      "elapsed_seconds": 0.446,
-      "returncode": 1,
+      "started_at": "2026-05-31T02:56:57",
+      "ended_at": "2026-05-31T02:57:14",
+      "elapsed_seconds": 17.582,
+      "returncode": 0,
       "outputs": {
-        "samples": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
       },
-      "error": "stage fundamental failed with returncode=1"
+      "error": null
     },
     {
       "name": "sector",
-      "status": "failed",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_sector_features.py",
         "--samples",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv",
         "--out-dir",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/03_sector",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/03_sector",
         "--sector-symbol",
         "工程机械",
         "--start-date",
@@ -227,25 +227,25 @@
         "--end-date",
         "2026-05-31"
       ],
-      "started_at": "2026-05-31T00:22:25",
-      "ended_at": "2026-05-31T00:22:25",
-      "elapsed_seconds": 0.487,
-      "returncode": 1,
+      "started_at": "2026-05-31T02:57:14",
+      "ended_at": "2026-05-31T02:57:18",
+      "elapsed_seconds": 4.027,
+      "returncode": 0,
       "outputs": {
-        "samples": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/03_sector/training_samples_with_sector.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/03_sector/training_samples_with_sector.csv"
       },
-      "error": "stage sector failed with returncode=1"
+      "error": null
     },
     {
       "name": "external_aero_nuclear_equipment",
-      "status": "failed",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_stock_external_features.py",
         "--samples",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/03_sector/training_samples_with_sector.csv",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/03_sector/training_samples_with_sector.csv",
         "--out-dir",
-        "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/04_external/aero_nuclear_equipment",
+        "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/04_external/aero_nuclear_equipment",
         "--profile",
         "aero_nuclear_equipment",
         "--target-symbol",
@@ -263,14 +263,14 @@
         "--us-lag-days",
         "1"
       ],
-      "started_at": "2026-05-31T00:22:25",
-      "ended_at": "2026-05-31T00:22:26",
-      "elapsed_seconds": 0.811,
-      "returncode": 1,
+      "started_at": "2026-05-31T02:57:18",
+      "ended_at": "2026-05-31T02:57:39",
+      "elapsed_seconds": 20.779,
+      "returncode": 0,
       "outputs": {
-        "samples": "/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/601100_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv"
+        "samples": "/root/stock_realtime_v021_full/saved_data/601100_pipeline_out/04_external/aero_nuclear_equipment/training_samples_with_aero_nuclear_equipment_external.csv"
       },
-      "error": "stage external_aero_nuclear_equipment failed with returncode=1"
+      "error": null
     }
   ]
 }

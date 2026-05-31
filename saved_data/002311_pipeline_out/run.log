@@ -6638,3 +6638,137 @@ Traceback (most recent call last):
 FileNotFoundError: [Errno 2] No such file or directory: '/mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/feed/training_samples_with_feed_external.csv'
 [INFO] final samples for search: /mnt/d/VSCodeWorkspace/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/training_samples_with_sector.csv
 === nextday pipeline end: 2026-05-31T00:21:19 status=partial_failed ===
+=== nextday pipeline start: 2026-05-31T01:39:40 ===
+symbol=002311.SZ, out_root=/root/stock_realtime_v021_full/saved_data/002311_pipeline_out
+
+[2026-05-31T01:39:40] SKIP update_data: outputs exist
+  /usr/bin/python3 bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py --mode update_data --symbol 002311 --benchmark_symbol 000300 --daily_start 2018-01-01 --daily_end 2026-05-31 --intraday_start '2018-01-01 09:30:00' --intraday_end '2026-05-31 15:00:00' --output_dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base --cache_mode incremental --feature_cache_mode incremental --adjust qfq
+
+[2026-05-31T01:39:40] SKIP samples: outputs exist
+  /usr/bin/python3 feature_building/build_nextday_samples_from_baostock.py --daily-features /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/daily_features.csv --intraday-bars /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples --min-bars 40 --keep-unlabeled-tail
+
+[2026-05-31T01:39:40] SKIP asof_samples: outputs exist
+  /usr/bin/python3 feature_building/build_asof1455_training_samples.py --samples /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples/training_samples.csv --intraday-bars /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/00_base/002311_5m.csv --out-dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples_asof1455 --cutoff-time 14:55 --min-bars 40
+
+[2026-05-31T01:39:40] SKIP fundamental: outputs exist
+  /usr/bin/python3 feature_building/build_fundamental_features.py --symbol 002311.SZ --daily-samples /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --out-dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental --start-date 2018-01-01 --end-date 2026-05-31 --fallback-lag-days 120 --skip-akshare
+
+[2026-05-31T01:39:40] SKIP sector: outputs exist
+  /usr/bin/python3 feature_building/build_sector_features.py --samples /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --out-dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector --sector-symbol '农产品加工' --start-date 2018-01-01 --end-date 2026-05-31
+
+[2026-05-31T01:39:40] RUN external_feed
+  /usr/bin/python3 feature_building/build_haida_feed_external_features.py --samples /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/03_sector/training_samples_with_sector.csv --out-dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/feed --lag-days 1
+/root/stock_realtime_v021_full/feature_building/build_haida_feed_external_features.py:30: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
+  out[f"{col}_ret1"] = out[col].pct_change()
+/root/stock_realtime_v021_full/feature_building/build_haida_feed_external_features.py:30: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
+  out[f"{col}_ret1"] = out[col].pct_change()
+{
+  "sample_rows": 1544,
+  "raw_rows": 5214,
+  "raw_date_min": "2005-01-04",
+  "raw_date_max": "2026-05-29",
+  "feature_cols": 214,
+  "lag_days": 1,
+  "errors": {},
+  "top_missing": {
+    "feed_hog_volume_z60": 0.17357512953367876,
+    "feed_hog_close_ret20": 0.17357512953367876,
+    "feed_hog_range_pct_z60": 0.17357512953367876,
+    "feed_hog_range_pct_ret20": 0.17357512953367876,
+    "feed_hog_hold_z60": 0.17357512953367876,
+    "feed_hog_hold_ret20": 0.17357512953367876,
+    "feed_hog_cost_ratio_ret20": 0.17357512953367876,
+    "feed_hog_cost_ratio_z60": 0.17357512953367876,
+    "feed_hog_close_z60": 0.17357512953367876,
+    "feed_hog_volume_ret20": 0.17357512953367876,
+    "feed_hog_close_ma20_gap": 0.16709844559585493,
+    "feed_hog_volume_ma20_gap": 0.16709844559585493,
+    "feed_hog_range_pct_z20": 0.16709844559585493,
+    "feed_hog_hold_z20": 0.16709844559585493,
+    "feed_hog_volume_z20": 0.16709844559585493,
+    "feed_hog_close_z20": 0.16709844559585493,
+    "feed_hog_cost_ratio_ma20_gap": 0.16709844559585493,
+    "feed_hog_cost_ratio_z20": 0.16709844559585493,
+    "feed_hog_hold_ma20_gap": 0.16709844559585493,
+    "feed_hog_range_pct_ma20_gap": 0.16709844559585493,
+    "feed_hog_range_pct_ret5": 0.163860103626943,
+    "feed_hog_hold_ret5": 0.163860103626943,
+    "feed_hog_volume_ret5": 0.163860103626943,
+    "feed_hog_cost_ratio_ret5": 0.163860103626943,
+    "feed_hog_close_ret5": 0.163860103626943,
+    "feed_hog_hold_ret1": 0.16126943005181346,
+    "feed_hog_close_ret1": 0.16126943005181346,
+    "feed_hog_cost_ratio_ret1": 0.16126943005181346,
+    "feed_hog_volume_ret1": 0.16126943005181346,
+    "feed_hog_range_pct_ret1": 0.16126943005181346
+  },
+  "outputs": {
+    "features": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/feed/feed_futures_features.csv",
+    "merged_samples": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/feed/training_samples_with_feed_external.csv"
+  }
+}
+
+[2026-05-31T01:39:46] RUN external_hog
+  /usr/bin/python3 feature_building/build_hog_industry_features.py --samples /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/feed/training_samples_with_feed_external.csv --out-dir /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog --lag-days 1
+/root/stock_realtime_v021_full/feature_building/build_hog_industry_features.py:92: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
+  out[f"{col}_ret1"] = out[col].pct_change()
+/root/stock_realtime_v021_full/feature_building/build_hog_industry_features.py:92: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
+  out[f"{col}_ret1"] = out[col].pct_change()
+/root/stock_realtime_v021_full/feature_building/build_hog_industry_features.py:92: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
+  out[f"{col}_ret1"] = out[col].pct_change()
+/root/stock_realtime_v021_full/feature_building/build_hog_industry_features.py:92: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
+  out[f"{col}_ret1"] = out[col].pct_change()
+/root/stock_realtime_v021_full/feature_building/build_hog_industry_features.py:92: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
+  out[f"{col}_ret1"] = out[col].pct_change()
+/root/stock_realtime_v021_full/feature_building/build_hog_industry_features.py:92: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
+  out[f"{col}_ret1"] = out[col].pct_change()
+/root/stock_realtime_v021_full/feature_building/build_hog_industry_features.py:92: FutureWarning: The default fill_method='pad' in Series.pct_change is deprecated and will be removed in a future version. Either fill in any non-leading NA values prior to calling pct_change or specify 'fill_method=None' to not fill NA values.
+  out[f"{col}_ret1"] = out[col].pct_change()
+{
+  "sample_rows": 1544,
+  "raw_rows": 1564,
+  "raw_date_min": "2018-11-04",
+  "raw_date_max": "2026-05-30",
+  "feature_cols": 80,
+  "lag_days": 1,
+  "errors": {},
+  "top_missing": {
+    "hog_pork_wholesale_ret20": 0.9702072538860104,
+    "hog_pork_wholesale_z60": 0.9702072538860104,
+    "hog_pork_wholesale_ret5": 0.9682642487046632,
+    "hog_pork_wholesale_z20": 0.9676165803108808,
+    "hog_pork_wholesale_ma20_gap": 0.9676165803108808,
+    "hog_pork_wholesale": 0.9643782383419689,
+    "hog_pork_wholesale_ret1": 0.9591968911917098,
+    "hog_pig_corn_ratio_z60": 0.9326424870466321,
+    "hog_pig_corn_ratio_ma20_gap": 0.9028497409326425,
+    "hog_pig_corn_ratio_z20": 0.9028497409326425,
+    "hog_sow_ret5": 0.9015544041450777,
+    "hog_sow_ret20": 0.9015544041450777,
+    "hog_fut_spot_basis_z60": 0.8898963730569949,
+    "hog_fut_spot_basis": 0.8795336787564767,
+    "hog_pig_corn_ratio_ret20": 0.8698186528497409,
+    "hog_sow_z20": 0.8691709844559585,
+    "hog_sow_ma20_gap": 0.8691709844559585,
+    "hog_sow_z60": 0.866580310880829,
+    "hog_corn_ret20": 0.8555699481865285,
+    "hog_soymeal_ret20": 0.8555699481865285,
+    "hog_feed_cost_ret20": 0.8555699481865285,
+    "hog_soymeal_z60": 0.8555699481865285,
+    "hog_spot_ret20": 0.8555699481865285,
+    "hog_corn_z60": 0.8555699481865285,
+    "hog_spot_z60": 0.8555699481865285,
+    "hog_soymeal_ma20_gap": 0.8503886010362695,
+    "hog_spot_z20": 0.8503886010362695,
+    "hog_corn_ma20_gap": 0.8503886010362695,
+    "hog_soymeal_z20": 0.8503886010362695,
+    "hog_corn_z20": 0.8503886010362695
+  },
+  "outputs": {
+    "raw": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/hog_industry_raw.csv",
+    "features": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/hog_industry_features.csv",
+    "merged_samples": "/root/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv"
+  }
+}
+[INFO] final samples for search: /root/stock_realtime_v021_full/saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv
+=== nextday pipeline end: 2026-05-31T01:39:50 status=ok ===
