@@ -1,0 +1,14 @@
+[2026-05-31 00:58:59] workflow start
+[2026-05-31 00:58:59] MASTER_LOG_DIR=saved_data/ml4t_asof1455_lgbm_pipeline_out/logs/rebuild_and_search_20260531_005859
+[2026-05-31 00:58:59] PYTHON=python3
+[2026-05-31 00:58:59] CLEANUP_MODE=plan RUN_BUILD=1 RUN_MODEL=1 SMOKE=1
+[2026-05-31 00:58:59] cleanup plan only
+[2026-05-31 00:58:59] CMD python3 tools/cleanup_saved_data_layout.py --saved-data saved_data 
+[2026-05-31 00:58:59] build universe start: START_DATE=2018-01-01 END_DATE=2026-05-31 MAX_SYMBOLS=2 DRY_RUN=1
+[2026-05-31 00:59:00] build summary: saved_data/ml4t_asof1455_lgbm_pipeline_out/logs/rebuild_and_search_20260531_005859/build_universe/build_summary.csv
+  ok=2
+[2026-05-31 00:59:00] model pool start: FEATURE_GROUPS=default MODEL_FAMILIES=default MAX_RUNS=2 DRY_RUN=1
+[2026-05-31 00:59:00] model summary: saved_data/ml4t_asof1455_lgbm_pipeline_out/logs/rebuild_and_search_20260531_005859/regression_pool/regression_pool_summary.csv
+  ok=2
+[2026-05-31 00:59:00] workflow done
+[2026-05-31 00:59:00] summary: saved_data/ml4t_asof1455_lgbm_pipeline_out/logs/rebuild_and_search_20260531_005859/workflow_summary.txt

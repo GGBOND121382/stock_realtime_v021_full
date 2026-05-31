@@ -1,0 +1,13 @@
+============================================================
+[START] 2026-05-31 03:33:07 symbol=603986.SH, sector=半导体, external=ai_compute, out_root=saved_data/603986_pipeline_out
+[CMD] python3 pipelines/run_nextday_pipeline.py --symbol 603986.SH --sector-symbol 半导体 --out-root saved_data/603986_pipeline_out --external ai_compute --start-date 2018-01-01 --end-date 2026-05-31 --feature-time-mode asof1455 --feature-cutoff-time 14:55 --feature-pipeline fundamental\,sector --skip-akshare-fund-flow --external-lag-days 1 --stock-external-domestic-lag-days 0 --stock-external-future-lag-days 1 --stock-external-us-lag-days 1 --continue-on-error --resume --only-stages update_data\,samples\,asof_samples\,fundamental\,sector\,external_ai_compute --enable-us-yf 
+============================================================
+{
+  "status": "ok",
+  "symbol": "603986.SH",
+  "out_root": "/root/stock_realtime_v021_full/saved_data/603986_pipeline_out",
+  "final_samples": "/root/stock_realtime_v021_full/saved_data/603986_pipeline_out/04_external/ai_compute/training_samples_with_ai_compute_external.csv",
+  "leaderboard": "/root/stock_realtime_v021_full/saved_data/603986_pipeline_out/99_summary/final_leaderboard.csv",
+  "manifest": "/root/stock_realtime_v021_full/saved_data/603986_pipeline_out/pipeline_summary.json"
+}
+[DONE] 2026-05-31 03:36:54 symbol=603986.SH, status=ok, elapsed=227s

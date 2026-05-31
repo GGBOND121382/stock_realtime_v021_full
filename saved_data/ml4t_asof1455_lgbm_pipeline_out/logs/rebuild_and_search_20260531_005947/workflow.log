@@ -1,0 +1,10 @@
+[INFO] saved_data=/root/stock_realtime_v021_full/saved_data
+[INFO] recycle_dir=/root/stock_realtime_v021_full/saved_data/_recycle_data_cleanup_20260531_005947
+[INFO] top_whitelist_exact=['ml4t_asof1455_lgbm_pipeline_out']
+[INFO] top_whitelist_regex=['^\\d{6}_pipeline_out$', '^_recycle_.*']
+[INFO] canonical_pipeline_count=43
+[INFO] present_canonical_asof_samples=13
+[INFO] missing_canonical_asof_sample_codes=['000657', '000786', '002028', '002080', '002128', '002261', '002297', '002364', '002460', '002518', '002601', '002895', '003816', '600016', '600030', '600361', '600438', '600584', '600885', '600919', '601100', '601138', '601186', '601336', '601390', '601818', '601991', '603259', '603986', '605499']
+[INFO] planned_moves=0
+[DRY-RUN] no files moved. manifest=/root/stock_realtime_v021_full/saved_data/_recycle_data_cleanup_20260531_005947/dry_run_manifest.json
+[DRY-RUN] rerun with --execute to move planned paths into the recycle dir.

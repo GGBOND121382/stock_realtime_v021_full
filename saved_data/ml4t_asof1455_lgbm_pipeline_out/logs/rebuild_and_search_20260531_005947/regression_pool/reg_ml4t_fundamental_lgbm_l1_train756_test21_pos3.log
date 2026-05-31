@@ -1,0 +1,345 @@
+============================================================
+[START] 2026-05-31 08:16:07 feature_group=ml4t_fundamental, model_family=lgbm_l1, sample_globs=saved_data/*_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv|saved_data/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+[CMD] python3 scripts/backtest_ml4t_asof1455_lgbm.py --bars-glob saved_data/\*_pipeline_out/00_base/\*_5m.csv --out-root saved_data/ml4t_asof1455_lgbm_pipeline_out --run-name reg_ml4t_fundamental_lgbm_l1_train756_test21_pos3 --feature-group ml4t_fundamental --model-family lgbm_l1 --entry-price-col close_asof1455 --exit-price-col next_day_close --entry-policy all_days --round-trip-cost-bps 1.7 --train-days 756 --valid-days 0 --test-days 21 --embargo-days 1 --step-days 21 --selection-rule strict_top_decile_positive --min-pred-return-bps 0.0 --min-daily-candidates 10 --max-positions 3 --max-missing 0.70 --winsorize-target --objective-alpha 0.90 --n-jobs -1 --sample-glob saved_data/\*_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --sample-glob saved_data/\*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv 
+============================================================
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[LightGBM] [Warning] Met categorical feature which contains sparse values. Consider renumbering to consecutive integers started from zero
+[INFO] dropped 43 duplicate sample files to avoid cross-stage mixing (kept 43)
+  - dropped saved_data/000657_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/000786_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002028_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002080_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002128_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002261_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002270_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002297_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002311_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002364_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002460_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002518_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002601_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002714_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/002895_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/003816_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/600016_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/600030_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/600096_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  - dropped saved_data/600176_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+  ... (23 more dropped)
+[INFO] sample files: 43
+  - saved_data/000657_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/000786_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002028_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002080_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002128_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002261_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002270_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002297_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002311_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002364_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002460_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002518_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002601_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002714_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/002895_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/003816_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/600016_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/600030_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/600096_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  - saved_data/600176_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+  ... (23 more)
+[INFO] 5m bar files mapped: 43
+[INFO] prepared rows=49154 dates=1549 stocks=32 features=117
+[INFO] rolling windows: 37
+[INFO] window=1 train=2020-01-02..2023-02-16 test=2023-02-20..2023-03-20
+[INFO] window=2 train=2020-02-10..2023-03-17 test=2023-03-21..2023-04-19
+[INFO] window=3 train=2020-03-10..2023-04-18 test=2023-04-20..2023-05-23
+[INFO] window=4 train=2020-04-09..2023-05-22 test=2023-05-24..2023-06-21
+[INFO] window=5 train=2020-05-13..2023-06-20 test=2023-06-26..2023-07-24
+[INFO] window=6 train=2020-06-11..2023-07-21 test=2023-07-25..2023-08-22
+[INFO] window=7 train=2020-07-14..2023-08-21 test=2023-08-23..2023-09-20
+[INFO] window=8 train=2020-08-12..2023-09-19 test=2023-09-21..2023-10-27
+[INFO] window=9 train=2020-09-10..2023-10-26 test=2023-10-30..2023-11-27
+[INFO] window=10 train=2020-10-19..2023-11-24 test=2023-11-28..2023-12-26
+[INFO] window=11 train=2020-11-17..2023-12-25 test=2023-12-27..2024-01-25
+[INFO] window=12 train=2020-12-16..2024-01-24 test=2024-01-26..2024-03-04
+[INFO] window=13 train=2021-01-15..2024-03-01 test=2024-03-05..2024-04-02
+[INFO] window=14 train=2021-02-22..2024-04-01 test=2024-04-03..2024-05-08
+[INFO] window=15 train=2021-03-23..2024-05-07 test=2024-05-09..2024-06-06
+[INFO] window=16 train=2021-04-22..2024-06-05 test=2024-06-07..2024-07-08
+[INFO] window=17 train=2021-05-26..2024-07-05 test=2024-07-09..2024-08-06
+[INFO] window=18 train=2021-06-25..2024-08-05 test=2024-08-07..2024-09-04
+[INFO] window=19 train=2021-07-26..2024-09-03 test=2024-09-05..2024-10-14
+[INFO] window=20 train=2021-08-24..2024-10-11 test=2024-10-15..2024-11-12
+[INFO] window=21 train=2021-09-24..2024-11-11 test=2024-11-13..2024-12-11
+[INFO] window=22 train=2021-11-01..2024-12-10 test=2024-12-12..2025-01-10
+[INFO] window=23 train=2021-11-30..2025-01-09 test=2025-01-13..2025-02-18
+[INFO] window=24 train=2021-12-29..2025-02-17 test=2025-02-19..2025-03-19
+[INFO] window=25 train=2022-01-28..2025-03-18 test=2025-03-20..2025-04-18
+[INFO] window=26 train=2022-03-07..2025-04-17 test=2025-04-21..2025-05-22
+[INFO] window=27 train=2022-04-07..2025-05-21 test=2025-05-23..2025-06-23
+[INFO] window=28 train=2022-05-11..2025-06-20 test=2025-06-24..2025-07-22
+[INFO] window=29 train=2022-06-10..2025-07-21 test=2025-07-23..2025-08-20
+[INFO] window=30 train=2022-07-11..2025-08-19 test=2025-08-21..2025-09-18
+[INFO] window=31 train=2022-08-09..2025-09-17 test=2025-09-19..2025-10-27
+[INFO] window=32 train=2022-09-07..2025-10-24 test=2025-10-28..2025-11-25
+[INFO] window=33 train=2022-10-14..2025-11-24 test=2025-11-26..2025-12-24
+[INFO] window=34 train=2022-11-14..2025-12-23 test=2025-12-25..2026-01-26
+[INFO] window=35 train=2022-12-13..2026-01-23 test=2026-01-27..2026-03-04
+[INFO] window=36 train=2023-01-12..2026-03-03 test=2026-03-05..2026-04-02
+[INFO] window=37 train=2023-02-17..2026-04-01 test=2026-04-03..2026-05-07
+{
+  "n_input_rows": 49154,
+  "n_dates": 1549,
+  "n_stocks": 32,
+  "n_features": 117,
+  "features": [
+    "cashflow_CAToAsset",
+    "cashflow_CAToAsset_chg4q",
+    "cashflow_CFOToGr",
+    "cashflow_CFOToGr_chg4q",
+    "cashflow_CFOToNP",
+    "cashflow_CFOToNP_chg4q",
+    "cashflow_CFOToOR",
+    "cashflow_CFOToOR_chg4q",
+    "cashflow_NCAToAsset",
+    "cashflow_NCAToAsset_chg4q",
+    "cashflow_ebitToInterest",
+    "cashflow_ebitToInterest_chg4q",
+    "cashflow_tangibleAssetToAsset",
+    "cashflow_tangibleAssetToAsset_chg4q",
+    "dupont_dupontAssetStoEquity",
+    "dupont_dupontAssetStoEquity_chg4q",
+    "dupont_dupontAssetTurn",
+    "dupont_dupontAssetTurn_chg4q",
+    "dupont_dupontEbittogr",
+    "dupont_dupontEbittogr_chg4q",
+    "dupont_dupontIntburden",
+    "dupont_dupontIntburden_chg4q",
+    "dupont_dupontNitogr",
+    "dupont_dupontNitogr_chg4q",
+    "dupont_dupontPnitoni",
+    "dupont_dupontPnitoni_chg4q",
+    "dupont_dupontROE",
+    "dupont_dupontROE_chg4q",
+    "dupont_dupontTaxBurden",
+    "dupont_dupontTaxBurden_chg4q",
+    "fund_days_since_effective",
+    "growth_YOYAsset",
+    "growth_YOYAsset_chg4q",
+    "growth_YOYEPSBasic",
+    "growth_YOYEPSBasic_chg4q",
+    "growth_YOYEquity",
+    "growth_YOYEquity_chg4q",
+    "growth_YOYNI",
+    "growth_YOYNI_chg4q",
+    "growth_YOYPNI",
+    "growth_YOYPNI_chg4q",
+    "intraday_bop_asof",
+    "intraday_cci20_asof",
+    "intraday_mfi14_asof",
+    "intraday_ret_lag_10bar",
+    "intraday_ret_lag_1bar",
+    "intraday_ret_lag_2bar",
+    "intraday_ret_lag_3bar",
+    "intraday_ret_lag_4bar",
+    "intraday_ret_lag_5bar",
+    "intraday_ret_lag_6bar",
+    "intraday_ret_lag_7bar",
+    "intraday_ret_lag_8bar",
+    "intraday_ret_lag_9bar",
+    "intraday_stochrsi14_asof",
+    "ml4t_bb_lower_ratio_asof",
+    "ml4t_bb_middle_ratio_asof",
+    "ml4t_bb_upper_ratio_asof",
+    "ml4t_dollar_volume_prev",
+    "ml4t_dollar_volume_rank_pct",
+    "ml4t_liquidity_ok",
+    "ml4t_natr14_asof",
+    "ml4t_ppo_14_26_asof",
+    "ml4t_ret_10d_asof",
+    "ml4t_ret_1d_asof",
+    "ml4t_ret_21d_asof",
+    "ml4t_ret_5d_asof",
+    "ml4t_ret_63d_asof",
+    "ml4t_rsi14_asof",
+    "month",
+    "operation_AssetTurnRatio",
+    "operation_CATurnRatio",
+    "operation_INVTurnDays",
+    "operation_INVTurnRatio",
+    "operation_NRTurnDays",
+    "operation_NRTurnRatio",
+    "pbMRQ",
+    "pbMRQ_rank252",
+    "pcfNcfTTM",
+    "pcfNcfTTM_rank252",
+    "peTTM",
+    "peTTM_rank252",
+    "profit_epsTTM",
+    "profit_epsTTM_chg4q",
+    "profit_gpMargin",
+    "profit_gpMargin_chg4q",
+    "profit_liqaShare",
+    "profit_liqaShare_chg4q",
+    "profit_netProfit",
+    "profit_netProfit_chg4q",
+    "profit_npMargin",
+    "profit_npMargin_chg4q",
+    "profit_roeAvg",
+    "profit_roeAvg_chg4q",
+    "profit_totalShare",
+    "profit_totalShare_chg4q",
+    "psTTM",
+    "psTTM_rank252",
+    "rank_ml4t_ret_10d_asof",
+    "rank_ml4t_ret_1d_asof",
+    "rank_ml4t_ret_21d_asof",
+    "rank_ml4t_ret_5d_asof",
+    "rank_ml4t_ret_63d_asof",
+    "solvency_YOYLiability",
+    "solvency_YOYLiability_chg4q",
+    "solvency_assetToEquity",
+    "solvency_assetToEquity_chg4q",
+    "solvency_cashRatio",
+    "solvency_cashRatio_chg4q",
+    "solvency_currentRatio",
+    "solvency_currentRatio_chg4q",
+    "solvency_liabilityToAsset",
+    "solvency_liabilityToAsset_chg4q",
+    "solvency_quickRatio",
+    "solvency_quickRatio_chg4q",
+    "weekday",
+    "year"
+  ],
+  "feature_group": "ml4t_fundamental",
+  "model_family": "lgbm_l1",
+  "n_windows": 37,
+  "test_selected_trades": 2181,
+  "test_selected_dates": 754,
+  "test_mean_daily_ic": 0.050632561301077496,
+  "test_median_daily_ic": 0.04032258064516129,
+  "test_trade_metrics": {
+    "n": 2181,
+    "win_rate": 0.5135259055479138,
+    "avg_return": 0.0037871546419117772,
+    "median_return": 0.0011539187996467727,
+    "sum_return": 8.259784274009586,
+    "compound_return": 1396.519685415132,
+    "profit_factor": 1.434611136942036,
+    "max_drawdown": -0.8167045572821079
+  },
+  "test_daily_portfolio_metrics": {
+    "n": 754,
+    "win_rate": 0.5557029177718833,
+    "avg_return": 0.003854899455358656,
+    "median_return": 0.002545224118502521,
+    "sum_return": 2.9065941893404266,
+    "compound_return": 14.0889040378748,
+    "profit_factor": 1.6237883269868953,
+    "max_drawdown": -0.43278666444925384
+  },
+  "config": {
+    "samples": [],
+    "sample_glob": [
+      "saved_data/*_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv",
+      "saved_data/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv"
+    ],
+    "bars_glob": [
+      "saved_data/*_pipeline_out/00_base/*_5m.csv"
+    ],
+    "out_dir": "",
+    "out_root": "saved_data/ml4t_asof1455_lgbm_pipeline_out",
+    "run_name": "reg_ml4t_fundamental_lgbm_l1_train756_test21_pos3",
+    "ml4t_sample_stage": "01_samples_asof1455",
+    "auto_update_data": false,
+    "auto_symbols": "",
+    "auto_symbols_file": "",
+    "auto_max_symbols": 0,
+    "auto_update_start_date": "2018-01-01",
+    "auto_update_end_date": "today",
+    "auto_update_python": null,
+    "auto_cache_mode": "incremental",
+    "auto_feature_cache_mode": "incremental",
+    "auto_min_bars": 40,
+    "auto_force_refresh": false,
+    "auto_keep_going": false,
+    "auto_update_dry_run": false,
+    "cutoff_time": "14:55",
+    "entry_price_col": "close_asof1455",
+    "exit_price_col": "next_day_close",
+    "round_trip_cost_bps": 1.7,
+    "entry_policy": "all_days",
+    "entry_vwap_premium_bps": 50.0,
+    "train_days": 756,
+    "valid_days": 0,
+    "test_days": 21,
+    "embargo_days": 1,
+    "step_days": 21,
+    "min_train_rows": 500,
+    "min_train_dates": 0,
+    "selection_rule": "strict_top_decile_positive",
+    "top_quantile": 0.9,
+    "min_pred_return_bps": 0.0,
+    "min_daily_candidates": 10,
+    "max_positions": 3,
+    "min_liquidity_rank_pct": 0.0,
+    "require_liquidity_ok": false,
+    "max_missing": 0.7,
+    "save_prepared": false,
+    "feature_group": "ml4t_fundamental",
+    "model_family": "lgbm_l1",
+    "winsorize_target": true,
+    "winsor_q_low": 0.01,
+    "winsor_q_high": 0.99,
+    "n_estimators": 500,
+    "learning_rate": 0.03,
+    "num_leaves": 15,
+    "min_data_in_leaf": 250,
+    "bagging_fraction": 0.75,
+    "feature_fraction": 0.75,
+    "reg_lambda": 2.0,
+    "n_jobs": -1,
+    "max_intraday_lag": 10,
+    "objective_alpha": 0.9,
+    "ridge_alpha": 10.0,
+    "elasticnet_alpha": 0.01,
+    "elasticnet_l1_ratio": 0.15,
+    "elasticnet_max_iter": 20000,
+    "tree_n_estimators": 600,
+    "tree_max_depth": 0,
+    "tree_min_samples_leaf": 20,
+    "tree_min_samples_split": 40,
+    "tree_max_features": 0.6,
+    "catboost_iterations": 1000,
+    "catboost_learning_rate": 0.03,
+    "catboost_depth": 6,
+    "catboost_l2_leaf_reg": 10.0,
+    "catboost_huber_delta": 100.0
+  }
+}
+[INFO] ML4T pipeline root: /root/stock_realtime_v021_full/saved_data/ml4t_asof1455_lgbm_pipeline_out
+[INFO] ML4T run output: /root/stock_realtime_v021_full/saved_data/ml4t_asof1455_lgbm_pipeline_out/99_summary/reg_ml4t_fundamental_lgbm_l1_train756_test21_pos3
+[DONE] 2026-05-31 08:20:45 feature_group=ml4t_fundamental, model_family=lgbm_l1, status=ok, elapsed=278s

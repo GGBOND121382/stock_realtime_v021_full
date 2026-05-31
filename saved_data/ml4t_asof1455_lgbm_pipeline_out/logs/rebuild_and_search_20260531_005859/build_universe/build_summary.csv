@@ -1,0 +1,3 @@
+symbol,sector,external,enable_us_yf,status,returncode,start_time,end_time,elapsed_seconds,log_file
+000657.SZ,小金属,zijin_external,0,ok,0,2026-05-31 00:59:00,2026-05-31 00:59:00,0,saved_data/ml4t_asof1455_lgbm_pipeline_out/logs/rebuild_and_search_20260531_005859/build_universe/000657_SZ_zijin_external.log
+000786.SZ,建筑材料,material_wind_battery,0,ok,0,2026-05-31 00:59:00,2026-05-31 00:59:00,0,saved_data/ml4t_asof1455_lgbm_pipeline_out/logs/rebuild_and_search_20260531_005859/build_universe/000786_SZ_material_wind_battery.log

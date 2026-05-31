@@ -1,0 +1,3 @@
+feature_group,model_family,status,returncode,start_time,end_time,elapsed_seconds,log_file,out_dir
+ml4t_intraday,ridge,ok,0,2026-05-31 00:59:00,2026-05-31 00:59:00,0,saved_data/ml4t_asof1455_lgbm_pipeline_out/logs/rebuild_and_search_20260531_005859/regression_pool/reg_ml4t_intraday_ridge_train756_test21_pos3.log,saved_data/ml4t_asof1455_lgbm_pipeline_out/99_summary/reg_ml4t_intraday_ridge_train756_test21_pos3
+ml4t_intraday,elasticnet,ok,0,2026-05-31 00:59:00,2026-05-31 00:59:00,0,saved_data/ml4t_asof1455_lgbm_pipeline_out/logs/rebuild_and_search_20260531_005859/regression_pool/reg_ml4t_intraday_elasticnet_train756_test21_pos3.log,saved_data/ml4t_asof1455_lgbm_pipeline_out/99_summary/reg_ml4t_intraday_elasticnet_train756_test21_pos3

@@ -55,6 +55,7 @@ saved_data/*/logs/
 !saved_data/*/99_summary/**
 !saved_data/*/pipeline_summary.json
 !saved_data/*/run.log
+!saved_data/ml4t_asof1455_lgbm_pipeline_out/logs/
 # END saved_data pipeline ignore
 saved_data/patch_backups/realtime_context_sources.toml.20260516_000646.bak
 saved_data/patch_backups/run_trading_day_signal_and_portfolio_all_models.sh.20260516_000646.bak
