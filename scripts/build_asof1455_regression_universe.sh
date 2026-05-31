@@ -91,6 +91,7 @@ run_one() {
   local out_root="saved_data/${raw}_pipeline_out"
   local safe_symbol="${symbol//./_}"
   local ext_label="${external:-none}"
+  local ext_summary="${ext_label//,/+}"
   local log_file="$LOG_DIR/${safe_symbol}_${ext_label}.log"
   local start_time end_time start_epoch end_epoch elapsed rc stages
   local cmd=()
@@ -146,13 +147,13 @@ run_one() {
 
   if [[ "$rc" -eq 0 ]]; then
     echo "[DONE] ${end_time} symbol=${symbol}, status=ok, elapsed=${elapsed}s" | tee -a "$log_file"
-    echo "${symbol},${sector},${ext_label},${enable_us_yf},ok,${rc},${start_time},${end_time},${elapsed},${log_file}" >> "$SUMMARY_FILE"
+    echo "${symbol},${sector},${ext_summary},${enable_us_yf},ok,${rc},${start_time},${end_time},${elapsed},${log_file}" >> "$SUMMARY_FILE"
   elif [[ "$rc" -eq 124 ]]; then
     echo "[TIMEOUT] ${end_time} symbol=${symbol}, timeout=${JOB_TIMEOUT}, elapsed=${elapsed}s" | tee -a "$log_file"
-    echo "${symbol},${sector},${ext_label},${enable_us_yf},timeout,${rc},${start_time},${end_time},${elapsed},${log_file}" >> "$SUMMARY_FILE"
+    echo "${symbol},${sector},${ext_summary},${enable_us_yf},timeout,${rc},${start_time},${end_time},${elapsed},${log_file}" >> "$SUMMARY_FILE"
   else
     echo "[FAIL] ${end_time} symbol=${symbol}, returncode=${rc}, elapsed=${elapsed}s" | tee -a "$log_file"
-    echo "${symbol},${sector},${ext_label},${enable_us_yf},failed,${rc},${start_time},${end_time},${elapsed},${log_file}" >> "$SUMMARY_FILE"
+    echo "${symbol},${sector},${ext_summary},${enable_us_yf},failed,${rc},${start_time},${end_time},${elapsed},${log_file}" >> "$SUMMARY_FILE"
   fi
   return 0
 }

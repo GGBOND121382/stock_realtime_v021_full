@@ -50,6 +50,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import gc
 import glob
 import json
 import math
@@ -223,25 +224,24 @@ def safe_div(a, b):
 def parse_date_col(df: pd.DataFrame) -> pd.DataFrame:
     if "date" not in df.columns:
         raise ValueError("input sample is missing required column: date")
-    out = df.copy()
-    raw = out["date"]
+    raw = df["date"]
     # Avoid pandas treating integer YYYYMMDD values as nanosecond timestamps.
     if pd.api.types.is_integer_dtype(raw) or pd.api.types.is_float_dtype(raw):
         as_str = raw.dropna().astype("Int64").astype(str)
         if len(as_str) and as_str.str.fullmatch(r"\d{8}").mean() > 0.8:
-            out["date"] = pd.to_datetime(raw.astype("Int64").astype(str), format="%Y%m%d", errors="coerce").dt.normalize()
+            df["date"] = pd.to_datetime(raw.astype("Int64").astype(str), format="%Y%m%d", errors="coerce").dt.normalize()
         else:
-            out["date"] = pd.to_datetime(raw, errors="coerce").dt.normalize()
+            df["date"] = pd.to_datetime(raw, errors="coerce").dt.normalize()
     else:
         as_str = raw.astype(str).str.strip()
         if len(as_str.dropna()) and as_str.dropna().str.fullmatch(r"\d{8}").mean() > 0.8:
-            out["date"] = pd.to_datetime(as_str, format="%Y%m%d", errors="coerce").dt.normalize()
+            df["date"] = pd.to_datetime(as_str, format="%Y%m%d", errors="coerce").dt.normalize()
         else:
-            out["date"] = pd.to_datetime(raw, errors="coerce").dt.normalize()
-    bad = int(out["date"].isna().sum())
+            df["date"] = pd.to_datetime(raw, errors="coerce").dt.normalize()
+    bad = int(df["date"].isna().sum())
     if bad:
         raise ValueError(f"failed to parse {bad} date values")
-    return out
+    return df
 
 
 def infer_stock_code(path: Path, df: pd.DataFrame) -> str:
@@ -395,6 +395,12 @@ def load_one_sample(path: Path) -> pd.DataFrame:
     if "stock_code" not in df.columns:
         df["stock_code"] = infer_stock_code(path, df)
     df["sample_path"] = str(path)
+    float_cols = df.select_dtypes(include=["float"]).columns
+    for c in float_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce", downcast="float")
+    int_cols = df.select_dtypes(include=["integer"]).columns
+    for c in int_cols:
+        df[c] = pd.to_numeric(df[c], errors="coerce", downcast="integer")
     return df
 
 
@@ -411,10 +417,14 @@ def load_samples(sample_paths: Sequence[Path]) -> pd.DataFrame:
     if not parts:
         raise RuntimeError("all sample files failed to load")
     df = pd.concat(parts, ignore_index=True, sort=False)
+    del parts
+    gc.collect()
     df["stock_code"] = df["stock_code"].astype(str)
     # Keep latest row if duplicate stock/date appears.
     df = df.sort_values(["stock_code", "date", "sample_path"]).drop_duplicates(["stock_code", "date"], keep="last")
-    return df.reset_index(drop=True)
+    df = df.reset_index(drop=True)
+    gc.collect()
+    return df
 
 
 def build_bars_map(bars_globs: Sequence[str]) -> Dict[str, Path]:
@@ -1554,12 +1564,18 @@ def fit_predict_window(
     min_dates = int(args.min_train_dates) if int(args.min_train_dates) > 0 else max(20, int(args.train_days * 0.2))
     if len(train_fit) < int(args.min_train_rows) or train_fit["date"].nunique() < min_dates:
         print(f"[WARN] skip window {window_id}: insufficient train rows={len(train_fit)} dates={train_fit['date'].nunique() if len(train_fit) else 0}; need rows>={args.min_train_rows}, dates>={min_dates}", file=sys.stderr)
+        del train, valid, test, train_fit
+        gc.collect()
         return [], [], [], [], pd.DataFrame(), pd.DataFrame()
     apply = test.copy() if valid.empty else pd.concat([valid, test], ignore_index=True, sort=False)
     if apply.empty:
+        del train, valid, test, train_fit, apply
+        gc.collect()
         return [], [], [], [], pd.DataFrame(), pd.DataFrame()
     X_train, X_apply, med = prepare_x(train_fit, apply, features)
     y_train, target_meta = training_target(train_fit, args)
+    del train, valid, test, train_fit, med
+    gc.collect()
     model, model_kind = make_model(args)
     categorical_feature = [c for c in ["year", "month", "weekday"] if c in X_train.columns]
     if model_kind == "lgbm":
@@ -1568,10 +1584,13 @@ def fit_predict_window(
     else:
         model.fit(X_train, y_train)
     pred = model.predict(X_apply)
+    del X_train, X_apply, y_train
+    gc.collect()
     scored = apply[[
         "date", "stock_code", "entry_signal", "entry_price", "exit_price",
         "target_1d_forward_return_bps", "ml4t_dollar_volume_rank_pct", "ml4t_liquidity_ok",
     ]].copy()
+    del apply
     scored["window_id"] = window_id
     scored["pred_return_bps"] = pred
     scored["split"] = np.where(scored["date"].isin(test_dates), "test", "valid")
@@ -1603,7 +1622,10 @@ def fit_predict_window(
         "model_family": str(args.model_family),
         "feature_group": str(args.feature_group),
     })
-    return metrics_rows, [scored], daily_ic_parts, quantile_parts, pd.concat(daily_port_parts, ignore_index=True) if daily_port_parts else pd.DataFrame(), importance
+    daily_port = pd.concat(daily_port_parts, ignore_index=True) if daily_port_parts else pd.DataFrame()
+    del model, pred, daily_port_parts
+    gc.collect()
+    return metrics_rows, [scored], daily_ic_parts, quantile_parts, daily_port, importance
 
 
 
@@ -1681,6 +1703,8 @@ def run_backtest(df: pd.DataFrame, features: Sequence[str], args, out_dir: Path)
             daily_port_parts.append(daily_port)
         if not imp.empty:
             importance_parts.append(imp)
+        del rows, preds, ics, qs, daily_port, imp
+        gc.collect()
 
     metrics_cols = ["window_id", "split", "model_family", "feature_group", "start_date", "end_date", "n_rows", "n_eval_rows", "n_dates", "n_stocks", "overall_ic", "overall_pearson", "selected_trades", "selected_dates", "target_winsor_q_low", "target_winsor_q_high"]
     metrics = ensure_columns(pd.DataFrame(metrics_rows), metrics_cols)
@@ -1703,6 +1727,7 @@ def run_backtest(df: pd.DataFrame, features: Sequence[str], args, out_dir: Path)
         imp_sum = importance.groupby("feature", as_index=False)["importance"].mean().sort_values("importance", ascending=False)
         importance.to_csv(out_dir / "feature_importance_by_window.csv", index=False, encoding="utf-8-sig")
         imp_sum.to_csv(out_dir / "feature_importance_summary.csv", index=False, encoding="utf-8-sig")
+        del imp_sum
 
     feature_policy = pd.DataFrame({
         "feature": list(features),
@@ -1926,6 +1951,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         cutoff_time=args.cutoff_time,
         max_intraday_lag=args.max_intraday_lag,
     )
+    del raw
+    gc.collect()
     df = add_target_and_entry(
         df,
         entry_price_col=args.entry_price_col,
@@ -1941,6 +1968,13 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     features = candidate_features(df, max_missing=args.max_missing, feature_group=args.feature_group)
     if not features:
         raise RuntimeError("no ML4T feature columns survived; check input asof columns and --max-missing")
+    keep_cols = [
+        "date", "stock_code", "entry_signal", "entry_price", "exit_price",
+        "target_1d_forward_return_bps", "ml4t_dollar_volume_rank_pct", "ml4t_liquidity_ok",
+    ]
+    keep_cols = [c for c in keep_cols if c in df.columns]
+    df = df.loc[:, list(dict.fromkeys(keep_cols + list(features)))].copy()
+    gc.collect()
 
     manifest = {
         "sample_files": [str(p) for p in sample_paths],

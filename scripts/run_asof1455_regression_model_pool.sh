@@ -22,6 +22,7 @@ MIN_DAILY_CANDIDATES="${MIN_DAILY_CANDIDATES:-10}"
 MIN_PRED_RETURN_BPS="${MIN_PRED_RETURN_BPS:-0.0}"
 MAX_MISSING="${MAX_MISSING:-0.70}"
 MAX_RUNS="${MAX_RUNS:-0}"
+N_JOBS="${N_JOBS:-1}"
 
 FEATURE_GROUPS="${FEATURE_GROUPS:-ml4t_intraday,ml4t_fundamental,ml4t_sector,ml4t_external}"
 MODEL_FAMILIES="${MODEL_FAMILIES:-ridge,elasticnet,extratrees,lgbm_l1,lgbm_huber,lgbm_quantile,catboost_rmse,catboost_huber,catboost_quantile,randomforest,lgbm_l2}"
@@ -107,7 +108,7 @@ run_one() {
     --max-missing "$MAX_MISSING"
     --winsorize-target
     --objective-alpha "$alpha"
-    --n-jobs -1
+    --n-jobs "$N_JOBS"
   )
   IFS='|' read -ra SAMPLE_PATTERNS <<< "$sample_globs"
   for pat in "${SAMPLE_PATTERNS[@]}"; do
