@@ -1,0 +1,600 @@
+#!/usr/bin/env python3
+"""Per-symbol single-target asof1455 regression model search.
+
+This is intentionally separate from the pooled cross-sectional ML4T search:
+each stock_code gets its own time-series CV and its own model fit. The target is
+always next-day close return from the 14:55 entry price, in bps.
+"""
+
+from __future__ import annotations
+
+import argparse
+import glob
+import json
+import math
+import sys
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
+
+import numpy as np
+import pandas as pd
+
+try:
+    from sklearn.ensemble import RandomForestRegressor
+    from sklearn.impute import SimpleImputer
+    from sklearn.linear_model import ElasticNet, Lasso, LinearRegression, Ridge
+    from sklearn.pipeline import make_pipeline
+    from sklearn.preprocessing import StandardScaler
+    from sklearn.tree import DecisionTreeRegressor
+except Exception as exc:  # pragma: no cover
+    RandomForestRegressor = DecisionTreeRegressor = None
+    SimpleImputer = LinearRegression = Ridge = Lasso = ElasticNet = None
+    make_pipeline = StandardScaler = None
+    _SKLEARN_IMPORT_ERROR = exc
+else:
+    _SKLEARN_IMPORT_ERROR = None
+
+try:
+    from lightgbm import LGBMRegressor
+except Exception as exc:  # pragma: no cover
+    LGBMRegressor = None
+    _LIGHTGBM_IMPORT_ERROR = exc
+else:
+    _LIGHTGBM_IMPORT_ERROR = None
+
+
+RANDOM_STATE = 42
+BASE_COLS = [
+    "date",
+    "stock_code",
+    "close",
+    "open",
+    "high",
+    "low",
+    "volume",
+    "amount",
+    "open_asof1455",
+    "high_asof1455",
+    "low_asof1455",
+    "close_asof1455",
+    "vwap_asof1455",
+    "volume_asof1455",
+    "amount_asof1455",
+    "next_day_close",
+]
+
+
+@dataclass(frozen=True)
+class ModelSpec:
+    family: str
+    name: str
+    params: Dict
+
+
+def parse_date_col(df: pd.DataFrame) -> pd.DataFrame:
+    if "date" not in df.columns:
+        raise ValueError("input sample is missing required column: date")
+    raw = df["date"]
+    if pd.api.types.is_integer_dtype(raw) or pd.api.types.is_float_dtype(raw):
+        as_str = raw.dropna().astype("Int64").astype(str)
+        if len(as_str) and as_str.str.fullmatch(r"\d{8}").mean() > 0.8:
+            df["date"] = pd.to_datetime(raw.astype("Int64").astype(str), format="%Y%m%d", errors="coerce").dt.normalize()
+        else:
+            df["date"] = pd.to_datetime(raw, errors="coerce").dt.normalize()
+    else:
+        as_str = raw.astype(str).str.strip()
+        if len(as_str.dropna()) and as_str.dropna().str.fullmatch(r"\d{8}").mean() > 0.8:
+            df["date"] = pd.to_datetime(as_str, format="%Y%m%d", errors="coerce").dt.normalize()
+        else:
+            df["date"] = pd.to_datetime(raw, errors="coerce").dt.normalize()
+    bad = int(df["date"].isna().sum())
+    if bad:
+        raise ValueError(f"failed to parse {bad} date values")
+    return df
+
+
+def infer_stock_code(path: Path, df: pd.DataFrame) -> str:
+    for col in ["stock_code", "symbol", "code", "ts_code"]:
+        if col in df.columns and df[col].notna().any():
+            return str(df[col].dropna().iloc[0]).strip()
+    text = str(path)
+    import re
+
+    m = re.search(r"(\d{6})(?:[_-]pipeline|[_-]asof|[_-]5m|\.csv)", text)
+    if m:
+        return m.group(1)
+    m = re.search(r"(\d{6})", path.name)
+    return m.group(1) if m else path.parent.name
+
+
+def to_num(s: pd.Series) -> pd.Series:
+    return pd.to_numeric(s, errors="coerce")
+
+
+def safe_spearman(x: pd.Series, y: pd.Series) -> float:
+    xx = pd.to_numeric(x, errors="coerce")
+    yy = pd.to_numeric(y, errors="coerce")
+    m = xx.notna() & yy.notna()
+    if int(m.sum()) < 3 or xx[m].nunique() < 2 or yy[m].nunique() < 2:
+        return np.nan
+    return float(xx[m].corr(yy[m], method="spearman"))
+
+
+def safe_pearson(x: pd.Series, y: pd.Series) -> float:
+    xx = pd.to_numeric(x, errors="coerce")
+    yy = pd.to_numeric(y, errors="coerce")
+    m = xx.notna() & yy.notna()
+    if int(m.sum()) < 3 or xx[m].nunique() < 2 or yy[m].nunique() < 2:
+        return np.nan
+    return float(xx[m].corr(yy[m], method="pearson"))
+
+
+def date_windows(dates: Sequence[pd.Timestamp], train_days: int, test_days: int, embargo_days: int) -> List[Tuple[np.ndarray, np.ndarray]]:
+    unique_dates = np.array(sorted(pd.to_datetime(pd.Series(dates).dropna().unique())))
+    windows: List[Tuple[np.ndarray, np.ndarray]] = []
+    need = int(train_days + embargo_days + test_days)
+    start = 0
+    while start + need <= len(unique_dates):
+        train = unique_dates[start : start + train_days]
+        test_start = start + train_days + embargo_days
+        test = unique_dates[test_start : test_start + test_days]
+        windows.append((train, test))
+        start += int(test_days)
+    return windows
+
+
+def expand_samples(sample_paths: Sequence[str], sample_globs: Sequence[str]) -> List[Path]:
+    out: List[Path] = []
+    seen = set()
+    for p in sample_paths:
+        path = Path(p)
+        if path.exists() and path.is_file():
+            key = str(path.resolve())
+            if key not in seen:
+                seen.add(key)
+                out.append(path)
+    for pat in sample_globs:
+        for name in glob.glob(pat):
+            path = Path(name)
+            if path.exists() and path.is_file():
+                key = str(path.resolve())
+                if key not in seen:
+                    seen.add(key)
+                    out.append(path)
+    return sorted(out)
+
+
+def load_one_sample(path: Path) -> pd.DataFrame:
+    header = pd.read_csv(path, nrows=0).columns.tolist()
+    usecols = [c for c in BASE_COLS if c in header]
+    df = pd.read_csv(path, usecols=usecols)
+    df = parse_date_col(df)
+    if "stock_code" not in df.columns:
+        df["stock_code"] = infer_stock_code(path, df)
+    return df
+
+
+def build_feature_set_a(df: pd.DataFrame, round_trip_cost_bps: float) -> Tuple[pd.DataFrame, List[str]]:
+    g = df.sort_values("date").copy()
+    required = ["close", "open", "high", "low", "volume", "close_asof1455", "high_asof1455", "low_asof1455", "volume_asof1455", "amount_asof1455", "next_day_close"]
+    missing = [c for c in required if c not in g.columns]
+    if missing:
+        raise ValueError(f"missing required columns for Feature Set A: {missing}")
+
+    close = to_num(g["close"])
+    prev_close = close.shift(1)
+    openp = to_num(g["open"])
+    high = to_num(g["high"])
+    low = to_num(g["low"])
+    volume = to_num(g["volume"])
+    amount = to_num(g["amount"]) if "amount" in g.columns else close * volume
+    close1455 = to_num(g["close_asof1455"])
+    high1455 = to_num(g["high_asof1455"])
+    low1455 = to_num(g["low_asof1455"])
+    volume1455 = to_num(g["volume_asof1455"])
+    amount1455 = to_num(g["amount_asof1455"])
+
+    g["target_next_close_bps"] = 10000.0 * (to_num(g["next_day_close"]) / close1455.replace(0, np.nan) - 1.0) - float(round_trip_cost_bps)
+    g["ret_prevclose_to_1455"] = close1455 / prev_close.replace(0, np.nan) - 1.0
+    g["ret_open_to_1455"] = close1455 / openp.replace(0, np.nan) - 1.0
+    g["gap_open"] = openp / prev_close.replace(0, np.nan) - 1.0
+    if "vwap_asof1455" in g.columns:
+        g["vwap_dev_1455"] = close1455 / to_num(g["vwap_asof1455"]).replace(0, np.nan) - 1.0
+    g["range_1455"] = high1455 / low1455.replace(0, np.nan) - 1.0
+    g["pos_in_range_1455"] = (close1455 - low1455) / (high1455 - low1455).replace(0, np.nan)
+    g["high_ret_1455"] = high1455 / prev_close.replace(0, np.nan) - 1.0
+    g["low_ret_1455"] = low1455 / prev_close.replace(0, np.nan) - 1.0
+    g["amount_ratio_1455"] = amount1455 / amount.shift(1).rolling(20, min_periods=10).mean().replace(0, np.nan)
+    g["volume_ratio_1455"] = volume1455 / volume.shift(1).rolling(20, min_periods=10).mean().replace(0, np.nan)
+
+    for h in [1, 2, 3, 5, 10, 20]:
+        g[f"ret_{h}d"] = prev_close / close.shift(h + 1).replace(0, np.nan) - 1.0
+
+    daily_ret = close / close.shift(1).replace(0, np.nan) - 1.0
+    known_ret = daily_ret.shift(1)
+    for w in [5, 10, 20]:
+        mean = known_ret.rolling(w, min_periods=max(3, w // 2)).mean()
+        std = known_ret.rolling(w, min_periods=max(3, w // 2)).std()
+        g[f"rolling_ret_mean_{w}"] = mean
+        g[f"rolling_ret_std_{w}"] = std
+        if w == 20:
+            g["rolling_ret_z_20"] = (known_ret - mean) / std.replace(0, np.nan)
+
+    eod_range = (high / low.replace(0, np.nan) - 1.0).shift(1)
+    g["rolling_range_mean_10"] = eod_range.rolling(10, min_periods=5).mean()
+    vol_mean = volume.shift(1).rolling(20, min_periods=10).mean()
+    vol_std = volume.shift(1).rolling(20, min_periods=10).std()
+    amt_mean = amount.shift(1).rolling(20, min_periods=10).mean()
+    amt_std = amount.shift(1).rolling(20, min_periods=10).std()
+    g["rolling_volume_z_20"] = (volume1455 - vol_mean) / vol_std.replace(0, np.nan)
+    g["rolling_amount_z_20"] = (amount1455 - amt_mean) / amt_std.replace(0, np.nan)
+
+    features = [
+        "ret_prevclose_to_1455",
+        "ret_open_to_1455",
+        "gap_open",
+        "vwap_dev_1455",
+        "range_1455",
+        "pos_in_range_1455",
+        "high_ret_1455",
+        "low_ret_1455",
+        "amount_ratio_1455",
+        "volume_ratio_1455",
+        "ret_1d",
+        "ret_2d",
+        "ret_3d",
+        "ret_5d",
+        "ret_10d",
+        "ret_20d",
+        "rolling_ret_mean_5",
+        "rolling_ret_mean_10",
+        "rolling_ret_mean_20",
+        "rolling_ret_std_5",
+        "rolling_ret_std_10",
+        "rolling_ret_std_20",
+        "rolling_ret_z_20",
+        "rolling_range_mean_10",
+        "rolling_volume_z_20",
+        "rolling_amount_z_20",
+    ]
+    features = [f for f in features if f in g.columns]
+    g = g.replace([np.inf, -np.inf], np.nan)
+    return g, features
+
+
+def make_model_specs(model_families: Sequence[str], n_jobs: int) -> List[ModelSpec]:
+    families = {m.strip().lower() for m in model_families if m.strip()}
+    specs: List[ModelSpec] = []
+    if "constant" in families:
+        specs.append(ModelSpec("constant", "constant_mean", {}))
+    if "ewma" in families:
+        for h in [5, 10, 20]:
+            specs.append(ModelSpec("ewma", f"last_ewma_h{h}", {"halflife": h}))
+    if "ols" in families:
+        specs.append(ModelSpec("ols", "ols", {}))
+    if "ridge" in families:
+        for a in [0.1, 1, 3, 10, 30, 100]:
+            specs.append(ModelSpec("ridge", f"ridge_alpha{a:g}", {"alpha": a}))
+    if "lasso" in families:
+        for a in [1e-5, 3e-5, 1e-4, 3e-4, 1e-3, 3e-3]:
+            specs.append(ModelSpec("lasso", f"lasso_alpha{a:g}", {"alpha": a}))
+    if "elasticnet" in families:
+        for a in [1e-4, 3e-4, 1e-3, 3e-3, 1e-2]:
+            for r in [0.05, 0.15, 0.5]:
+                specs.append(ModelSpec("elasticnet", f"elasticnet_alpha{a:g}_l1{r:g}", {"alpha": a, "l1_ratio": r}))
+    if "tree" in families:
+        for d in [2, 3, 4, 6]:
+            for leaf in [30, 50, 100]:
+                for mf in ["sqrt", 0.7, 1.0]:
+                    specs.append(ModelSpec("tree", f"tree_d{d}_leaf{leaf}_mf{mf}", {"max_depth": d, "min_samples_leaf": leaf, "max_features": mf}))
+    if "randomforest" in families:
+        for d in [3, 5, 8]:
+            for leaf in [20, 50]:
+                for mf in ["sqrt", 0.5, 0.8]:
+                    specs.append(ModelSpec("randomforest", f"rf_d{d}_leaf{leaf}_mf{mf}", {"max_depth": d, "min_samples_leaf": leaf, "max_features": mf, "n_jobs": n_jobs}))
+    if "lgbm_l2" in families:
+        specs.extend(make_lgbm_specs("lgbm_l2"))
+    if "lgbm_l1" in families:
+        specs.extend(make_lgbm_specs("lgbm_l1"))
+    return specs
+
+
+def make_lgbm_specs(family: str) -> List[ModelSpec]:
+    out: List[ModelSpec] = []
+    for leaves in [4, 8]:
+        for depth in [2, 3]:
+            for min_leaf in [30, 50, 80]:
+                for ff in [0.7, 0.9]:
+                    for l1 in [0, 1]:
+                        for l2 in [1, 10]:
+                            name = f"{family}_leaves{leaves}_d{depth}_leaf{min_leaf}_ff{ff:g}_l1{l1:g}_l2{l2:g}"
+                            out.append(ModelSpec(family, name, {
+                                "num_leaves": leaves,
+                                "max_depth": depth,
+                                "min_data_in_leaf": min_leaf,
+                                "feature_fraction": ff,
+                                "lambda_l1": l1,
+                                "lambda_l2": l2,
+                            }))
+    return out
+
+
+def instantiate(spec: ModelSpec, n_jobs: int):
+    if spec.family in {"constant", "ewma"}:
+        return None
+    if spec.family in {"ols", "ridge", "lasso", "elasticnet", "tree", "randomforest"} and LinearRegression is None:
+        raise ImportError(f"scikit-learn is required: {_SKLEARN_IMPORT_ERROR}")
+    if spec.family == "ols":
+        base = LinearRegression(fit_intercept=True)
+    elif spec.family == "ridge":
+        base = Ridge(alpha=float(spec.params["alpha"]), solver="lsqr")
+    elif spec.family == "lasso":
+        base = Lasso(alpha=float(spec.params["alpha"]), max_iter=20000, random_state=RANDOM_STATE)
+    elif spec.family == "elasticnet":
+        base = ElasticNet(alpha=float(spec.params["alpha"]), l1_ratio=float(spec.params["l1_ratio"]), max_iter=20000, random_state=RANDOM_STATE)
+    elif spec.family == "tree":
+        base = DecisionTreeRegressor(random_state=RANDOM_STATE, **spec.params)
+    elif spec.family == "randomforest":
+        p = dict(spec.params)
+        p["n_estimators"] = 300
+        p["bootstrap"] = True
+        p["random_state"] = RANDOM_STATE
+        p["n_jobs"] = n_jobs
+        base = RandomForestRegressor(**p)
+    elif spec.family in {"lgbm_l2", "lgbm_l1"}:
+        if LGBMRegressor is None:
+            raise ImportError(f"lightgbm is required: {_LIGHTGBM_IMPORT_ERROR}")
+        objective = "regression" if spec.family == "lgbm_l2" else "regression_l1"
+        base = LGBMRegressor(
+            objective=objective,
+            n_estimators=200,
+            learning_rate=0.03,
+            bagging_fraction=0.8,
+            bagging_freq=1,
+            random_state=RANDOM_STATE,
+            n_jobs=n_jobs,
+            verbose=-1,
+            **spec.params,
+        )
+    else:
+        raise ValueError(f"unknown model family={spec.family}")
+    return make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), base)
+
+
+def predict_window(train: pd.DataFrame, test: pd.DataFrame, features: Sequence[str], spec: ModelSpec, n_jobs: int) -> np.ndarray:
+    y = to_num(train["target_next_close_bps"])
+    if spec.family == "constant":
+        return np.full(len(test), float(y.mean()))
+    if spec.family == "ewma":
+        h = float(spec.params["halflife"])
+        pred = float(y.ewm(halflife=h, min_periods=1).mean().iloc[-1])
+        return np.full(len(test), pred)
+
+    x_train = train.loc[:, features].apply(pd.to_numeric, errors="coerce")
+    x_test = test.loc[:, features].apply(pd.to_numeric, errors="coerce")
+    y_mean = float(y.mean())
+    y_std = float(y.std(ddof=0))
+    if spec.family in {"ols", "ridge", "lasso", "elasticnet"} and math.isfinite(y_std) and y_std > 1e-12:
+        fit_y = (y - y_mean) / y_std
+        model = instantiate(spec, n_jobs=n_jobs)
+        model.fit(x_train, fit_y)
+        return np.asarray(model.predict(x_test), dtype=float) * y_std + y_mean
+    model = instantiate(spec, n_jobs=n_jobs)
+    model.fit(x_train, y)
+    return np.asarray(model.predict(x_test), dtype=float)
+
+
+def eval_pred(y: pd.Series, pred: np.ndarray) -> Dict[str, float | int]:
+    yy = to_num(y)
+    pp = pd.Series(pred, index=yy.index)
+    m = yy.notna() & pp.notna()
+    yy = yy[m]
+    pp = pp[m]
+    if len(yy) == 0:
+        return {"n": 0, "spearman": np.nan, "pearson": np.nan, "rmse": np.nan, "target_std": np.nan, "rmse_norm": np.nan, "r2": np.nan, "pred_std": np.nan, "pred_std_ratio": np.nan}
+    err = pp - yy
+    rmse = float(np.sqrt(np.mean(np.square(err))))
+    target_std = float(yy.std(ddof=0))
+    pred_std = float(pp.std(ddof=0))
+    sse = float(np.sum(np.square(err)))
+    sst = float(np.sum(np.square(yy - yy.mean())))
+    return {
+        "n": int(len(yy)),
+        "spearman": safe_spearman(pp, yy),
+        "pearson": safe_pearson(pp, yy),
+        "rmse": rmse,
+        "target_std": target_std,
+        "rmse_norm": rmse / target_std if target_std > 1e-12 else np.nan,
+        "r2": 1.0 - sse / sst if sst > 1e-12 else np.nan,
+        "pred_std": pred_std,
+        "pred_std_ratio": pred_std / target_std if target_std > 1e-12 else np.nan,
+    }
+
+
+def run_symbol(path: Path, args, specs: Sequence[ModelSpec]) -> Tuple[List[Dict], Dict]:
+    raw = load_one_sample(path)
+    stock_code = infer_stock_code(path, raw)
+    df, features = build_feature_set_a(raw, round_trip_cost_bps=float(args.round_trip_cost_bps))
+    del raw
+    df = df.dropna(subset=["date", "target_next_close_bps"]).sort_values("date").reset_index(drop=True)
+    features = [f for f in features if f in df.columns and df[f].isna().mean() <= float(args.max_missing)]
+    if len(df) < int(args.min_rows) or not features:
+        return [], {
+            "stock_code": stock_code,
+            "sample_path": str(path),
+            "rows": int(len(df)),
+            "features": int(len(features)),
+            "status": "skipped",
+            "reason": "insufficient_rows_or_features",
+        }
+
+    rows: List[Dict] = []
+    train_windows = [int(x) for x in str(args.train_windows).split(",") if str(x).strip()]
+    for train_days in train_windows:
+        windows = date_windows(df["date"].unique(), train_days=train_days, test_days=int(args.test_days), embargo_days=int(args.embargo_days))
+        if not windows:
+            continue
+        for spec in specs:
+            for window_id, (train_dates, test_dates) in enumerate(windows, start=1):
+                train = df[df["date"].isin(train_dates)].copy()
+                test = df[df["date"].isin(test_dates)].copy()
+                train_fit = train.dropna(subset=["target_next_close_bps"]).copy()
+                if len(train_fit) < int(args.min_train_rows) or test.empty:
+                    continue
+                try:
+                    pred = predict_window(train_fit, test, features, spec, n_jobs=int(args.n_jobs))
+                    metrics = eval_pred(test["target_next_close_bps"], pred)
+                    rows.append({
+                        "stock_code": stock_code,
+                        "sample_path": str(path),
+                        "train_days": train_days,
+                        "test_days": int(args.test_days),
+                        "embargo_days": int(args.embargo_days),
+                        "window_id": window_id,
+                        "train_start": str(pd.Timestamp(train_dates[0]).date()),
+                        "train_end": str(pd.Timestamp(train_dates[-1]).date()),
+                        "test_start": str(pd.Timestamp(test_dates[0]).date()),
+                        "test_end": str(pd.Timestamp(test_dates[-1]).date()),
+                        "model_family": spec.family,
+                        "model_name": spec.name,
+                        "params": json.dumps(spec.params, ensure_ascii=False, sort_keys=True),
+                        **metrics,
+                    })
+                except Exception as exc:
+                    rows.append({
+                        "stock_code": stock_code,
+                        "sample_path": str(path),
+                        "train_days": train_days,
+                        "test_days": int(args.test_days),
+                        "embargo_days": int(args.embargo_days),
+                        "window_id": window_id,
+                        "model_family": spec.family,
+                        "model_name": spec.name,
+                        "params": json.dumps(spec.params, ensure_ascii=False, sort_keys=True),
+                        "n": 0,
+                        "spearman": np.nan,
+                        "pearson": np.nan,
+                        "rmse": np.nan,
+                        "target_std": np.nan,
+                        "rmse_norm": np.nan,
+                        "r2": np.nan,
+                        "pred_std": np.nan,
+                        "pred_std_ratio": np.nan,
+                        "error": str(exc)[:500],
+                    })
+    meta = {
+        "stock_code": stock_code,
+        "sample_path": str(path),
+        "rows": int(len(df)),
+        "features": int(len(features)),
+        "feature_set": "A",
+        "target": "target_next_close_bps",
+        "status": "ok",
+        "feature_columns": features,
+    }
+    return rows, meta
+
+
+def summarize(window_df: pd.DataFrame) -> pd.DataFrame:
+    if window_df.empty:
+        return pd.DataFrame()
+    ok = window_df[pd.to_numeric(window_df["n"], errors="coerce").fillna(0) > 0].copy()
+    if ok.empty:
+        return pd.DataFrame()
+    group_cols = ["stock_code", "train_days", "model_family", "model_name", "params"]
+    rows = []
+    for key, g in ok.groupby(group_cols, dropna=False):
+        target_std = pd.to_numeric(g["target_std"], errors="coerce")
+        rows.append({
+            **dict(zip(group_cols, key)),
+            "n_windows": int(len(g)),
+            "n_test_rows": int(pd.to_numeric(g["n"], errors="coerce").fillna(0).sum()),
+            "median_spearman": float(pd.to_numeric(g["spearman"], errors="coerce").median()),
+            "mean_spearman": float(pd.to_numeric(g["spearman"], errors="coerce").mean()),
+            "mean_pearson": float(pd.to_numeric(g["pearson"], errors="coerce").mean()),
+            "median_rmse_norm": float(pd.to_numeric(g["rmse_norm"], errors="coerce").median()),
+            "mean_rmse_norm": float(pd.to_numeric(g["rmse_norm"], errors="coerce").mean()),
+            "median_r2": float(pd.to_numeric(g["r2"], errors="coerce").median()),
+            "mean_r2": float(pd.to_numeric(g["r2"], errors="coerce").mean()),
+            "median_pred_std_ratio": float(pd.to_numeric(g["pred_std_ratio"], errors="coerce").median()),
+            "mean_target_std": float(target_std.mean()),
+        })
+    out = pd.DataFrame(rows)
+    out["passes_min_signal"] = (
+        (out["median_spearman"] > 0.04)
+        & (out["mean_spearman"] > 0)
+        & (out["median_rmse_norm"] < 1.0)
+        & (out["median_pred_std_ratio"] >= 0.20)
+    )
+    out = out.sort_values(
+        ["stock_code", "train_days", "passes_min_signal", "median_spearman", "median_rmse_norm"],
+        ascending=[True, True, False, False, True],
+    )
+    return out
+
+
+def parse_args(argv: Optional[Sequence[str]] = None):
+    p = argparse.ArgumentParser(description="Single-symbol single-target asof1455 regression search")
+    p.add_argument("--samples", nargs="*", default=[])
+    p.add_argument("--sample-glob", action="append", default=["saved_data/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv"])
+    p.add_argument("--symbols", default="", help="Comma-separated symbols/codes to include, e.g. 603308,600312")
+    p.add_argument("--max-symbols", type=int, default=0)
+    p.add_argument("--out-dir", default="")
+    p.add_argument("--round-trip-cost-bps", type=float, default=1.7)
+    p.add_argument("--train-windows", default="756,504")
+    p.add_argument("--test-days", type=int, default=21)
+    p.add_argument("--embargo-days", type=int, default=1)
+    p.add_argument("--max-missing", type=float, default=0.70)
+    p.add_argument("--min-rows", type=int, default=600)
+    p.add_argument("--min-train-rows", type=int, default=252)
+    p.add_argument("--n-jobs", type=int, default=1)
+    p.add_argument("--models", default="constant,ewma,ols,ridge,lasso,elasticnet,tree,randomforest,lgbm_l2,lgbm_l1")
+    return p.parse_args(argv)
+
+
+def main(argv: Optional[Sequence[str]] = None) -> None:
+    args = parse_args(argv)
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    out_dir = Path(args.out_dir or f"saved_data/single_target_asof1455_model_search_out/search_{ts}")
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    paths = expand_samples(args.samples, args.sample_glob)
+    include = {s.strip().split(".")[0] for s in str(args.symbols).split(",") if s.strip()}
+    if include:
+        paths = [p for p in paths if any(code in str(p) for code in include)]
+    if int(args.max_symbols) > 0:
+        paths = paths[: int(args.max_symbols)]
+    if not paths:
+        raise FileNotFoundError("no sample files found")
+
+    specs = make_model_specs(str(args.models).split(","), n_jobs=int(args.n_jobs))
+    if not specs:
+        raise ValueError("no model specs selected")
+
+    all_rows: List[Dict] = []
+    meta_rows: List[Dict] = []
+    print(f"[INFO] samples={len(paths)} models={len(specs)} out_dir={out_dir}")
+    for i, path in enumerate(paths, start=1):
+        print(f"[INFO] symbol_job {i}/{len(paths)} sample={path}")
+        rows, meta = run_symbol(path, args, specs)
+        all_rows.extend(rows)
+        meta_rows.append(meta)
+        pd.DataFrame(all_rows).to_csv(out_dir / "window_metrics.csv", index=False, encoding="utf-8-sig")
+        pd.DataFrame(meta_rows).to_csv(out_dir / "symbol_manifest.csv", index=False, encoding="utf-8-sig")
+        summarize(pd.DataFrame(all_rows)).to_csv(out_dir / "search_summary.csv", index=False, encoding="utf-8-sig")
+
+    window_df = pd.DataFrame(all_rows)
+    summary = summarize(window_df)
+    summary.to_csv(out_dir / "search_summary.csv", index=False, encoding="utf-8-sig")
+    if not summary.empty:
+        best = summary.sort_values(["stock_code", "passes_min_signal", "median_spearman", "median_rmse_norm"], ascending=[True, False, False, True]).groupby("stock_code", as_index=False).head(1)
+        best.to_csv(out_dir / "best_by_symbol.csv", index=False, encoding="utf-8-sig")
+    with open(out_dir / "run_config.json", "w", encoding="utf-8") as f:
+        json.dump(vars(args), f, ensure_ascii=False, indent=2)
+    print(f"[DONE] out_dir={out_dir}")
+
+
+if __name__ == "__main__":
+    main()
