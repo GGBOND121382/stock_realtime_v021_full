@@ -914,3 +914,30 @@ MODEL_FAMILIES=ridge,elasticnet,extratrees,lgbm_l1,lgbm_huber,lgbm_quantile \
 - `scripts/run_asof1455_regression_model_pool.sh` intentionally avoids the
   Bash reserved `GROUPS` variable; keep the internal list variable names as
   `FEATURE_GROUP_LIST` and `MODEL_FAMILY_LIST`.
+
+
+  ### 训练模型命令
+  默认 MODELS 已包含 CatBoost 和 LGBM Huber
+默认 FEATURE_SETS=all
+默认 SAMPLE_GLOBS 覆盖 external/sector/fundamental/asof1455
+也给 .venv 安装了 catboost，并验证了：
+
+py_compile 通过
+smoke test 成功选中 04_external 样本
+A/B_technical/C_context/ABC_full 都正常产出
+lgbm_huber 和 3 个 CatBoost family 都能实际 fit/predict
+现在全量直接跑：
+
+PYTHON=python3 \
+N_JOBS=1 \
+JOB_TIMEOUT=48h \
+TRAIN_WINDOWS=756,504 \
+bash scripts/run_single_target_asof1455_model_search.sh
+工作区现在只剩这两个脚本有改动。
+
+
+Edited 2 files
++464
+-182
+Undo
+Revie
