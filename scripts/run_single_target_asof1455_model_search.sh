@@ -7,10 +7,12 @@ set -uo pipefail
 PYTHON="${PYTHON:-python3}"
 JOB_TIMEOUT="${JOB_TIMEOUT:-24h}"
 OUT_DIR="${OUT_DIR:-saved_data/single_target_asof1455_model_search_out/search_$(date +%Y%m%d_%H%M%S)}"
-SAMPLE_GLOB="${SAMPLE_GLOB:-saved_data/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv}"
+SAMPLE_GLOBS="${SAMPLE_GLOBS:-saved_data/**/*_pipeline_out/04_external/*/training_samples_with_*external*.csv;saved_data/**/*_pipeline_out/03_sector/training_samples_with_sector.csv;saved_data/**/*_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv;saved_data/**/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv}"
+SAMPLE_GLOB="${SAMPLE_GLOB:-}"
 SYMBOLS="${SYMBOLS:-}"
 MAX_SYMBOLS="${MAX_SYMBOLS:-0}"
-MODELS="${MODELS:-constant,ewma,ols,ridge,lasso,elasticnet,tree,randomforest,lgbm_l2,lgbm_l1}"
+MODELS="${MODELS:-constant,ewma,ols,ridge,lasso,elasticnet,tree,randomforest,lgbm_l2,lgbm_l1,lgbm_huber,catboost_rmse,catboost_mae,catboost_huber}"
+FEATURE_SETS="${FEATURE_SETS:-all}"
 TRAIN_WINDOWS="${TRAIN_WINDOWS:-756,504}"
 TEST_DAYS="${TEST_DAYS:-21}"
 EMBARGO_DAYS="${EMBARGO_DAYS:-1}"
@@ -24,9 +26,9 @@ mkdir -p "$OUT_DIR"
 
 cmd=(
   "$PYTHON" scripts/search_single_target_asof1455_models.py
-  --sample-glob "$SAMPLE_GLOB"
   --out-dir "$OUT_DIR"
   --models "$MODELS"
+  --feature-sets "$FEATURE_SETS"
   --train-windows "$TRAIN_WINDOWS"
   --test-days "$TEST_DAYS"
   --embargo-days "$EMBARGO_DAYS"
@@ -36,6 +38,17 @@ cmd=(
   --min-train-rows "$MIN_TRAIN_ROWS"
   --n-jobs "$N_JOBS"
 )
+
+if [[ -n "$SAMPLE_GLOB" ]]; then
+  cmd+=(--sample-glob "$SAMPLE_GLOB")
+else
+  IFS=';' read -r -a sample_glob_array <<< "$SAMPLE_GLOBS"
+  for pat in "${sample_glob_array[@]}"; do
+    if [[ -n "$pat" ]]; then
+      cmd+=(--sample-glob "$pat")
+    fi
+  done
+fi
 
 if [[ -n "$SYMBOLS" ]]; then
   cmd+=(--symbols "$SYMBOLS")

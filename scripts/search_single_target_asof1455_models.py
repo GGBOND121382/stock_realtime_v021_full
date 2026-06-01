@@ -44,11 +44,18 @@ except Exception as exc:  # pragma: no cover
 else:
     _LIGHTGBM_IMPORT_ERROR = None
 
+try:
+    from catboost import CatBoostRegressor
+except Exception as exc:  # pragma: no cover
+    CatBoostRegressor = None
+    _CATBOOST_IMPORT_ERROR = exc
+else:
+    _CATBOOST_IMPORT_ERROR = None
+
 
 RANDOM_STATE = 42
-BASE_COLS = [
+REQUIRED_SAMPLE_COLS = [
     "date",
-    "stock_code",
     "close",
     "open",
     "high",
@@ -64,6 +71,38 @@ BASE_COLS = [
     "amount_asof1455",
     "next_day_close",
 ]
+DEFAULT_SAMPLE_GLOBS = [
+    "saved_data/**/*_pipeline_out/04_external/*/training_samples_with_*external*.csv",
+    "saved_data/**/*_pipeline_out/03_sector/training_samples_with_sector.csv",
+    "saved_data/**/*_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv",
+    "saved_data/**/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv",
+]
+LEAK_COLS = {
+    "date", "next_date", "next_day_vwap", "next_day_close", "next_day_low", "next_day_high",
+    "next_day_vwap_ret_close", "next_day_vwap_ret_vwap", "next_day_close_ret_close",
+    "target", "target_next_close_bps", "pred", "error", "abs_error", "pred_direction",
+    "target_direction", "label_rev", "daily_vwap", "daily_vwap_pv", "daily_vwap_volume",
+    "n_intraday_bars", "pubDate", "statDate", "effective_date", "used_pubDate",
+    "entry_signal", "trade_net_close_return", "trade_net_high_return",
+    "trade_target_or_close_return", "trade_label_profit", "trade_hit_label",
+    "trade_close_profit_label", "entry_price", "entry_price_source", "feature_time_mode",
+    "feature_cutoff_time", "asof_last_bar_time", "selected", "selected_return",
+    "selected_eval_return", "eval_label", "score", "hit_score", "threshold",
+    "chosen_threshold", "chosen_quantile", "signal", "signal_raw_score_pass",
+}
+FUND_PREFIXES = (
+    "peTTM", "pbMRQ", "psTTM", "pcfNcfTTM",
+    "profit_", "operation_", "growth_", "solvency_", "cashflow_", "dupont_",
+    "fund_days_since_effective",
+)
+REGIME_PREFIXES = ("bench_ret", "bench_ma", "bench_vol", "stock_ret", "stock_ma", "stock_vol", "regime_")
+SECTOR_PREFIXES = ("sector_", "stock_vs_sector_")
+EXTERNAL_PREFIXES = (
+    "hog_", "feed_", "gold_", "copper_", "silver_", "zijin_hk_", "zijin_a_h_",
+    "precious_", "industrial_metal_", "minor_metal_", "stock_vs_gold_",
+    "stock_vs_copper_", "stock_vs_precious_", "stock_vs_industrial_",
+    "ai_", "mwb_", "pur_", "fert_", "sp_", "ane_", "ocg_",
+)
 
 
 @dataclass(frozen=True)
@@ -145,6 +184,26 @@ def date_windows(dates: Sequence[pd.Timestamp], train_days: int, test_days: int,
     return windows
 
 
+def pipeline_root(path: Path) -> str:
+    for parent in [path] + list(path.parents):
+        if parent.name.endswith("_pipeline_out"):
+            return str(parent)
+    return str(path.parent)
+
+
+def sample_priority(path: Path) -> int:
+    text = str(path).replace("\\", "/")
+    if "/04_external/" in text:
+        return 4
+    if "/03_sector/" in text:
+        return 3
+    if "/02_fundamental/" in text:
+        return 2
+    if "/01_samples_asof1455/" in text:
+        return 1
+    return 0
+
+
 def expand_samples(sample_paths: Sequence[str], sample_globs: Sequence[str]) -> List[Path]:
     out: List[Path] = []
     seen = set()
@@ -156,20 +215,37 @@ def expand_samples(sample_paths: Sequence[str], sample_globs: Sequence[str]) -> 
                 seen.add(key)
                 out.append(path)
     for pat in sample_globs:
-        for name in glob.glob(pat):
+        for name in glob.glob(pat, recursive=True):
             path = Path(name)
             if path.exists() and path.is_file():
                 key = str(path.resolve())
                 if key not in seen:
                     seen.add(key)
                     out.append(path)
-    return sorted(out)
+    explicit = [Path(p) for p in sample_paths if Path(p).exists() and Path(p).is_file()]
+    explicit_keys = {str(p.resolve()) for p in explicit}
+    chosen: Dict[str, List[Path]] = {}
+    for path in out:
+        if str(path.resolve()) in explicit_keys:
+            chosen.setdefault(str(path.resolve()), [path])
+            continue
+        root = pipeline_root(path)
+        current = chosen.get(root, [])
+        if not current:
+            chosen[root] = [path]
+            continue
+        old_pri = sample_priority(current[0])
+        new_pri = sample_priority(path)
+        if new_pri > old_pri:
+            chosen[root] = [path]
+        elif new_pri == old_pri:
+            current.append(path)
+    flattened = [p for paths in chosen.values() for p in paths]
+    return sorted(flattened, key=lambda p: (pipeline_root(p), -sample_priority(p), str(p)))
 
 
 def load_one_sample(path: Path) -> pd.DataFrame:
-    header = pd.read_csv(path, nrows=0).columns.tolist()
-    usecols = [c for c in BASE_COLS if c in header]
-    df = pd.read_csv(path, usecols=usecols)
+    df = pd.read_csv(path)
     df = parse_date_col(df)
     if "stock_code" not in df.columns:
         df["stock_code"] = infer_stock_code(path, df)
@@ -264,6 +340,141 @@ def build_feature_set_a(df: pd.DataFrame, round_trip_cost_bps: float) -> Tuple[p
     return g, features
 
 
+def build_technical_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str]]:
+    g = df.copy()
+    close = to_num(g["close"])
+    high = to_num(g["high"])
+    low = to_num(g["low"])
+    openp = to_num(g["open"])
+    volume = to_num(g["volume"])
+    amount = to_num(g["amount"]) if "amount" in g.columns else close * volume
+    close1455 = to_num(g["close_asof1455"])
+    high1455 = to_num(g["high_asof1455"])
+    low1455 = to_num(g["low_asof1455"])
+    prev_close = close.shift(1)
+    known_close = prev_close
+    known_ret = close.pct_change().shift(1)
+
+    features: List[str] = []
+    for w in [3, 5, 10, 20, 40, 60, 120]:
+        ma = known_close.rolling(w, min_periods=max(3, w // 2)).mean()
+        std = known_close.rolling(w, min_periods=max(3, w // 2)).std()
+        g[f"tech_close_ma_dev_{w}"] = close1455 / ma.replace(0, np.nan) - 1.0
+        g[f"tech_close_z_{w}"] = (close1455 - ma) / std.replace(0, np.nan)
+        g[f"tech_ret_sum_{w}"] = known_ret.rolling(w, min_periods=max(3, w // 2)).sum()
+        g[f"tech_ret_vol_{w}"] = known_ret.rolling(w, min_periods=max(3, w // 2)).std()
+        features.extend([f"tech_close_ma_dev_{w}", f"tech_close_z_{w}", f"tech_ret_sum_{w}", f"tech_ret_vol_{w}"])
+
+    delta = close.diff().shift(1)
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    for w in [6, 12, 14, 24]:
+        avg_gain = gain.rolling(w, min_periods=max(3, w // 2)).mean()
+        avg_loss = loss.rolling(w, min_periods=max(3, w // 2)).mean()
+        rs = avg_gain / avg_loss.replace(0, np.nan)
+        g[f"tech_rsi_{w}"] = 100.0 - (100.0 / (1.0 + rs))
+        features.append(f"tech_rsi_{w}")
+
+    ema12 = known_close.ewm(span=12, adjust=False, min_periods=6).mean()
+    ema26 = known_close.ewm(span=26, adjust=False, min_periods=13).mean()
+    macd = ema12 - ema26
+    signal = macd.ewm(span=9, adjust=False, min_periods=5).mean()
+    g["tech_macd"] = macd / known_close.replace(0, np.nan)
+    g["tech_macd_signal"] = signal / known_close.replace(0, np.nan)
+    g["tech_macd_hist"] = (macd - signal) / known_close.replace(0, np.nan)
+    features.extend(["tech_macd", "tech_macd_signal", "tech_macd_hist"])
+
+    tr = pd.concat([(high - low), (high - close.shift(1)).abs(), (low - close.shift(1)).abs()], axis=1).max(axis=1).shift(1)
+    for w in [10, 14, 20]:
+        g[f"tech_atr_pct_{w}"] = tr.rolling(w, min_periods=max(3, w // 2)).mean() / known_close.replace(0, np.nan)
+        features.append(f"tech_atr_pct_{w}")
+
+    daily_range = (high / low.replace(0, np.nan) - 1.0).shift(1)
+    asof_range = high1455 / low1455.replace(0, np.nan) - 1.0
+    g["tech_asof_vs_range20"] = asof_range / daily_range.rolling(20, min_periods=10).mean().replace(0, np.nan)
+    g["tech_open_gap_z20"] = ((openp / prev_close.replace(0, np.nan) - 1.0) - known_ret.rolling(20, min_periods=10).mean()) / known_ret.rolling(20, min_periods=10).std().replace(0, np.nan)
+    g["tech_amount_turnover_z20"] = (amount - amount.shift(1).rolling(20, min_periods=10).mean()) / amount.shift(1).rolling(20, min_periods=10).std().replace(0, np.nan)
+    features.extend(["tech_asof_vs_range20", "tech_open_gap_z20", "tech_amount_turnover_z20"])
+    return g.replace([np.inf, -np.inf], np.nan), features
+
+
+def is_lagged_daily_external_feature_name(col: str) -> bool:
+    text = str(col).lower()
+    return (
+        "_fut_" in text
+        or "_future_basket_" in text
+        or "_us_" in text
+        or "_us_basket_" in text
+        or "_stock_vs_future_basket_ret" in text
+        or "_stock_vs_us_basket_ret" in text
+    )
+
+
+def is_context_col(col: str) -> bool:
+    text = str(col)
+    lower = text.lower()
+    return (
+        text.startswith(FUND_PREFIXES)
+        or text in {"peTTM", "pbMRQ", "psTTM", "pcfNcfTTM"}
+        or text.startswith(REGIME_PREFIXES)
+        or text.startswith(SECTOR_PREFIXES)
+        or text.startswith(EXTERNAL_PREFIXES)
+        or is_lagged_daily_external_feature_name(text)
+        or lower.endswith("_rank252")
+        or lower.endswith("_rank60")
+        or lower.endswith("_rank20")
+        or "_rank" in lower
+    )
+
+
+def native_context_features(df: pd.DataFrame, max_missing: float) -> List[str]:
+    features: List[str] = []
+    for col in df.columns:
+        if col in LEAK_COLS or col in REQUIRED_SAMPLE_COLS or col == "stock_code":
+            continue
+        if col.endswith("_eod"):
+            continue
+        if not is_context_col(col):
+            continue
+        s = pd.to_numeric(df[col], errors="coerce")
+        if s.notna().sum() < 3 or s.isna().mean() > max_missing:
+            continue
+        features.append(col)
+    return features
+
+
+def build_feature_sets(raw: pd.DataFrame, round_trip_cost_bps: float, max_missing: float, selected: Sequence[str]) -> Tuple[pd.DataFrame, Dict[str, List[str]]]:
+    df, a_features = build_feature_set_a(raw, round_trip_cost_bps=round_trip_cost_bps)
+    df, tech_features = build_technical_features(df)
+    context_features = native_context_features(df, max_missing=max_missing)
+    selected_set = {x.strip().lower() for x in selected if x.strip()}
+    if "all" in selected_set:
+        selected_set.update(["a", "b", "c", "full"])
+
+    feature_sets: Dict[str, List[str]] = {}
+    if "a" in selected_set or "base" in selected_set:
+        feature_sets["A"] = a_features
+    if "b" in selected_set or "technical" in selected_set:
+        feature_sets["B_technical"] = list(dict.fromkeys(a_features + tech_features))
+    if "c" in selected_set or "context" in selected_set:
+        feature_sets["C_context"] = list(dict.fromkeys(a_features + context_features))
+    if "full" in selected_set or "abc" in selected_set:
+        feature_sets["ABC_full"] = list(dict.fromkeys(a_features + tech_features + context_features))
+
+    cleaned: Dict[str, List[str]] = {}
+    for name, cols in feature_sets.items():
+        usable = []
+        for col in cols:
+            if col not in df.columns:
+                continue
+            s = pd.to_numeric(df[col], errors="coerce")
+            if s.notna().sum() >= 3 and s.isna().mean() <= max_missing:
+                usable.append(col)
+        if usable:
+            cleaned[name] = usable
+    return df.replace([np.inf, -np.inf], np.nan), cleaned
+
+
 def make_model_specs(model_families: Sequence[str], n_jobs: int) -> List[ModelSpec]:
     families = {m.strip().lower() for m in model_families if m.strip()}
     specs: List[ModelSpec] = []
@@ -298,6 +509,14 @@ def make_model_specs(model_families: Sequence[str], n_jobs: int) -> List[ModelSp
         specs.extend(make_lgbm_specs("lgbm_l2"))
     if "lgbm_l1" in families:
         specs.extend(make_lgbm_specs("lgbm_l1"))
+    if "lgbm_huber" in families:
+        specs.extend(make_lgbm_specs("lgbm_huber"))
+    if "catboost_rmse" in families:
+        specs.extend(make_catboost_specs("catboost_rmse"))
+    if "catboost_mae" in families:
+        specs.extend(make_catboost_specs("catboost_mae"))
+    if "catboost_huber" in families:
+        specs.extend(make_catboost_specs("catboost_huber"))
     return specs
 
 
@@ -318,6 +537,16 @@ def make_lgbm_specs(family: str) -> List[ModelSpec]:
                                 "lambda_l1": l1,
                                 "lambda_l2": l2,
                             }))
+    return out
+
+
+def make_catboost_specs(family: str) -> List[ModelSpec]:
+    out: List[ModelSpec] = []
+    for depth in [2, 3, 4]:
+        for l2 in [3, 10, 30]:
+            for lr in [0.02, 0.03]:
+                name = f"{family}_d{depth}_lr{lr:g}_l2{l2:g}"
+                out.append(ModelSpec(family, name, {"depth": depth, "learning_rate": lr, "l2_leaf_reg": l2}))
     return out
 
 
@@ -343,19 +572,40 @@ def instantiate(spec: ModelSpec, n_jobs: int):
         p["random_state"] = RANDOM_STATE
         p["n_jobs"] = n_jobs
         base = RandomForestRegressor(**p)
-    elif spec.family in {"lgbm_l2", "lgbm_l1"}:
+    elif spec.family in {"lgbm_l2", "lgbm_l1", "lgbm_huber"}:
         if LGBMRegressor is None:
             raise ImportError(f"lightgbm is required: {_LIGHTGBM_IMPORT_ERROR}")
-        objective = "regression" if spec.family == "lgbm_l2" else "regression_l1"
+        objective = {
+            "lgbm_l2": "regression",
+            "lgbm_l1": "regression_l1",
+            "lgbm_huber": "huber",
+        }[spec.family]
         base = LGBMRegressor(
             objective=objective,
-            n_estimators=200,
+            n_estimators=300 if spec.family == "lgbm_huber" else 200,
             learning_rate=0.03,
             bagging_fraction=0.8,
             bagging_freq=1,
             random_state=RANDOM_STATE,
             n_jobs=n_jobs,
             verbose=-1,
+            **spec.params,
+        )
+    elif spec.family in {"catboost_rmse", "catboost_mae", "catboost_huber"}:
+        if CatBoostRegressor is None:
+            raise ImportError(f"catboost is required: {_CATBOOST_IMPORT_ERROR}")
+        loss_function = {
+            "catboost_rmse": "RMSE",
+            "catboost_mae": "MAE",
+            "catboost_huber": "Huber:delta=1.0",
+        }[spec.family]
+        base = CatBoostRegressor(
+            loss_function=loss_function,
+            iterations=350,
+            random_seed=RANDOM_STATE,
+            thread_count=n_jobs,
+            verbose=False,
+            allow_writing_files=False,
             **spec.params,
         )
     else:
@@ -416,16 +666,27 @@ def eval_pred(y: pd.Series, pred: np.ndarray) -> Dict[str, float | int]:
 def run_symbol(path: Path, args, specs: Sequence[ModelSpec]) -> Tuple[List[Dict], Dict]:
     raw = load_one_sample(path)
     stock_code = infer_stock_code(path, raw)
-    df, features = build_feature_set_a(raw, round_trip_cost_bps=float(args.round_trip_cost_bps))
+    selected_feature_sets = [x for x in str(args.feature_sets).split(",") if x.strip()]
+    df, feature_sets = build_feature_sets(
+        raw,
+        round_trip_cost_bps=float(args.round_trip_cost_bps),
+        max_missing=float(args.max_missing),
+        selected=selected_feature_sets,
+    )
     del raw
     df = df.dropna(subset=["date", "target_next_close_bps"]).sort_values("date").reset_index(drop=True)
-    features = [f for f in features if f in df.columns and df[f].isna().mean() <= float(args.max_missing)]
-    if len(df) < int(args.min_rows) or not features:
+    feature_sets = {
+        name: [f for f in features if f in df.columns and pd.to_numeric(df[f], errors="coerce").isna().mean() <= float(args.max_missing)]
+        for name, features in feature_sets.items()
+    }
+    feature_sets = {name: features for name, features in feature_sets.items() if features}
+    if len(df) < int(args.min_rows) or not feature_sets:
         return [], {
             "stock_code": stock_code,
             "sample_path": str(path),
             "rows": int(len(df)),
-            "features": int(len(features)),
+            "features": 0,
+            "feature_sets": "",
             "status": "skipped",
             "reason": "insufficient_rows_or_features",
         }
@@ -436,63 +697,68 @@ def run_symbol(path: Path, args, specs: Sequence[ModelSpec]) -> Tuple[List[Dict]
         windows = date_windows(df["date"].unique(), train_days=train_days, test_days=int(args.test_days), embargo_days=int(args.embargo_days))
         if not windows:
             continue
-        for spec in specs:
-            for window_id, (train_dates, test_dates) in enumerate(windows, start=1):
-                train = df[df["date"].isin(train_dates)].copy()
-                test = df[df["date"].isin(test_dates)].copy()
-                train_fit = train.dropna(subset=["target_next_close_bps"]).copy()
-                if len(train_fit) < int(args.min_train_rows) or test.empty:
-                    continue
-                try:
-                    pred = predict_window(train_fit, test, features, spec, n_jobs=int(args.n_jobs))
-                    metrics = eval_pred(test["target_next_close_bps"], pred)
-                    rows.append({
-                        "stock_code": stock_code,
-                        "sample_path": str(path),
-                        "train_days": train_days,
-                        "test_days": int(args.test_days),
-                        "embargo_days": int(args.embargo_days),
-                        "window_id": window_id,
-                        "train_start": str(pd.Timestamp(train_dates[0]).date()),
-                        "train_end": str(pd.Timestamp(train_dates[-1]).date()),
-                        "test_start": str(pd.Timestamp(test_dates[0]).date()),
-                        "test_end": str(pd.Timestamp(test_dates[-1]).date()),
-                        "model_family": spec.family,
-                        "model_name": spec.name,
-                        "params": json.dumps(spec.params, ensure_ascii=False, sort_keys=True),
-                        **metrics,
-                    })
-                except Exception as exc:
-                    rows.append({
-                        "stock_code": stock_code,
-                        "sample_path": str(path),
-                        "train_days": train_days,
-                        "test_days": int(args.test_days),
-                        "embargo_days": int(args.embargo_days),
-                        "window_id": window_id,
-                        "model_family": spec.family,
-                        "model_name": spec.name,
-                        "params": json.dumps(spec.params, ensure_ascii=False, sort_keys=True),
-                        "n": 0,
-                        "spearman": np.nan,
-                        "pearson": np.nan,
-                        "rmse": np.nan,
-                        "target_std": np.nan,
-                        "rmse_norm": np.nan,
-                        "r2": np.nan,
-                        "pred_std": np.nan,
-                        "pred_std_ratio": np.nan,
-                        "error": str(exc)[:500],
-                    })
+        for feature_set_name, features in feature_sets.items():
+            for spec in specs:
+                for window_id, (train_dates, test_dates) in enumerate(windows, start=1):
+                    train = df[df["date"].isin(train_dates)].copy()
+                    test = df[df["date"].isin(test_dates)].copy()
+                    train_fit = train.dropna(subset=["target_next_close_bps"]).copy()
+                    if len(train_fit) < int(args.min_train_rows) or test.empty:
+                        continue
+                    try:
+                        pred = predict_window(train_fit, test, features, spec, n_jobs=int(args.n_jobs))
+                        metrics = eval_pred(test["target_next_close_bps"], pred)
+                        rows.append({
+                            "stock_code": stock_code,
+                            "sample_path": str(path),
+                            "feature_set": feature_set_name,
+                            "n_features": int(len(features)),
+                            "train_days": train_days,
+                            "test_days": int(args.test_days),
+                            "embargo_days": int(args.embargo_days),
+                            "window_id": window_id,
+                            "train_start": str(pd.Timestamp(train_dates[0]).date()),
+                            "train_end": str(pd.Timestamp(train_dates[-1]).date()),
+                            "test_start": str(pd.Timestamp(test_dates[0]).date()),
+                            "test_end": str(pd.Timestamp(test_dates[-1]).date()),
+                            "model_family": spec.family,
+                            "model_name": spec.name,
+                            "params": json.dumps(spec.params, ensure_ascii=False, sort_keys=True),
+                            **metrics,
+                        })
+                    except Exception as exc:
+                        rows.append({
+                            "stock_code": stock_code,
+                            "sample_path": str(path),
+                            "feature_set": feature_set_name,
+                            "n_features": int(len(features)),
+                            "train_days": train_days,
+                            "test_days": int(args.test_days),
+                            "embargo_days": int(args.embargo_days),
+                            "window_id": window_id,
+                            "model_family": spec.family,
+                            "model_name": spec.name,
+                            "params": json.dumps(spec.params, ensure_ascii=False, sort_keys=True),
+                            "n": 0,
+                            "spearman": np.nan,
+                            "pearson": np.nan,
+                            "rmse": np.nan,
+                            "target_std": np.nan,
+                            "rmse_norm": np.nan,
+                            "r2": np.nan,
+                            "pred_std": np.nan,
+                            "pred_std_ratio": np.nan,
+                            "error": str(exc)[:500],
+                        })
     meta = {
         "stock_code": stock_code,
         "sample_path": str(path),
         "rows": int(len(df)),
-        "features": int(len(features)),
-        "feature_set": "A",
+        "features": int(max(len(v) for v in feature_sets.values())),
+        "feature_sets": ",".join(feature_sets.keys()),
         "target": "target_next_close_bps",
         "status": "ok",
-        "feature_columns": features,
+        "feature_columns_by_set": json.dumps(feature_sets, ensure_ascii=False),
     }
     return rows, meta
 
@@ -503,12 +769,13 @@ def summarize(window_df: pd.DataFrame) -> pd.DataFrame:
     ok = window_df[pd.to_numeric(window_df["n"], errors="coerce").fillna(0) > 0].copy()
     if ok.empty:
         return pd.DataFrame()
-    group_cols = ["stock_code", "train_days", "model_family", "model_name", "params"]
+    group_cols = ["stock_code", "sample_path", "feature_set", "train_days", "model_family", "model_name", "params"]
     rows = []
     for key, g in ok.groupby(group_cols, dropna=False):
         target_std = pd.to_numeric(g["target_std"], errors="coerce")
         rows.append({
             **dict(zip(group_cols, key)),
+            "n_features": int(pd.to_numeric(g.get("n_features", pd.Series(dtype=float)), errors="coerce").max()) if "n_features" in g.columns else 0,
             "n_windows": int(len(g)),
             "n_test_rows": int(pd.to_numeric(g["n"], errors="coerce").fillna(0).sum()),
             "median_spearman": float(pd.to_numeric(g["spearman"], errors="coerce").median()),
@@ -529,8 +796,8 @@ def summarize(window_df: pd.DataFrame) -> pd.DataFrame:
         & (out["median_pred_std_ratio"] >= 0.20)
     )
     out = out.sort_values(
-        ["stock_code", "train_days", "passes_min_signal", "median_spearman", "median_rmse_norm"],
-        ascending=[True, True, False, False, True],
+        ["stock_code", "feature_set", "train_days", "passes_min_signal", "median_spearman", "median_rmse_norm"],
+        ascending=[True, True, True, False, False, True],
     )
     return out
 
@@ -538,7 +805,7 @@ def summarize(window_df: pd.DataFrame) -> pd.DataFrame:
 def parse_args(argv: Optional[Sequence[str]] = None):
     p = argparse.ArgumentParser(description="Single-symbol single-target asof1455 regression search")
     p.add_argument("--samples", nargs="*", default=[])
-    p.add_argument("--sample-glob", action="append", default=["saved_data/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv"])
+    p.add_argument("--sample-glob", action="append", default=DEFAULT_SAMPLE_GLOBS)
     p.add_argument("--symbols", default="", help="Comma-separated symbols/codes to include, e.g. 603308,600312")
     p.add_argument("--max-symbols", type=int, default=0)
     p.add_argument("--out-dir", default="")
@@ -550,7 +817,8 @@ def parse_args(argv: Optional[Sequence[str]] = None):
     p.add_argument("--min-rows", type=int, default=600)
     p.add_argument("--min-train-rows", type=int, default=252)
     p.add_argument("--n-jobs", type=int, default=1)
-    p.add_argument("--models", default="constant,ewma,ols,ridge,lasso,elasticnet,tree,randomforest,lgbm_l2,lgbm_l1")
+    p.add_argument("--models", default="constant,ewma,ols,ridge,lasso,elasticnet,tree,randomforest,lgbm_l2,lgbm_l1,lgbm_huber,catboost_rmse,catboost_mae,catboost_huber")
+    p.add_argument("--feature-sets", default="all", help="Comma-separated: a,b,c,full,all")
     return p.parse_args(argv)
 
 
@@ -560,7 +828,8 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     out_dir = Path(args.out_dir or f"saved_data/single_target_asof1455_model_search_out/search_{ts}")
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    paths = expand_samples(args.samples, args.sample_glob)
+    sample_globs = [g for item in args.sample_glob for g in str(item).split(";") if g.strip()]
+    paths = expand_samples(args.samples, sample_globs)
     include = {s.strip().split(".")[0] for s in str(args.symbols).split(",") if s.strip()}
     if include:
         paths = [p for p in paths if any(code in str(p) for code in include)]
