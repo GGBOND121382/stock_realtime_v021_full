@@ -23,6 +23,11 @@ MIN_PRED_RETURN_BPS="${MIN_PRED_RETURN_BPS:-0.0}"
 MAX_MISSING="${MAX_MISSING:-0.70}"
 MAX_RUNS="${MAX_RUNS:-0}"
 N_JOBS="${N_JOBS:-1}"
+RIDGE_SOLVER="${RIDGE_SOLVER:-lsqr}"
+LAZY_WINDOW_LOAD="${LAZY_WINDOW_LOAD:-0}"
+LAZY_WINDOW_LOOKBACK_DAYS="${LAZY_WINDOW_LOOKBACK_DAYS:-180}"
+LAZY_CHUNK_ROWS="${LAZY_CHUNK_ROWS:-100000}"
+LAZY_USECOLS="${LAZY_USECOLS:-1}"
 
 FEATURE_GROUPS="${FEATURE_GROUPS:-ml4t_intraday,ml4t_fundamental,ml4t_sector,ml4t_external}"
 MODEL_FAMILIES="${MODEL_FAMILIES:-ridge,elasticnet,extratrees,lgbm_l1,lgbm_huber,lgbm_quantile,catboost_rmse,catboost_huber,catboost_quantile,randomforest,lgbm_l2}"
@@ -109,7 +114,18 @@ run_one() {
     --winsorize-target
     --objective-alpha "$alpha"
     --n-jobs "$N_JOBS"
+    --ridge-solver "$RIDGE_SOLVER"
   )
+  if [[ "$LAZY_WINDOW_LOAD" == "1" ]]; then
+    cmd+=(
+      --lazy-window-load
+      --lazy-window-lookback-days "$LAZY_WINDOW_LOOKBACK_DAYS"
+      --lazy-chunk-rows "$LAZY_CHUNK_ROWS"
+    )
+    if [[ "$LAZY_USECOLS" == "0" ]]; then
+      cmd+=(--no-lazy-usecols)
+    fi
+  fi
   IFS='|' read -ra SAMPLE_PATTERNS <<< "$sample_globs"
   for pat in "${SAMPLE_PATTERNS[@]}"; do
     cmd+=(--sample-glob "$pat")

@@ -427,6 +427,110 @@ def load_samples(sample_paths: Sequence[Path]) -> pd.DataFrame:
     return df
 
 
+def load_sample_dates(sample_paths: Sequence[Path], chunksize: int = 200_000) -> np.ndarray:
+    dates: List[pd.Timestamp] = []
+    for p in sample_paths:
+        try:
+            for chunk in pd.read_csv(p, usecols=["date"], chunksize=chunksize):
+                chunk = parse_date_col(chunk)
+                dates.extend(chunk["date"].dropna().tolist())
+        except Exception as exc:
+            print(f"[WARN] skip date scan {p}: {exc}", file=sys.stderr)
+    if not dates:
+        raise RuntimeError("no dates found in sample files")
+    return np.array(sorted(pd.to_datetime(pd.Series(dates).dropna().unique())))
+
+
+def raw_column_needed_for_lazy(c: str, feature_group: str, entry_price_col: str, exit_price_col: str) -> bool:
+    required = {
+        "date", "stock_code", "symbol", "code", "ts_code",
+        "close", "high", "low", "volume",
+        "open_asof1455", "high_asof1455", "low_asof1455", "close_asof1455",
+        "volume_asof1455", "amount_asof1455", "vwap_asof1455",
+        entry_price_col, exit_price_col,
+    }
+    if c in required:
+        return True
+    if c in BASE_NON_FEATURE_COLUMNS:
+        return False
+    if any(s in c.lower() for s in LEAK_SUBSTRINGS):
+        return False
+    return feature_allowed_by_group(c, feature_group)
+
+
+def lazy_usecols(args):
+    if not bool(getattr(args, "lazy_usecols", True)):
+        return None
+
+    def _usecols(c: str) -> bool:
+        return raw_column_needed_for_lazy(
+            c,
+            feature_group=str(args.feature_group),
+            entry_price_col=str(args.entry_price_col),
+            exit_price_col=str(args.exit_price_col),
+        )
+
+    return _usecols
+
+
+def load_one_sample_between(
+    path: Path,
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+    chunksize: int = 100_000,
+    usecols=None,
+) -> pd.DataFrame:
+    parts: List[pd.DataFrame] = []
+    for chunk in pd.read_csv(path, chunksize=chunksize, usecols=usecols):
+        chunk = parse_date_col(chunk)
+        mask = (chunk["date"] >= start_date) & (chunk["date"] <= end_date)
+        if not mask.any():
+            continue
+        part = chunk.loc[mask].copy()
+        if "stock_code" not in part.columns:
+            part["stock_code"] = infer_stock_code(path, part)
+        part["sample_path"] = str(path)
+        float_cols = part.select_dtypes(include=["float"]).columns
+        for c in float_cols:
+            part[c] = pd.to_numeric(part[c], errors="coerce", downcast="float")
+        int_cols = part.select_dtypes(include=["integer"]).columns
+        for c in int_cols:
+            part[c] = pd.to_numeric(part[c], errors="coerce", downcast="integer")
+        parts.append(part)
+        del chunk, part
+    if not parts:
+        return pd.DataFrame()
+    df = pd.concat(parts, ignore_index=True, sort=False)
+    del parts
+    gc.collect()
+    return df
+
+
+def load_samples_between(
+    sample_paths: Sequence[Path],
+    start_date: pd.Timestamp,
+    end_date: pd.Timestamp,
+    chunksize: int = 100_000,
+    usecols=None,
+) -> pd.DataFrame:
+    parts: List[pd.DataFrame] = []
+    for p in sample_paths:
+        try:
+            part = load_one_sample_between(p, start_date=start_date, end_date=end_date, chunksize=chunksize, usecols=usecols)
+            if not part.empty:
+                parts.append(part)
+        except Exception as exc:
+            print(f"[WARN] skip sample window {p}: {exc}", file=sys.stderr)
+    if not parts:
+        return pd.DataFrame()
+    df = pd.concat(parts, ignore_index=True, sort=False)
+    del parts
+    gc.collect()
+    df["stock_code"] = df["stock_code"].astype(str)
+    df = df.sort_values(["stock_code", "date", "sample_path"]).drop_duplicates(["stock_code", "date"], keep="last")
+    return df.reset_index(drop=True)
+
+
 def build_bars_map(bars_globs: Sequence[str]) -> Dict[str, Path]:
     files: List[Path] = []
     for pattern in bars_globs:
@@ -1322,13 +1426,17 @@ def make_model(args):
     if family == "ridge":
         if Ridge is None:
             raise ImportError(f"scikit-learn is required for ridge: {_SKLEARN_IMPORT_ERROR}")
-        return make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), Ridge(alpha=float(args.ridge_alpha))), "sklearn"
+        return make_pipeline(
+            SimpleImputer(strategy="median", copy=False),
+            StandardScaler(copy=False),
+            Ridge(alpha=float(args.ridge_alpha), solver=str(args.ridge_solver)),
+        ), "sklearn"
     if family == "elasticnet":
         if ElasticNet is None:
             raise ImportError(f"scikit-learn is required for elasticnet: {_SKLEARN_IMPORT_ERROR}")
         return make_pipeline(
-            SimpleImputer(strategy="median"),
-            StandardScaler(),
+            SimpleImputer(strategy="median", copy=False),
+            StandardScaler(copy=False),
             ElasticNet(
                 alpha=float(args.elasticnet_alpha),
                 l1_ratio=float(args.elasticnet_l1_ratio),
@@ -1383,12 +1491,19 @@ def make_model(args):
     raise ValueError(f"unknown --model-family={args.model_family}")
 
 
-def prepare_x(train: pd.DataFrame, apply: pd.DataFrame, features: Sequence[str]) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series]:
-    med = train.loc[:, features].apply(pd.to_numeric, errors="coerce").median(numeric_only=True)
-    med = med.fillna(0.0)
-    x_train = train.loc[:, features].apply(pd.to_numeric, errors="coerce").fillna(med)
-    x_apply = apply.loc[:, features].apply(pd.to_numeric, errors="coerce").fillna(med)
-    return x_train, x_apply, med
+def prepare_x(train: pd.DataFrame, apply: pd.DataFrame, features: Sequence[str]) -> Tuple[np.ndarray, np.ndarray]:
+    x_train = train.loc[:, features].to_numpy(dtype=np.float32, copy=True)
+    x_apply = apply.loc[:, features].to_numpy(dtype=np.float32, copy=True)
+    with np.errstate(all="ignore"):
+        med = np.nanmedian(x_train, axis=0).astype(np.float32, copy=False)
+    med = np.where(np.isfinite(med), med, np.float32(0.0)).astype(np.float32, copy=False)
+    train_nan = ~np.isfinite(x_train)
+    if train_nan.any():
+        x_train[train_nan] = np.take(med, np.where(train_nan)[1])
+    apply_nan = ~np.isfinite(x_apply)
+    if apply_nan.any():
+        x_apply[apply_nan] = np.take(med, np.where(apply_nan)[1])
+    return x_train, x_apply
 
 
 def training_target(train_fit: pd.DataFrame, args) -> Tuple[pd.Series, Dict[str, float]]:
@@ -1556,31 +1671,41 @@ def fit_predict_window(
     args,
     window_id: int,
 ) -> Tuple[List[Dict], List[pd.DataFrame], List[pd.DataFrame], List[pd.DataFrame], pd.DataFrame]:
-    train = df[df["date"].isin(train_dates)].copy()
-    valid = df[df["date"].isin(valid_dates)].copy() if len(valid_dates) else pd.DataFrame(columns=df.columns)
-    test = df[df["date"].isin(test_dates)].copy()
+    train_mask = df["date"].isin(train_dates)
+    valid_mask = df["date"].isin(valid_dates) if len(valid_dates) else pd.Series(False, index=df.index)
+    test_mask = df["date"].isin(test_dates)
+    base_cols = [
+        "date", "stock_code", "entry_signal", "entry_price", "exit_price",
+        "target_1d_forward_return_bps", "ml4t_dollar_volume_rank_pct", "ml4t_liquidity_ok",
+    ]
+    base_cols = [c for c in base_cols if c in df.columns]
+    work_cols = list(dict.fromkeys(base_cols + list(features)))
     # Train only rows that would have been tradable and have known label.
-    train_fit = train[bool_mask(train["entry_signal"])].dropna(subset=["target_1d_forward_return_bps"]).copy()
+    train_fit_mask = (
+        train_mask
+        & bool_mask(df["entry_signal"])
+        & df["target_1d_forward_return_bps"].notna()
+    )
+    train_fit = df.loc[train_fit_mask, work_cols].copy()
     min_dates = int(args.min_train_dates) if int(args.min_train_dates) > 0 else max(20, int(args.train_days * 0.2))
     if len(train_fit) < int(args.min_train_rows) or train_fit["date"].nunique() < min_dates:
         print(f"[WARN] skip window {window_id}: insufficient train rows={len(train_fit)} dates={train_fit['date'].nunique() if len(train_fit) else 0}; need rows>={args.min_train_rows}, dates>={min_dates}", file=sys.stderr)
-        del train, valid, test, train_fit
+        del train_fit, train_mask, valid_mask, test_mask
         gc.collect()
         return [], [], [], [], pd.DataFrame(), pd.DataFrame()
-    apply = test.copy() if valid.empty else pd.concat([valid, test], ignore_index=True, sort=False)
+    apply_mask = test_mask if not len(valid_dates) else (valid_mask | test_mask)
+    apply = df.loc[apply_mask, work_cols].copy()
     if apply.empty:
-        del train, valid, test, train_fit, apply
+        del train_fit, apply, train_mask, valid_mask, test_mask, apply_mask
         gc.collect()
         return [], [], [], [], pd.DataFrame(), pd.DataFrame()
-    X_train, X_apply, med = prepare_x(train_fit, apply, features)
+    X_train, X_apply = prepare_x(train_fit, apply, features)
     y_train, target_meta = training_target(train_fit, args)
-    del train, valid, test, train_fit, med
+    del train_fit, train_mask, valid_mask, test_mask, apply_mask
     gc.collect()
     model, model_kind = make_model(args)
-    categorical_feature = [c for c in ["year", "month", "weekday"] if c in X_train.columns]
     if model_kind == "lgbm":
-        fit_kwargs = {"categorical_feature": categorical_feature} if categorical_feature else {}
-        model.fit(X_train, y_train, **fit_kwargs)
+        model.fit(X_train, y_train)
     else:
         model.fit(X_train, y_train)
     pred = model.predict(X_apply)
@@ -1766,6 +1891,178 @@ def run_backtest(df: pd.DataFrame, features: Sequence[str], args, out_dir: Path)
     return summary
 
 
+def prepare_window_dataset(
+    sample_paths: Sequence[Path],
+    bars_map: Dict[str, Path],
+    args,
+    train_dates: np.ndarray,
+    valid_dates: np.ndarray,
+    test_dates: np.ndarray,
+) -> Tuple[pd.DataFrame, List[str]]:
+    horizons = [1, 5, 10, 21, 63]
+    window_start = pd.Timestamp(train_dates[0]) - pd.Timedelta(days=int(args.lazy_window_lookback_days))
+    window_end = pd.Timestamp(test_dates[-1])
+    raw = load_samples_between(
+        sample_paths,
+        start_date=window_start.normalize(),
+        end_date=window_end.normalize(),
+        chunksize=int(args.lazy_chunk_rows),
+        usecols=lazy_usecols(args),
+    )
+    if raw.empty:
+        return pd.DataFrame(), []
+    df = build_ml4t_features(
+        raw,
+        horizons=horizons,
+        min_liquidity_rank_pct=args.min_liquidity_rank_pct,
+        bars_map=bars_map,
+        cutoff_time=args.cutoff_time,
+        max_intraday_lag=args.max_intraday_lag,
+    )
+    del raw
+    gc.collect()
+    df = add_target_and_entry(
+        df,
+        entry_price_col=args.entry_price_col,
+        exit_price_col=args.exit_price_col,
+        round_trip_cost_bps=args.round_trip_cost_bps,
+        entry_policy=args.entry_policy,
+        entry_vwap_premium_bps=args.entry_vwap_premium_bps,
+    )
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.dropna(subset=["date", "stock_code", "entry_price", "exit_price", "target_1d_forward_return_bps"])
+    df = df.sort_values(["date", "stock_code"]).reset_index(drop=True)
+    features = candidate_features(df, max_missing=args.max_missing, feature_group=args.feature_group)
+    if not features:
+        return pd.DataFrame(), []
+    keep_cols = [
+        "date", "stock_code", "entry_signal", "entry_price", "exit_price",
+        "target_1d_forward_return_bps", "ml4t_dollar_volume_rank_pct", "ml4t_liquidity_ok",
+    ]
+    keep_cols = [c for c in keep_cols if c in df.columns]
+    df = df.loc[:, list(dict.fromkeys(keep_cols + list(features)))].copy()
+    gc.collect()
+    return df, features
+
+
+def run_backtest_lazy(
+    sample_paths: Sequence[Path],
+    bars_map: Dict[str, Path],
+    args,
+    out_dir: Path,
+) -> Dict:
+    dates = load_sample_dates(sample_paths, chunksize=int(args.lazy_chunk_rows))
+    windows = date_windows(
+        dates=dates,
+        train_days=args.train_days,
+        valid_days=args.valid_days,
+        test_days=args.test_days,
+        embargo_days=args.embargo_days,
+        step_days=args.step_days,
+    )
+    if not windows:
+        need = required_window_dates(args)
+        raise RuntimeError(f"no rolling windows produced; unique_dates={len(dates)} need>={need}")
+    print(f"[INFO] rolling windows: {len(windows)} lazy_window_load=1")
+
+    metrics_rows: List[Dict] = []
+    pred_parts: List[pd.DataFrame] = []
+    daily_ic_parts: List[pd.DataFrame] = []
+    quantile_parts: List[pd.DataFrame] = []
+    daily_port_parts: List[pd.DataFrame] = []
+    importance_parts: List[pd.DataFrame] = []
+    feature_union: List[str] = []
+    feature_policy_rows: List[Dict] = []
+    total_rows = 0
+    all_dates: set = set()
+    all_stocks: set = set()
+
+    for i, (train_dates, valid_dates, test_dates) in enumerate(windows, start=1):
+        print(
+            f"[INFO] window={i} "
+            f"train={pd.Timestamp(train_dates[0]).date()}..{pd.Timestamp(train_dates[-1]).date()} "
+            + (f"valid={pd.Timestamp(valid_dates[0]).date()}..{pd.Timestamp(valid_dates[-1]).date()} " if len(valid_dates) else "")
+            + f"test={pd.Timestamp(test_dates[0]).date()}..{pd.Timestamp(test_dates[-1]).date()}"
+        )
+        df, features = prepare_window_dataset(sample_paths, bars_map, args, train_dates, valid_dates, test_dates)
+        if df.empty or not features:
+            print(f"[WARN] skip window {i}: no lazy-loaded features/data survived", file=sys.stderr)
+            continue
+        total_rows += int(len(df))
+        all_dates.update(pd.to_datetime(df["date"]).dropna().dt.strftime("%Y-%m-%d").tolist())
+        all_stocks.update(df["stock_code"].dropna().astype(str).tolist())
+        feature_union = sorted(dict.fromkeys(feature_union + list(features)))
+        feature_policy_rows.extend({
+            "window_id": i,
+            "feature": f,
+            "policy": feature_time_policy(f),
+            "missing_rate": float(df[f].isna().mean()) if f in df.columns else np.nan,
+            "feature_group": str(args.feature_group),
+        } for f in features)
+        rows, preds, ics, qs, daily_port, imp = fit_predict_window(df, train_dates, valid_dates, test_dates, features, args, i)
+        metrics_rows.extend(rows)
+        pred_parts.extend(preds)
+        daily_ic_parts.extend(ics)
+        quantile_parts.extend(qs)
+        if not daily_port.empty:
+            daily_port_parts.append(daily_port)
+        if not imp.empty:
+            importance_parts.append(imp)
+        del df, features, rows, preds, ics, qs, daily_port, imp
+        gc.collect()
+
+    metrics_cols = ["window_id", "split", "model_family", "feature_group", "start_date", "end_date", "n_rows", "n_eval_rows", "n_dates", "n_stocks", "overall_ic", "overall_pearson", "selected_trades", "selected_dates", "target_winsor_q_low", "target_winsor_q_high"]
+    metrics = ensure_columns(pd.DataFrame(metrics_rows), metrics_cols)
+    preds = ensure_columns(pd.concat(pred_parts, ignore_index=True, sort=False) if pred_parts else pd.DataFrame(), expected_prediction_columns())
+    daily_ic = ensure_columns(pd.concat(daily_ic_parts, ignore_index=True, sort=False) if daily_ic_parts else pd.DataFrame(), ["window_id", "split", "date", "n", "daily_ic", "daily_pearson"])
+    qlift = ensure_columns(pd.concat(quantile_parts, ignore_index=True, sort=False) if quantile_parts else pd.DataFrame(), ["window_id", "split", "pred_decile", "rows", "avg_target_bps", "median_target_bps", "win_rate", "profit_factor"])
+    daily_port = ensure_columns(pd.concat(daily_port_parts, ignore_index=True, sort=False) if daily_port_parts else pd.DataFrame(), ["date", "n_positions", "daily_return", "avg_pred_bps", "avg_realized_bps", "window_id", "split"])
+    importance = pd.concat(importance_parts, ignore_index=True, sort=False) if importance_parts else pd.DataFrame()
+
+    metrics.to_csv(out_dir / "window_metrics.csv", index=False, encoding="utf-8-sig")
+    preds.to_csv(out_dir / "predictions.csv", index=False, encoding="utf-8-sig")
+    selected_all = preds[bool_mask(preds["selected"])].copy() if "selected" in preds.columns else pd.DataFrame(columns=preds.columns)
+    selected_all.to_csv(out_dir / "selected_trades.csv", index=False, encoding="utf-8-sig")
+    selected_test = selected_all[selected_all["split"] == "test"].copy() if not selected_all.empty and "split" in selected_all.columns else pd.DataFrame(columns=preds.columns)
+    selected_test.to_csv(out_dir / "selected_trades_test.csv", index=False, encoding="utf-8-sig")
+    daily_ic.to_csv(out_dir / "daily_ic.csv", index=False, encoding="utf-8-sig")
+    qlift.to_csv(out_dir / "quantile_lift.csv", index=False, encoding="utf-8-sig")
+    daily_port.to_csv(out_dir / "daily_portfolio_returns.csv", index=False, encoding="utf-8-sig")
+    if not importance.empty:
+        imp_sum = importance.groupby("feature", as_index=False)["importance"].mean().sort_values("importance", ascending=False)
+        importance.to_csv(out_dir / "feature_importance_by_window.csv", index=False, encoding="utf-8-sig")
+        imp_sum.to_csv(out_dir / "feature_importance_summary.csv", index=False, encoding="utf-8-sig")
+    pd.DataFrame(feature_policy_rows).to_csv(out_dir / "feature_time_policy_report.csv", index=False, encoding="utf-8-sig")
+    pd.Series(feature_union, name="feature").to_csv(out_dir / "feature_columns.txt", index=False, header=False, encoding="utf-8")
+
+    test_metrics = metrics[metrics["split"] == "test"].copy() if not metrics.empty else pd.DataFrame()
+    selected = selected_test.copy()
+    test_daily_port = daily_port[daily_port["split"] == "test"].copy() if not daily_port.empty else pd.DataFrame()
+    test_ic = daily_ic[daily_ic["split"] == "test"].copy() if not daily_ic.empty else pd.DataFrame()
+    summary = finite_json({
+        "n_input_rows": int(total_rows),
+        "n_dates": int(len(all_dates)),
+        "n_stocks": int(len(all_stocks)),
+        "n_features": int(len(feature_union)),
+        "features": list(feature_union),
+        "feature_group": str(args.feature_group),
+        "model_family": str(args.model_family),
+        "n_windows": int(len(windows)),
+        "lazy_window_load": True,
+        "test_selected_trades": int(len(selected)),
+        "test_selected_dates": int(test_daily_port["date"].nunique()) if not test_daily_port.empty else 0,
+        "test_mean_daily_ic": safe_series_mean(test_ic["daily_ic"]) if not test_ic.empty else np.nan,
+        "test_median_daily_ic": safe_series_median(test_ic["daily_ic"]) if not test_ic.empty else np.nan,
+        "test_trade_metrics": return_metrics(selected["target_1d_forward_return_bps"] / 10000.0) if not selected.empty else return_metrics(pd.Series(dtype=float)),
+        "test_daily_portfolio_metrics": return_metrics(test_daily_port["daily_return"]) if not test_daily_port.empty else return_metrics(pd.Series(dtype=float)),
+        "config": vars(args),
+    })
+    with open(out_dir / "summary.json", "w", encoding="utf-8") as f:
+        json.dump(summary, f, ensure_ascii=False, indent=2, default=str, allow_nan=False)
+    print(json.dumps(summary, ensure_ascii=False, indent=2, default=str, allow_nan=False))
+    return summary
+
+
 
 
 def default_run_name(args) -> str:
@@ -1864,6 +2161,11 @@ def parse_args(argv: Optional[Sequence[str]] = None):
     p.add_argument("--require-liquidity-ok", action="store_true", help="require ml4t_liquidity_ok for selected trades")
     p.add_argument("--max-missing", type=float, default=0.70)
     p.add_argument("--save-prepared", action="store_true")
+    p.add_argument("--lazy-window-load", action="store_true", help="Load/build only the rows needed for each rolling window, then release them.")
+    p.add_argument("--lazy-window-lookback-days", type=int, default=180, help="Calendar-day lookback loaded before each train window for lagged/asof features.")
+    p.add_argument("--lazy-chunk-rows", type=int, default=100000, help="CSV chunksize used by --lazy-window-load.")
+    p.add_argument("--lazy-usecols", dest="lazy_usecols", action="store_true", default=True, help="In lazy mode, only read raw columns needed by the selected feature group.")
+    p.add_argument("--no-lazy-usecols", dest="lazy_usecols", action="store_false", help="In lazy mode, read all columns for debugging/compatibility.")
     p.add_argument("--feature-group", default="ml4t_intraday", choices=["ml4t", "core", "ml4t_core", "ml4t_intraday", "core_intraday", "fundamental", "ml4t_fundamental", "core_fundamental", "sector", "ml4t_sector", "core_sector", "external", "ml4t_external", "core_external", "core_sector_external_lagged", "all", "all_numeric_asof", "all_numeric"])
     p.add_argument("--model-family", default="lgbm_l2", choices=["ridge", "elasticnet", "extratrees", "randomforest", "lgbm", "lgbm_l2", "lgbm_l1", "lgbm_huber", "lgbm_quantile", "catboost_rmse", "catboost_huber", "catboost_quantile"])
     p.add_argument("--winsorize-target", action="store_true", help="Clip the training target within each rolling train window only.")
@@ -1882,6 +2184,7 @@ def parse_args(argv: Optional[Sequence[str]] = None):
     p.add_argument("--max-intraday-lag", type=int, default=10)
     p.add_argument("--objective-alpha", type=float, default=0.90, help="Huber/quantile alpha where supported.")
     p.add_argument("--ridge-alpha", type=float, default=10.0)
+    p.add_argument("--ridge-solver", default="auto", choices=["auto", "svd", "cholesky", "lsqr", "sparse_cg", "sag", "saga", "lbfgs"])
     p.add_argument("--elasticnet-alpha", type=float, default=0.01)
     p.add_argument("--elasticnet-l1-ratio", type=float, default=0.15)
     p.add_argument("--elasticnet-max-iter", type=int, default=20000)
@@ -1924,6 +2227,33 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     bars_map = filter_bars_map_to_pipeline_universe(build_bars_map(args.bars_glob), root)
     if bars_map:
         print(f"[INFO] 5m bar files mapped: {len(bars_map)}")
+
+    if args.lazy_window_load:
+        if args.auto_update_data:
+            raise ValueError("--lazy-window-load does not support --auto-update-data in the same run")
+        manifest = {
+            "sample_files": [str(p) for p in sample_paths],
+            "bars_files": {k: str(v) for k, v in sorted(bars_map.items())},
+            "feature_group": args.feature_group,
+            "model_family": args.model_family,
+            "target": "target_1d_forward_return_bps",
+            "entry_price_col": args.entry_price_col,
+            "exit_price_col": args.exit_price_col,
+            "feature_time_mode": "asof1455",
+            "out_root": str(out_root),
+            "out_dir": str(out_dir),
+            "run_name": args.run_name or default_run_name(args),
+            "ml4t_sample_stage": args.ml4t_sample_stage,
+            "lazy_window_load": True,
+        }
+        manifest = finite_json(manifest)
+        with open(out_dir / "feature_manifest.json", "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2, default=str, allow_nan=False)
+        summary = run_backtest_lazy(sample_paths, bars_map, args, out_dir)
+        write_pipeline_root_summary(out_root, out_dir, args, summary)
+        print(f"[INFO] ML4T pipeline root: {out_root}")
+        print(f"[INFO] ML4T run output: {out_dir}")
+        return
 
     raw: Optional[pd.DataFrame] = None
     if sample_paths:
