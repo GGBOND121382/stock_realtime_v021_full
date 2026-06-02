@@ -77,6 +77,20 @@ DEFAULT_SAMPLE_GLOBS = [
     "saved_data/**/*_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv",
     "saved_data/**/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv",
 ]
+REQUIRED_FEATURE_SET_A_COLS = {
+    "date",
+    "close",
+    "open",
+    "high",
+    "low",
+    "volume",
+    "close_asof1455",
+    "high_asof1455",
+    "low_asof1455",
+    "volume_asof1455",
+    "amount_asof1455",
+    "next_day_close",
+}
 LEAK_COLS = {
     "date", "next_date", "next_day_vwap", "next_day_close", "next_day_low", "next_day_high",
     "next_day_vwap_ret_close", "next_day_vwap_ret_vwap", "next_day_close_ret_close",
@@ -204,6 +218,14 @@ def sample_priority(path: Path) -> int:
     return 0
 
 
+def sample_has_required_columns(path: Path) -> bool:
+    try:
+        cols = set(pd.read_csv(path, nrows=0).columns)
+    except Exception:
+        return False
+    return REQUIRED_FEATURE_SET_A_COLS.issubset(cols)
+
+
 def expand_samples(sample_paths: Sequence[str], sample_globs: Sequence[str]) -> List[Path]:
     out: List[Path] = []
     seen = set()
@@ -226,6 +248,8 @@ def expand_samples(sample_paths: Sequence[str], sample_globs: Sequence[str]) -> 
     explicit_keys = {str(p.resolve()) for p in explicit}
     chosen: Dict[str, List[Path]] = {}
     for path in out:
+        if not sample_has_required_columns(path):
+            continue
         if str(path.resolve()) in explicit_keys:
             chosen.setdefault(str(path.resolve()), [path])
             continue
@@ -613,14 +637,16 @@ def instantiate(spec: ModelSpec, n_jobs: int):
     return make_pipeline(SimpleImputer(strategy="median"), StandardScaler(), base)
 
 
-def predict_window(train: pd.DataFrame, test: pd.DataFrame, features: Sequence[str], spec: ModelSpec, n_jobs: int) -> np.ndarray:
+def predict_window(train: pd.DataFrame, test: pd.DataFrame, features: Sequence[str], spec: ModelSpec, n_jobs: int) -> Tuple[np.ndarray, np.ndarray]:
     y = to_num(train["target_next_close_bps"])
     if spec.family == "constant":
-        return np.full(len(test), float(y.mean()))
+        pred = float(y.mean())
+        return np.full(len(train), pred), np.full(len(test), pred)
     if spec.family == "ewma":
         h = float(spec.params["halflife"])
         pred = float(y.ewm(halflife=h, min_periods=1).mean().iloc[-1])
-        return np.full(len(test), pred)
+        train_pred = y.ewm(halflife=h, min_periods=1).mean().to_numpy(dtype=float)
+        return train_pred, np.full(len(test), pred)
 
     x_train = train.loc[:, features].apply(pd.to_numeric, errors="coerce")
     x_test = test.loc[:, features].apply(pd.to_numeric, errors="coerce")
@@ -630,10 +656,12 @@ def predict_window(train: pd.DataFrame, test: pd.DataFrame, features: Sequence[s
         fit_y = (y - y_mean) / y_std
         model = instantiate(spec, n_jobs=n_jobs)
         model.fit(x_train, fit_y)
-        return np.asarray(model.predict(x_test), dtype=float) * y_std + y_mean
+        train_pred = np.asarray(model.predict(x_train), dtype=float) * y_std + y_mean
+        test_pred = np.asarray(model.predict(x_test), dtype=float) * y_std + y_mean
+        return train_pred, test_pred
     model = instantiate(spec, n_jobs=n_jobs)
     model.fit(x_train, y)
-    return np.asarray(model.predict(x_test), dtype=float)
+    return np.asarray(model.predict(x_train), dtype=float), np.asarray(model.predict(x_test), dtype=float)
 
 
 def eval_pred(y: pd.Series, pred: np.ndarray) -> Dict[str, float | int]:
@@ -706,7 +734,11 @@ def run_symbol(path: Path, args, specs: Sequence[ModelSpec]) -> Tuple[List[Dict]
                     if len(train_fit) < int(args.min_train_rows) or test.empty:
                         continue
                     try:
-                        pred = predict_window(train_fit, test, features, spec, n_jobs=int(args.n_jobs))
+                        train_pred, pred = predict_window(train_fit, test, features, spec, n_jobs=int(args.n_jobs))
+                        train_metrics = {
+                            f"train_fit_{k}": v
+                            for k, v in eval_pred(train_fit["target_next_close_bps"], train_pred).items()
+                        }
                         metrics = eval_pred(test["target_next_close_bps"], pred)
                         rows.append({
                             "stock_code": stock_code,
@@ -724,6 +756,7 @@ def run_symbol(path: Path, args, specs: Sequence[ModelSpec]) -> Tuple[List[Dict]
                             "model_family": spec.family,
                             "model_name": spec.name,
                             "params": json.dumps(spec.params, ensure_ascii=False, sort_keys=True),
+                            **train_metrics,
                             **metrics,
                         })
                     except Exception as exc:
@@ -786,6 +819,13 @@ def summarize(window_df: pd.DataFrame) -> pd.DataFrame:
             "median_r2": float(pd.to_numeric(g["r2"], errors="coerce").median()),
             "mean_r2": float(pd.to_numeric(g["r2"], errors="coerce").mean()),
             "median_pred_std_ratio": float(pd.to_numeric(g["pred_std_ratio"], errors="coerce").median()),
+            "median_train_fit_spearman": float(pd.to_numeric(g.get("train_fit_spearman", pd.Series(dtype=float)), errors="coerce").median()),
+            "mean_train_fit_spearman": float(pd.to_numeric(g.get("train_fit_spearman", pd.Series(dtype=float)), errors="coerce").mean()),
+            "median_train_fit_rmse_norm": float(pd.to_numeric(g.get("train_fit_rmse_norm", pd.Series(dtype=float)), errors="coerce").median()),
+            "mean_train_fit_rmse_norm": float(pd.to_numeric(g.get("train_fit_rmse_norm", pd.Series(dtype=float)), errors="coerce").mean()),
+            "median_train_fit_r2": float(pd.to_numeric(g.get("train_fit_r2", pd.Series(dtype=float)), errors="coerce").median()),
+            "mean_train_fit_r2": float(pd.to_numeric(g.get("train_fit_r2", pd.Series(dtype=float)), errors="coerce").mean()),
+            "median_train_fit_pred_std_ratio": float(pd.to_numeric(g.get("train_fit_pred_std_ratio", pd.Series(dtype=float)), errors="coerce").median()),
             "mean_target_std": float(target_std.mean()),
         })
     out = pd.DataFrame(rows)

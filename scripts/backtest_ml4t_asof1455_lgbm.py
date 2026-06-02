@@ -1619,6 +1619,43 @@ def quantile_lift_frame(scored: pd.DataFrame, window_id: int, split: str) -> pd.
     return pd.DataFrame(rows)
 
 
+def regression_prediction_metrics(y_true: pd.Series, y_pred: pd.Series) -> Dict[str, float | int]:
+    y = pd.to_numeric(y_true, errors="coerce")
+    p = pd.to_numeric(y_pred, errors="coerce")
+    m = y.notna() & p.notna()
+    y = y[m]
+    p = p[m]
+    if len(y) == 0:
+        return {
+            "n": 0,
+            "spearman": np.nan,
+            "pearson": np.nan,
+            "rmse": np.nan,
+            "target_std": np.nan,
+            "rmse_norm": np.nan,
+            "r2": np.nan,
+            "pred_std": np.nan,
+            "pred_std_ratio": np.nan,
+        }
+    err = p - y
+    rmse = float(np.sqrt(np.mean(np.square(err))))
+    target_std = float(y.std(ddof=0))
+    pred_std = float(p.std(ddof=0))
+    sse = float(np.sum(np.square(err)))
+    sst = float(np.sum(np.square(y - y.mean())))
+    return {
+        "n": int(len(y)),
+        "spearman": safe_spearman(p, y),
+        "pearson": safe_pearson(p, y),
+        "rmse": rmse,
+        "target_std": target_std,
+        "rmse_norm": rmse / target_std if target_std > 1e-12 else np.nan,
+        "r2": 1.0 - sse / sst if sst > 1e-12 else np.nan,
+        "pred_std": pred_std,
+        "pred_std_ratio": pred_std / target_std if target_std > 1e-12 else np.nan,
+    }
+
+
 def evaluate_selected(scored: pd.DataFrame, window_id: int, split: str) -> Tuple[Dict, pd.DataFrame]:
     out = scored.copy()
     out["realized_return"] = out["target_1d_forward_return_bps"] / 10000.0
@@ -1708,8 +1745,16 @@ def fit_predict_window(
         model.fit(X_train, y_train)
     else:
         model.fit(X_train, y_train)
+    train_pred = model.predict(X_train)
+    train_fit_metrics = {
+        f"train_fit_{k}": v
+        for k, v in regression_prediction_metrics(
+            pd.Series(y_train).reset_index(drop=True),
+            pd.Series(train_pred).reset_index(drop=True),
+        ).items()
+    }
     pred = model.predict(X_apply)
-    del X_train, X_apply, y_train
+    del X_train, X_apply, y_train, train_pred
     gc.collect()
     scored = apply[[
         "date", "stock_code", "entry_signal", "entry_price", "exit_price",
@@ -1732,6 +1777,7 @@ def fit_predict_window(
             continue
         row, daily_port = evaluate_selected(part, window_id, split)
         row.update(target_meta)
+        row.update(train_fit_metrics)
         row["model_family"] = str(args.model_family)
         row["feature_group"] = str(args.feature_group)
         metrics_rows.append(row)
