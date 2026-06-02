@@ -872,29 +872,40 @@ def summarize(window_df: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame()
     group_cols = ["stock_code", "sample_path", "feature_set", "train_days", "model_family", "model_name", "params"]
     rows = []
+
+    def num_series(frame: pd.DataFrame, col: str) -> pd.Series:
+        return pd.to_numeric(frame.get(col, pd.Series(dtype=float)), errors="coerce")
+
+    def safe_mean(series: pd.Series) -> float:
+        s = pd.to_numeric(series, errors="coerce").dropna()
+        return float(s.mean()) if not s.empty else np.nan
+
+    def safe_median(series: pd.Series) -> float:
+        s = pd.to_numeric(series, errors="coerce").dropna()
+        return float(s.median()) if not s.empty else np.nan
+
     for key, g in ok.groupby(group_cols, dropna=False):
-        target_std = pd.to_numeric(g["target_std"], errors="coerce")
         rows.append({
             **dict(zip(group_cols, key)),
-            "n_features": int(pd.to_numeric(g.get("n_features", pd.Series(dtype=float)), errors="coerce").max()) if "n_features" in g.columns else 0,
+            "n_features": int(num_series(g, "n_features").max()) if "n_features" in g.columns else 0,
             "n_windows": int(len(g)),
-            "n_test_rows": int(pd.to_numeric(g["n"], errors="coerce").fillna(0).sum()),
-            "median_spearman": float(pd.to_numeric(g["spearman"], errors="coerce").median()),
-            "mean_spearman": float(pd.to_numeric(g["spearman"], errors="coerce").mean()),
-            "mean_pearson": float(pd.to_numeric(g["pearson"], errors="coerce").mean()),
-            "median_rmse_norm": float(pd.to_numeric(g["rmse_norm"], errors="coerce").median()),
-            "mean_rmse_norm": float(pd.to_numeric(g["rmse_norm"], errors="coerce").mean()),
-            "median_r2": float(pd.to_numeric(g["r2"], errors="coerce").median()),
-            "mean_r2": float(pd.to_numeric(g["r2"], errors="coerce").mean()),
-            "median_pred_std_ratio": float(pd.to_numeric(g["pred_std_ratio"], errors="coerce").median()),
-            "median_train_fit_spearman": float(pd.to_numeric(g.get("train_fit_spearman", pd.Series(dtype=float)), errors="coerce").median()),
-            "mean_train_fit_spearman": float(pd.to_numeric(g.get("train_fit_spearman", pd.Series(dtype=float)), errors="coerce").mean()),
-            "median_train_fit_rmse_norm": float(pd.to_numeric(g.get("train_fit_rmse_norm", pd.Series(dtype=float)), errors="coerce").median()),
-            "mean_train_fit_rmse_norm": float(pd.to_numeric(g.get("train_fit_rmse_norm", pd.Series(dtype=float)), errors="coerce").mean()),
-            "median_train_fit_r2": float(pd.to_numeric(g.get("train_fit_r2", pd.Series(dtype=float)), errors="coerce").median()),
-            "mean_train_fit_r2": float(pd.to_numeric(g.get("train_fit_r2", pd.Series(dtype=float)), errors="coerce").mean()),
-            "median_train_fit_pred_std_ratio": float(pd.to_numeric(g.get("train_fit_pred_std_ratio", pd.Series(dtype=float)), errors="coerce").median()),
-            "mean_target_std": float(target_std.mean()),
+            "n_test_rows": int(num_series(g, "n").fillna(0).sum()),
+            "median_spearman": safe_median(num_series(g, "spearman")),
+            "mean_spearman": safe_mean(num_series(g, "spearman")),
+            "mean_pearson": safe_mean(num_series(g, "pearson")),
+            "median_rmse_norm": safe_median(num_series(g, "rmse_norm")),
+            "mean_rmse_norm": safe_mean(num_series(g, "rmse_norm")),
+            "median_r2": safe_median(num_series(g, "r2")),
+            "mean_r2": safe_mean(num_series(g, "r2")),
+            "median_pred_std_ratio": safe_median(num_series(g, "pred_std_ratio")),
+            "median_train_fit_spearman": safe_median(num_series(g, "train_fit_spearman")),
+            "mean_train_fit_spearman": safe_mean(num_series(g, "train_fit_spearman")),
+            "median_train_fit_rmse_norm": safe_median(num_series(g, "train_fit_rmse_norm")),
+            "mean_train_fit_rmse_norm": safe_mean(num_series(g, "train_fit_rmse_norm")),
+            "median_train_fit_r2": safe_median(num_series(g, "train_fit_r2")),
+            "mean_train_fit_r2": safe_mean(num_series(g, "train_fit_r2")),
+            "median_train_fit_pred_std_ratio": safe_median(num_series(g, "train_fit_pred_std_ratio")),
+            "mean_target_std": safe_mean(num_series(g, "target_std")),
         })
     out = pd.DataFrame(rows)
     out["passes_min_signal"] = (

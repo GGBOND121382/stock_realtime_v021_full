@@ -1,0 +1,19 @@
+[START] 2026-06-02 17:42:20
+[CMD] python3 scripts/search_single_target_asof1455_models.py --out-dir saved_data/single_target_asof1455_model_search_out/smoke_no_nanwarn_codex2 --models constant --feature-sets all --train-windows 504 --test-days 21 --embargo-days 1 --round-trip-cost-bps 1.7 --max-missing 0.70 --min-rows 600 --min-train-rows 252 --n-jobs 1 --sample-glob saved_data/\*_pipeline_out/04_external/\*/training_samples_with_\*external\*.csv --sample-glob saved_data/\*_pipeline_out/03_sector/training_samples_with_sector.csv --sample-glob saved_data/\*_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv --sample-glob saved_data/\*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv --max-symbols 1
+[INFO] samples=1 models=1 out_dir=saved_data/single_target_asof1455_model_search_out/smoke_no_nanwarn_codex2
+[INFO] symbol_job 1/1 sample=saved_data/002270_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+[INFO] symbol=002270 rows=1531 feature_sets=A,B_technical,C_context,ABC_full specs=1 train_windows=504
+[RUN] symbol=002270 train_days=504 feature_set=A model=constant_mean spec=1/1 windows=48
+[PROGRESS] symbol=002270 train_days=504 feature_set=A model=constant_mean window=48/48 elapsed=0.2s
+[DONE] symbol=002270 train_days=504 feature_set=A model=constant_mean rows_added=48 elapsed=0.2s
+[RUN] symbol=002270 train_days=504 feature_set=B_technical model=constant_mean spec=1/1 windows=48
+[PROGRESS] symbol=002270 train_days=504 feature_set=B_technical model=constant_mean window=48/48 elapsed=0.1s
+[DONE] symbol=002270 train_days=504 feature_set=B_technical model=constant_mean rows_added=48 elapsed=0.1s
+[RUN] symbol=002270 train_days=504 feature_set=C_context model=constant_mean spec=1/1 windows=48
+[PROGRESS] symbol=002270 train_days=504 feature_set=C_context model=constant_mean window=48/48 elapsed=0.2s
+[DONE] symbol=002270 train_days=504 feature_set=C_context model=constant_mean rows_added=48 elapsed=0.2s
+[RUN] symbol=002270 train_days=504 feature_set=ABC_full model=constant_mean spec=1/1 windows=48
+[PROGRESS] symbol=002270 train_days=504 feature_set=ABC_full model=constant_mean window=48/48 elapsed=0.1s
+[DONE] symbol=002270 train_days=504 feature_set=ABC_full model=constant_mean rows_added=48 elapsed=0.1s
+[DONE] out_dir=saved_data/single_target_asof1455_model_search_out/smoke_no_nanwarn_codex2
+[END] 2026-06-02 17:42:23 returncode=0
