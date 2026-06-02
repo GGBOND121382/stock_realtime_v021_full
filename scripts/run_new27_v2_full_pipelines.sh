@@ -179,7 +179,7 @@ echo "============================================================"
 echo "[ALL DONE] $(date '+%F %T')"
 echo "[FAILED SYMBOLS] ${FAILED}"
 echo "[SUMMARY] ${SUMMARY_FILE}"
-echo "[PIPELINE OUTPUT ROOTS] saved_data/<code>_pipeline_out_${RUN_TAG}"
+echo "[PIPELINE OUTPUT ROOTS] saved_data/<code>_pipeline_out"
 echo "============================================================"
 
 # Keep exit 0 so the long queue can finish and you can inspect queue_summary.csv.

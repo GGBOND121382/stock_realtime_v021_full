@@ -3,7 +3,7 @@
 """Batch-save v2 artifacts corresponding to retained existing/planned next-day models.
 
 This script intentionally separates v2 artifacts from v1:
-  - pipeline samples are read from saved_data/<code>_pipeline_out_<pipeline_run_tag>/...
+  - pipeline samples are read from saved_data/<code>_pipeline_out/...
   - default model output is saved_models_v2/ rather than saved_models/
   - every artifact_name ends with _v2
 
@@ -43,8 +43,8 @@ JOBS: list[SaveJob] = [
     SaveJob(
         stock_code="002270.SZ",
         artifact_name="nextday_all_days_close_profit_extra_trees_all_no_ak_v2",
-        samples_template="saved_data/002270_pipeline_out_{tag}/03_sector/training_samples_with_sector.csv",
-        intraday_template="saved_data/002270_pipeline_out_{tag}/00_base/002270_5m.csv",
+        samples_template="saved_data/002270_pipeline_out/03_sector/training_samples_with_sector.csv",
+        intraday_template="saved_data/002270_pipeline_out/00_base/002270_5m.csv",
         feature_group="all_no_ak",
         model_name="extra_trees_600_d3",
         label_mode="close_profit",
@@ -54,8 +54,8 @@ JOBS: list[SaveJob] = [
     SaveJob(
         stock_code="002311.SZ",
         artifact_name="nextday_vwap_low_close_profit_xgb_d3_600_reversal_fundamental_regime_sector_hog_v2",
-        samples_template="saved_data/002311_pipeline_out_{tag}/04_external/hog/training_samples_with_hog_industry.csv",
-        intraday_template="saved_data/002311_pipeline_out_{tag}/00_base/002311_5m.csv",
+        samples_template="saved_data/002311_pipeline_out/04_external/hog/training_samples_with_hog_industry.csv",
+        intraday_template="saved_data/002311_pipeline_out/00_base/002311_5m.csv",
         feature_group="reversal_fundamental_regime_sector",
         model_name="xgb_d3_600_lr002_mcw3",
         label_mode="close_profit",
@@ -65,8 +65,8 @@ JOBS: list[SaveJob] = [
     SaveJob(
         stock_code="002714.SZ",
         artifact_name="nextday_vwap_low_close_profit_random_forest_reversal_fundamental_regime_sector_muyuan_hk_v2",
-        samples_template="saved_data/002714_pipeline_out_{tag}/04_external/muyuan_hk/training_samples_with_hk_external.csv",
-        intraday_template="saved_data/002714_pipeline_out_{tag}/00_base/002714_5m.csv",
+        samples_template="saved_data/002714_pipeline_out/04_external/muyuan_hk/training_samples_with_hk_external.csv",
+        intraday_template="saved_data/002714_pipeline_out/00_base/002714_5m.csv",
         feature_group="reversal_fundamental_regime_sector",
         model_name="random_forest_600_d4",
         label_mode="close_profit",
@@ -76,8 +76,8 @@ JOBS: list[SaveJob] = [
     SaveJob(
         stock_code="600276.SH",
         artifact_name="nextday_all_days_hit80_extra_trees_reversal_fundamental_regime_sector_v2",
-        samples_template="saved_data/600276_pipeline_out_{tag}/03_sector/training_samples_with_sector.csv",
-        intraday_template="saved_data/600276_pipeline_out_{tag}/00_base/600276_5m.csv",
+        samples_template="saved_data/600276_pipeline_out/03_sector/training_samples_with_sector.csv",
+        intraday_template="saved_data/600276_pipeline_out/00_base/600276_5m.csv",
         feature_group="reversal_fundamental_regime_sector",
         model_name="extra_trees_600_d3",
         label_mode="hit",
@@ -88,8 +88,8 @@ JOBS: list[SaveJob] = [
     SaveJob(
         stock_code="600312.SH",
         artifact_name="nextday_all_days_close_profit_xgb_d3_reversal_fundamental_regime_v2",
-        samples_template="saved_data/600312_pipeline_out_{tag}/03_sector/training_samples_with_sector.csv",
-        intraday_template="saved_data/600312_pipeline_out_{tag}/00_base/600312_5m.csv",
+        samples_template="saved_data/600312_pipeline_out/03_sector/training_samples_with_sector.csv",
+        intraday_template="saved_data/600312_pipeline_out/00_base/600312_5m.csv",
         feature_group="reversal_fundamental_regime",
         model_name="xgb_d3_400_lr003_mcw3",
         label_mode="close_profit",
@@ -99,8 +99,8 @@ JOBS: list[SaveJob] = [
     SaveJob(
         stock_code="601899.SH",
         artifact_name="nextday_all_days_close_profit_xgb_d3_reversal_fundamental_regime_sector_v2",
-        samples_template="saved_data/601899_pipeline_out_{tag}/04_external/zijin_external/training_samples_with_zijin_external.csv",
-        intraday_template="saved_data/601899_pipeline_out_{tag}/00_base/601899_5m.csv",
+        samples_template="saved_data/601899_pipeline_out/04_external/zijin_external/training_samples_with_zijin_external.csv",
+        intraday_template="saved_data/601899_pipeline_out/00_base/601899_5m.csv",
         feature_group="reversal_fundamental_regime_sector",
         model_name="xgb_d3_400_lr003_mcw3",
         label_mode="close_profit",
@@ -110,8 +110,8 @@ JOBS: list[SaveJob] = [
     SaveJob(
         stock_code="601899.SH",
         artifact_name="nextday_vwap_low_close_profit_extra_trees_reversal_fundamental_regime_sector_zijin_v2",
-        samples_template="saved_data/601899_pipeline_out_{tag}/04_external/zijin_external/training_samples_with_zijin_external.csv",
-        intraday_template="saved_data/601899_pipeline_out_{tag}/00_base/601899_5m.csv",
+        samples_template="saved_data/601899_pipeline_out/04_external/zijin_external/training_samples_with_zijin_external.csv",
+        intraday_template="saved_data/601899_pipeline_out/00_base/601899_5m.csv",
         feature_group="reversal_fundamental_regime_sector",
         model_name="extra_trees_600_d3",
         label_mode="close_profit",
@@ -126,7 +126,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--project-root", default=".", help="Project root containing model_saving/ and saved_data/")
     p.add_argument("--out-dir", default="saved_models_v2", help="Default isolates v2 from saved_models; pass saved_models to store together")
     p.add_argument("--python", default=sys.executable, help="Python executable used to run save_nextday_model.py")
-    p.add_argument("--pipeline-run-tag", default="v2_models", help="Reads samples from saved_data/<code>_pipeline_out_<tag>")
+    p.add_argument("--pipeline-run-tag", default="v2_models", help="Deprecated; paths now always read saved_data/<code>_pipeline_out")
     p.add_argument("--only", default="", help="Comma-separated stock codes or raw codes to run")
     p.add_argument("--overwrite", action="store_true", help="Overwrite/retrain artifact if output directory already exists")
     p.add_argument("--dry-run", action="store_true", help="Print commands without running them")

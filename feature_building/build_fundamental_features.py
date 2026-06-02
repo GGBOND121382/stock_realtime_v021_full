@@ -299,8 +299,8 @@ def validate_features(features: pd.DataFrame, sample_dates: pd.DataFrame, quarte
 def main() -> None:
     p = argparse.ArgumentParser(description="Build fundamental features and merge them into daily samples")
     p.add_argument("--symbol", default="002714")
-    p.add_argument("--daily-samples", default="nextday_vwap_return_vwap_ref_noleak_out/training_samples.csv")
-    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "fundamental_features_out"))
+    p.add_argument("--daily-samples", default=str(SAVED_DATA_DIR / "603308_pipeline_out" / "01_samples" / "training_samples.csv"))
+    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "603308_pipeline_out" / "02_fundamental"))
     p.add_argument("--start-date", default=None)
     p.add_argument("--end-date", default=None)
     p.add_argument("--fallback-lag-days", type=int, default=120)

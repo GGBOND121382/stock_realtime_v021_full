@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-# Re-run pipelines for the retained existing/planned models into isolated v2 output roots.
-# Output roots: saved_data/<code>_pipeline_out_${RUN_TAG}, default saved_data/<code>_pipeline_out_v2_models
-# This does not overwrite existing saved_data/<code>_pipeline_out.
+# Re-run pipelines for the retained existing/planned models into canonical output roots.
+# Output roots: saved_data/<code>_pipeline_out. RUN_TAG is only for logs/summary.
 #
 # Run from project root:
 #   chmod +x scripts/run_existing_models_v2_pipelines.sh
@@ -100,7 +99,7 @@ echo "============================================================"
 echo "[ALL DONE] $(date '+%F %T')"
 echo "[FAILED SYMBOLS] ${FAILED}"
 echo "[SUMMARY] ${SUMMARY_FILE}"
-echo "[PIPELINE OUTPUT ROOTS] saved_data/<code>_pipeline_out_${RUN_TAG}"
+echo "[PIPELINE OUTPUT ROOTS] saved_data/<code>_pipeline_out"
 echo "============================================================"
 
 exit 0

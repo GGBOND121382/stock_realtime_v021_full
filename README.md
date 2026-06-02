@@ -916,6 +916,35 @@ MODEL_FAMILIES=ridge,elasticnet,extratrees,lgbm_l1,lgbm_huber,lgbm_quantile \
   `FEATURE_GROUP_LIST` and `MODEL_FAMILY_LIST`.
 
 
+### Single-target asof1455 search data rule
+
+Hard rule: for a single-symbol search, all samples must come from the canonical
+pipeline root for that symbol.
+
+- `--symbols 603308` means only files under `saved_data/603308_pipeline_out/`.
+- Do not read `saved_data/_recycle_data_cleanup_*` for model search.
+- Do not select samples by checking whether the full path contains `603308`;
+  recycled, backup, or archived paths can also contain that string.
+- In `scripts/search_single_target_asof1455_models.py`, symbol filtering must
+  use the nearest `*_pipeline_out` directory name, e.g. `603308_pipeline_out`.
+
+For 603308, valid examples are:
+
+```text
+saved_data/603308_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
+saved_data/603308_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv
+saved_data/603308_pipeline_out/03_sector/training_samples_with_sector.csv
+saved_data/603308_pipeline_out/04_external/<profile>/training_samples*.csv
+```
+
+Invalid, even if the nested file name looks usable:
+
+```text
+saved_data/_recycle_data_cleanup_<timestamp>/.../603308_pipeline_out/...
+saved_data/*backup*/.../603308_pipeline_out/...
+saved_data/*old*/.../603308_pipeline_out/...
+```
+
   ### 训练模型命令
   默认 MODELS 已包含 CatBoost 和 LGBM Huber
 默认 FEATURE_SETS=all

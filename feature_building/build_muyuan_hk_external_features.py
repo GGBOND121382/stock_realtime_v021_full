@@ -205,8 +205,8 @@ def add_cross_features(merged: pd.DataFrame) -> pd.DataFrame:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Build HK proxy features for 002714")
-    p.add_argument("--samples", default="002714_hog_industry_current_out/training_samples_with_hog_industry.csv")
-    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "002714_hk_external_current_out"))
+    p.add_argument("--samples", default=str(SAVED_DATA_DIR / "002714_pipeline_out" / "03_sector" / "training_samples_with_sector.csv"))
+    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "002714_pipeline_out" / "04_external" / "muyuan_hk"))
     p.add_argument("--lag-days", type=int, default=1)
     args = p.parse_args()
 

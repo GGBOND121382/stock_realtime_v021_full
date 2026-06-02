@@ -129,8 +129,8 @@ def merge_lagged(samples: pd.DataFrame, features: pd.DataFrame, lag_days: int) -
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Build AKShare hog industry features for 002714 samples")
-    p.add_argument("--samples", default="sector_features_out/training_samples_with_sector.csv")
-    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "hog_industry_features_out"))
+    p.add_argument("--samples", default=str(SAVED_DATA_DIR / "002311_pipeline_out" / "03_sector" / "training_samples_with_sector.csv"))
+    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "002311_pipeline_out" / "04_external" / "hog"))
     p.add_argument("--lag-days", type=int, default=1)
     args = p.parse_args()
 

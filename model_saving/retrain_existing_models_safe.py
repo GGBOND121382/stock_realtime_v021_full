@@ -64,7 +64,9 @@ def resolve_path(raw: Any, stock_code: str = "") -> Optional[Path]:
         code = norm_symbol(stock_code).split(".", 1)[0] if stock_code else ""
         roots = []
         if code:
-            roots.extend(sorted((ROOT / "saved_data").glob(f"{code}_pipeline_out*")))
+            root = ROOT / "saved_data" / f"{code}_pipeline_out"
+            if root.exists():
+                roots.append(root)
         roots.append(ROOT / "saved_data")
         for r in roots:
             if not r.exists():

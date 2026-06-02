@@ -177,10 +177,10 @@ def resolve_repo_path(raw: Optional[str], stock_code: str = "") -> Optional[Path
     name = Path(text).name
     if name and stock_code:
         code6 = stock_code.split(".", 1)[0]
-        roots = sorted((PROJECT_DIR / "saved_data").glob(f"{code6}_pipeline_out*"))
+        root = PROJECT_DIR / "saved_data" / f"{code6}_pipeline_out"
+        roots = [root] if root.exists() else []
         roots.extend([
-            PROJECT_DIR / "saved_data" / f"{code6}_base_out",
-            PROJECT_DIR / "saved_data" / f"zijin_{code6}_base_out",
+            PROJECT_DIR / "saved_data" / f"{code6}_pipeline_out" / "00_base",
         ])
         hits = []
         for root in roots:

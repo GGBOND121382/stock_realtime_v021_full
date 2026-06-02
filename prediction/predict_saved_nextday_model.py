@@ -20,6 +20,7 @@ SAVED_MODELS_DIR = PROJECT_DIR / "saved_models"
 
 from model_training.optimize_nextday_vwap_model import add_market_state_features, add_reversal_features, compute_entry_signal
 from model_training.search_walk_forward_model_complexity import make_dataset
+from model_training.search_walk_forward_model_complexity import validate_saved_data_pipeline_input
 
 
 def load_artifact(artifact_dir: str | Path, stock_code: str) -> tuple[object, list[str], pd.Series, dict]:
@@ -37,8 +38,8 @@ def main() -> None:
     p = argparse.ArgumentParser(description="Score rows with a saved stock-specific next-day model")
     p.add_argument("--artifact-dir", default=str(SAVED_MODELS_DIR / "002714.SZ" / "nextday_hit_50bps_xgb_d4_hog_v1"))
     p.add_argument("--stock-code", default="002714.SZ")
-    p.add_argument("--samples", default=str(SAVED_DATA_DIR / "hog_industry_features_out" / "training_samples_with_hog_industry.csv"))
-    p.add_argument("--intraday-bars", default=str(SAVED_DATA_DIR / "dual_opp_out_002714_v12" / "raw_cache" / "002714_5m_raw.csv"))
+    p.add_argument("--samples", default=str(SAVED_DATA_DIR / "002714_pipeline_out" / "03_sector" / "training_samples_with_sector.csv"))
+    p.add_argument("--intraday-bars", default=str(SAVED_DATA_DIR / "002714_pipeline_out" / "00_base" / "002714_5m.csv"))
     p.add_argument("--entry-policy", choices=["vwap_low", "all_days"], default="vwap_low",
                    help="Used only when artifact metadata has no entry_policy")
     p.add_argument("--entry-vwap-premium-bps", type=float, default=50.0)
@@ -52,6 +53,8 @@ def main() -> None:
 
     model, cols, med, meta = load_artifact(args.artifact_dir, args.stock_code)
     if args.allow_unlabeled:
+        validate_saved_data_pipeline_input(args.samples, "samples")
+        validate_saved_data_pipeline_input(args.intraday_bars, "intraday-bars")
         df = pd.read_csv(args.samples, parse_dates=["date"])
         df = add_reversal_features(df, args.intraday_bars)
         df = add_market_state_features(df)

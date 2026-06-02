@@ -7,7 +7,7 @@ set -uo pipefail
 PYTHON="${PYTHON:-python3}"
 JOB_TIMEOUT="${JOB_TIMEOUT:-24h}"
 OUT_DIR="${OUT_DIR:-saved_data/single_target_asof1455_model_search_out/search_$(date +%Y%m%d_%H%M%S)}"
-SAMPLE_GLOBS="${SAMPLE_GLOBS:-saved_data/**/*_pipeline_out/04_external/*/training_samples_with_*external*.csv;saved_data/**/*_pipeline_out/03_sector/training_samples_with_sector.csv;saved_data/**/*_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv;saved_data/**/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv}"
+SAMPLE_GLOBS="${SAMPLE_GLOBS:-saved_data/*_pipeline_out/04_external/*/training_samples_with_*external*.csv;saved_data/*_pipeline_out/03_sector/training_samples_with_sector.csv;saved_data/*_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv;saved_data/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv}"
 SAMPLE_GLOB="${SAMPLE_GLOB:-}"
 SYMBOLS="${SYMBOLS:-}"
 MAX_SYMBOLS="${MAX_SYMBOLS:-0}"

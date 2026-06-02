@@ -731,7 +731,7 @@ def add_relative_features(merged: pd.DataFrame, prefix: str) -> pd.DataFrame:
 def main() -> None:
     p = argparse.ArgumentParser(description="Build AKShare-based external features for selected stock profiles")
     p.add_argument("--samples", required=True, help="Input samples CSV, usually sector/fundamental samples")
-    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "stock_external_features_out"))
+    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "603308_pipeline_out" / "04_external" / "stock_external"))
     p.add_argument("--profile", required=True, help=f"One of: {','.join(sorted(PROFILES))}")
     p.add_argument("--target-symbol", default="", help="Current stock; excluded from peer baskets if present")
     p.add_argument("--lag-days", type=int, default=None, help="Legacy: use the same as-of lag for every source family")

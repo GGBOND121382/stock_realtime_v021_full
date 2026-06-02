@@ -72,10 +72,10 @@ REQUIRED_SAMPLE_COLS = [
     "next_day_close",
 ]
 DEFAULT_SAMPLE_GLOBS = [
-    "saved_data/**/*_pipeline_out/04_external/*/training_samples_with_*external*.csv",
-    "saved_data/**/*_pipeline_out/03_sector/training_samples_with_sector.csv",
-    "saved_data/**/*_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv",
-    "saved_data/**/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv",
+    "saved_data/*_pipeline_out/04_external/*/training_samples_with_*external*.csv",
+    "saved_data/*_pipeline_out/03_sector/training_samples_with_sector.csv",
+    "saved_data/*_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv",
+    "saved_data/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv",
 ]
 REQUIRED_FEATURE_SET_A_COLS = {
     "date",
@@ -205,6 +205,16 @@ def pipeline_root(path: Path) -> str:
     return str(path.parent)
 
 
+def pipeline_stock_code(path: Path) -> str:
+    # The symbol filter must be based on the canonical pipeline root only.
+    # Do not match by substring in the full path: recycle/backup paths can also
+    # contain the same code and must never be selected for a symbol run.
+    for parent in [path] + list(path.parents):
+        if parent.name.endswith("_pipeline_out"):
+            return parent.name[: -len("_pipeline_out")]
+    return ""
+
+
 def sample_priority(path: Path) -> int:
     text = str(path).replace("\\", "/")
     if "/04_external/" in text:
@@ -226,11 +236,20 @@ def sample_has_required_columns(path: Path) -> bool:
     return REQUIRED_FEATURE_SET_A_COLS.issubset(cols)
 
 
+def is_recycle_path(path: Path) -> bool:
+    # Recycle directories are archival output from cleanup. They are not valid
+    # training/search inputs, even if their nested pipeline directory name looks
+    # like the requested symbol.
+    return any(part.startswith("_recycle_data_cleanup_") for part in path.parts)
+
+
 def expand_samples(sample_paths: Sequence[str], sample_globs: Sequence[str]) -> List[Path]:
     out: List[Path] = []
     seen = set()
     for p in sample_paths:
         path = Path(p)
+        if is_recycle_path(path):
+            continue
         if path.exists() and path.is_file():
             key = str(path.resolve())
             if key not in seen:
@@ -239,12 +258,14 @@ def expand_samples(sample_paths: Sequence[str], sample_globs: Sequence[str]) -> 
     for pat in sample_globs:
         for name in glob.glob(pat, recursive=True):
             path = Path(name)
+            if is_recycle_path(path):
+                continue
             if path.exists() and path.is_file():
                 key = str(path.resolve())
                 if key not in seen:
                     seen.add(key)
                     out.append(path)
-    explicit = [Path(p) for p in sample_paths if Path(p).exists() and Path(p).is_file()]
+    explicit = [Path(p) for p in sample_paths if Path(p).exists() and Path(p).is_file() and not is_recycle_path(Path(p))]
     explicit_keys = {str(p.resolve()) for p in explicit}
     chosen: Dict[str, List[Path]] = {}
     for path in out:
@@ -648,8 +669,8 @@ def predict_window(train: pd.DataFrame, test: pd.DataFrame, features: Sequence[s
         train_pred = y.ewm(halflife=h, min_periods=1).mean().to_numpy(dtype=float)
         return train_pred, np.full(len(test), pred)
 
-    x_train = train.loc[:, features].apply(pd.to_numeric, errors="coerce")
-    x_test = test.loc[:, features].apply(pd.to_numeric, errors="coerce")
+    x_train = train.loc[:, features].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=np.float32, copy=True)
+    x_test = test.loc[:, features].apply(pd.to_numeric, errors="coerce").to_numpy(dtype=np.float32, copy=True)
     y_mean = float(y.mean())
     y_std = float(y.std(ddof=0))
     if spec.family in {"ols", "ridge", "lasso", "elasticnet"} and math.isfinite(y_std) and y_std > 1e-12:
@@ -691,7 +712,23 @@ def eval_pred(y: pd.Series, pred: np.ndarray) -> Dict[str, float | int]:
     }
 
 
-def run_symbol(path: Path, args, specs: Sequence[ModelSpec]) -> Tuple[List[Dict], Dict]:
+def flush_progress(out_dir: Path, stock_code: str, current_rows: Sequence[Dict], prior_rows: Sequence[Dict]) -> None:
+    partial = pd.DataFrame(current_rows)
+    partial.to_csv(out_dir / f"partial_window_metrics_{stock_code}.csv", index=False, encoding="utf-8-sig")
+    summarize(partial).to_csv(out_dir / f"partial_search_summary_{stock_code}.csv", index=False, encoding="utf-8-sig")
+
+    combined = pd.DataFrame([*prior_rows, *current_rows])
+    combined.to_csv(out_dir / "window_metrics.csv", index=False, encoding="utf-8-sig")
+    summarize(combined).to_csv(out_dir / "search_summary.csv", index=False, encoding="utf-8-sig")
+
+
+def run_symbol(
+    path: Path,
+    args,
+    specs: Sequence[ModelSpec],
+    out_dir: Optional[Path] = None,
+    prior_rows: Optional[Sequence[Dict]] = None,
+) -> Tuple[List[Dict], Dict]:
     raw = load_one_sample(path)
     stock_code = infer_stock_code(path, raw)
     selected_feature_sets = [x for x in str(args.feature_sets).split(",") if x.strip()]
@@ -721,12 +758,26 @@ def run_symbol(path: Path, args, specs: Sequence[ModelSpec]) -> Tuple[List[Dict]
 
     rows: List[Dict] = []
     train_windows = [int(x) for x in str(args.train_windows).split(",") if str(x).strip()]
+    symbol_started = time.time()
+    print(
+        f"[INFO] symbol={stock_code} rows={len(df)} feature_sets={','.join(feature_sets.keys())} "
+        f"specs={len(specs)} train_windows={','.join(map(str, train_windows))}",
+        flush=True,
+    )
     for train_days in train_windows:
         windows = date_windows(df["date"].unique(), train_days=train_days, test_days=int(args.test_days), embargo_days=int(args.embargo_days))
         if not windows:
             continue
         for feature_set_name, features in feature_sets.items():
-            for spec in specs:
+            for spec_idx, spec in enumerate(specs, start=1):
+                spec_started = time.time()
+                last_progress = spec_started
+                before_rows = len(rows)
+                print(
+                    f"[RUN] symbol={stock_code} train_days={train_days} feature_set={feature_set_name} "
+                    f"model={spec.name} spec={spec_idx}/{len(specs)} windows={len(windows)}",
+                    flush=True,
+                )
                 for window_id, (train_dates, test_dates) in enumerate(windows, start=1):
                     train = df[df["date"].isin(train_dates)].copy()
                     test = df[df["date"].isin(test_dates)].copy()
@@ -759,6 +810,14 @@ def run_symbol(path: Path, args, specs: Sequence[ModelSpec]) -> Tuple[List[Dict]
                             **train_metrics,
                             **metrics,
                         })
+                        now = time.time()
+                        if window_id == len(windows) or now - last_progress >= 60:
+                            print(
+                                f"[PROGRESS] symbol={stock_code} train_days={train_days} feature_set={feature_set_name} "
+                                f"model={spec.name} window={window_id}/{len(windows)} elapsed={now - spec_started:.1f}s",
+                                flush=True,
+                            )
+                            last_progress = now
                     except Exception as exc:
                         rows.append({
                             "stock_code": stock_code,
@@ -783,6 +842,14 @@ def run_symbol(path: Path, args, specs: Sequence[ModelSpec]) -> Tuple[List[Dict]
                             "pred_std_ratio": np.nan,
                             "error": str(exc)[:500],
                         })
+                added = len(rows) - before_rows
+                print(
+                    f"[DONE] symbol={stock_code} train_days={train_days} feature_set={feature_set_name} "
+                    f"model={spec.name} rows_added={added} elapsed={time.time() - spec_started:.1f}s",
+                    flush=True,
+                )
+                if out_dir is not None:
+                    flush_progress(out_dir, stock_code, rows, prior_rows or [])
     meta = {
         "stock_code": stock_code,
         "sample_path": str(path),
@@ -792,6 +859,7 @@ def run_symbol(path: Path, args, specs: Sequence[ModelSpec]) -> Tuple[List[Dict]
         "target": "target_next_close_bps",
         "status": "ok",
         "feature_columns_by_set": json.dumps(feature_sets, ensure_ascii=False),
+        "elapsed_seconds": float(time.time() - symbol_started),
     }
     return rows, meta
 
@@ -872,7 +940,9 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     paths = expand_samples(args.samples, sample_globs)
     include = {s.strip().split(".")[0] for s in str(args.symbols).split(",") if s.strip()}
     if include:
-        paths = [p for p in paths if any(code in str(p) for code in include)]
+        # Hard rule: --symbols 603308 means saved_data/603308_pipeline_out only.
+        # Never use `code in str(path)` here; that can pull old recycle data.
+        paths = [p for p in paths if pipeline_stock_code(p) in include]
     if int(args.max_symbols) > 0:
         paths = paths[: int(args.max_symbols)]
     if not paths:
@@ -887,7 +957,7 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     print(f"[INFO] samples={len(paths)} models={len(specs)} out_dir={out_dir}")
     for i, path in enumerate(paths, start=1):
         print(f"[INFO] symbol_job {i}/{len(paths)} sample={path}")
-        rows, meta = run_symbol(path, args, specs)
+        rows, meta = run_symbol(path, args, specs, out_dir=out_dir, prior_rows=all_rows)
         all_rows.extend(rows)
         meta_rows.append(meta)
         pd.DataFrame(all_rows).to_csv(out_dir / "window_metrics.csv", index=False, encoding="utf-8-sig")

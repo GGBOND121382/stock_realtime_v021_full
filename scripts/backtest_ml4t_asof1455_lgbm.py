@@ -700,8 +700,8 @@ def pipeline_universe_dirs(project_root: Path) -> Dict[str, Path]:
     """Return the allowed per-stock data roots under saved_data.
 
     Only exact saved_data/<6-digit-code>_pipeline_out directories are allowed.
-    This deliberately excludes lookalike experiment folders such as
-    000657_pipeline_out_v2_new27_full and non-stock summary/cache folders.
+    This deliberately excludes suffixed lookalike experiment folders and
+    non-stock summary/cache folders.
     """
     saved_data = project_root / "saved_data"
     if not saved_data.exists() or not saved_data.is_dir():

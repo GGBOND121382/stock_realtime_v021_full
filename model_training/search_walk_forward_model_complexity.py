@@ -264,7 +264,22 @@ def predict_positive(model, x: pd.DataFrame) -> np.ndarray:
     return model.predict(x)
 
 
+def validate_saved_data_pipeline_input(path_value: str, label: str) -> None:
+    path = Path(path_value)
+    parts = path.parts
+    if any(part.startswith("_recycle_data_cleanup_") for part in parts):
+        raise ValueError(f"{label} must not come from a recycle directory: {path}")
+    if "saved_data" not in parts:
+        return
+    if not any(part.endswith("_pipeline_out") for part in parts):
+        raise ValueError(f"{label} under saved_data must be inside saved_data/<code>_pipeline_out: {path}")
+    if any("_pipeline_out_" in part for part in parts):
+        raise ValueError(f"{label} must use canonical saved_data/<code>_pipeline_out, not suffixed pipeline dirs: {path}")
+
+
 def make_dataset(args) -> Tuple[pd.DataFrame, Dict[str, List[str]]]:
+    validate_saved_data_pipeline_input(args.samples, "samples")
+    validate_saved_data_pipeline_input(args.intraday_bars, "intraday-bars")
     df = pd.read_csv(args.samples, parse_dates=["date"])
     feature_time_mode = getattr(args, "feature_time_mode", "eod")
     if str(feature_time_mode).lower() not in {"asof", "asof1455"}:
@@ -417,8 +432,8 @@ def summarize(pred_df: pd.DataFrame) -> pd.DataFrame:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Search walk-forward model complexity")
-    p.add_argument("--samples", default=str(SAVED_DATA_DIR / "fundamental_features_out" / "training_samples_with_fundamentals.csv"))
-    p.add_argument("--intraday-bars", default=str(SAVED_DATA_DIR / "dual_opp_out_002714_v12" / "raw_cache" / "002714_5m_raw.csv"))
+    p.add_argument("--samples", default=str(SAVED_DATA_DIR / "603308_pipeline_out" / "03_sector" / "training_samples_with_sector.csv"))
+    p.add_argument("--intraday-bars", default=str(SAVED_DATA_DIR / "603308_pipeline_out" / "00_base" / "603308_5m.csv"))
     p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "walk_forward_model_complexity_out"))
     p.add_argument("--round-trip-cost-bps", type=float, default=1.7)
     p.add_argument("--target-hit-bps", type=float, default=50.0)

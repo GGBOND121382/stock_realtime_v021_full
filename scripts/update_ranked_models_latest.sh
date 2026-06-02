@@ -4,7 +4,7 @@ set -Eeuo pipefail
 # scripts/update_ranked_models_latest.sh
 #
 # Safe replacement:
-#   - scans existing saved_data/*_pipeline_out*/99_summary/final_leaderboard.csv
+#   - scans existing saved_data/*_pipeline_out/99_summary/final_leaderboard.csv
 #   - saves selected models into saved_models
 #   - does not rerun pipelines
 #   - does not remove pipeline folders

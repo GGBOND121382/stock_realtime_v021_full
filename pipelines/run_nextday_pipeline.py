@@ -446,7 +446,7 @@ def build_pipeline(args: argparse.Namespace) -> Tuple[SymbolInfo, Path, Dict[str
         out_root = Path(args.out_root)
     else:
         tag = sanitize_run_tag(getattr(args, "run_tag", ""))
-        suffix = f"_pipeline_out_{tag}" if tag else "_pipeline_out"
+        suffix = "_pipeline_out"
         out_root = SAVED_DATA_DIR / f"{info.raw_code}{suffix}"
     if not out_root.is_absolute():
         out_root = PROJECT_DIR / out_root
@@ -851,8 +851,8 @@ def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Run the full next-day model pipeline for one stock")
     p.add_argument("--symbol", required=True, help="Stock code, e.g. 600176.SH / 000001.SZ / 600176")
     p.add_argument("--sector-symbol", default=None, help="THS sector name, e.g. 建筑材料 / 养殖业")
-    p.add_argument("--out-root", default=None, help="Output root; default: saved_data/<code>_pipeline_out[_<run_tag>]")
-    p.add_argument("--run-tag", default="", help="If --out-root is omitted, write to saved_data/<code>_pipeline_out_<run_tag>; useful for v2/A-B runs")
+    p.add_argument("--out-root", default=None, help="Output root; default: saved_data/<code>_pipeline_out")
+    p.add_argument("--run-tag", default="", help="Log/summary tag only; default output root remains saved_data/<code>_pipeline_out")
     p.add_argument("--python", default=None, help="Python executable; default: current interpreter")
     p.add_argument("--dual-script", default=DEFAULT_DUAL_SCRIPT)
 

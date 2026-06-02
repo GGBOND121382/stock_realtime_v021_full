@@ -9,7 +9,7 @@ set -uo pipefail
 #   PYTHON=python3 END_DATE=2026-05-12 JOB_TIMEOUT=8h ./scripts/run_all_14_v2_pipelines.sh
 #
 # Optional controls:
-#   RUN_TAG=v2_all14              # output roots: saved_data/<code>_pipeline_out_${RUN_TAG}
+#   RUN_TAG=v2_all14              # log/summary tag; output roots stay saved_data/<code>_pipeline_out
 #   ENABLE_YF_FOR_AI=1            # enable yfinance for 601138.SH ai_compute; US features are forced T-1 aligned
 #   DRY_RUN=1                     # print commands without executing
 #   LOG_DIR=...                   # override log directory
@@ -161,7 +161,7 @@ echo "============================================================"
 echo "[ALL DONE] $(date '+%F %T')"
 echo "[FAILED SYMBOLS] ${FAILED}"
 echo "[SUMMARY] ${SUMMARY_FILE}"
-echo "[PIPELINE OUTPUT ROOTS] saved_data/<code>_pipeline_out_${RUN_TAG}"
+echo "[PIPELINE OUTPUT ROOTS] saved_data/<code>_pipeline_out"
 echo "============================================================"
 
 # Keep exit 0 so a long queue can finish and you can inspect queue_summary.csv.

@@ -83,7 +83,7 @@ def resolve_path(raw: object, stock_code: str = "") -> Optional[Path]:
     if code6:
         roots = [
             SAVED_DATA_DIR / f"{code6}_pipeline_out",
-            SAVED_DATA_DIR / f"{code6}_base_out",
+            SAVED_DATA_DIR / f"{code6}_pipeline_out" / "00_base",
         ]
         name = Path(text2).name
         for root in roots:

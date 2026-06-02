@@ -481,10 +481,10 @@ def resolve_repo_path(raw: Optional[str], stock_code: str = "") -> Optional[Path
     name = Path(text).name
     if name and stock_code:
         code6 = stock_code.split(".", 1)[0]
-        roots = sorted((ROOT / "saved_data").glob(f"{code6}_pipeline_out*"))
+        root = ROOT / "saved_data" / f"{code6}_pipeline_out"
+        roots = [root] if root.exists() else []
         roots.extend([
-            ROOT / "saved_data" / f"{code6}_base_out",
-            ROOT / "saved_data" / f"zijin_{code6}_base_out",
+            ROOT / "saved_data" / f"{code6}_pipeline_out" / "00_base",
         ])
         hits = []
         for root in roots:
@@ -514,14 +514,11 @@ def infer_raw_cache_dir(artifact: ModelArtifact) -> Path:
 
     for candidate in [
         ROOT / "saved_data" / f"{code6}_pipeline_out" / "00_base" / "raw_cache",
-        ROOT / "saved_data" / f"{code6}_base_out" / "raw_cache",
-        ROOT / "saved_data" / f"zijin_{code6}_base_out" / "raw_cache",
-        ROOT / f"{code6}_base_out" / "raw_cache",
-        ROOT / f"zijin_{code6}_base_out" / "raw_cache",
+        ROOT / "saved_data" / f"{code6}_pipeline_out" / "00_base" / "raw_cache",
     ]:
         if candidate.exists():
             return candidate
-    return ROOT / "saved_data" / f"{code6}_base_out" / "raw_cache"
+    return ROOT / "saved_data" / f"{code6}_pipeline_out" / "00_base" / "raw_cache"
 
 
 def resolve_intraday_path(artifact: ModelArtifact, trade_date: str, cache_dir: Path) -> Optional[Path]:

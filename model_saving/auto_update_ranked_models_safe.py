@@ -59,7 +59,9 @@ def resolve_path(raw: object, stock_code: str = "") -> Optional[Path]:
         code = norm_symbol(stock_code).split(".", 1)[0] if stock_code else ""
         roots = []
         if code:
-            roots.extend(sorted((ROOT / "saved_data").glob(f"{code}_pipeline_out*")))
+            root = ROOT / "saved_data" / f"{code}_pipeline_out"
+            if root.exists():
+                roots.append(root)
         roots.append(ROOT / "saved_data")
         for r in roots:
             if not r.exists():
@@ -145,7 +147,7 @@ def make_artifact(row: pd.Series, suffix: str) -> str:
 
 def load_candidates(args) -> tuple[pd.DataFrame, pd.DataFrame]:
     rows, rejected = [], []
-    for lb in sorted(Path(args.saved_data_dir).glob("*_pipeline_out*/99_summary/final_leaderboard.csv")):
+    for lb in sorted(Path(args.saved_data_dir).glob("*_pipeline_out/99_summary/final_leaderboard.csv")):
         try:
             df = pd.read_csv(lb)
         except Exception as exc:

@@ -1,0 +1,2 @@
+feature_group,model_family,status,returncode,start_time,end_time,elapsed_seconds,log_file,out_dir
+ml4t_external,ridge,ok,0,2026-06-02 17:10:29,2026-06-02 17:10:29,0,saved_data/ml4t_asof1455_lgbm_pipeline_out/logs/regression_pool_20260602_171029/reg_ml4t_external_ridge_train756_test21_pos3.log,saved_data/ml4t_asof1455_lgbm_pipeline_out/99_summary/reg_ml4t_external_ridge_train756_test21_pos3

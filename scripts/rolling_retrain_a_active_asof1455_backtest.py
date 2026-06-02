@@ -196,7 +196,7 @@ def source_pipeline_summary_from_origin(row: pd.Series) -> Path | None:
         if cand.exists():
             return cand
     stock = raw_code(str(row.get("Stock") or ""))
-    hits = sorted((PROJECT_DIR / "saved_data").glob(f"{stock}*_pipeline_out*/pipeline_summary.json"))
+    hits = sorted((PROJECT_DIR / "saved_data").glob(f"{stock}_pipeline_out/pipeline_summary.json"))
     return hits[-1] if hits else None
 
 

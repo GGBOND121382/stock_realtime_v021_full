@@ -118,7 +118,8 @@ def sample_paths_from_metadata(saved_models: Path) -> Dict[str, list[Path]]:
 def candidate_pipeline_csvs(saved_data_dir: Path, stock: str) -> list[Path]:
     code = compact_code(stock)
     paths: list[Path] = []
-    for root in sorted(saved_data_dir.glob(f"{code}_pipeline_out*")):
+    root = saved_data_dir / f"{code}_pipeline_out"
+    if root.exists():
         paths.extend([
             root / "01_samples" / "training_samples.csv",
             root / "00_base" / "daily_features.csv",
@@ -175,7 +176,7 @@ def build_history(
     all_codes = set(codes) or set(meta_paths.keys())
 
     if not all_codes and saved_data_dir.exists():
-        for p in saved_data_dir.glob("*_pipeline_out*"):
+        for p in saved_data_dir.glob("*_pipeline_out"):
             m = re.match(r"(\d{6})_pipeline_out", p.name)
             if m:
                 all_codes.add(normalize_stock_code(m.group(1)))

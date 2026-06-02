@@ -241,8 +241,8 @@ def merge_asof_lag(samples: pd.DataFrame, features: pd.DataFrame, lag_days: int)
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Build Zijin commodity/HK/sector features")
-    p.add_argument("--samples", default="zijin_601899_samples_out/training_samples.csv")
-    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "zijin_601899_external_features_out"))
+    p.add_argument("--samples", default=str(SAVED_DATA_DIR / "601899_pipeline_out" / "03_sector" / "training_samples_with_sector.csv"))
+    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "601899_pipeline_out" / "04_external" / "zijin_external"))
     p.add_argument("--lag-days", type=int, default=1)
     p.add_argument("--skip-basis", action="store_true", help="Skip slower 100ppi spot/basis source")
     p.add_argument("--skip-sector", action="store_true")

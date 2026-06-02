@@ -114,8 +114,8 @@ def merge_asof_lag(samples: pd.DataFrame, features: pd.DataFrame, lag_days: int)
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Build feed/agri futures features for 002311")
-    p.add_argument("--samples", default="002311_fundamental_features_out/training_samples_with_fundamentals.csv")
-    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "002311_feed_external_features_out"))
+    p.add_argument("--samples", default=str(SAVED_DATA_DIR / "002311_pipeline_out" / "02_fundamental" / "training_samples_with_fundamentals.csv"))
+    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "002311_pipeline_out" / "04_external" / "haida_feed"))
     p.add_argument("--lag-days", type=int, default=1)
     args = p.parse_args()
 

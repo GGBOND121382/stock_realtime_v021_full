@@ -121,7 +121,7 @@ echo "============================================================"
 echo "[ALL DONE] $(date '+%F %T')"
 echo "[FAILED SYMBOLS] ${FAILED}"
 echo "[SUMMARY] ${SUMMARY_FILE}"
-echo "[PIPELINE OUTPUT ROOTS] saved_data/<code>_pipeline_out_${RUN_TAG}"
+echo "[PIPELINE OUTPUT ROOTS] saved_data/<code>_pipeline_out"
 echo "============================================================"
 
 exit 0

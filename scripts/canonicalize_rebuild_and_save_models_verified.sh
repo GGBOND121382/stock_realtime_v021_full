@@ -6,7 +6,7 @@ set -uo pipefail
 # FINAL SIMPLE FLOW:
 #
 #   1) Copy/merge:
-#        saved_data/<code>_pipeline_out_v2_all14/
+#        legacy suffixed pipeline dirs
 #      into canonical:
 #        saved_data/<code>_pipeline_out/
 #

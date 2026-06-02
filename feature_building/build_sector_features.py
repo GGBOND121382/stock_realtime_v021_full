@@ -86,8 +86,8 @@ def add_sector_derived_features(df: pd.DataFrame) -> pd.DataFrame:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Build sector features and merge into samples")
-    p.add_argument("--samples", default="fundamental_features_out/training_samples_with_fundamentals.csv")
-    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "sector_features_out"))
+    p.add_argument("--samples", default=str(SAVED_DATA_DIR / "603308_pipeline_out" / "02_fundamental" / "training_samples_with_fundamentals.csv"))
+    p.add_argument("--out-dir", default=str(SAVED_DATA_DIR / "603308_pipeline_out" / "03_sector"))
     p.add_argument("--sector-symbol", default="养殖业")
     p.add_argument("--start-date", default=None)
     p.add_argument("--end-date", default=None)
