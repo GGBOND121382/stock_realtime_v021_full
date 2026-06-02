@@ -44,6 +44,11 @@ from model_training.optimize_nextday_vwap_model import (
     regime_mask,
     trade_metrics,
 )
+from model_training.missing_feature_logging import (
+    feature_missing_report,
+    log_and_write_feature_missing_report,
+    matrix_missing_stats,
+)
 
 
 RANDOM_STATE = 42
@@ -336,6 +341,9 @@ def run_one(
         if len(fit_train) < args.min_train_entries or fit_train[label_col].nunique() < 2:
             continue
         apply = pd.concat([valid, test], ignore_index=False)
+        train_missing = matrix_missing_stats(fit_train, cols, "train")
+        valid_missing = matrix_missing_stats(valid, cols, "valid")
+        test_missing = matrix_missing_stats(test, cols, "test")
         x_train, x_apply = prepare_x_by_median(fit_train, apply, cols)
         y = fit_train[label_col].to_numpy(int)
         model = clone_model(model_template)
@@ -395,6 +403,9 @@ def run_one(
                 "valid_end": valid["date"].max(),
                 "test_start": test["date"].min(),
                 "test_end": test["date"].max(),
+                **train_missing,
+                **valid_missing,
+                **test_missing,
             }
             row.update(trade_metrics(chosen["selected_eval_return"]))
             rows.append(row)
@@ -458,6 +469,19 @@ def main() -> None:
     out_dir = ensure_dir(args.out_dir)
     df, groups = make_dataset(args)
     selected_groups = [g.strip() for g in args.groups.split(",") if g.strip()]
+    report_groups = {name: groups.get(name, []) for name in selected_groups}
+    missing_report = feature_missing_report(
+        df,
+        report_groups,
+        max_missing=args.max_missing,
+        sample_path=args.samples,
+    )
+    log_and_write_feature_missing_report(
+        missing_report,
+        out_dir,
+        filename="feature_missing_report.csv",
+        context=f"samples={args.samples}",
+    )
     wanted_models = {m.strip() for m in args.models.split(",") if m.strip()}
     configs = [(name, model) for name, model in model_configs() if name in wanted_models]
     metric_rows = []

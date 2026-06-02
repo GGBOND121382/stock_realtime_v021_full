@@ -21,6 +21,11 @@ SAVED_MODELS_DIR = PROJECT_DIR / "saved_models"
 from model_training.optimize_nextday_vwap_model import add_market_state_features, add_reversal_features, compute_entry_signal
 from model_training.search_walk_forward_model_complexity import make_dataset
 from model_training.search_walk_forward_model_complexity import validate_saved_data_pipeline_input
+from model_training.missing_feature_logging import (
+    feature_missing_report,
+    log_and_write_feature_missing_report,
+    matrix_missing_stats,
+)
 
 
 def load_artifact(artifact_dir: str | Path, stock_code: str) -> tuple[object, list[str], pd.Series, dict]:
@@ -69,7 +74,28 @@ def main() -> None:
     missing = [c for c in cols if c not in df.columns]
     if missing:
         raise ValueError(f"samples missing required features: {missing[:20]} ... total={len(missing)}")
-    x = df[cols].apply(pd.to_numeric, errors="coerce").fillna(med)
+    report = feature_missing_report(
+        df,
+        {"artifact_features": cols},
+        max_missing=args.max_missing,
+        sample_path=args.samples,
+    )
+    out_path = Path(args.out)
+    log_and_write_feature_missing_report(
+        report,
+        out_path.parent,
+        filename=f"feature_missing_report_{args.stock_code}_{meta['artifact_name']}.csv",
+        context=f"predict stock={args.stock_code} artifact={meta['artifact_name']}",
+    )
+    predict_missing = matrix_missing_stats(df, cols, "predict")
+    print(
+        "[MISSING] predict "
+        + " ".join(f"{k}={v}" for k, v in predict_missing.items()),
+        flush=True,
+    )
+    raw_x = df[cols].apply(pd.to_numeric, errors="coerce")
+    missing_feature_count = raw_x.isna().sum(axis=1).astype(int)
+    x = raw_x.fillna(med)
     score = model.predict_proba(x)[:, 1] if hasattr(model, "predict_proba") else model.predict(x)
     entry_policy = str(meta.get("entry_policy") or getattr(args, "entry_policy", "vwap_low"))
     entry_vwap_premium_bps = float(meta.get("entry_vwap_premium_bps", getattr(args, "entry_vwap_premium_bps", 50.0)))
@@ -93,8 +119,8 @@ def main() -> None:
     out["threshold"] = float(meta["threshold"])
     out["signal_raw_score_pass"] = out["hit_score"] >= out["threshold"]
     out["signal"] = out["entry_signal"] & out["signal_raw_score_pass"]
-    out["missing_feature_count"] = 0
-    out_path = Path(args.out)
+    out["missing_feature_count"] = missing_feature_count.to_numpy(int)
+    out["missing_feature_rate"] = out["missing_feature_count"] / max(len(cols), 1)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(out_path, index=False, encoding="utf-8-sig")
     print(out.tail(10).to_string(index=False))

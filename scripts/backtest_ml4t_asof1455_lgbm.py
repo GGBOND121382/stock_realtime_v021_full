@@ -97,6 +97,15 @@ else:
 
 RANDOM_STATE = 42
 EPS = 1e-12
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from model_training.missing_feature_logging import (
+    feature_missing_report,
+    log_and_write_feature_missing_report,
+    matrix_missing_stats,
+)
 
 # Conservative leakage blocklist. Anything containing these substrings is not used
 # even if it is numeric.
@@ -1736,6 +1745,10 @@ def fit_predict_window(
         del train_fit, apply, train_mask, valid_mask, test_mask, apply_mask
         gc.collect()
         return [], [], [], [], pd.DataFrame(), pd.DataFrame()
+    train_missing = matrix_missing_stats(train_fit, features, "train")
+    apply_missing = matrix_missing_stats(apply, features, "apply")
+    valid_missing = matrix_missing_stats(df.loc[valid_mask, work_cols], features, "valid") if len(valid_dates) else {}
+    test_missing = matrix_missing_stats(df.loc[test_mask, work_cols], features, "test")
     X_train, X_apply = prepare_x(train_fit, apply, features)
     y_train, target_meta = training_target(train_fit, args)
     del train_fit, train_mask, valid_mask, test_mask, apply_mask
@@ -1780,6 +1793,10 @@ def fit_predict_window(
         row.update(train_fit_metrics)
         row["model_family"] = str(args.model_family)
         row["feature_group"] = str(args.feature_group)
+        row.update(train_missing)
+        row.update(apply_missing)
+        row.update(valid_missing)
+        row.update(test_missing)
         metrics_rows.append(row)
         daily_port_parts.append(daily_port)
         daily_ic_parts.append(daily_ic_frame(part, window_id, split))
@@ -2019,6 +2036,7 @@ def run_backtest_lazy(
     importance_parts: List[pd.DataFrame] = []
     feature_union: List[str] = []
     feature_policy_rows: List[Dict] = []
+    feature_missing_reports: List[pd.DataFrame] = []
     total_rows = 0
     all_dates: set = set()
     all_stocks: set = set()
@@ -2038,6 +2056,20 @@ def run_backtest_lazy(
         all_dates.update(pd.to_datetime(df["date"]).dropna().dt.strftime("%Y-%m-%d").tolist())
         all_stocks.update(df["stock_code"].dropna().astype(str).tolist())
         feature_union = sorted(dict.fromkeys(feature_union + list(features)))
+        miss_report = feature_missing_report(
+            df,
+            {str(args.feature_group): features},
+            max_missing=float(args.max_missing),
+            sample_path="lazy_window_load",
+        )
+        if not miss_report.empty:
+            miss_report.insert(0, "window_id", i)
+            feature_missing_reports.append(miss_report)
+        log_and_write_feature_missing_report(
+            miss_report,
+            None,
+            context=f"window={i} feature_group={args.feature_group}",
+        )
         feature_policy_rows.extend({
             "window_id": i,
             "feature": f,
@@ -2067,6 +2099,12 @@ def run_backtest_lazy(
 
     metrics.to_csv(out_dir / "window_metrics.csv", index=False, encoding="utf-8-sig")
     preds.to_csv(out_dir / "predictions.csv", index=False, encoding="utf-8-sig")
+    if feature_missing_reports:
+        pd.concat(feature_missing_reports, ignore_index=True).to_csv(
+            out_dir / "feature_missing_report.csv",
+            index=False,
+            encoding="utf-8-sig",
+        )
     selected_all = preds[bool_mask(preds["selected"])].copy() if "selected" in preds.columns else pd.DataFrame(columns=preds.columns)
     selected_all.to_csv(out_dir / "selected_trades.csv", index=False, encoding="utf-8-sig")
     selected_test = selected_all[selected_all["split"] == "test"].copy() if not selected_all.empty and "split" in selected_all.columns else pd.DataFrame(columns=preds.columns)
@@ -2344,6 +2382,18 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
     features = candidate_features(df, max_missing=args.max_missing, feature_group=args.feature_group)
     if not features:
         raise RuntimeError("no ML4T feature columns survived; check input asof columns and --max-missing")
+    miss_report = feature_missing_report(
+        df,
+        {str(args.feature_group): features},
+        max_missing=float(args.max_missing),
+        sample_path=",".join(str(p) for p in sample_paths[:20]),
+    )
+    log_and_write_feature_missing_report(
+        miss_report,
+        out_dir,
+        filename="feature_missing_report.csv",
+        context=f"feature_group={args.feature_group}",
+    )
     keep_cols = [
         "date", "stock_code", "entry_signal", "entry_price", "exit_price",
         "target_1d_forward_return_bps", "ml4t_dollar_volume_rank_pct", "ml4t_liquidity_ok",

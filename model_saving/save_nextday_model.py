@@ -33,6 +33,11 @@ from model_training.search_walk_forward_model_complexity import (
     model_configs,
     predict_positive,
 )
+from model_training.missing_feature_logging import (
+    feature_missing_report,
+    log_and_write_feature_missing_report,
+    matrix_missing_stats,
+)
 
 
 DEFAULT_STOCK_CODE = "002714.SZ"
@@ -65,6 +70,18 @@ def train_saved_model(args: argparse.Namespace) -> Dict:
     cols = groups.get(args.feature_group, [])
     if not cols:
         raise ValueError(f"empty feature group: {args.feature_group}")
+    missing_report = feature_missing_report(
+        df,
+        {args.feature_group: cols},
+        max_missing=args.max_missing,
+        sample_path=args.samples,
+    )
+    log_and_write_feature_missing_report(
+        missing_report,
+        artifact_dir,
+        filename="feature_missing_report.csv",
+        context=f"stock={args.stock_code} artifact={args.artifact_name}",
+    )
 
     n = len(df)
     valid_rows = min(args.valid_rows, max(1, n // 5))
@@ -77,6 +94,8 @@ def train_saved_model(args: argparse.Namespace) -> Dict:
         raise ValueError("training target has one class only")
 
     template = get_model_template(args.model_name)
+    train_missing = matrix_missing_stats(fit_train, cols, "train")
+    valid_missing = matrix_missing_stats(valid, cols, "valid")
     x_train, x_valid = prepare_x_by_median(fit_train, valid, cols)
     median = fit_train[cols].apply(pd.to_numeric, errors="coerce").median(numeric_only=True)
     y = fit_train[label_col].to_numpy(int)
@@ -151,6 +170,10 @@ def train_saved_model(args: argparse.Namespace) -> Dict:
         "train_rows_for_threshold": int(len(train)),
         "valid_rows_for_threshold": int(len(valid)),
         "train_entry_rows_for_saved_model": int(len(fit_train)),
+        "feature_missing_stats": {
+            **train_missing,
+            **valid_missing,
+        },
         "saved_model_scope": "validation_train",
         "saved_model_matches_validation_tail_predictions": True,
         "date_min": str(df["date"].min().date()),

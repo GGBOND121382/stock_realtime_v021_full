@@ -472,7 +472,7 @@ def is_context_col(col: str) -> bool:
     )
 
 
-def native_context_features(df: pd.DataFrame, max_missing: float) -> List[str]:
+def context_feature_candidates(df: pd.DataFrame) -> List[str]:
     features: List[str] = []
     for col in df.columns:
         if col in LEAK_COLS or col in REQUIRED_SAMPLE_COLS or col == "stock_code":
@@ -481,6 +481,13 @@ def native_context_features(df: pd.DataFrame, max_missing: float) -> List[str]:
             continue
         if not is_context_col(col):
             continue
+        features.append(col)
+    return features
+
+
+def native_context_features(df: pd.DataFrame, max_missing: float) -> List[str]:
+    features: List[str] = []
+    for col in context_feature_candidates(df):
         s = pd.to_numeric(df[col], errors="coerce")
         if s.notna().sum() < 3 or s.isna().mean() > max_missing:
             continue
@@ -488,10 +495,57 @@ def native_context_features(df: pd.DataFrame, max_missing: float) -> List[str]:
     return features
 
 
-def build_feature_sets(raw: pd.DataFrame, round_trip_cost_bps: float, max_missing: float, selected: Sequence[str]) -> Tuple[pd.DataFrame, Dict[str, List[str]]]:
+def feature_missing_row(
+    df: pd.DataFrame,
+    feature_set: str,
+    col: str,
+    max_missing: float,
+) -> Dict:
+    if col not in df.columns:
+        return {
+            "feature_set": feature_set,
+            "feature": col,
+            "action": "dropped",
+            "reason": "missing_column",
+            "rows": int(len(df)),
+            "non_null_count": 0,
+            "missing_count": int(len(df)),
+            "missing_rate": 1.0 if len(df) else np.nan,
+            "max_missing": float(max_missing),
+        }
+    s = pd.to_numeric(df[col], errors="coerce")
+    missing_count = int(s.isna().sum())
+    non_null_count = int(s.notna().sum())
+    missing_rate = float(s.isna().mean()) if len(s) else np.nan
+    action = "kept" if non_null_count >= 3 and missing_rate <= max_missing else "dropped"
+    if non_null_count < 3:
+        reason = "too_few_non_null"
+    elif missing_rate > max_missing:
+        reason = "missing_rate_gt_max"
+    else:
+        reason = "ok"
+    return {
+        "feature_set": feature_set,
+        "feature": col,
+        "action": action,
+        "reason": reason,
+        "rows": int(len(df)),
+        "non_null_count": non_null_count,
+        "missing_count": missing_count,
+        "missing_rate": missing_rate,
+        "max_missing": float(max_missing),
+    }
+
+
+def build_feature_sets(
+    raw: pd.DataFrame,
+    round_trip_cost_bps: float,
+    max_missing: float,
+    selected: Sequence[str],
+) -> Tuple[pd.DataFrame, Dict[str, List[str]], List[Dict]]:
     df, a_features = build_feature_set_a(raw, round_trip_cost_bps=round_trip_cost_bps)
     df, tech_features = build_technical_features(df)
-    context_features = native_context_features(df, max_missing=max_missing)
+    context_candidates = context_feature_candidates(df)
     selected_set = {x.strip().lower() for x in selected if x.strip()}
     if "all" in selected_set:
         selected_set.update(["a", "b", "c", "full"])
@@ -502,22 +556,22 @@ def build_feature_sets(raw: pd.DataFrame, round_trip_cost_bps: float, max_missin
     if "b" in selected_set or "technical" in selected_set:
         feature_sets["B_technical"] = list(dict.fromkeys(a_features + tech_features))
     if "c" in selected_set or "context" in selected_set:
-        feature_sets["C_context"] = list(dict.fromkeys(a_features + context_features))
+        feature_sets["C_context"] = list(dict.fromkeys(a_features + context_candidates))
     if "full" in selected_set or "abc" in selected_set:
-        feature_sets["ABC_full"] = list(dict.fromkeys(a_features + tech_features + context_features))
+        feature_sets["ABC_full"] = list(dict.fromkeys(a_features + tech_features + context_candidates))
 
     cleaned: Dict[str, List[str]] = {}
+    missing_rows: List[Dict] = []
     for name, cols in feature_sets.items():
         usable = []
         for col in cols:
-            if col not in df.columns:
-                continue
-            s = pd.to_numeric(df[col], errors="coerce")
-            if s.notna().sum() >= 3 and s.isna().mean() <= max_missing:
+            row = feature_missing_row(df, name, col, max_missing=max_missing)
+            missing_rows.append(row)
+            if row["action"] == "kept":
                 usable.append(col)
         if usable:
             cleaned[name] = usable
-    return df.replace([np.inf, -np.inf], np.nan), cleaned
+    return df.replace([np.inf, -np.inf], np.nan), cleaned, missing_rows
 
 
 def make_model_specs(model_families: Sequence[str], n_jobs: int) -> List[ModelSpec]:
@@ -712,6 +766,65 @@ def eval_pred(y: pd.Series, pred: np.ndarray) -> Dict[str, float | int]:
     }
 
 
+def feature_matrix_missing_stats(frame: pd.DataFrame, features: Sequence[str], prefix: str) -> Dict[str, float | int]:
+    cols = [f for f in features if f in frame.columns]
+    rows = int(len(frame))
+    n_features = int(len(cols))
+    total_cells = rows * n_features
+    if not cols or rows == 0:
+        return {
+            f"{prefix}_missing_cells": 0,
+            f"{prefix}_total_feature_cells": int(total_cells),
+            f"{prefix}_missing_rate": np.nan,
+            f"{prefix}_features_with_missing": 0,
+            f"{prefix}_max_feature_missing_rate": np.nan,
+        }
+    x = frame.loc[:, cols].apply(pd.to_numeric, errors="coerce")
+    missing_by_col = x.isna().sum()
+    missing_cells = int(missing_by_col.sum())
+    return {
+        f"{prefix}_missing_cells": missing_cells,
+        f"{prefix}_total_feature_cells": int(total_cells),
+        f"{prefix}_missing_rate": float(missing_cells / total_cells) if total_cells else np.nan,
+        f"{prefix}_features_with_missing": int((missing_by_col > 0).sum()),
+        f"{prefix}_max_feature_missing_rate": float(x.isna().mean().max()) if n_features else np.nan,
+    }
+
+
+def log_feature_missing_report(
+    out_dir: Optional[Path],
+    stock_code: str,
+    sample_path: Path,
+    missing_rows: Sequence[Dict],
+) -> None:
+    if not missing_rows:
+        print(f"[MISSING] symbol={stock_code} feature_missing_report=empty", flush=True)
+        return
+    report = pd.DataFrame(missing_rows).copy()
+    report.insert(0, "stock_code", stock_code)
+    report.insert(1, "sample_path", str(sample_path))
+    kept = int((report["action"] == "kept").sum())
+    dropped = int((report["action"] == "dropped").sum())
+    high_missing = int(((report["action"] == "dropped") & (report["reason"] == "missing_rate_gt_max")).sum())
+    too_few = int(((report["action"] == "dropped") & (report["reason"] == "too_few_non_null")).sum())
+    worst_kept = report[report["action"] == "kept"].sort_values("missing_rate", ascending=False).head(5)
+    worst_dropped = report[report["action"] == "dropped"].sort_values("missing_rate", ascending=False).head(8)
+    print(
+        f"[MISSING] symbol={stock_code} feature_candidates={len(report)} kept={kept} dropped={dropped} "
+        f"dropped_high_missing={high_missing} dropped_too_few_non_null={too_few}",
+        flush=True,
+    )
+    if not worst_kept.empty:
+        cols = [f"{r.feature}:{float(r.missing_rate):.3f}" for r in worst_kept.itertuples()]
+        print(f"[MISSING] symbol={stock_code} worst_kept=" + ",".join(cols), flush=True)
+    if not worst_dropped.empty:
+        cols = [f"{r.feature}:{float(r.missing_rate):.3f}:{r.reason}" for r in worst_dropped.itertuples()]
+        print(f"[MISSING] symbol={stock_code} worst_dropped=" + ",".join(cols), flush=True)
+    if out_dir is not None:
+        out_dir.mkdir(parents=True, exist_ok=True)
+        report.to_csv(out_dir / f"feature_missing_report_{stock_code}.csv", index=False, encoding="utf-8-sig")
+
+
 def flush_progress(out_dir: Path, stock_code: str, current_rows: Sequence[Dict], prior_rows: Sequence[Dict]) -> None:
     partial = pd.DataFrame(current_rows)
     partial.to_csv(out_dir / f"partial_window_metrics_{stock_code}.csv", index=False, encoding="utf-8-sig")
@@ -732,7 +845,7 @@ def run_symbol(
     raw = load_one_sample(path)
     stock_code = infer_stock_code(path, raw)
     selected_feature_sets = [x for x in str(args.feature_sets).split(",") if x.strip()]
-    df, feature_sets = build_feature_sets(
+    df, feature_sets, missing_rows = build_feature_sets(
         raw,
         round_trip_cost_bps=float(args.round_trip_cost_bps),
         max_missing=float(args.max_missing),
@@ -745,6 +858,7 @@ def run_symbol(
         for name, features in feature_sets.items()
     }
     feature_sets = {name: features for name, features in feature_sets.items() if features}
+    log_feature_missing_report(out_dir, stock_code, path, missing_rows)
     if len(df) < int(args.min_rows) or not feature_sets:
         return [], {
             "stock_code": stock_code,
@@ -784,6 +898,8 @@ def run_symbol(
                     train_fit = train.dropna(subset=["target_next_close_bps"]).copy()
                     if len(train_fit) < int(args.min_train_rows) or test.empty:
                         continue
+                    train_missing = feature_matrix_missing_stats(train_fit, features, "train")
+                    test_missing = feature_matrix_missing_stats(test, features, "test")
                     try:
                         train_pred, pred = predict_window(train_fit, test, features, spec, n_jobs=int(args.n_jobs))
                         train_metrics = {
@@ -807,6 +923,8 @@ def run_symbol(
                             "model_family": spec.family,
                             "model_name": spec.name,
                             "params": json.dumps(spec.params, ensure_ascii=False, sort_keys=True),
+                            **train_missing,
+                            **test_missing,
                             **train_metrics,
                             **metrics,
                         })
@@ -831,6 +949,8 @@ def run_symbol(
                             "model_family": spec.family,
                             "model_name": spec.name,
                             "params": json.dumps(spec.params, ensure_ascii=False, sort_keys=True),
+                            **train_missing,
+                            **test_missing,
                             "n": 0,
                             "spearman": np.nan,
                             "pearson": np.nan,

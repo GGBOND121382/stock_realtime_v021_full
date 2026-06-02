@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -31,9 +32,17 @@ import pandas as pd
 from sklearn.metrics import roc_auc_score
 from xgboost import XGBClassifier, XGBRegressor
 
+from model_training.missing_feature_logging import (
+    feature_missing_report,
+    log_and_write_feature_missing_report,
+    matrix_missing_stats,
+)
+
 
 RANDOM_STATE = 42
 PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
 SAVED_DATA_DIR = PROJECT_DIR / "saved_data"
 EPS = 1e-12
 
@@ -640,6 +649,9 @@ def eval_walk_forward_design(
             continue
         fit_train = train.loc[entry_train].copy()
         apply = pd.concat([valid, test], ignore_index=False)
+        train_missing = matrix_missing_stats(fit_train, cols, "train")
+        valid_missing = matrix_missing_stats(valid, cols, "valid")
+        test_missing = matrix_missing_stats(test, cols, "test")
         x_train, x_apply = prepare_x_by_median(fit_train, apply, cols)
 
         if model_type == "hit_classifier":
@@ -694,6 +706,9 @@ def eval_walk_forward_design(
                 "valid_end": valid["date"].max(),
                 "test_start": test["date"].min(),
                 "test_end": test["date"].max(),
+                **train_missing,
+                **valid_missing,
+                **test_missing,
             }
             row.update(trade_metrics(trade_part[return_col]))
             rows.append(row)
@@ -848,6 +863,22 @@ def main() -> None:
     df = df.replace([np.inf, -np.inf], np.nan).dropna(subset=["trade_net_close_return", "trade_net_high_return", "trade_target_or_close_return"]).reset_index(drop=True)
     train, valid, test = split_chrono(df)
     groups = feature_groups(df, args.max_missing, feature_time_mode)
+    selected_report_groups = groups
+    if args.walk_forward:
+        selected_names = [g.strip() for g in args.walk_forward_groups.split(",") if g.strip()]
+        selected_report_groups = {name: groups.get(name, []) for name in selected_names}
+    missing_report = feature_missing_report(
+        df,
+        selected_report_groups,
+        max_missing=args.max_missing,
+        sample_path=args.samples,
+    )
+    log_and_write_feature_missing_report(
+        missing_report,
+        out_dir,
+        filename="feature_missing_report.csv",
+        context=f"samples={args.samples}",
+    )
     if args.walk_forward:
         run_walk_forward(df, groups, out_dir, args)
         return
@@ -862,11 +893,17 @@ def main() -> None:
         if not cols:
             continue
         X_train, X_valid, X_test, y_train, y_valid, y_test = prepare_xy(train, valid, test, cols, args.target)
+        split_missing = {
+            **matrix_missing_stats(train, cols, "train"),
+            **matrix_missing_stats(valid, cols, "valid"),
+            **matrix_missing_stats(test, cols, "test"),
+        }
 
         reg = fit_regressor(X_train, y_train)
         for split, data, X, y in [("train", train, X_train, y_train), ("valid", valid, X_valid, y_valid), ("test", test, X_test, y_test)]:
             pred = reg.predict(X)
             row = {"feature_group": group_name, "model_type": "regressor", "split": split, "n_features": len(cols)}
+            row.update(split_missing)
             row.update(regression_metrics(y, pred))
             model_rows.append(row)
             pred_frames.append(make_pred_frame(data, args.target, group_name, "regressor", split, pred))
@@ -891,6 +928,7 @@ def main() -> None:
         ]:
             pred = trade_reg.predict(X)
             row = {"feature_group": group_name, "model_type": "entry_trade_regressor", "split": split, "n_features": len(cols)}
+            row.update(split_missing)
             row.update(regression_metrics(y_trade, pred))
             model_rows.append(row)
             pred_frames.append(make_pred_frame(data, args.target, group_name, "entry_trade_regressor", split, pred))
@@ -921,6 +959,7 @@ def main() -> None:
                 "auc": float(roc_auc_score(y_cls, proba)) if len(np.unique(y_cls)) > 1 else np.nan,
                 "label_mean": float(np.mean(y_cls)),
                 "pred_mean": float(np.mean(proba)),
+                **split_missing,
             }
             model_rows.append(row)
             pred_frames.append(make_pred_frame(data, args.target, group_name, "entry_classifier", split, proba))
