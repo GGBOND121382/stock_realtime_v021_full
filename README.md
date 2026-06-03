@@ -970,3 +970,20 @@ Edited 2 files
 -182
 Undo
 Revie
+
+
+大概率是，但不是“默认迭代次数太少”那种简单问题。
+
+我看了脚本：`Lasso` 和 `ElasticNet` 已经设了 `max_iter=20000`，而且特征和目标都做了标准化，位置在 [scripts/search_single_target_asof1455_models.py](c:/Users/23853/PycharmProjects/stock_realtime_v021_full/scripts/search_single_target_asof1455_models.py:662) 和 [scripts/search_single_target_asof1455_models.py](c:/Users/23853/PycharmProjects/stock_realtime_v021_full/scripts/search_single_target_asof1455_models.py:729)。所以如果服务器日志是 sklearn 的：
+
+`ConvergenceWarning: Objective did not converge...`
+
+那通常是前面的 `lasso_alpha1e-05`、`lasso_alpha3e-05`、或小 alpha 的 `elasticnet` 在某些滚动窗口没收敛。原因多半是特征相关性强、alpha 太小、窗口样本不大，而不是脚本忘了加迭代次数。
+
+结论：不是致命问题，搜索可以继续跑；但这些触发 warning 的稀疏线性候选分数要谨慎看。更实用的处理是：
+
+```bash
+MODELS=constant,ewma,ols,ridge,tree,randomforest,lgbm_l2,lgbm_l1,lgbm_huber,catboost_rmse,catboost_mae,catboost_huber ...
+```
+
+先排除 `lasso,elasticnet`，或者把它们的小 alpha 网格去掉。单纯把 `max_iter` 从 `20000` 加到 `100000` 也能试，但会拖慢很多，而且未必提升最终搜索质量。日志里 warning 前最近一条 `[RUN] ... model=...` 就能确认具体是哪一个模型触发的。
