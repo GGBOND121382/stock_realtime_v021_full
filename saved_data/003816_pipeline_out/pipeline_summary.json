@@ -7,7 +7,7 @@
     "baostock_symbol": "003816"
   },
   "out_root": "/root/stock_realtime_v021_full/saved_data/003816_pipeline_out",
-  "created_at": "2026-05-31T02:10:28",
+  "created_at": "2026-06-02T20:40:20",
   "args": {
     "symbol": "003816.SZ",
     "sector_symbol": "电力",
@@ -16,7 +16,7 @@
     "python": null,
     "dual_script": "bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py",
     "start_date": "2018-01-01",
-    "end_date": "2026-05-31",
+    "end_date": "2026-06-02",
     "intraday_start": null,
     "intraday_end": null,
     "benchmark_symbol": "000300",
@@ -57,14 +57,14 @@
     "test_rows": 63,
     "min_valid_trades": 8,
     "min_train_entries": 80,
-    "resume": true,
+    "resume": false,
     "dry_run": false,
     "continue_on_error": true,
     "only_stages": "update_data,samples,asof_samples,fundamental,sector,external_power_utility_rate",
     "skip_stages": "",
     "excel": false
   },
-  "finished_at": "2026-05-31T02:13:38",
+  "finished_at": "2026-06-02T20:41:49",
   "status": "ok",
   "feature_pipeline_effective": [
     "fundamental",
@@ -106,11 +106,11 @@
         "--daily_start",
         "2018-01-01",
         "--daily_end",
-        "2026-05-31",
+        "2026-06-02",
         "--intraday_start",
         "2018-01-01 09:30:00",
         "--intraday_end",
-        "2026-05-31 15:00:00",
+        "2026-06-02 15:00:00",
         "--output_dir",
         "/root/stock_realtime_v021_full/saved_data/003816_pipeline_out/00_base",
         "--cache_mode",
@@ -120,9 +120,9 @@
         "--adjust",
         "qfq"
       ],
-      "started_at": "2026-05-31T02:10:28",
-      "ended_at": "2026-05-31T02:12:54",
-      "elapsed_seconds": 146.239,
+      "started_at": "2026-06-02T20:40:20",
+      "ended_at": "2026-06-02T20:40:38",
+      "elapsed_seconds": 18.702,
       "returncode": 0,
       "outputs": {
         "daily_features": "/root/stock_realtime_v021_full/saved_data/003816_pipeline_out/00_base/daily_features.csv",
@@ -146,9 +146,9 @@
         "40",
         "--keep-unlabeled-tail"
       ],
-      "started_at": "2026-05-31T02:12:54",
-      "ended_at": "2026-05-31T02:12:55",
-      "elapsed_seconds": 1.064,
+      "started_at": "2026-06-02T20:40:38",
+      "ended_at": "2026-06-02T20:40:40",
+      "elapsed_seconds": 1.11,
       "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/003816_pipeline_out/01_samples/training_samples.csv"
@@ -172,9 +172,9 @@
         "--min-bars",
         "40"
       ],
-      "started_at": "2026-05-31T02:12:55",
-      "ended_at": "2026-05-31T02:12:56",
-      "elapsed_seconds": 1.194,
+      "started_at": "2026-06-02T20:40:40",
+      "ended_at": "2026-06-02T20:40:41",
+      "elapsed_seconds": 1.236,
       "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/003816_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv"
@@ -196,14 +196,14 @@
         "--start-date",
         "2018-01-01",
         "--end-date",
-        "2026-05-31",
+        "2026-06-02",
         "--fallback-lag-days",
         "120",
         "--skip-akshare"
       ],
-      "started_at": "2026-05-31T02:12:56",
-      "ended_at": "2026-05-31T02:13:20",
-      "elapsed_seconds": 23.725,
+      "started_at": "2026-06-02T20:40:41",
+      "ended_at": "2026-06-02T20:41:20",
+      "elapsed_seconds": 38.955,
       "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/003816_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
@@ -225,11 +225,11 @@
         "--start-date",
         "2018-01-01",
         "--end-date",
-        "2026-05-31"
+        "2026-06-02"
       ],
-      "started_at": "2026-05-31T02:13:20",
-      "ended_at": "2026-05-31T02:13:24",
-      "elapsed_seconds": 4.059,
+      "started_at": "2026-06-02T20:41:20",
+      "ended_at": "2026-06-02T20:41:30",
+      "elapsed_seconds": 10.225,
       "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/003816_pipeline_out/03_sector/training_samples_with_sector.csv"
@@ -253,7 +253,7 @@
         "--start-date",
         "2018-01-01",
         "--end-date",
-        "2026-05-31",
+        "2026-06-02",
         "--adjust",
         "qfq",
         "--domestic-lag-days",
@@ -263,9 +263,9 @@
         "--us-lag-days",
         "1"
       ],
-      "started_at": "2026-05-31T02:13:24",
-      "ended_at": "2026-05-31T02:13:38",
-      "elapsed_seconds": 13.614,
+      "started_at": "2026-06-02T20:41:30",
+      "ended_at": "2026-06-02T20:41:49",
+      "elapsed_seconds": 18.659,
       "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/003816_pipeline_out/04_external/power_utility_rate/training_samples_with_power_utility_rate_external.csv"

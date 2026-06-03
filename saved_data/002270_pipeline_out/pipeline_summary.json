@@ -7,7 +7,7 @@
     "baostock_symbol": "002270"
   },
   "out_root": "/root/stock_realtime_v021_full/saved_data/002270_pipeline_out",
-  "created_at": "2026-05-31T01:35:55",
+  "created_at": "2026-06-02T20:14:57",
   "args": {
     "symbol": "002270.SZ",
     "sector_symbol": "电网设备",
@@ -16,7 +16,7 @@
     "python": null,
     "dual_script": "bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py",
     "start_date": "2018-01-01",
-    "end_date": "2026-05-31",
+    "end_date": "2026-06-02",
     "intraday_start": null,
     "intraday_end": null,
     "benchmark_symbol": "000300",
@@ -57,14 +57,14 @@
     "test_rows": 63,
     "min_valid_trades": 8,
     "min_train_entries": 80,
-    "resume": true,
+    "resume": false,
     "dry_run": false,
     "continue_on_error": true,
     "only_stages": "update_data,samples,asof_samples,fundamental,sector",
     "skip_stages": "",
     "excel": false
   },
-  "finished_at": "2026-05-31T01:35:55",
+  "finished_at": "2026-06-02T20:16:15",
   "status": "ok",
   "feature_pipeline_effective": [
     "fundamental",
@@ -91,7 +91,7 @@
   "stages": [
     {
       "name": "update_data",
-      "status": "skipped",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "bootstrap/ashare_xgb_dual_opportunity_regression_baostock_full_v19_compressed_trading_axis.py",
@@ -104,11 +104,11 @@
         "--daily_start",
         "2018-01-01",
         "--daily_end",
-        "2026-05-31",
+        "2026-06-02",
         "--intraday_start",
         "2018-01-01 09:30:00",
         "--intraday_end",
-        "2026-05-31 15:00:00",
+        "2026-06-02 15:00:00",
         "--output_dir",
         "/root/stock_realtime_v021_full/saved_data/002270_pipeline_out/00_base",
         "--cache_mode",
@@ -118,10 +118,10 @@
         "--adjust",
         "qfq"
       ],
-      "started_at": "2026-05-31T01:35:55",
-      "ended_at": "2026-05-31T01:35:55",
-      "elapsed_seconds": 0.0,
-      "returncode": null,
+      "started_at": "2026-06-02T20:14:57",
+      "ended_at": "2026-06-02T20:15:16",
+      "elapsed_seconds": 19.565,
+      "returncode": 0,
       "outputs": {
         "daily_features": "/root/stock_realtime_v021_full/saved_data/002270_pipeline_out/00_base/daily_features.csv",
         "intraday_bars": "/root/stock_realtime_v021_full/saved_data/002270_pipeline_out/00_base/002270_5m.csv"
@@ -130,7 +130,7 @@
     },
     {
       "name": "samples",
-      "status": "skipped",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_nextday_samples_from_baostock.py",
@@ -144,10 +144,10 @@
         "40",
         "--keep-unlabeled-tail"
       ],
-      "started_at": "2026-05-31T01:35:55",
-      "ended_at": "2026-05-31T01:35:55",
-      "elapsed_seconds": 0.0,
-      "returncode": null,
+      "started_at": "2026-06-02T20:15:16",
+      "ended_at": "2026-06-02T20:15:17",
+      "elapsed_seconds": 1.096,
+      "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/002270_pipeline_out/01_samples/training_samples.csv"
       },
@@ -155,7 +155,7 @@
     },
     {
       "name": "asof_samples",
-      "status": "skipped",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_asof1455_training_samples.py",
@@ -170,10 +170,10 @@
         "--min-bars",
         "40"
       ],
-      "started_at": "2026-05-31T01:35:55",
-      "ended_at": "2026-05-31T01:35:55",
-      "elapsed_seconds": 0.0,
-      "returncode": null,
+      "started_at": "2026-06-02T20:15:17",
+      "ended_at": "2026-06-02T20:15:19",
+      "elapsed_seconds": 1.215,
+      "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/002270_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv"
       },
@@ -181,7 +181,7 @@
     },
     {
       "name": "fundamental",
-      "status": "skipped",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_fundamental_features.py",
@@ -194,15 +194,15 @@
         "--start-date",
         "2018-01-01",
         "--end-date",
-        "2026-05-31",
+        "2026-06-02",
         "--fallback-lag-days",
         "120",
         "--skip-akshare"
       ],
-      "started_at": "2026-05-31T01:35:55",
-      "ended_at": "2026-05-31T01:35:55",
-      "elapsed_seconds": 0.0,
-      "returncode": null,
+      "started_at": "2026-06-02T20:15:19",
+      "ended_at": "2026-06-02T20:16:10",
+      "elapsed_seconds": 51.86,
+      "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/002270_pipeline_out/02_fundamental/training_samples_with_fundamentals.csv"
       },
@@ -210,7 +210,7 @@
     },
     {
       "name": "sector",
-      "status": "skipped",
+      "status": "ok",
       "command": [
         "/usr/bin/python3",
         "feature_building/build_sector_features.py",
@@ -223,12 +223,12 @@
         "--start-date",
         "2018-01-01",
         "--end-date",
-        "2026-05-31"
+        "2026-06-02"
       ],
-      "started_at": "2026-05-31T01:35:55",
-      "ended_at": "2026-05-31T01:35:55",
-      "elapsed_seconds": 0.0,
-      "returncode": null,
+      "started_at": "2026-06-02T20:16:10",
+      "ended_at": "2026-06-02T20:16:15",
+      "elapsed_seconds": 4.417,
+      "returncode": 0,
       "outputs": {
         "samples": "/root/stock_realtime_v021_full/saved_data/002270_pipeline_out/03_sector/training_samples_with_sector.csv"
       },
