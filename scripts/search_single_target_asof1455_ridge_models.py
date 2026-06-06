@@ -81,12 +81,35 @@ EXCLUDE_EXACT = {
     "feature_cutoff_time",
     "asof_last_bar_time",
 }
-EXCLUDE_SUBSTRINGS = [
+FULL_DAY_LEAKAGE_COLS = {
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "amount",
+    "daily_vwap",
+    "daily_vwap_pv",
+    "daily_vwap_volume",
+    "n_intraday_bars",
+}
+OLD_MODEL_ARTIFACT_EXACT = {
+    "p_rev",
+    "cv_best_l2",
+    "cv_logloss",
+    "cv_folds_used",
+    "train_n",
+    "coef_intercept",
+}
+OLD_MODEL_ARTIFACT_PREFIXES = ("cv_", "coef_")
+FUTURE_TARGET_SUBSTRINGS = [
     "target",
     "label",
     "next_day_",
     "future_return",
     "forward_return",
+]
+RESULT_SIGNAL_SUBSTRINGS = [
     "pred",
     "score",
     "signal",
@@ -104,6 +127,8 @@ class Config:
     model_type: str
     alpha: float
     gamma: Optional[float] = None
+    gamma_multiplier: Optional[float] = None
+    gamma_scale_dim: Optional[int] = None
     n_components: Optional[int] = None
     svd_components: Optional[int] = None
     degree: Optional[int] = None
@@ -114,6 +139,8 @@ class Config:
             self.model_type,
             round(float(self.alpha), 14),
             None if self.gamma is None else round(float(self.gamma), 14),
+            None if self.gamma_multiplier is None else round(float(self.gamma_multiplier), 14),
+            self.gamma_scale_dim,
             self.n_components,
             self.svd_components,
             self.degree,
@@ -125,6 +152,8 @@ class Config:
             {
                 "alpha": self.alpha,
                 "gamma": self.gamma,
+                "gamma_multiplier": self.gamma_multiplier,
+                "gamma_scale_dim": self.gamma_scale_dim,
                 "n_components": self.n_components,
                 "svd_components": self.svd_components,
                 "degree": self.degree,
@@ -268,18 +297,28 @@ def parse_int_grid(text: str) -> List[int]:
     return [int(float(x.strip())) for x in str(text).split(",") if x.strip()]
 
 
-def gamma_grid(d: int, exact: bool = False) -> List[float]:
+def gamma_grid(d: int, exact: bool = False) -> List[Tuple[float, float, int]]:
     if d <= 0:
         return []
     multipliers = EXACT_GAMMA_MULTIPLIERS if exact else GAMMA_MULTIPLIERS
-    return [float(m / d) for m in multipliers]
+    return [(float(m / d), float(m), int(d)) for m in multipliers]
 
 
-def is_excluded_feature(col: str) -> bool:
+def classify_feature(col: str) -> Tuple[str, str, bool]:
     lower = str(col).lower()
     if lower in EXCLUDE_EXACT:
-        return True
-    return any(token in lower for token in EXCLUDE_SUBSTRINGS)
+        return "id_metadata", "excluded_id_or_metadata", False
+    if lower in FULL_DAY_LEAKAGE_COLS:
+        return "full_day_leakage", "full_day_after_asof1455", False
+    if lower in OLD_MODEL_ARTIFACT_EXACT or lower.startswith(OLD_MODEL_ARTIFACT_PREFIXES):
+        return "old_model_artifact", "old_model_artifact", False
+    if any(token in lower for token in FUTURE_TARGET_SUBSTRINGS):
+        return "future_target", "future_target_or_label", False
+    if any(token in lower for token in RESULT_SIGNAL_SUBSTRINGS):
+        return "result_signal", "result_or_selection_signal", False
+    if lower.endswith("_eod"):
+        return "full_day_leakage", "eod_feature_after_asof1455", False
+    return "allowed_asof_safe", "", True
 
 
 def build_all_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str], pd.DataFrame]:
@@ -289,13 +328,14 @@ def build_all_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str], pd.Da
         dtype = str(df[col].dtype)
         missing_rate = float(df[col].isna().mean()) if len(df) else np.nan
         non_null = int(df[col].notna().sum())
+        tag, reason, allowed = classify_feature(col)
         used = False
-        reason = ""
-        if is_excluded_feature(col):
-            reason = "excluded_future_or_result_or_id"
+        if not allowed:
+            pass
         else:
             s = pd.to_numeric(df[col], errors="coerce")
             if int(s.notna().sum()) == 0:
+                tag = "non_numeric_or_empty"
                 reason = "all_null_or_non_numeric"
             else:
                 used = True
@@ -306,6 +346,7 @@ def build_all_features(df: pd.DataFrame) -> Tuple[pd.DataFrame, List[str], pd.Da
                 "dtype": dtype,
                 "missing_rate_full": missing_rate,
                 "non_null_count_full": non_null,
+                "feature_tag": tag,
                 "used": used,
                 "drop_reason": reason if not used else "",
             }
@@ -511,6 +552,8 @@ def base_metric_row(cfg: Config, window_id: str, train_window: int, valid_window
         "model_type": cfg.model_type,
         "alpha": cfg.alpha,
         "gamma": cfg.gamma,
+        "gamma_multiplier": cfg.gamma_multiplier,
+        "gamma_scale_dim": cfg.gamma_scale_dim,
         "n_components": cfg.n_components,
         "svd_components": cfg.svd_components,
         "degree": cfg.degree,
@@ -743,20 +786,20 @@ def make_configs(args, feature_dim: int) -> List[Config]:
                 out.extend(Config("ridge_poly_svd", alpha=a, svd_components=k, degree=int(args.poly_degree), interaction_only=interaction_only) for a in kernel_alphas)
     if "ridge_rbf_nystroem" in models:
         for n in n_components_grid:
-            for g in gamma_grid(feature_dim, exact=False):
-                out.extend(Config("ridge_rbf_nystroem", alpha=a, gamma=g, n_components=n) for a in kernel_alphas)
+            for g, gm, gd in gamma_grid(feature_dim, exact=False):
+                out.extend(Config("ridge_rbf_nystroem", alpha=a, gamma=g, gamma_multiplier=gm, gamma_scale_dim=gd, n_components=n) for a in kernel_alphas)
     if "ridge_svd_rbf_nystroem" in models:
         for k in pre_kernel_grid:
             for n in [x for x in n_components_grid if x <= 512]:
-                for g in gamma_grid(k, exact=False):
-                    out.extend(Config("ridge_svd_rbf_nystroem", alpha=a, gamma=g, n_components=n, svd_components=k) for a in kernel_alphas)
+                for g, gm, gd in gamma_grid(k, exact=False):
+                    out.extend(Config("ridge_svd_rbf_nystroem", alpha=a, gamma=g, gamma_multiplier=gm, gamma_scale_dim=gd, n_components=n, svd_components=k) for a in kernel_alphas)
     if "kernel_ridge_rbf" in models:
-        for g in gamma_grid(feature_dim, exact=True):
-            out.extend(Config("kernel_ridge_rbf", alpha=a, gamma=g) for a in kernel_alphas)
+        for g, gm, gd in gamma_grid(feature_dim, exact=True):
+            out.extend(Config("kernel_ridge_rbf", alpha=a, gamma=g, gamma_multiplier=gm, gamma_scale_dim=gd) for a in kernel_alphas)
     if "kernel_ridge_svd_rbf" in models:
         for k in pre_kernel_grid:
-            for g in gamma_grid(k, exact=True):
-                out.extend(Config("kernel_ridge_svd_rbf", alpha=a, gamma=g, svd_components=k) for a in kernel_alphas)
+            for g, gm, gd in gamma_grid(k, exact=True):
+                out.extend(Config("kernel_ridge_svd_rbf", alpha=a, gamma=g, gamma_multiplier=gm, gamma_scale_dim=gd, svd_components=k) for a in kernel_alphas)
     return out
 
 
@@ -857,7 +900,17 @@ def summarize(window_df: pd.DataFrame) -> pd.DataFrame:
     ok = window_df[window_df["skip_reason"].fillna("") == ""].copy()
     if ok.empty:
         return pd.DataFrame()
-    group_cols = ["stock_code", "model_type", "alpha", "gamma", "n_components", "svd_components", "degree", "interaction_only"]
+    group_cols = [
+        "stock_code",
+        "model_type",
+        "alpha",
+        "gamma_multiplier",
+        "gamma_scale_dim",
+        "n_components",
+        "svd_components",
+        "degree",
+        "interaction_only",
+    ]
     rows: List[Dict] = []
     for keys, g in ok.groupby(group_cols, dropna=False):
         row = dict(zip(group_cols, keys if isinstance(keys, tuple) else (keys,)))
@@ -878,7 +931,10 @@ def summarize(window_df: pd.DataFrame) -> pd.DataFrame:
         }.items():
             s = num_series(g, src)
             for fn in funcs:
-                row[f"{fn}_{src}"] = safe_float(getattr(s, fn)())
+                valid = s.dropna()
+                row[f"{fn}_{src}"] = np.nan if valid.empty else safe_float(getattr(valid, fn)())
+        gamma_values = num_series(g, "gamma").dropna()
+        row["gamma"] = np.nan if gamma_values.empty else safe_float(gamma_values.iloc[0])
         row["passes_valid_gate"] = bool(
             safe_float(row.get("median_valid_rmse_norm")) < 1.0
             and safe_float(row.get("median_valid_rmse")) < safe_float(row.get("median_zero_valid_rmse"))
@@ -894,6 +950,8 @@ def summarize(window_df: pd.DataFrame) -> pd.DataFrame:
             str(row["model_type"]),
             float(row["alpha"]),
             None if pd.isna(row["gamma"]) else float(row["gamma"]),
+            None if pd.isna(row["gamma_multiplier"]) else float(row["gamma_multiplier"]),
+            None if pd.isna(row["gamma_scale_dim"]) else int(row["gamma_scale_dim"]),
             None if pd.isna(row["n_components"]) else int(row["n_components"]),
             None if pd.isna(row["svd_components"]) else int(row["svd_components"]),
             None if pd.isna(row["degree"]) else int(row["degree"]),
@@ -958,6 +1016,8 @@ def best_configs_by_stock(selection: pd.DataFrame) -> Dict[str, List[Config]]:
             str(r.model_type),
             float(params["alpha"]),
             params.get("gamma"),
+            params.get("gamma_multiplier"),
+            params.get("gamma_scale_dim"),
             params.get("n_components"),
             params.get("svd_components"),
             params.get("degree"),
