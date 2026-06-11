@@ -183,6 +183,22 @@ patched = raw
 patched = patched.replace("null_counts=True", "show_counts=True")
 patched = patched.replace(".sort_index(1)", ".sort_index(axis=1)")
 patched = patched.replace("pd.np.arange", "np.arange")
+patched = patched.replace(
+    "prices.groupby(level='symbol').close.apply(RSI)",
+    "prices.groupby(level='symbol', group_keys=False).close.apply(RSI)",
+)
+patched = patched.replace(
+    ".groupby(level='symbol')\\n                      .close\\n                      .apply(compute_bb)",
+    ".groupby(level='symbol', group_keys=False)\\n                      .close\\n                      .apply(compute_bb)",
+)
+patched = patched.replace(
+    "prices.groupby(level='symbol').close.apply(talib.PPO)",
+    "prices.groupby(level='symbol', group_keys=False).close.apply(talib.PPO)",
+)
+patched = patched.replace(
+    ".groupby(level='date')\\n                             .apply(lambda x: pd.qcut",
+    ".groupby(level='date', group_keys=False)\\n                             .apply(lambda x: pd.qcut",
+)
 patched = patched.replace("f'ckpt_{fold}_{epoch}'", "f'ckpt_{fold}_{epoch}.weights.h5'")
 patched = patched.replace(
     "status.expect_partial()",
