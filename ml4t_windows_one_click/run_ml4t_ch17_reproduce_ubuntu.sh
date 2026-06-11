@@ -184,6 +184,10 @@ patched = patched.replace("null_counts=True", "show_counts=True")
 patched = patched.replace(".sort_index(1)", ".sort_index(axis=1)")
 patched = patched.replace("pd.np.arange", "np.arange")
 patched = patched.replace(
+    "sys.path.insert(1, os.path.join(sys.path[0], '..'))",
+    "sys.path.insert(1, str(Path.cwd().resolve().parent))",
+)
+patched = patched.replace(
     "prices.groupby(level='symbol').close.apply(RSI)",
     "prices.groupby(level='symbol', group_keys=False).close.apply(RSI)",
 )
@@ -198,6 +202,10 @@ patched = patched.replace(
 patched = patched.replace(
     ".groupby(level='date')\\n                             .apply(lambda x: pd.qcut",
     ".groupby(level='date', group_keys=False)\\n                             .apply(lambda x: pd.qcut",
+)
+patched = patched.replace(
+    "preds.groupby(level='date').apply(lambda x: spearmanr(x.actual, x[epoch])[0])",
+    "preds.groupby(level='date', group_keys=False).apply(lambda x: spearmanr(x.actual, x[epoch])[0])",
 )
 patched = patched.replace("f'ckpt_{fold}_{epoch}'", "f'ckpt_{fold}_{epoch}.weights.h5'")
 patched = patched.replace(
