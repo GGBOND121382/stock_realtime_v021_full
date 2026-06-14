@@ -598,6 +598,7 @@ patch_notebook_compatibility() {
 from pathlib import Path
 import sys
 import re
+import json
 
 path = Path(sys.argv[1])
 raw = path.read_text(encoding="utf-8")
@@ -683,15 +684,70 @@ if "zipline_returns.csv" not in patched:
         "\"returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)\"",
         "\"returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)\\n\",\n    \"returns.to_csv(results_path / 'zipline_returns.csv')\\n\",\n    \"positions.to_csv(results_path / 'zipline_positions.csv')\\n\",\n    \"transactions.to_csv(results_path / 'zipline_transactions.csv')\\n\",\n    \"results.to_pickle(results_path / 'zipline_results.pkl')\"",
     )
-if "PyFolio full tear sheet failed" not in patched:
-    patched = patched.replace(
-        "pf.create_full_tear_sheet(returns, \\n                          positions=positions, \\n                          transactions=transactions,\\n                          benchmark_rets=benchmark,\\n                          live_start_date=LIVE_DATE, \\n                          round_trips=True)",
-        "try:\\n    pf.create_full_tear_sheet(returns, \\n                              positions=positions, \\n                              transactions=transactions,\\n                              benchmark_rets=benchmark,\\n                              live_start_date=LIVE_DATE, \\n                              round_trips=True)\\nexcept Exception as exc:\\n    print(f'PyFolio full tear sheet failed; saved raw backtest outputs and continuing: {type(exc).__name__}: {exc}')",
-    )
-    patched = patched.replace(
-        "\"pf.create_full_tear_sheet(returns, \\n\",\\n    \"                          positions=positions, \\n\",\\n    \"                          transactions=transactions,\\n\",\\n    \"                          benchmark_rets=benchmark,\\n\",\\n    \"                          live_start_date=LIVE_DATE, \\n\",\\n    \"                          round_trips=True)\"",
-        "\"try:\\n\",\\n    \"    pf.create_full_tear_sheet(returns, \\n\",\\n    \"                              positions=positions, \\n\",\\n    \"                              transactions=transactions,\\n\",\\n    \"                              benchmark_rets=benchmark,\\n\",\\n    \"                              live_start_date=LIVE_DATE, \\n\",\\n    \"                              round_trips=True)\\n\",\\n    \"except Exception as exc:\\n\",\\n    \"    print(f'PyFolio full tear sheet failed; saved raw backtest outputs and continuing: {type(exc).__name__}: {exc}')\"",
-    )
+if path.suffix == ".ipynb":
+    nb = json.loads(patched)
+    nb_changed = False
+    for cell in nb.get("cells", []):
+        if cell.get("cell_type") != "code":
+            continue
+        src = "".join(cell.get("source", []))
+
+        if (
+            "returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)" in src
+            and "zipline_returns.csv" not in src
+        ):
+            src = src.replace(
+                "returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)",
+                "returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)\n"
+                "returns.to_csv(results_path / 'zipline_returns.csv')\n"
+                "positions.to_csv(results_path / 'zipline_positions.csv')\n"
+                "transactions.to_csv(results_path / 'zipline_transactions.csv')\n"
+                "results.to_pickle(results_path / 'zipline_results.pkl')",
+            )
+            cell["source"] = [line + "\n" for line in src.splitlines()]
+            if src and not src.endswith("\n"):
+                cell["source"][-1] = cell["source"][-1].rstrip("\n")
+            nb_changed = True
+
+        if "pf.create_full_tear_sheet(" in src:
+            cell["source"] = [
+                "print('Skipping PyFolio full tear sheet; raw backtest outputs are saved in results/.')",
+            ]
+            nb_changed = True
+
+        if (
+            "start_date, end_date = dates.min(), dates.max()" in src
+            and "start_date = pd.Timestamp(start_date).tz_localize(None)" not in src
+        ):
+            src = src.replace(
+                "start_date, end_date = dates.min(), dates.max()",
+                "start_date, end_date = dates.min(), dates.max()\n"
+                "start_date = pd.Timestamp(start_date).tz_localize(None)\n"
+                "end_date = pd.Timestamp(end_date).tz_localize(None)",
+            )
+            cell["source"] = [line + "\n" for line in src.splitlines()]
+            if src and not src.endswith("\n"):
+                cell["source"][-1] = cell["source"][-1].rstrip("\n")
+            nb_changed = True
+
+        if (
+            "benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()" in src
+            and "FRED benchmark download failed" not in src
+        ):
+            cell["source"] = [
+                "try:\n",
+                "    benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\n",
+                "    benchmark = benchmark.pct_change().tz_localize('UTC')\n",
+                "except Exception as exc:\n",
+                "    print(f'FRED benchmark download failed; using zero benchmark aligned to strategy returns: {exc}')\n",
+                "    benchmark = returns.copy() * 0",
+            ]
+            nb_changed = True
+
+    if nb_changed:
+        patched = json.dumps(nb, ensure_ascii=False, indent=1)
+        if "pf.create_full_tear_sheet(" in patched:
+            raise SystemExit("Notebook patch failed: pf.create_full_tear_sheet is still present.")
 if patched != raw:
     path.write_text(patched, encoding="utf-8")
     print(f"Patched notebook compatibility: {path}")
