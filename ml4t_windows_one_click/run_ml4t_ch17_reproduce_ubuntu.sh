@@ -201,10 +201,45 @@ if spec and spec.submodule_search_locations:
 PY
 }
 
+patch_hdf_compatibility() {
+  local paths=("$@")
+  run_py - "${paths[@]}" <<'PY'
+import sys
+from pathlib import Path
+
+try:
+    import tables
+except Exception as exc:
+    raise SystemExit(f"PyTables is required to patch HDF metadata: {exc}")
+
+for raw_path in sys.argv[1:]:
+    path = Path(raw_path)
+    if not path.exists():
+        continue
+    changed = []
+    with tables.open_file(path, mode="a") as h5:
+        for node in h5.walk_nodes("/"):
+            attrs = getattr(node, "_v_attrs", None)
+            if attrs is None or "kind" not in attrs._v_attrnamesuser:
+                continue
+            kind = attrs.kind
+            if isinstance(kind, bytes):
+                kind_text = kind.decode()
+            else:
+                kind_text = str(kind)
+            if kind_text == "datetime64[ns]":
+                attrs.kind = "datetime64"
+                changed.append(node._v_pathname)
+    if changed:
+        print(f"patched HDF datetime index metadata: {path} -> {', '.join(changed)}")
+PY
+}
+
 preflight_backtest() {
   local nb_backtest="$1"
   echo "Running backtest preflight checks..."
   patch_backtest_compatibility
+  patch_hdf_compatibility "$ASSETS_PATH" "$CHAPTER12_DATA" "$SCORES_PATH" "$PREDS_PATH"
   run_py - "$ASSETS_PATH" "$CHAPTER12_DATA" "$SCORES_PATH" "$PREDS_PATH" "$nb_backtest" <<'PY'
 import ast
 import json
@@ -492,6 +527,8 @@ if [[ "$PREFLIGHT_BACKTEST" -eq 1 ]]; then
   preflight_backtest "$NB17_BACKTEST"
   exit 0
 fi
+
+patch_hdf_compatibility "$ASSETS_PATH" "$CHAPTER12_DATA" "$SCORES_PATH" "$PREDS_PATH"
 
 if [[ "$BACKTEST_ONLY" -eq 1 ]]; then
   if ! test_hdf_key "$ASSETS_PATH" "/quandl/wiki/prices" || ! test_hdf_key "$ASSETS_PATH" "/us_equities/stocks"; then
