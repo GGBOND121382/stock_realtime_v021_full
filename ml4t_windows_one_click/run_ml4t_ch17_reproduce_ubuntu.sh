@@ -656,22 +656,42 @@ patched = patched.replace(
     "pd.Int64Index([asset.sid for asset in assets])",
     "pd.Index([asset.sid for asset in assets], dtype='int64')",
 )
-patched = patched.replace(
-    "benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\nbenchmark = benchmark.pct_change().tz_localize('UTC')",
-    "try:\\n    benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n    benchmark = benchmark.pct_change().tz_localize('UTC')\\nexcept Exception as exc:\\n    print(f'FRED benchmark download failed; using zero benchmark aligned to strategy returns: {exc}')\\n    benchmark = returns.copy() * 0",
-)
-patched = patched.replace(
-    "\"benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n\",\n    \"benchmark = benchmark.pct_change().tz_localize('UTC')\"",
-    "\"try:\\n\",\n    \"    benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n\",\n    \"    benchmark = benchmark.pct_change().tz_localize('UTC')\\n\",\n    \"except Exception as exc:\\n\",\n    \"    print(f'FRED benchmark download failed; using zero benchmark aligned to strategy returns: {exc}')\\n\",\n    \"    benchmark = returns.copy() * 0\"",
-)
-patched = patched.replace(
-    "start_date, end_date = dates.min(), dates.max()",
-    "start_date, end_date = dates.min(), dates.max()\\nstart_date = pd.Timestamp(start_date).tz_localize(None)\\nend_date = pd.Timestamp(end_date).tz_localize(None)",
-)
-patched = patched.replace(
-    "\"start_date, end_date = dates.min(), dates.max()\"",
-    "\"start_date, end_date = dates.min(), dates.max()\\n\",\n    \"start_date = pd.Timestamp(start_date).tz_localize(None)\\n\",\n    \"end_date = pd.Timestamp(end_date).tz_localize(None)\"",
-)
+if "FRED benchmark download failed" not in patched:
+    patched = patched.replace(
+        "benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\nbenchmark = benchmark.pct_change().tz_localize('UTC')",
+        "try:\\n    benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n    benchmark = benchmark.pct_change().tz_localize('UTC')\\nexcept Exception as exc:\\n    print(f'FRED benchmark download failed; using zero benchmark aligned to strategy returns: {exc}')\\n    benchmark = returns.copy() * 0",
+    )
+    patched = patched.replace(
+        "\"benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n\",\n    \"benchmark = benchmark.pct_change().tz_localize('UTC')\"",
+        "\"try:\\n\",\n    \"    benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n\",\n    \"    benchmark = benchmark.pct_change().tz_localize('UTC')\\n\",\n    \"except Exception as exc:\\n\",\n    \"    print(f'FRED benchmark download failed; using zero benchmark aligned to strategy returns: {exc}')\\n\",\n    \"    benchmark = returns.copy() * 0\"",
+    )
+if "start_date = pd.Timestamp(start_date).tz_localize(None)" not in patched:
+    patched = patched.replace(
+        "start_date, end_date = dates.min(), dates.max()",
+        "start_date, end_date = dates.min(), dates.max()\\nstart_date = pd.Timestamp(start_date).tz_localize(None)\\nend_date = pd.Timestamp(end_date).tz_localize(None)",
+    )
+    patched = patched.replace(
+        "\"start_date, end_date = dates.min(), dates.max()\"",
+        "\"start_date, end_date = dates.min(), dates.max()\\n\",\n    \"start_date = pd.Timestamp(start_date).tz_localize(None)\\n\",\n    \"end_date = pd.Timestamp(end_date).tz_localize(None)\"",
+    )
+if "zipline_returns.csv" not in patched:
+    patched = patched.replace(
+        "returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)",
+        "returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)\\nreturns.to_csv(results_path / 'zipline_returns.csv')\\npositions.to_csv(results_path / 'zipline_positions.csv')\\ntransactions.to_csv(results_path / 'zipline_transactions.csv')\\nresults.to_pickle(results_path / 'zipline_results.pkl')",
+    )
+    patched = patched.replace(
+        "\"returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)\"",
+        "\"returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)\\n\",\n    \"returns.to_csv(results_path / 'zipline_returns.csv')\\n\",\n    \"positions.to_csv(results_path / 'zipline_positions.csv')\\n\",\n    \"transactions.to_csv(results_path / 'zipline_transactions.csv')\\n\",\n    \"results.to_pickle(results_path / 'zipline_results.pkl')\"",
+    )
+if "PyFolio full tear sheet failed" not in patched:
+    patched = patched.replace(
+        "pf.create_full_tear_sheet(returns, \\n                          positions=positions, \\n                          transactions=transactions,\\n                          benchmark_rets=benchmark,\\n                          live_start_date=LIVE_DATE, \\n                          round_trips=True)",
+        "try:\\n    pf.create_full_tear_sheet(returns, \\n                              positions=positions, \\n                              transactions=transactions,\\n                              benchmark_rets=benchmark,\\n                              live_start_date=LIVE_DATE, \\n                              round_trips=True)\\nexcept Exception as exc:\\n    print(f'PyFolio full tear sheet failed; saved raw backtest outputs and continuing: {type(exc).__name__}: {exc}')",
+    )
+    patched = patched.replace(
+        "\"pf.create_full_tear_sheet(returns, \\n\",\\n    \"                          positions=positions, \\n\",\\n    \"                          transactions=transactions,\\n\",\\n    \"                          benchmark_rets=benchmark,\\n\",\\n    \"                          live_start_date=LIVE_DATE, \\n\",\\n    \"                          round_trips=True)\"",
+        "\"try:\\n\",\\n    \"    pf.create_full_tear_sheet(returns, \\n\",\\n    \"                              positions=positions, \\n\",\\n    \"                              transactions=transactions,\\n\",\\n    \"                              benchmark_rets=benchmark,\\n\",\\n    \"                              live_start_date=LIVE_DATE, \\n\",\\n    \"                              round_trips=True)\\n\",\\n    \"except Exception as exc:\\n\",\\n    \"    print(f'PyFolio full tear sheet failed; saved raw backtest outputs and continuing: {type(exc).__name__}: {exc}')\"",
+    )
 if patched != raw:
     path.write_text(patched, encoding="utf-8")
     print(f"Patched notebook compatibility: {path}")
