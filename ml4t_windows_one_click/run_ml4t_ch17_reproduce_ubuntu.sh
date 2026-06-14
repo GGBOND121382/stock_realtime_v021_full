@@ -12,6 +12,7 @@ INSTALL_BACKTEST_DEPS=0
 BACKTEST_ONLY=0
 PREFLIGHT_BACKTEST=0
 INGEST_LOCAL_QUANDL=0
+SELF_TEST_PATCHES=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -61,6 +62,11 @@ while [[ $# -gt 0 ]]; do
       BACKTEST_ONLY=1
       shift
       ;;
+    --self-test-patches)
+      SELF_TEST_PATCHES=1
+      BACKTEST_ONLY=1
+      shift
+      ;;
     -h|--help)
       cat <<'EOF'
 Usage:
@@ -78,6 +84,7 @@ Options:
   --backtest-only             Require existing data/results and run only Zipline backtest.
   --preflight-backtest        Check backtest env/data/bundle without running notebooks.
   --ingest-local-quandl       Build Zipline's quandl bundle from local data/assets.h5.
+  --self-test-patches         Run local patch self-tests without training/backtesting.
 EOF
       exit 0
       ;;
@@ -675,15 +682,6 @@ if "start_date = pd.Timestamp(start_date).tz_localize(None)" not in patched:
         "\"start_date, end_date = dates.min(), dates.max()\"",
         "\"start_date, end_date = dates.min(), dates.max()\\n\",\n    \"start_date = pd.Timestamp(start_date).tz_localize(None)\\n\",\n    \"end_date = pd.Timestamp(end_date).tz_localize(None)\"",
     )
-if "zipline_returns.csv" not in patched:
-    patched = patched.replace(
-        "returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)",
-        "returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)\\nreturns.to_csv(results_path / 'zipline_returns.csv')\\npositions.to_csv(results_path / 'zipline_positions.csv')\\ntransactions.to_csv(results_path / 'zipline_transactions.csv')\\nresults.to_pickle(results_path / 'zipline_results.pkl')",
-    )
-    patched = patched.replace(
-        "\"returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)\"",
-        "\"returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)\\n\",\n    \"returns.to_csv(results_path / 'zipline_returns.csv')\\n\",\n    \"positions.to_csv(results_path / 'zipline_positions.csv')\\n\",\n    \"transactions.to_csv(results_path / 'zipline_transactions.csv')\\n\",\n    \"results.to_pickle(results_path / 'zipline_results.pkl')\"",
-    )
 if path.suffix == ".ipynb":
     nb = json.loads(patched)
     nb_changed = False
@@ -692,21 +690,17 @@ if path.suffix == ".ipynb":
             continue
         src = "".join(cell.get("source", []))
 
-        if (
-            "returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)" in src
-            and "zipline_returns.csv" not in src
-        ):
-            src = src.replace(
-                "returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)",
-                "returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)\n"
-                "returns.to_csv(results_path / 'zipline_returns.csv')\n"
-                "positions.to_csv(results_path / 'zipline_positions.csv')\n"
-                "transactions.to_csv(results_path / 'zipline_transactions.csv')\n"
-                "results.to_pickle(results_path / 'zipline_results.pkl')",
-            )
-            cell["source"] = [line + "\n" for line in src.splitlines()]
-            if src and not src.endswith("\n"):
-                cell["source"][-1] = cell["source"][-1].rstrip("\n")
+        if "extract_rets_pos_txn_from_zipline" in src:
+            cell["source"] = [
+                "results.to_pickle(results_path / 'zipline_results.pkl')\n",
+                "returns = results['returns'].copy()\n",
+                "returns.to_csv(results_path / 'zipline_returns.csv')\n",
+                "positions = pd.DataFrame()\n",
+                "transactions = pd.DataFrame()\n",
+                "positions.to_csv(results_path / 'zipline_positions.csv')\n",
+                "transactions.to_csv(results_path / 'zipline_transactions.csv')\n",
+                "print('Skipping PyFolio position/transaction extraction; raw Zipline results and returns are saved in results/.')",
+            ]
             nb_changed = True
 
         if "pf.create_full_tear_sheet(" in src:
@@ -748,10 +742,122 @@ if path.suffix == ".ipynb":
         patched = json.dumps(nb, ensure_ascii=False, indent=1)
         if "pf.create_full_tear_sheet(" in patched:
             raise SystemExit("Notebook patch failed: pf.create_full_tear_sheet is still present.")
+        if "extract_rets_pos_txn_from_zipline" in patched:
+            raise SystemExit("Notebook patch failed: extract_rets_pos_txn_from_zipline is still present.")
 if patched != raw:
     path.write_text(patched, encoding="utf-8")
     print(f"Patched notebook compatibility: {path}")
 PY
+}
+
+self_test_patches() {
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "$tmp_dir"' RETURN
+
+  run_py - "$tmp_dir" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+tmp = Path(sys.argv[1])
+
+cells = [
+    "from pathlib import Path\nimport pandas as pd\nimport pandas_datareader.data as web\nimport pyfolio as pf\n",
+    "dates = predictions.index.get_level_values('date')\nstart_date, end_date = dates.min(), dates.max()",
+    "returns, positions, transactions = pf.utils.extract_rets_pos_txn_from_zipline(results)",
+    "benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\nbenchmark = benchmark.pct_change().tz_localize('UTC')",
+    "pf.create_full_tear_sheet(returns, \n                          positions=positions, \n                          transactions=transactions,\n                          benchmark_rets=benchmark,\n                          live_start_date=LIVE_DATE, \n                          round_trips=True)",
+]
+
+nb = {
+    "cells": [
+        {
+            "cell_type": "code",
+            "execution_count": None,
+            "metadata": {},
+            "outputs": [],
+            "source": src.splitlines(keepends=True),
+        }
+        for src in cells
+    ],
+    "metadata": {},
+    "nbformat": 4,
+    "nbformat_minor": 5,
+}
+(tmp / "patch_self_test.ipynb").write_text(json.dumps(nb, ensure_ascii=False, indent=1), encoding="utf-8")
+PY
+
+  patch_notebook_compatibility "$tmp_dir/patch_self_test.ipynb"
+  patch_notebook_compatibility "$tmp_dir/patch_self_test.ipynb"
+
+  run_py - "$tmp_dir/patch_self_test.ipynb" <<'PY'
+import ast
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+raw = path.read_text(encoding="utf-8")
+nb = json.loads(raw)
+code_cells = ["".join(c.get("source", [])) for c in nb.get("cells", []) if c.get("cell_type") == "code"]
+
+checks = {
+    "removed_extract_rets_pos_txn": "extract_rets_pos_txn_from_zipline" not in raw,
+    "removed_full_tear_sheet": "pf.create_full_tear_sheet(" not in raw,
+    "has_returns_save": raw.count("zipline_returns.csv") == 1,
+    "has_positions_skip": raw.count("Skipping PyFolio position/transaction extraction") == 1,
+    "has_full_tear_skip": raw.count("Skipping PyFolio full tear sheet") == 1,
+    "has_fred_fallback": raw.count("FRED benchmark download failed") == 1,
+    "has_naive_dates": raw.count("start_date = pd.Timestamp(start_date).tz_localize(None)") == 1,
+}
+failed = [name for name, ok in checks.items() if not ok]
+if failed:
+    raise SystemExit(f"patch self-test failed: {failed}")
+for i, code in enumerate(code_cells):
+    if code.strip():
+        ast.parse(code, filename=f"{path}:{i}")
+print("notebook patch self-test passed")
+PY
+
+  if run_py - <<'PY' >/dev/null 2>&1
+import tables
+PY
+  then
+  run_py - "$tmp_dir/self_test.h5" <<'PY'
+import sys
+from pathlib import Path
+import pandas as pd
+
+path = Path(sys.argv[1])
+idx = pd.MultiIndex.from_product(
+    [["A"], pd.date_range("2020-01-01", periods=2)],
+    names=["symbol", "date"],
+)
+pd.DataFrame({"x": [1.0, 2.0]}, index=idx).to_hdf(path, "predictions")
+PY
+  patch_hdf_compatibility "$tmp_dir/self_test.h5"
+  run_py - "$tmp_dir/self_test.h5" <<'PY'
+import sys
+from pathlib import Path
+import tables
+
+path = Path(sys.argv[1])
+with tables.open_file(path) as h5:
+    kinds = [
+        str(node._v_attrs.kind)
+        for node in h5.walk_nodes("/")
+        if hasattr(node, "_v_attrs") and "kind" in node._v_attrs._v_attrnamesuser
+    ]
+if "datetime64[ns]" in kinds:
+    raise SystemExit(f"HDF patch self-test failed: {kinds}")
+print("HDF metadata patch self-test passed")
+PY
+  else
+    echo "Skipping HDF metadata patch self-test because PyTables is not installed in this Python."
+  fi
+
+  echo "All patch self-tests passed. No training/backtest was executed."
 }
 
 build_assets_from_wiki_csv() {
@@ -801,6 +907,16 @@ with pd.HDFStore(store_path) as store:
     print("Keys:", store.keys(), flush=True)
 PY
 }
+
+if [[ "$SELF_TEST_PATCHES" -eq 1 ]]; then
+  echo "Running patch self-tests..."
+  ensure_packages \
+    "Patch self-test" \
+    "pandas" \
+    "pandas"
+  self_test_patches
+  exit 0
+fi
 
 echo "Checking Python dependencies..."
 if [[ "$BACKTEST_ONLY" -eq 0 ]]; then
