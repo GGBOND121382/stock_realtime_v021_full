@@ -1063,7 +1063,12 @@ if [[ "$SELF_TEST_NEGATIVE" -eq 1 ]]; then
 fi
 
 echo "Checking Python dependencies..."
-if [[ "$BACKTEST_ONLY" -eq 0 ]]; then
+if [[ "$LOCAL_BACKTEST" -eq 1 ]]; then
+  ensure_packages \
+    "Local dependency-light backtest" \
+    "numpy pandas tables" \
+    "numpy pandas tables"
+elif [[ "$BACKTEST_ONLY" -eq 0 ]]; then
   ensure_packages \
     "Chapter 12/17 training" \
     "numpy pandas tables sklearn matplotlib seaborn scipy statsmodels jupyter nbconvert nbformat talib tensorflow tensorboard" \
@@ -1101,6 +1106,21 @@ elif [[ "$FORCE_ASSETS" -eq 1 ]] || ! test_hdf_key "$ASSETS_PATH" "/quandl/wiki/
   build_assets_from_wiki_csv "$DATA_DIR"
 else
   echo "Skipping assets.h5 build; required keys already exist."
+fi
+
+if [[ "$LOCAL_BACKTEST" -eq 1 ]]; then
+  if ! test_hdf_key "$ASSETS_PATH" "/quandl/wiki/prices"; then
+    echo "Local backtest requires existing data/assets.h5::/quandl/wiki/prices." >&2
+    exit 1
+  fi
+  if ! test_hdf_key "$PREDS_PATH" "/predictions"; then
+    echo "Local backtest requires existing 17_deep_learning/results/test_preds.h5::/predictions." >&2
+    exit 1
+  fi
+  local_backtest="$WORK_DIR/run_ch17_local_backtest.py"
+  [[ -f "$local_backtest" ]] || { echo "Local backtest script not found: $local_backtest" >&2; exit 1; }
+  run_py "$local_backtest" --repo-dir "$REPO_DIR" --output-dir "$WORK_DIR/out"
+  exit 0
 fi
 
 NB12="$CHAPTER12_DIR/04_preparing_the_model_data.ipynb"
@@ -1151,13 +1171,6 @@ if [[ "$BACKTEST_ONLY" -eq 0 ]]; then
   else
     echo "Skipping Chapter 17 NN training; scores.h5 and test_preds.h5 already exist."
   fi
-fi
-
-if [[ "$LOCAL_BACKTEST" -eq 1 ]]; then
-  local_backtest="$WORK_DIR/run_ch17_local_backtest.py"
-  [[ -f "$local_backtest" ]] || { echo "Local backtest script not found: $local_backtest" >&2; exit 1; }
-  run_py "$local_backtest" --repo-dir "$REPO_DIR" --output-dir "$WORK_DIR/out"
-  exit 0
 fi
 
 if [[ "$SKIP_BACKTEST" -eq 1 ]]; then
