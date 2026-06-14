@@ -132,6 +132,7 @@ function Patch-NotebookCompatibility {
 
     $raw = Get-Content -LiteralPath $Path -Raw
     $patched = $raw
+    $patched = [regex]::Replace($patched, "if hasattr\(status, 'expect_partial'\):\n\s+if hasattr\(status, 'expect_partial'\):\n\s*status\.expect_partial\(\)", "if hasattr(status, 'expect_partial'):`n            status.expect_partial()")
     $patched = $patched.Replace("null_counts=True", "show_counts=True")
     $patched = $patched.Replace(".sort_index(1)", ".sort_index(axis=1)")
     $patched = $patched.Replace("pd.np.arange", "np.arange")
@@ -144,7 +145,8 @@ function Patch-NotebookCompatibility {
     $patched = $patched.Replace("ic = []\nscaler = StandardScaler()\nfor params in param_grid:", "if (results_path / 'scores.h5').exists():\n    print('Skipping NN CV training because results/scores.h5 already exists.')\n    param_grid = []\n\nic = []\nscaler = StandardScaler()\nfor params in param_grid:")
     $patched = $patched.Replace("model_data.columns = [s.split('_')[-1] for s in model_data.columns]\n    model = sm.OLS", "model_data.columns = [s.split('_')[-1] for s in model_data.columns]\n    model_data = model_data.apply(pd.to_numeric, errors='coerce').astype(float)\n    model = sm.OLS")
     $patched = $patched.Replace("f'ckpt_{fold}_{epoch}'", "f'ckpt_{fold}_{epoch}.weights.h5'")
-    $patched = $patched.Replace("status.expect_partial()", "if hasattr(status, 'expect_partial'):\n            status.expect_partial()")
+    $patched = $patched.Replace("        status.expect_partial()", "        if hasattr(status, 'expect_partial'):`n            status.expect_partial()")
+    $patched = [regex]::Replace($patched, "if hasattr\(status, 'expect_partial'\):\n\s+if hasattr\(status, 'expect_partial'\):\n\s*status\.expect_partial\(\)", "if hasattr(status, 'expect_partial'):`n            status.expect_partial()")
     $patched = $patched.Replace("pd.Int64Index([asset.sid for asset in assets])", "pd.Index([asset.sid for asset in assets], dtype='int64')")
     if ($patched -ne $raw) {
         Set-Content -LiteralPath $Path -Value $patched -Encoding UTF8

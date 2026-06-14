@@ -176,10 +176,16 @@ patch_notebook_compatibility() {
   run_py - "$path" <<'PY'
 from pathlib import Path
 import sys
+import re
 
 path = Path(sys.argv[1])
 raw = path.read_text(encoding="utf-8")
 patched = raw
+patched = re.sub(
+    r"if hasattr\(status, 'expect_partial'\):\n\s+if hasattr\(status, 'expect_partial'\):\n\s*status\.expect_partial\(\)",
+    "if hasattr(status, 'expect_partial'):\\n            status.expect_partial()",
+    patched,
+)
 patched = patched.replace("null_counts=True", "show_counts=True")
 patched = patched.replace(".sort_index(1)", ".sort_index(axis=1)")
 patched = patched.replace("pd.np.arange", "np.arange")
@@ -217,8 +223,13 @@ patched = patched.replace(
 )
 patched = patched.replace("f'ckpt_{fold}_{epoch}'", "f'ckpt_{fold}_{epoch}.weights.h5'")
 patched = patched.replace(
-    "status.expect_partial()",
+    "        status.expect_partial()",
+    "        if hasattr(status, 'expect_partial'):\\n            status.expect_partial()",
+)
+patched = re.sub(
+    r"if hasattr\(status, 'expect_partial'\):\n\s+if hasattr\(status, 'expect_partial'\):\n\s*status\.expect_partial\(\)",
     "if hasattr(status, 'expect_partial'):\\n            status.expect_partial()",
+    patched,
 )
 patched = patched.replace(
     "pd.Int64Index([asset.sid for asset in assets])",
