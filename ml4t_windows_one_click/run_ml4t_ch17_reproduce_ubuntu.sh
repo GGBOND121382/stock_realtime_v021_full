@@ -207,6 +207,14 @@ patched = patched.replace(
     "preds.groupby(level='date').apply(lambda x: spearmanr(x.actual, x[epoch])[0])",
     "preds.groupby(level='date', group_keys=False).apply(lambda x: spearmanr(x.actual, x[epoch])[0])",
 )
+patched = patched.replace(
+    "ic = []\\nscaler = StandardScaler()\\nfor params in param_grid:",
+    "if (results_path / 'scores.h5').exists():\\n    print('Skipping NN CV training because results/scores.h5 already exists.')\\n    param_grid = []\\n\\nic = []\\nscaler = StandardScaler()\\nfor params in param_grid:",
+)
+patched = patched.replace(
+    "model_data.columns = [s.split('_')[-1] for s in model_data.columns]\\n    model = sm.OLS",
+    "model_data.columns = [s.split('_')[-1] for s in model_data.columns]\\n    model_data = model_data.apply(pd.to_numeric, errors='coerce').astype(float)\\n    model = sm.OLS",
+)
 patched = patched.replace("f'ckpt_{fold}_{epoch}'", "f'ckpt_{fold}_{epoch}.weights.h5'")
 patched = patched.replace(
     "status.expect_partial()",
