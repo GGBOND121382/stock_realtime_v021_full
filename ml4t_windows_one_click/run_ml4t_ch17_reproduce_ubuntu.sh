@@ -11,6 +11,7 @@ SKIP_BACKTEST=0
 INSTALL_BACKTEST_DEPS=0
 BACKTEST_ONLY=0
 PREFLIGHT_BACKTEST=0
+INGEST_LOCAL_QUANDL=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -55,6 +56,11 @@ while [[ $# -gt 0 ]]; do
       BACKTEST_ONLY=1
       shift
       ;;
+    --ingest-local-quandl)
+      INGEST_LOCAL_QUANDL=1
+      BACKTEST_ONLY=1
+      shift
+      ;;
     -h|--help)
       cat <<'EOF'
 Usage:
@@ -71,6 +77,7 @@ Options:
   --install-backtest-deps     pip install Zipline/pyfolio/alphalens dependencies.
   --backtest-only             Require existing data/results and run only Zipline backtest.
   --preflight-backtest        Check backtest env/data/bundle without running notebooks.
+  --ingest-local-quandl       Build Zipline's quandl bundle from local data/assets.h5.
 EOF
       exit 0
       ;;
@@ -289,6 +296,141 @@ for raw_path in sys.argv[1:]:
 PY
 }
 
+write_local_quandl_extension() {
+  run_py - "$ASSETS_PATH" <<'PY'
+import os
+import sys
+from pathlib import Path
+
+assets_path = Path(sys.argv[1]).resolve()
+zipline_dir = Path.home() / ".zipline"
+zipline_dir.mkdir(parents=True, exist_ok=True)
+extension_path = zipline_dir / "extension.py"
+
+content = f'''
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+from zipline.data.bundles import register
+
+try:
+    from zipline.data.bundles import unregister
+except Exception:
+    unregister = None
+
+
+ASSETS_H5 = Path(r"{assets_path.as_posix()}")
+
+
+def ml4t_quandl_bundle(environ,
+                       asset_db_writer,
+                       minute_bar_writer,
+                       daily_bar_writer,
+                       adjustment_writer,
+                       calendar,
+                       start_session,
+                       end_session,
+                       cache,
+                       show_progress,
+                       output_dir):
+    prices = pd.read_hdf(ASSETS_H5, "quandl/wiki/prices").sort_index()
+    if prices.index.names != ["date", "ticker"]:
+        prices = prices.reorder_levels(["date", "ticker"]).sort_index()
+
+    tickers = prices.index.get_level_values("ticker").unique().sort_values()
+    sid_map = {{ticker: sid for sid, ticker in enumerate(tickers)}}
+
+    stocks = pd.read_hdf(ASSETS_H5, "quandl/wiki/stocks")
+    if "code" in stocks.columns:
+        stocks = stocks.set_index("code")
+    names = stocks["name"].to_dict() if "name" in stocks.columns else {{}}
+
+    grouped = prices.groupby(level="ticker", sort=True)
+    metadata = []
+    daily_data = []
+    splits = []
+    dividends = []
+
+    for ticker, df in grouped:
+        sid = sid_map[ticker]
+        df = df.droplevel("ticker").sort_index()
+        df.index = pd.DatetimeIndex(df.index).tz_localize(None)
+
+        start = df.index.min()
+        end = df.index.max()
+        metadata.append({{
+            "sid": sid,
+            "symbol": ticker,
+            "asset_name": names.get(ticker, ticker),
+            "start_date": start,
+            "end_date": end,
+            "first_traded": start,
+            "auto_close_date": end + pd.Timedelta(days=1),
+            "exchange": "NYSE",
+        }})
+
+        ohlcv = pd.DataFrame({{
+            "open": df["adj_open"] if "adj_open" in df else df["open"],
+            "high": df["adj_high"] if "adj_high" in df else df["high"],
+            "low": df["adj_low"] if "adj_low" in df else df["low"],
+            "close": df["adj_close"] if "adj_close" in df else df["close"],
+            "volume": df["adj_volume"] if "adj_volume" in df else df["volume"],
+        }}).replace([np.inf, -np.inf], np.nan).dropna()
+        ohlcv["volume"] = ohlcv["volume"].clip(lower=0)
+        daily_data.append((sid, ohlcv))
+
+        if "split_ratio" in df:
+            split_rows = df[df["split_ratio"].fillna(1) != 1]
+            for date, row in split_rows.iterrows():
+                ratio = row["split_ratio"]
+                if pd.notna(ratio) and ratio not in (0, 1):
+                    splits.append({{"sid": sid, "effective_date": date, "ratio": 1.0 / float(ratio)}})
+
+        if "ex-dividend" in df:
+            div_rows = df[df["ex-dividend"].fillna(0) != 0]
+            for date, row in div_rows.iterrows():
+                amount = row["ex-dividend"]
+                if pd.notna(amount) and amount != 0:
+                    dividends.append({{
+                        "sid": sid,
+                        "ex_date": date,
+                        "record_date": date,
+                        "declared_date": date,
+                        "pay_date": date,
+                        "amount": float(amount),
+                    }})
+
+    asset_db_writer.write(equities=pd.DataFrame(metadata).set_index("sid"))
+    daily_bar_writer.write(daily_data, show_progress=show_progress)
+    adjustment_writer.write(
+        splits=pd.DataFrame(splits, columns=["sid", "effective_date", "ratio"]),
+        dividends=pd.DataFrame(dividends, columns=["sid", "ex_date", "record_date", "declared_date", "pay_date", "amount"]),
+    )
+
+
+if unregister is not None:
+    try:
+        unregister("quandl")
+    except Exception:
+        pass
+
+register("quandl", ml4t_quandl_bundle, calendar_name="XNYS")
+'''
+
+extension_path.write_text(content)
+print(f"wrote local Zipline quandl extension: {extension_path}")
+PY
+}
+
+ingest_local_quandl_bundle() {
+  echo "Building Zipline quandl bundle from local assets.h5..."
+  patch_backtest_compatibility
+  patch_hdf_compatibility "$ASSETS_PATH"
+  write_local_quandl_extension
+  run_py -m zipline ingest -b quandl
+}
+
 preflight_backtest() {
   local nb_backtest="$1"
   echo "Running backtest preflight checks..."
@@ -352,6 +494,23 @@ except Exception as exc:
         f"Original error: {type(exc).__name__}: {exc}"
     )
 print("ok zipline bundle: quandl")
+
+tickers = preds.index.get_level_values("symbol").unique().tolist()
+try:
+    assets = bundle.asset_finder.lookup_symbols(tickers, as_of_date=None)
+except Exception as exc:
+    raise SystemExit(
+        "failed to map prediction tickers to Zipline assets. "
+        "The 'quandl' bundle may not match test_preds.h5 symbols. "
+        f"Original error: {type(exc).__name__}: {exc}"
+    )
+missing = [ticker for ticker, asset in zip(tickers, assets) if asset is None]
+if missing:
+    raise SystemExit(
+        f"Zipline bundle did not resolve {len(missing)} prediction tickers; "
+        f"examples: {missing[:10]}"
+    )
+print(f"ok asset lookup: {len(assets):,} prediction tickers")
 
 nb = json.loads(nb_path.read_text(encoding="utf-8"))
 for cell_no, cell in enumerate(nb.get("cells", [])):
@@ -585,6 +744,12 @@ if [[ "$PREFLIGHT_BACKTEST" -eq 1 ]]; then
 fi
 
 patch_hdf_compatibility "$ASSETS_PATH" "$CHAPTER12_DATA" "$SCORES_PATH" "$PREDS_PATH"
+
+if [[ "$INGEST_LOCAL_QUANDL" -eq 1 ]]; then
+  ingest_local_quandl_bundle
+  echo "Local Zipline quandl bundle ingest completed."
+  exit 0
+fi
 
 if [[ "$BACKTEST_ONLY" -eq 1 ]]; then
   if ! test_hdf_key "$ASSETS_PATH" "/quandl/wiki/prices" || ! test_hdf_key "$ASSETS_PATH" "/us_equities/stocks"; then
