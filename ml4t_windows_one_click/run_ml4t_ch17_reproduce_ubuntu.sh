@@ -378,8 +378,8 @@ def ml4t_quandl_bundle(environ,
             "volume": df["adj_volume"] if "adj_volume" in df else df["volume"],
         }}).replace([np.inf, -np.inf], np.nan).dropna()
         sessions = calendar.sessions_in_range(
-            pd.Timestamp(start).tz_localize("UTC"),
-            pd.Timestamp(end).tz_localize("UTC"),
+            pd.Timestamp(start),
+            pd.Timestamp(end),
         ).tz_localize(None)
         ohlcv = ohlcv.reindex(sessions)
         close = ohlcv["close"].ffill().bfill()
