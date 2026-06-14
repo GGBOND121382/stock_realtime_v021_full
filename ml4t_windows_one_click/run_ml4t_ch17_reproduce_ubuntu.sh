@@ -9,6 +9,8 @@ FORCE_CHAPTER12=0
 FORCE_TRAINING=0
 SKIP_BACKTEST=0
 INSTALL_BACKTEST_DEPS=0
+BACKTEST_ONLY=0
+PREFLIGHT_BACKTEST=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -44,6 +46,15 @@ while [[ $# -gt 0 ]]; do
       INSTALL_BACKTEST_DEPS=1
       shift
       ;;
+    --backtest-only)
+      BACKTEST_ONLY=1
+      shift
+      ;;
+    --preflight-backtest)
+      PREFLIGHT_BACKTEST=1
+      BACKTEST_ONLY=1
+      shift
+      ;;
     -h|--help)
       cat <<'EOF'
 Usage:
@@ -58,6 +69,8 @@ Options:
   --force-training            Re-run Chapter 17 NN training notebook.
   --skip-backtest             Skip Zipline backtest notebook.
   --install-backtest-deps     pip install Zipline/pyfolio/alphalens dependencies.
+  --backtest-only             Require existing data/results and run only Zipline backtest.
+  --preflight-backtest        Check backtest env/data/bundle without running notebooks.
 EOF
       exit 0
       ;;
@@ -113,10 +126,14 @@ ensure_packages() {
 
   local missing
   missing="$(run_py - "$imports" <<'PY'
-import importlib.util
 import sys
 mods = sys.argv[1].split()
-missing = [m for m in mods if importlib.util.find_spec(m) is None]
+missing = []
+for mod in mods:
+    try:
+        __import__(mod)
+    except Exception:
+        missing.append(mod)
 print(",".join(missing))
 raise SystemExit(1 if missing else 0)
 PY
@@ -136,6 +153,130 @@ PY
   echo "Installing packages: $packages"
   # shellcheck disable=SC2086
   run_py -m pip install $packages
+}
+
+patch_backtest_compatibility() {
+  run_py - <<'PY'
+from pathlib import Path
+import importlib.util
+
+
+def patch_file(path, replacements):
+    path = Path(path)
+    if not path.exists():
+        return
+    raw = path.read_text()
+    patched = raw
+    for old, new in replacements:
+        patched = patched.replace(old, new)
+    if patched != raw:
+        backup = path.with_suffix(path.suffix + ".ml4t_bak")
+        if not backup.exists():
+            backup.write_text(raw)
+        path.write_text(patched)
+        print(f"patched compatibility: {path}")
+
+
+spec = importlib.util.find_spec("trading_calendars")
+if spec and spec.submodule_search_locations:
+    pkg = Path(list(spec.submodule_search_locations)[0])
+    patch_file(
+        pkg / "calendar_helpers.py",
+        [(
+            "NP_NAT = np.array([pd.NaT], dtype=np.int64)[0]",
+            "NP_NAT = np.datetime64('NaT').astype(np.int64)",
+        )],
+    )
+
+spec = importlib.util.find_spec("alphalens")
+if spec and spec.submodule_search_locations:
+    pkg = Path(list(spec.submodule_search_locations)[0])
+    patch_file(
+        pkg / "utils.py",
+        [(
+            "df.index.levels[0].freq = freq",
+            "try:\n        df.index.levels[0].freq = freq\n    except ValueError:\n        pass",
+        )],
+    )
+PY
+}
+
+preflight_backtest() {
+  local nb_backtest="$1"
+  echo "Running backtest preflight checks..."
+  patch_backtest_compatibility
+  run_py - "$ASSETS_PATH" "$CHAPTER12_DATA" "$SCORES_PATH" "$PREDS_PATH" "$nb_backtest" <<'PY'
+import ast
+import json
+import sys
+from pathlib import Path
+
+import pandas as pd
+
+assets_path, chapter12_data, scores_path, preds_path, nb_path = map(Path, sys.argv[1:])
+
+
+def require_hdf_key(path, key):
+    if not path.exists():
+        raise SystemExit(f"missing required file: {path}")
+    with pd.HDFStore(path) as store:
+        keys = store.keys()
+    wanted = "/" + key.strip("/")
+    if wanted not in keys:
+        raise SystemExit(f"missing HDF key {wanted} in {path}; found {keys}")
+    print(f"ok hdf: {path}::{wanted}")
+
+
+require_hdf_key(assets_path, "/quandl/wiki/prices")
+require_hdf_key(assets_path, "/us_equities/stocks")
+require_hdf_key(chapter12_data, "/model_data")
+require_hdf_key(scores_path, "/ic_by_day")
+require_hdf_key(preds_path, "/predictions")
+
+preds = pd.read_hdf(preds_path, "predictions")
+if preds.empty:
+    raise SystemExit(f"empty predictions: {preds_path}")
+if preds.index.names != ["symbol", "date"]:
+    raise SystemExit(f"unexpected predictions index names: {preds.index.names}")
+print(f"ok predictions: rows={len(preds):,}, columns={list(preds.columns)}")
+
+mods = [
+    "zipline",
+    "pyfolio",
+    "alphalens",
+    "trading_calendars",
+    "logbook",
+    "pandas_datareader",
+]
+for mod in mods:
+    __import__(mod)
+print("ok imports:", ", ".join(mods))
+
+from zipline.data import bundles
+
+try:
+    bundle = bundles.load("quandl")
+except Exception as exc:
+    raise SystemExit(
+        "failed to load Zipline bundle 'quandl'. "
+        "Run zipline ingest or check ~/.zipline before backtesting. "
+        f"Original error: {type(exc).__name__}: {exc}"
+    )
+print("ok zipline bundle: quandl")
+
+nb = json.loads(nb_path.read_text(encoding="utf-8"))
+for cell_no, cell in enumerate(nb.get("cells", [])):
+    if cell.get("cell_type") != "code":
+        continue
+    code = "\n".join(
+        line for line in "".join(cell.get("source", [])).splitlines()
+        if not line.lstrip().startswith(("%", "!", "?"))
+    )
+    if code.strip():
+        ast.parse(code, filename=f"{nb_path}:{cell_no}")
+print(f"ok notebook syntax: {nb_path}")
+PY
+  echo "Backtest preflight passed. No training or backtest notebook was executed."
 }
 
 test_hdf_key() {
@@ -176,7 +317,6 @@ patch_notebook_compatibility() {
   local repair_script="$WORK_DIR/repair_ch17_notebooks.py"
   if [[ -f "$repair_script" ]]; then
     run_py "$repair_script" "$path"
-    return
   fi
   run_py - "$path" <<'PY'
 from pathlib import Path
@@ -240,6 +380,14 @@ patched = patched.replace(
     "pd.Int64Index([asset.sid for asset in assets])",
     "pd.Index([asset.sid for asset in assets], dtype='int64')",
 )
+patched = patched.replace(
+    "benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\nbenchmark = benchmark.pct_change().tz_localize('UTC')",
+    "try:\\n    benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n    benchmark = benchmark.pct_change().tz_localize('UTC')\\nexcept Exception as exc:\\n    print(f'FRED benchmark download failed; using zero benchmark aligned to strategy returns: {exc}')\\n    benchmark = returns.copy() * 0",
+)
+patched = patched.replace(
+    "\"benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n\",\n    \"benchmark = benchmark.pct_change().tz_localize('UTC')\"",
+    "\"try:\\n\",\n    \"    benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n\",\n    \"    benchmark = benchmark.pct_change().tz_localize('UTC')\\n\",\n    \"except Exception as exc:\\n\",\n    \"    print(f'FRED benchmark download failed; using zero benchmark aligned to strategy returns: {exc}')\\n\",\n    \"    benchmark = returns.copy() * 0\"",
+)
 if patched != raw:
     path.write_text(patched, encoding="utf-8")
     print(f"Patched notebook compatibility: {path}")
@@ -295,16 +443,23 @@ PY
 }
 
 echo "Checking Python dependencies..."
-ensure_packages \
-  "Chapter 12/17 training" \
-  "numpy pandas tables sklearn matplotlib seaborn scipy statsmodels jupyter nbconvert nbformat talib tensorflow tensorboard" \
-  "numpy pandas tables scikit-learn matplotlib seaborn scipy statsmodels jupyter nbconvert nbformat TA-Lib tensorflow tensorboard"
+if [[ "$BACKTEST_ONLY" -eq 0 ]]; then
+  ensure_packages \
+    "Chapter 12/17 training" \
+    "numpy pandas tables sklearn matplotlib seaborn scipy statsmodels jupyter nbconvert nbformat talib tensorflow tensorboard" \
+    "numpy pandas tables scikit-learn matplotlib seaborn scipy statsmodels jupyter nbconvert nbformat TA-Lib tensorflow tensorboard"
+else
+  ensure_packages \
+    "Backtest notebook execution" \
+    "numpy pandas tables jupyter nbconvert nbformat matplotlib seaborn" \
+    "numpy pandas tables jupyter nbconvert nbformat matplotlib seaborn"
+fi
 
 if [[ "$INSTALL_BACKTEST_DEPS" -eq 1 ]]; then
   ensure_packages \
     "Zipline backtest" \
-    "zipline pyfolio alphalens trading_calendars logbook" \
-    "zipline-reloaded pyfolio-reloaded alphalens-reloaded trading-calendars logbook"
+    "zipline pyfolio alphalens trading_calendars logbook pandas_datareader" \
+    "zipline-reloaded pyfolio-reloaded alphalens-reloaded trading-calendars logbook pandas_datareader"
 fi
 
 DATA_DIR="$REPO_DIR/data"
@@ -316,7 +471,9 @@ CHAPTER17_RESULTS="$CHAPTER17_DIR/results"
 SCORES_PATH="$CHAPTER17_RESULTS/scores.h5"
 PREDS_PATH="$CHAPTER17_RESULTS/test_preds.h5"
 
-if [[ "$FORCE_ASSETS" -eq 1 ]] || ! test_hdf_key "$ASSETS_PATH" "/quandl/wiki/prices" || ! test_hdf_key "$ASSETS_PATH" "/us_equities/stocks"; then
+if [[ "$BACKTEST_ONLY" -eq 1 ]]; then
+  echo "Backtest-only mode: not rebuilding assets.h5."
+elif [[ "$FORCE_ASSETS" -eq 1 ]] || ! test_hdf_key "$ASSETS_PATH" "/quandl/wiki/prices" || ! test_hdf_key "$ASSETS_PATH" "/us_equities/stocks"; then
   echo "Building data/assets.h5 from existing local WIKI csv files..."
   build_assets_from_wiki_csv "$DATA_DIR"
 else
@@ -331,23 +488,45 @@ patch_notebook_compatibility "$NB12"
 patch_notebook_compatibility "$NB17_TRAIN"
 patch_notebook_compatibility "$NB17_BACKTEST"
 
-if [[ "$FORCE_CHAPTER12" -eq 1 ]] || ! test_hdf_key "$CHAPTER12_DATA" "/model_data"; then
+if [[ "$PREFLIGHT_BACKTEST" -eq 1 ]]; then
+  preflight_backtest "$NB17_BACKTEST"
+  exit 0
+fi
+
+if [[ "$BACKTEST_ONLY" -eq 1 ]]; then
+  if ! test_hdf_key "$ASSETS_PATH" "/quandl/wiki/prices" || ! test_hdf_key "$ASSETS_PATH" "/us_equities/stocks"; then
+    echo "Backtest-only mode requires existing data/assets.h5 with /quandl/wiki/prices and /us_equities/stocks." >&2
+    exit 1
+  fi
+  if ! test_hdf_key "$CHAPTER12_DATA" "/model_data"; then
+    echo "Backtest-only mode requires existing 12_gradient_boosting_machines/data.h5::/model_data." >&2
+    exit 1
+  fi
+  if ! test_hdf_key "$SCORES_PATH" "/ic_by_day" || ! test_hdf_key "$PREDS_PATH" "/predictions"; then
+    echo "Backtest-only mode requires existing scores.h5::/ic_by_day and test_preds.h5::/predictions." >&2
+    exit 1
+  fi
+  echo "Backtest-only mode: existing data/results verified."
+elif [[ "$FORCE_CHAPTER12" -eq 1 ]] || ! test_hdf_key "$CHAPTER12_DATA" "/model_data"; then
   invoke_notebook "$NB12" "04_preparing_the_model_data.executed.ipynb"
 else
   echo "Skipping Chapter 12 model data; 12_gradient_boosting_machines/data.h5::/model_data already exists."
 fi
 
-if [[ "$FORCE_TRAINING" -eq 1 ]] || ! test_hdf_key "$SCORES_PATH" "/ic_by_day" || ! test_hdf_key "$PREDS_PATH" "/predictions"; then
-  invoke_notebook "$NB17_TRAIN" "04_optimizing_a_NN_architecture_for_trading.executed.ipynb"
-else
-  echo "Skipping Chapter 17 NN training; scores.h5 and test_preds.h5 already exist."
+if [[ "$BACKTEST_ONLY" -eq 0 ]]; then
+  if [[ "$FORCE_TRAINING" -eq 1 ]] || ! test_hdf_key "$SCORES_PATH" "/ic_by_day" || ! test_hdf_key "$PREDS_PATH" "/predictions"; then
+    invoke_notebook "$NB17_TRAIN" "04_optimizing_a_NN_architecture_for_trading.executed.ipynb"
+  else
+    echo "Skipping Chapter 17 NN training; scores.h5 and test_preds.h5 already exist."
+  fi
 fi
 
 if [[ "$SKIP_BACKTEST" -eq 1 ]]; then
   echo "Skipping Zipline backtest by request."
 else
+  patch_backtest_compatibility
   if ! run_py - <<'PY' >/dev/null 2>&1
-import zipline, pyfolio, alphalens, trading_calendars, logbook
+import zipline, pyfolio, alphalens, trading_calendars, logbook, pandas_datareader
 PY
   then
     cat >&2 <<'EOF'
