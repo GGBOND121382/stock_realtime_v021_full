@@ -653,6 +653,14 @@ patched = patched.replace(
     "\"benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n\",\n    \"benchmark = benchmark.pct_change().tz_localize('UTC')\"",
     "\"try:\\n\",\n    \"    benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n\",\n    \"    benchmark = benchmark.pct_change().tz_localize('UTC')\\n\",\n    \"except Exception as exc:\\n\",\n    \"    print(f'FRED benchmark download failed; using zero benchmark aligned to strategy returns: {exc}')\\n\",\n    \"    benchmark = returns.copy() * 0\"",
 )
+patched = patched.replace(
+    "start_date, end_date = dates.min(), dates.max()",
+    "start_date, end_date = dates.min(), dates.max()\\nstart_date = pd.Timestamp(start_date).tz_localize(None)\\nend_date = pd.Timestamp(end_date).tz_localize(None)",
+)
+patched = patched.replace(
+    "\"start_date, end_date = dates.min(), dates.max()\"",
+    "\"start_date, end_date = dates.min(), dates.max()\\n\",\n    \"start_date = pd.Timestamp(start_date).tz_localize(None)\\n\",\n    \"end_date = pd.Timestamp(end_date).tz_localize(None)\"",
+)
 if patched != raw:
     path.write_text(patched, encoding="utf-8")
     print(f"Patched notebook compatibility: {path}")
