@@ -130,6 +130,15 @@ function Invoke-Notebook {
 function Patch-NotebookCompatibility {
     param([string]$Path)
 
+    $repairScript = Join-Path $WorkDir "repair_ch17_notebooks.py"
+    if (Test-Path $repairScript) {
+        & $pythonExe @pythonPrefix $repairScript $Path
+        if ($LASTEXITCODE -ne 0) {
+            throw "Notebook repair failed: $Path"
+        }
+        return
+    }
+
     $raw = Get-Content -LiteralPath $Path -Raw
     $patched = $raw
     $patched = [regex]::Replace($patched, "if hasattr\(status, 'expect_partial'\):\n\s+if hasattr\(status, 'expect_partial'\):\n\s*status\.expect_partial\(\)", "if hasattr(status, 'expect_partial'):`n            status.expect_partial()")

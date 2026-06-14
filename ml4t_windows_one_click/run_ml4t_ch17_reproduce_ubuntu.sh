@@ -173,6 +173,11 @@ invoke_notebook() {
 
 patch_notebook_compatibility() {
   local path="$1"
+  local repair_script="$WORK_DIR/repair_ch17_notebooks.py"
+  if [[ -f "$repair_script" ]]; then
+    run_py "$repair_script" "$path"
+    return
+  fi
   run_py - "$path" <<'PY'
 from pathlib import Path
 import sys

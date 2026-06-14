@@ -10,6 +10,8 @@ import pandas as pd
 import statsmodels.api as sm
 from sklearn.preprocessing import StandardScaler
 
+from repair_ch17_notebooks import main as repair_notebooks
+
 
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT / "machine-learning-for-trading"
@@ -187,6 +189,7 @@ def test_bad_expect_partial_repair_regex():
 
 
 def main():
+    repair_notebooks()
     assert_code_cells_parse()
     assert_no_known_bad_patterns()
     test_run_ols_dynamic()
