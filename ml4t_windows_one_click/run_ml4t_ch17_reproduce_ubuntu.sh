@@ -376,7 +376,7 @@ def ml4t_quandl_bundle(environ,
             "end_date": end,
             "first_traded": start,
             "auto_close_date": end + pd.Timedelta(days=1),
-            "exchange": "NYSE",
+            "exchange": "QUANDL",
         }})
 
         ohlcv = pd.DataFrame({{
@@ -418,7 +418,18 @@ def ml4t_quandl_bundle(environ,
                         "amount": float(amount),
                     }})
 
-    asset_db_writer.write(equities=pd.DataFrame(metadata).set_index("sid"))
+    exchanges = pd.DataFrame(
+        [[
+            "QUANDL",
+            "QUANDL",
+            "US",
+        ]],
+        columns=["exchange", "canonical_name", "country_code"],
+    )
+    asset_db_writer.write(
+        equities=pd.DataFrame(metadata).set_index("sid"),
+        exchanges=exchanges,
+    )
     daily_bar_writer.write(daily_data, show_progress=show_progress)
     adjustment_writer.write(
         splits=pd.DataFrame(splits, columns=["sid", "effective_date", "ratio"]),
