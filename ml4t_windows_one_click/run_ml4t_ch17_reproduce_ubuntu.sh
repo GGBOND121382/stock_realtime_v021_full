@@ -377,7 +377,15 @@ def ml4t_quandl_bundle(environ,
             "close": df["adj_close"] if "adj_close" in df else df["close"],
             "volume": df["adj_volume"] if "adj_volume" in df else df["volume"],
         }}).replace([np.inf, -np.inf], np.nan).dropna()
-        ohlcv["volume"] = ohlcv["volume"].clip(lower=0)
+        sessions = calendar.sessions_in_range(
+            pd.Timestamp(start).tz_localize("UTC"),
+            pd.Timestamp(end).tz_localize("UTC"),
+        ).tz_localize(None)
+        ohlcv = ohlcv.reindex(sessions)
+        close = ohlcv["close"].ffill().bfill()
+        for col in ["open", "high", "low", "close"]:
+            ohlcv[col] = ohlcv[col].fillna(close)
+        ohlcv["volume"] = ohlcv["volume"].fillna(0).clip(lower=0)
         daily_data.append((sid, ohlcv))
 
         if "split_ratio" in df:
