@@ -177,6 +177,66 @@ def patch_file(path, replacements):
         print(f"patched compatibility: {path}")
 
 
+def patch_alphalens_utils(path):
+    path = Path(path)
+    if not path.exists():
+        return
+    raw = path.read_text()
+    lines = raw.splitlines(keepends=True)
+    out = []
+    changed = False
+    i = 0
+    target = "df.index.levels[0].freq = freq"
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+
+        # Repair a previously malformed patch:
+        #     try:
+        #     df.index.levels[0].freq = freq
+        # except ValueError:
+        #     pass
+        if stripped == "try:" and i + 1 < len(lines) and lines[i + 1].strip() == target:
+            indent = line[: len(line) - len(line.lstrip())]
+            out.append(f"{indent}try:\n")
+            out.append(f"{indent}    {target}\n")
+            if i + 2 < len(lines) and lines[i + 2].strip() == "except ValueError:":
+                out.append(f"{indent}except ValueError:\n")
+                if i + 3 < len(lines) and lines[i + 3].strip() == "pass":
+                    out.append(f"{indent}    pass\n")
+                    i += 4
+                else:
+                    out.append(f"{indent}    pass\n")
+                    i += 3
+            else:
+                out.append(f"{indent}except ValueError:\n")
+                out.append(f"{indent}    pass\n")
+                i += 2
+            changed = True
+            continue
+
+        if stripped == target:
+            indent = line[: len(line) - len(line.lstrip())]
+            out.append(f"{indent}try:\n")
+            out.append(f"{indent}    {target}\n")
+            out.append(f"{indent}except ValueError:\n")
+            out.append(f"{indent}    pass\n")
+            changed = True
+            i += 1
+            continue
+
+        out.append(line)
+        i += 1
+
+    patched = "".join(out)
+    if changed and patched != raw:
+        backup = path.with_suffix(path.suffix + ".ml4t_bak")
+        if not backup.exists():
+            backup.write_text(raw)
+        path.write_text(patched)
+        print(f"patched compatibility: {path}")
+
+
 spec = importlib.util.find_spec("trading_calendars")
 if spec and spec.submodule_search_locations:
     pkg = Path(list(spec.submodule_search_locations)[0])
@@ -191,13 +251,7 @@ if spec and spec.submodule_search_locations:
 spec = importlib.util.find_spec("alphalens")
 if spec and spec.submodule_search_locations:
     pkg = Path(list(spec.submodule_search_locations)[0])
-    patch_file(
-        pkg / "utils.py",
-        [(
-            "df.index.levels[0].freq = freq",
-            "try:\n        df.index.levels[0].freq = freq\n    except ValueError:\n        pass",
-        )],
-    )
+    patch_alphalens_utils(pkg / "utils.py")
 PY
 }
 
@@ -489,6 +543,8 @@ else
     "numpy pandas tables jupyter nbconvert nbformat matplotlib seaborn" \
     "numpy pandas tables jupyter nbconvert nbformat matplotlib seaborn"
 fi
+
+patch_backtest_compatibility
 
 if [[ "$INSTALL_BACKTEST_DEPS" -eq 1 ]]; then
   ensure_packages \
