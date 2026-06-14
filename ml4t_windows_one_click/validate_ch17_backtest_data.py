@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import tempfile
+import warnings
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
@@ -102,6 +103,20 @@ def _load_hdf(path: Path, key: str) -> pd.DataFrame:
         return pd.read_hdf(path, key)
     except Exception as exc:
         raise SystemExit(f"failed to read {path}::{key}: {type(exc).__name__}: {exc}") from exc
+
+
+def _stack_frame(df: pd.DataFrame) -> pd.DataFrame | pd.Series:
+    """Stack a DataFrame across pandas versions.
+
+    pandas >=2.1 supports future_stack; older pandas raises TypeError. The
+    old implementation is fine for this notebook-shaped data, so fall back.
+    """
+    try:
+        return df.stack(future_stack=True)
+    except TypeError:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            return df.stack()
 
 
 def _check_hdf_datetime_kinds(paths: Iterable[Path], patch: bool) -> None:
@@ -351,7 +366,7 @@ def _simulate_notebook_backtest_flow(
         predictions.unstack("symbol")
         .asfreq("D")
         .dropna(how="all")
-        .stack(future_stack=True)
+        .pipe(_stack_frame)
         .tz_localize("UTC", level="date")
         .sort_index()
     )
@@ -374,7 +389,7 @@ def _simulate_notebook_backtest_flow(
     forward_frames = []
     for period in (1, 5, 10, 21):
         future_returns = trade_prices.shift(-period).divide(trade_prices).subtract(1.0)
-        stacked = future_returns.stack(future_stack=True).dropna().rename(f"{period}D")
+        stacked = _stack_frame(future_returns).dropna().rename(f"{period}D")
         forward_frames.append(stacked)
     forward_returns = pd.concat(forward_frames, axis=1)
     factor_data = factor.join(forward_returns, how="left")

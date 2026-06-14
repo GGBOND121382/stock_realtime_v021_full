@@ -15,6 +15,7 @@ INGEST_LOCAL_QUANDL=0
 SELF_TEST_PATCHES=0
 SELF_TEST_DATA_FORMAT=0
 SELF_TEST_NEGATIVE=0
+LOCAL_BACKTEST=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -82,6 +83,12 @@ while [[ $# -gt 0 ]]; do
       BACKTEST_ONLY=1
       shift
       ;;
+    --local-backtest)
+      LOCAL_BACKTEST=1
+      BACKTEST_ONLY=1
+      SKIP_BACKTEST=1
+      shift
+      ;;
     -h|--help)
       cat <<'EOF'
 Usage:
@@ -102,6 +109,7 @@ Options:
   --self-test-patches         Run local patch self-tests without training/backtesting.
   --self-test-data-format     Build minimal synthetic HDF5 files and validate data format only.
   --self-test-negative        Run synthetic broken-data cases that must fail validation.
+  --local-backtest            Run dependency-light local long/short backtest instead of Zipline.
 
 Common server commands after training has completed:
   bash ml4t_windows_one_click/run_ml4t_ch17_reproduce_ubuntu.sh --backtest-only --preflight-backtest
@@ -854,6 +862,65 @@ for i, code in enumerate(code_cells):
 print("notebook patch self-test passed")
 PY
 
+  run_py - "$tmp_dir" <<'PY'
+import sys
+from pathlib import Path
+
+tmp = Path(sys.argv[1])
+
+calendar_helpers = tmp / "calendar_helpers.py"
+calendar_helpers.write_text(
+    "import numpy as np\n"
+    "import pandas as pd\n"
+    "NP_NAT = np.array([pd.NaT], dtype=np.int64)[0]\n",
+    encoding="utf-8",
+)
+raw = calendar_helpers.read_text(encoding="utf-8")
+patched = raw.replace(
+    "NP_NAT = np.array([pd.NaT], dtype=np.int64)[0]",
+    "NP_NAT = np.datetime64('NaT').astype(np.int64)",
+)
+calendar_helpers.write_text(patched, encoding="utf-8")
+patched_again = calendar_helpers.read_text(encoding="utf-8").replace(
+    "NP_NAT = np.array([pd.NaT], dtype=np.int64)[0]",
+    "NP_NAT = np.datetime64('NaT').astype(np.int64)",
+)
+calendar_helpers.write_text(patched_again, encoding="utf-8")
+text = calendar_helpers.read_text(encoding="utf-8")
+if text.count("NP_NAT = np.datetime64('NaT').astype(np.int64)") != 1:
+    raise SystemExit(f"trading_calendars patch self-test failed:\n{text}")
+compile(text, str(calendar_helpers), "exec")
+
+alphalens_utils = tmp / "alphalens_utils.py"
+alphalens_utils.write_text(
+    "def set_freq(df, freq):\n"
+    "    df.index.levels[0].freq = freq\n"
+    "    return df\n",
+    encoding="utf-8",
+)
+raw = alphalens_utils.read_text(encoding="utf-8")
+lines = raw.splitlines(keepends=True)
+out = []
+target = "df.index.levels[0].freq = freq"
+for line in lines:
+    if line.strip() == target:
+        indent = line[: len(line) - len(line.lstrip())]
+        out.append(f"{indent}try:\n")
+        out.append(f"{indent}    {target}\n")
+        out.append(f"{indent}except ValueError:\n")
+        out.append(f"{indent}    pass\n")
+    else:
+        out.append(line)
+patched = "".join(out)
+alphalens_utils.write_text(patched, encoding="utf-8")
+text = alphalens_utils.read_text(encoding="utf-8")
+if text.count("try:") != 1 or text.count("except ValueError:") != 1 or text.count(target) != 1:
+    raise SystemExit(f"alphalens patch self-test failed:\n{text}")
+compile(text, str(alphalens_utils), "exec")
+
+print("package compatibility patch self-test passed")
+PY
+
   if run_py - <<'PY' >/dev/null 2>&1
 import tables
 PY
@@ -1084,6 +1151,13 @@ if [[ "$BACKTEST_ONLY" -eq 0 ]]; then
   else
     echo "Skipping Chapter 17 NN training; scores.h5 and test_preds.h5 already exist."
   fi
+fi
+
+if [[ "$LOCAL_BACKTEST" -eq 1 ]]; then
+  local_backtest="$WORK_DIR/run_ch17_local_backtest.py"
+  [[ -f "$local_backtest" ]] || { echo "Local backtest script not found: $local_backtest" >&2; exit 1; }
+  run_py "$local_backtest" --repo-dir "$REPO_DIR" --output-dir "$WORK_DIR/out"
+  exit 0
 fi
 
 if [[ "$SKIP_BACKTEST" -eq 1 ]]; then
