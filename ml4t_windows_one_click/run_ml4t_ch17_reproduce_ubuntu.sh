@@ -346,6 +346,9 @@ def ml4t_quandl_bundle(environ,
         stocks = stocks.set_index("code")
     names = stocks["name"].to_dict() if "name" in stocks.columns else {{}}
 
+    calendar_start = pd.Timestamp(calendar.first_session).tz_localize(None)
+    calendar_end = pd.Timestamp(calendar.last_session).tz_localize(None)
+
     grouped = prices.groupby(level="ticker", sort=True)
     metadata = []
     daily_data = []
@@ -357,8 +360,14 @@ def ml4t_quandl_bundle(environ,
         df = df.droplevel("ticker").sort_index()
         df.index = pd.DatetimeIndex(df.index).tz_localize(None)
 
-        start = df.index.min()
-        end = df.index.max()
+        start = max(df.index.min(), calendar_start)
+        end = min(df.index.max(), calendar_end)
+        if end < start:
+            continue
+        df = df.loc[start:end]
+        if df.empty:
+            continue
+
         metadata.append({{
             "sid": sid,
             "symbol": ticker,
