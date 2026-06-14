@@ -13,18 +13,23 @@ BACKTEST_ONLY=0
 PREFLIGHT_BACKTEST=0
 INGEST_LOCAL_QUANDL=0
 SELF_TEST_PATCHES=0
+SELF_TEST_DATA_FORMAT=0
+SELF_TEST_NEGATIVE=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --work-dir)
+      [[ $# -ge 2 ]] || { echo "--work-dir requires a directory argument" >&2; exit 2; }
       WORK_DIR="$2"
       shift 2
       ;;
     --repo-dir)
+      [[ $# -ge 2 ]] || { echo "--repo-dir requires a directory argument" >&2; exit 2; }
       REPO_DIR="$2"
       shift 2
       ;;
     --python)
+      [[ $# -ge 2 ]] || { echo "--python requires a command/path argument" >&2; exit 2; }
       PYTHON_CMD="$2"
       shift 2
       ;;
@@ -67,6 +72,16 @@ while [[ $# -gt 0 ]]; do
       BACKTEST_ONLY=1
       shift
       ;;
+    --self-test-data-format)
+      SELF_TEST_DATA_FORMAT=1
+      BACKTEST_ONLY=1
+      shift
+      ;;
+    --self-test-negative)
+      SELF_TEST_NEGATIVE=1
+      BACKTEST_ONLY=1
+      shift
+      ;;
     -h|--help)
       cat <<'EOF'
 Usage:
@@ -85,6 +100,13 @@ Options:
   --preflight-backtest        Check backtest env/data/bundle without running notebooks.
   --ingest-local-quandl       Build Zipline's quandl bundle from local data/assets.h5.
   --self-test-patches         Run local patch self-tests without training/backtesting.
+  --self-test-data-format     Build minimal synthetic HDF5 files and validate data format only.
+  --self-test-negative        Run synthetic broken-data cases that must fail validation.
+
+Common server commands after training has completed:
+  bash ml4t_windows_one_click/run_ml4t_ch17_reproduce_ubuntu.sh --backtest-only --preflight-backtest
+  bash ml4t_windows_one_click/run_ml4t_ch17_reproduce_ubuntu.sh --backtest-only --ingest-local-quandl
+  bash ml4t_windows_one_click/run_ml4t_ch17_reproduce_ubuntu.sh --backtest-only
 EOF
       exit 0
       ;;
@@ -462,8 +484,22 @@ ingest_local_quandl_bundle() {
   echo "Building Zipline quandl bundle from local assets.h5..."
   patch_backtest_compatibility
   patch_hdf_compatibility "$ASSETS_PATH"
+  validate_backtest_data
   write_local_quandl_extension
   run_py -m zipline ingest -b quandl
+}
+
+validate_backtest_data() {
+  local validator="$WORK_DIR/validate_ch17_backtest_data.py"
+  if [[ ! -f "$validator" ]]; then
+    echo "Backtest data validator not found, skipping: $validator"
+    return
+  fi
+  echo "Validating Chapter 17 backtest data without Zipline..."
+  run_py "$validator" \
+    --repo-dir "$REPO_DIR" \
+    --patch-hdf-metadata \
+    --output "$BACKTEST_VALIDATION_REPORT"
 }
 
 preflight_backtest() {
@@ -471,6 +507,7 @@ preflight_backtest() {
   echo "Running backtest preflight checks..."
   patch_backtest_compatibility
   patch_hdf_compatibility "$ASSETS_PATH" "$CHAPTER12_DATA" "$SCORES_PATH" "$PREDS_PATH"
+  validate_backtest_data
   run_py - "$ASSETS_PATH" "$CHAPTER12_DATA" "$SCORES_PATH" "$PREDS_PATH" "$nb_backtest" <<'PY'
 import ast
 import json
@@ -664,14 +701,14 @@ patched = patched.replace(
     "pd.Int64Index([asset.sid for asset in assets])",
     "pd.Index([asset.sid for asset in assets], dtype='int64')",
 )
-if "FRED benchmark download failed" not in patched:
+if "Benchmark disabled; using zero benchmark aligned to strategy returns" not in patched:
     patched = patched.replace(
         "benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\nbenchmark = benchmark.pct_change().tz_localize('UTC')",
-        "try:\\n    benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n    benchmark = benchmark.pct_change().tz_localize('UTC')\\nexcept Exception as exc:\\n    print(f'FRED benchmark download failed; using zero benchmark aligned to strategy returns: {exc}')\\n    benchmark = returns.copy() * 0",
+        "print('Benchmark disabled; using zero benchmark aligned to strategy returns.')\\nbenchmark = returns.copy() * 0",
     )
     patched = patched.replace(
         "\"benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n\",\n    \"benchmark = benchmark.pct_change().tz_localize('UTC')\"",
-        "\"try:\\n\",\n    \"    benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\\n\",\n    \"    benchmark = benchmark.pct_change().tz_localize('UTC')\\n\",\n    \"except Exception as exc:\\n\",\n    \"    print(f'FRED benchmark download failed; using zero benchmark aligned to strategy returns: {exc}')\\n\",\n    \"    benchmark = returns.copy() * 0\"",
+        "\"print('Benchmark disabled; using zero benchmark aligned to strategy returns.')\\n\",\n    \"benchmark = returns.copy() * 0\"",
     )
 if "start_date = pd.Timestamp(start_date).tz_localize(None)" not in patched:
     patched = patched.replace(
@@ -726,15 +763,11 @@ if path.suffix == ".ipynb":
 
         if (
             "benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()" in src
-            and "FRED benchmark download failed" not in src
+            and "Benchmark disabled; using zero benchmark aligned to strategy returns" not in src
         ):
             cell["source"] = [
-                "try:\n",
-                "    benchmark = web.DataReader('SP500', 'fred', '2014', '2018').squeeze()\n",
-                "    benchmark = benchmark.pct_change().tz_localize('UTC')\n",
-                "except Exception as exc:\n",
-                "    print(f'FRED benchmark download failed; using zero benchmark aligned to strategy returns: {exc}')\n",
-                "    benchmark = returns.copy() * 0",
+                "print('Benchmark disabled; using zero benchmark aligned to strategy returns.')\n",
+                "benchmark = returns.copy() * 0",
             ]
             nb_changed = True
 
@@ -808,7 +841,8 @@ checks = {
     "has_returns_save": raw.count("zipline_returns.csv") == 1,
     "has_positions_skip": raw.count("Skipping PyFolio position/transaction extraction") == 1,
     "has_full_tear_skip": raw.count("Skipping PyFolio full tear sheet") == 1,
-    "has_fred_fallback": raw.count("FRED benchmark download failed") == 1,
+    "has_aligned_zero_benchmark": raw.count("Benchmark disabled; using zero benchmark aligned to strategy returns") == 1
+    and raw.count("benchmark = returns.copy() * 0") == 1,
     "has_naive_dates": raw.count("start_date = pd.Timestamp(start_date).tz_localize(None)") == 1,
 }
 failed = [name for name, ok in checks.items() if not ok]
@@ -858,6 +892,27 @@ PY
   fi
 
   echo "All patch self-tests passed. No training/backtest was executed."
+}
+
+self_test_data_format() {
+  local validator="$WORK_DIR/validate_ch17_backtest_data.py"
+  [[ -f "$validator" ]] || { echo "Backtest data validator not found: $validator" >&2; exit 1; }
+  run_py "$validator" --self-test-synthetic
+  echo "Synthetic Chapter 17 data-format self-test passed. No training/backtest was executed."
+}
+
+run_pre_backtest_parity_guards() {
+  local validator="$WORK_DIR/validate_ch17_backtest_data.py"
+  [[ -f "$validator" ]] || { echo "Backtest data validator not found: $validator" >&2; exit 1; }
+
+  echo "Running pre-backtest parity guards..."
+  echo "  1/3 notebook patch self-test"
+  self_test_patches
+  echo "  2/3 synthetic fake-bundle/fake-Zipline full-flow self-test"
+  run_py "$validator" --self-test-synthetic
+  echo "  3/3 synthetic broken-data negative self-tests"
+  run_py "$validator" --self-test-negative
+  echo "Pre-backtest parity guards passed."
 }
 
 build_assets_from_wiki_csv() {
@@ -918,6 +973,28 @@ if [[ "$SELF_TEST_PATCHES" -eq 1 ]]; then
   exit 0
 fi
 
+if [[ "$SELF_TEST_DATA_FORMAT" -eq 1 ]]; then
+  echo "Running synthetic data-format self-test..."
+  ensure_packages \
+    "Data-format self-test" \
+    "numpy pandas tables" \
+    "numpy pandas tables"
+  self_test_data_format
+  exit 0
+fi
+
+if [[ "$SELF_TEST_NEGATIVE" -eq 1 ]]; then
+  echo "Running synthetic negative data-flow self-tests..."
+  ensure_packages \
+    "Negative data-flow self-test" \
+    "numpy pandas tables" \
+    "numpy pandas tables"
+  validator="$WORK_DIR/validate_ch17_backtest_data.py"
+  [[ -f "$validator" ]] || { echo "Backtest data validator not found: $validator" >&2; exit 1; }
+  run_py "$validator" --self-test-negative
+  exit 0
+fi
+
 echo "Checking Python dependencies..."
 if [[ "$BACKTEST_ONLY" -eq 0 ]]; then
   ensure_packages \
@@ -948,6 +1025,7 @@ CHAPTER12_DATA="$CHAPTER12_DIR/data.h5"
 CHAPTER17_RESULTS="$CHAPTER17_DIR/results"
 SCORES_PATH="$CHAPTER17_RESULTS/scores.h5"
 PREDS_PATH="$CHAPTER17_RESULTS/test_preds.h5"
+BACKTEST_VALIDATION_REPORT="$CHAPTER17_RESULTS/backtest_data_validation.json"
 
 if [[ "$BACKTEST_ONLY" -eq 1 ]]; then
   echo "Backtest-only mode: not rebuilding assets.h5."
@@ -993,6 +1071,7 @@ if [[ "$BACKTEST_ONLY" -eq 1 ]]; then
     exit 1
   fi
   echo "Backtest-only mode: existing data/results verified."
+  validate_backtest_data
 elif [[ "$FORCE_CHAPTER12" -eq 1 ]] || ! test_hdf_key "$CHAPTER12_DATA" "/model_data"; then
   invoke_notebook "$NB12" "04_preparing_the_model_data.executed.ipynb"
 else
@@ -1011,18 +1090,29 @@ if [[ "$SKIP_BACKTEST" -eq 1 ]]; then
   echo "Skipping Zipline backtest by request."
 else
   patch_backtest_compatibility
+  run_pre_backtest_parity_guards
+  validate_backtest_data
   if ! run_py - <<'PY' >/dev/null 2>&1
 import zipline, pyfolio, alphalens, trading_calendars, logbook, pandas_datareader
 PY
   then
     cat >&2 <<'EOF'
 Zipline/pyfolio/alphalens dependencies are not importable in this Python environment.
-Re-run with --install-backtest-deps on a compatible Linux/WSL/Docker environment,
-or use --skip-backtest to reproduce training/prediction only.
+Data/results were checked before this point if they existed. To continue on Ubuntu, run:
+  bash ml4t_windows_one_click/run_ml4t_ch17_reproduce_ubuntu.sh --backtest-only --install-backtest-deps
+
+If the server already has a separate Zipline environment, point the runner at it:
+  bash ml4t_windows_one_click/run_ml4t_ch17_reproduce_ubuntu.sh --backtest-only --python /path/to/venv/bin/python
+
+If the Zipline 'quandl' bundle has not been ingested from local assets.h5 yet, run:
+  bash ml4t_windows_one_click/run_ml4t_ch17_reproduce_ubuntu.sh --backtest-only --ingest-local-quandl
+
+Use --skip-backtest only when you want to reproduce training/prediction without backtesting.
 No local market data was re-downloaded.
 EOF
     exit 1
   fi
+  preflight_backtest "$NB17_BACKTEST"
   invoke_notebook "$NB17_BACKTEST" "05_backtesting_with_zipline.executed.ipynb"
 fi
 
