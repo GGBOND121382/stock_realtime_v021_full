@@ -1,6 +1,6 @@
 # A-share Static Universe Builder
 
-Builds the first-pass Chapter 17 style static A-share universes:
+Builds the first-pass Chapter 17 style static A-share universes using BaoStock only:
 
 - `07_universe_allA_top1000_static.csv`: training universe, main board + ChiNext + STAR.
 - `08_universe_mainboard_top1000_static.csv`: trading universe, Shanghai/Shenzhen main board only.
@@ -13,24 +13,13 @@ scripts/build_ashare_static_universe.py
 
 ## Data Source Policy
 
-BaoStock is the primary source:
+BaoStock is the only data source used by this builder:
 
 - `query_stock_basic()` for listing status, security type, IPO date, and delisting date.
 - `query_stock_industry()` for industry fields.
 - `query_history_k_data_plus()` for 7-year daily completeness, recent tradability, ST status, and approximate circulating market cap.
 
-AKShare is used only for market cap, and only through non-Eastmoney sources:
-
-```text
-allowed:  stock_zh_a_hist_163, if the installed AKShare version exposes it
-blocked:  stock_zh_a_spot_em
-blocked:  stock_sh_a_spot_em
-blocked:  stock_sz_a_spot_em
-blocked:  stock_individual_info_em
-blocked:  any *_em / Eastmoney source
-```
-
-If `stock_zh_a_hist_163` is unavailable or missing market cap, the script does not fall back to Eastmoney. It writes the missing list and uses BaoStock `approx_circ_mv` with:
+The script does not call AKShare or Eastmoney market-cap interfaces. Market-cap ranking uses BaoStock's turnover-implied circulating market cap and is explicitly marked:
 
 ```text
 marketcap_source = baostock_approx_circ_mv
@@ -39,7 +28,7 @@ marketcap_confidence = low_confidence_approx
 
 ## Approximate Market Cap
 
-BaoStock approximate circulating market cap is used for prefiltering and as a low-confidence fallback. The script uses a 5-valid-day median estimate for float shares:
+BaoStock approximate circulating market cap is used for prefiltering and final ranking. The script uses a 5-valid-day median estimate for float shares:
 
 ```text
 approx_float_shares_1d = volume / (turn / 100)
@@ -57,7 +46,7 @@ close > 0
 isST != 1
 ```
 
-The history and cross-check files also include float-share stability diagnostics:
+The history and cross-check files include float-share stability diagnostics:
 
 ```text
 implied_float_shares_5d_obs
@@ -71,10 +60,10 @@ Market-cap rank columns use explicit names:
 ```text
 rank_marketcap_used  # rank of the market cap actually used for final selection
 rank_approx          # rank of BaoStock approximate circulating market cap
-rank_external        # rank of AKShare non-EM external market cap; blank if unavailable
+rank_external        # reserved for external market cap; blank in BaoStock-only mode
 ```
 
-## Install
+## Run
 
 On this Windows machine, use the fuller existing virtualenv:
 
@@ -88,20 +77,7 @@ Or run directly:
 & 'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' scripts\build_ashare_static_universe.py --help
 ```
 
-## Smoke Test
-
-Small real BaoStock run:
-
-```powershell
-& 'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' scripts\build_ashare_static_universe.py `
-  --out-dir saved_data\ashare_static_universe_smoke `
-  --max-history-candidates 20 `
-  --max-marketcap-candidates 20 `
-  --prefilter-n 20 `
-  --top-n 10
-```
-
-Skip AKShare market cap explicitly:
+Small real BaoStock smoke test:
 
 ```powershell
 & 'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' scripts\build_ashare_static_universe.py `
@@ -109,13 +85,36 @@ Skip AKShare market cap explicitly:
   --max-history-candidates 20 `
   --prefilter-n 20 `
   --top-n 10 `
-  --skip-akshare-marketcap
+  --workers 2
 ```
 
-## Full Build
+Full build:
 
 ```powershell
-& 'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' scripts\build_ashare_static_universe.py
+& 'D:\VSCodeWorkspace\stockAnalysis\.venv\Scripts\python.exe' scripts\build_ashare_static_universe.py --workers 4
+```
+
+On Ubuntu servers, run from the repository root:
+
+```bash
+python3 -m pip install -r requirements.txt
+mkdir -p logs
+
+nohup python3 scripts/build_ashare_static_universe.py --workers 4 \
+  > logs/build_ashare_static_universe_$(date +%Y%m%d_%H%M%S).log 2>&1 &
+```
+
+Use `--workers 4` as a conservative default. If BaoStock is stable from that server, `--workers 6` or `--workers 8` can reduce wall-clock time. If the logs show many query failures or timeouts, lower it back to `2-4`.
+
+For a server smoke test:
+
+```bash
+python3 scripts/build_ashare_static_universe.py \
+  --out-dir saved_data/ashare_static_universe_smoke50 \
+  --max-history-candidates 50 \
+  --prefilter-n 50 \
+  --top-n 20 \
+  --workers 4
 ```
 
 Default output directory:
@@ -131,8 +130,7 @@ Output files:
 02_baostock_stock_industry.csv
 03_baostock_history_completeness.csv
 04_baostock_prefilter_candidates.csv
-05_akshare_non_em_marketcap.csv
-05_akshare_non_em_marketcap_missing.csv
+05_baostock_approx_marketcap.csv
 06_marketcap_cross_check.csv
 07_universe_allA_top1000_static.csv
 08_universe_mainboard_top1000_static.csv
@@ -152,4 +150,4 @@ universe_build_summary.json
 - Training universe allows main board, ChiNext, and STAR.
 - Trading universe allows only Shanghai/Shenzhen main board.
 
-This is a current static snapshot universe. For rigorous historical backtests, replace it later with a rolling point-in-time universe to avoid look-ahead from current listing status, industry, and market cap.
+This is a current static snapshot universe. For rigorous historical backtests, replace it later with a rolling point-in-time universe to avoid look-ahead from current listing status and industry.

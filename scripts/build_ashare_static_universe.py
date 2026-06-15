@@ -1,23 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Build static A-share universes without Eastmoney market-cap sources.
+"""Build static A-share universes from BaoStock only.
 
 Policy:
   - BaoStock is the primary source for stock basic info, industry, and history.
-  - AKShare is used only for market cap, and only through non-EM sources.
-  - No AKShare *_em function is called by this script.
-  - If non-EM market cap is unavailable, use BaoStock approximate circulating
-    market cap as a low-confidence fallback and write the missing list.
+  - Market-cap ranking uses BaoStock approximate circulating market cap.
+  - No AKShare or Eastmoney market-cap source is called by this script.
 """
 from __future__ import annotations
 
 import argparse
 import atexit
+import concurrent.futures as futures
 import json
 import math
 import re
 import sys
-import time
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -29,7 +27,6 @@ import pandas as pd
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_OUT_DIR = PROJECT_DIR / "saved_data" / "ashare_static_universe"
 DEFAULT_BAOSTOCK_CACHE = DEFAULT_OUT_DIR / "baostock_daily_cache"
-DEFAULT_AK_MARKETCAP_CACHE = DEFAULT_OUT_DIR / "akshare_non_em_marketcap_cache"
 
 HISTORY_FIELDS = (
     "date,code,open,high,low,close,preclose,volume,amount,turn,"
@@ -87,6 +84,7 @@ class CompletenessRules:
 
 _BAOSTOCK = None
 _BAOSTOCK_LOGGED_IN = False
+_WORKER_BAOSTOCK = None
 
 
 def ensure_dir(path: Path) -> Path:
@@ -441,6 +439,109 @@ def build_history_report(candidates: pd.DataFrame, start_date: str, end_date: st
     return pd.DataFrame(records)
 
 
+def init_baostock_worker() -> None:
+    global _WORKER_BAOSTOCK
+    import baostock as bs
+
+    lg = bs.login()
+    if getattr(lg, "error_code", "0") != "0":
+        raise RuntimeError(f"BaoStock worker login failed: {lg.error_code} {lg.error_msg}")
+    _WORKER_BAOSTOCK = bs
+
+
+def compute_history_worker(payload: Dict[str, Any]) -> Dict[str, Any]:
+    if _WORKER_BAOSTOCK is None:
+        init_baostock_worker()
+    row = pd.Series(payload["row"])
+    rules = CompletenessRules(**payload["rules"])
+    start_date = payload["start_date"]
+    end_date = payload["end_date"]
+    cache_dir = Path(payload["cache_dir"])
+    try:
+        hist = load_or_fetch_history(_WORKER_BAOSTOCK, row["baostock_code"], start_date, end_date, cache_dir)
+        return compute_history_report(row, hist, start_date, end_date, rules)
+    except Exception as exc:
+        rec = compute_history_report(row, pd.DataFrame(), start_date, end_date, rules)
+        rec["error"] = f"{type(exc).__name__}: {exc}"
+        return rec
+
+
+def build_history_report_parallel(
+    candidates: pd.DataFrame,
+    start_date: str,
+    end_date: str,
+    cache_dir: Path,
+    rules: CompletenessRules,
+    workers: int,
+) -> pd.DataFrame:
+    ensure_dir(cache_dir)
+    records = []
+    total = len(candidates)
+    payloads = [
+        {
+            "row": row.to_dict(),
+            "start_date": start_date,
+            "end_date": end_date,
+            "cache_dir": str(cache_dir),
+            "rules": asdict(rules),
+        }
+        for _, row in candidates.iterrows()
+    ]
+    with futures.ProcessPoolExecutor(max_workers=workers, initializer=init_baostock_worker) as executor:
+        future_to_code = {executor.submit(compute_history_worker, payload): payload["row"]["code6"] for payload in payloads}
+        for i, fut in enumerate(futures.as_completed(future_to_code), start=1):
+            code6 = future_to_code[fut]
+            try:
+                rec = fut.result()
+            except Exception as exc:
+                rec = {
+                    "code": code6,
+                    "baostock_code": baostock_code_from_code6(code6),
+                    "name": "",
+                    "board": board_from_code6(code6),
+                    "industry": "",
+                    "industryClassification": "",
+                    "list_date": None,
+                    "asof_date": end_date,
+                    "history_start": start_date,
+                    "history_end": end_date,
+                    "history_rows": 0,
+                    "valid_days_7y": 0,
+                    "valid_ratio_7y": 0.0,
+                    "valid_days_252": 0,
+                    "has_recent_st": False,
+                    "is_current_st": False,
+                    "recent_close": pd.NA,
+                    "recent_turn": pd.NA,
+                    "recent_volume": pd.NA,
+                    "recent_amount": pd.NA,
+                    "approx_float_shares": pd.NA,
+                    "implied_float_shares_5d_median": pd.NA,
+                    "implied_float_shares_5d_min": pd.NA,
+                    "implied_float_shares_5d_max": pd.NA,
+                    "implied_float_shares_5d_obs": 0,
+                    "implied_float_shares_5d_range_pct": pd.NA,
+                    "implied_float_shares_unstable_3pct": False,
+                    "implied_float_shares_unstable_5pct": False,
+                    "approx_circ_mv": pd.NA,
+                    "pass_90": False,
+                    "pass_95": False,
+                    "pass_recent": False,
+                    "pass_current_trade": False,
+                    "pass_st": False,
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+            records.append(rec)
+            if i == 1 or i % 50 == 0 or i == total:
+                print(
+                    f"[baostock-history:{workers}w] {i}/{total} {code6} "
+                    f"valid={rec.get('valid_days_7y')} recent={rec.get('valid_days_252')} "
+                    f"approx={rec.get('approx_circ_mv')} error={rec.get('error', '')}",
+                    flush=True,
+                )
+    return pd.DataFrame(records)
+
+
 def eligible_from_history(report: pd.DataFrame) -> pd.DataFrame:
     return report[
         report["pass_90"].eq(True)
@@ -453,114 +554,16 @@ def eligible_from_history(report: pd.DataFrame) -> pd.DataFrame:
     ].copy()
 
 
-def akshare_symbol_163(code6: str) -> str:
-    prefix = market_from_code6(code6)
-    return f"{prefix}{normalize_code(code6)}"
-
-
-def normalize_marketcap_from_163(raw: pd.DataFrame, code6: str, asof_date: str) -> Dict[str, Any]:
-    if raw is None or raw.empty:
-        return {"code": code6, "akshare_total_mv": pd.NA, "akshare_circ_mv": pd.NA, "marketcap_error": "empty"}
-    date_col = first_col(raw, ["日期", "date", "Date"])
-    total_col = first_col(raw, ["总市值", "total_mv", "market_cap", "总市值(元)"])
-    circ_col = first_col(raw, ["流通市值", "circ_mv", "float_market_cap", "流通市值(元)"])
-    if date_col is not None:
-        work = raw.copy()
-        work[date_col] = pd.to_datetime(work[date_col], errors="coerce")
-        work = work[work[date_col] <= pd.Timestamp(asof_date)].sort_values(date_col)
-    else:
-        work = raw.copy()
-    if work.empty:
-        return {"code": code6, "akshare_total_mv": pd.NA, "akshare_circ_mv": pd.NA, "marketcap_error": "no_row_before_asof"}
-    row = work.iloc[-1]
-    return {
-        "code": code6,
-        "akshare_total_mv": pd.to_numeric(row[total_col], errors="coerce") if total_col else pd.NA,
-        "akshare_circ_mv": pd.to_numeric(row[circ_col], errors="coerce") if circ_col else pd.NA,
-        "marketcap_error": "" if total_col or circ_col else f"missing_marketcap_columns:{list(raw.columns)}",
-    }
-
-
-def fetch_akshare_163_one(ak: Any, code6: str, asof_date: str, retries: int, retry_sleep: float) -> Dict[str, Any]:
-    fn = getattr(ak, "stock_zh_a_hist_163", None)
-    if fn is None:
-        return {
-            "code": code6,
-            "akshare_total_mv": pd.NA,
-            "akshare_circ_mv": pd.NA,
-            "marketcap_source": "akshare_stock_zh_a_hist_163",
-            "marketcap_error": "akshare_function_missing",
-        }
-    start = (pd.Timestamp(asof_date) - pd.Timedelta(days=14)).strftime("%Y%m%d")
-    end = pd.Timestamp(asof_date).strftime("%Y%m%d")
-    symbols = [akshare_symbol_163(code6), normalize_code(code6)]
-    last_exc: Optional[BaseException] = None
-    for attempt in range(1, retries + 1):
-        for symbol in symbols:
-            try:
-                raw = fn(symbol=symbol, start_date=start, end_date=end)
-                rec = normalize_marketcap_from_163(raw, code6, asof_date)
-                rec["marketcap_source"] = "akshare_stock_zh_a_hist_163"
-                return rec
-            except TypeError:
-                try:
-                    raw = fn(symbol=symbol)
-                    rec = normalize_marketcap_from_163(raw, code6, asof_date)
-                    rec["marketcap_source"] = "akshare_stock_zh_a_hist_163"
-                    return rec
-                except Exception as exc:
-                    last_exc = exc
-            except Exception as exc:
-                last_exc = exc
-        if attempt < retries:
-            time.sleep(retry_sleep * attempt)
-    return {
-        "code": code6,
-        "akshare_total_mv": pd.NA,
-        "akshare_circ_mv": pd.NA,
-        "marketcap_source": "akshare_stock_zh_a_hist_163",
-        "marketcap_error": f"{type(last_exc).__name__}: {last_exc}",
-    }
-
-
-def fetch_marketcaps_non_em(candidates: pd.DataFrame, asof_date: str, cache_dir: Path, retries: int, retry_sleep: float, sleep_seconds: float) -> pd.DataFrame:
-    import akshare as ak
-
-    ensure_dir(cache_dir)
-    records = []
-    total = len(candidates)
-    for i, code6 in enumerate(candidates["code"].astype(str), start=1):
-        cache_path = cache_dir / f"{normalize_code(code6)}.json"
-        if cache_path.exists():
-            try:
-                rec = json.loads(cache_path.read_text(encoding="utf-8"))
-            except Exception:
-                rec = fetch_akshare_163_one(ak, code6, asof_date, retries, retry_sleep)
-        else:
-            rec = fetch_akshare_163_one(ak, code6, asof_date, retries, retry_sleep)
-            cache_path.write_text(json.dumps(rec, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
-            if sleep_seconds > 0:
-                time.sleep(sleep_seconds)
-        records.append(rec)
-        if i == 1 or i % 50 == 0 or i == total:
-            print(f"[akshare-non-em-marketcap] {i}/{total} {code6} error={rec.get('marketcap_error','')}", flush=True)
-    out = pd.DataFrame(records)
-    if out.empty:
-        out = pd.DataFrame(columns=["code", "akshare_total_mv", "akshare_circ_mv", "marketcap_source", "marketcap_error"])
-    return out
-
-
-def rank_with_marketcap(prefilter: pd.DataFrame, marketcap: pd.DataFrame) -> pd.DataFrame:
-    out = prefilter.merge(marketcap, on="code", how="left")
-    out["akshare_total_mv"] = pd.to_numeric(out.get("akshare_total_mv"), errors="coerce")
-    out["akshare_circ_mv"] = pd.to_numeric(out.get("akshare_circ_mv"), errors="coerce")
+def rank_with_marketcap(prefilter: pd.DataFrame) -> pd.DataFrame:
+    out = prefilter.copy()
+    out["external_total_mv"] = pd.NA
+    out["external_circ_mv"] = pd.NA
     out["approx_circ_mv"] = pd.to_numeric(out["approx_circ_mv"], errors="coerce")
-    out["circ_mv"] = out["akshare_circ_mv"].where(out["akshare_circ_mv"].notna(), out["approx_circ_mv"])
-    out["total_mv"] = out["akshare_total_mv"]
-    out["marketcap_source"] = out["marketcap_source"].fillna("akshare_stock_zh_a_hist_163")
-    out["marketcap_confidence"] = "akshare_non_em"
-    out.loc[out["akshare_circ_mv"].isna(), "marketcap_confidence"] = "low_confidence_approx"
-    out.loc[out["akshare_circ_mv"].isna(), "marketcap_source"] = "baostock_approx_circ_mv"
+    out["circ_mv"] = out["approx_circ_mv"]
+    out["total_mv"] = pd.NA
+    out["marketcap_source"] = "baostock_approx_circ_mv"
+    out["marketcap_confidence"] = "low_confidence_approx"
+    out["marketcap_error"] = ""
     out = out.sort_values(["circ_mv", "approx_circ_mv"], ascending=[False, False]).reset_index(drop=True)
     out["rank_circ_mv"] = out["circ_mv"].rank(method="first", ascending=False, na_option="bottom").astype("Int64")
     out["rank_total_mv"] = out["total_mv"].rank(method="first", ascending=False, na_option="bottom").astype("Int64")
@@ -570,11 +573,11 @@ def rank_with_marketcap(prefilter: pd.DataFrame, marketcap: pd.DataFrame) -> pd.
 def build_cross_check(ranked: pd.DataFrame) -> pd.DataFrame:
     out = ranked.copy()
     out["rank_approx"] = out["approx_circ_mv"].rank(method="first", ascending=False, na_option="bottom").astype("Int64")
-    external_rank = out["akshare_circ_mv"].rank(method="first", ascending=False, na_option="keep")
+    external_rank = out["external_circ_mv"].rank(method="first", ascending=False, na_option="keep")
     out["rank_external"] = external_rank.astype("Int64")
     out["rank_marketcap_used"] = out["circ_mv"].rank(method="first", ascending=False, na_option="bottom").astype("Int64")
     out["rank_diff"] = out["rank_external"] - out["rank_approx"]
-    out["circ_mv_ratio"] = out["akshare_circ_mv"] / out["approx_circ_mv"].replace(0, pd.NA)
+    out["circ_mv_ratio"] = out["external_circ_mv"] / out["approx_circ_mv"].replace(0, pd.NA)
     cols = [
         "code",
         "name",
@@ -590,8 +593,8 @@ def build_cross_check(ranked: pd.DataFrame) -> pd.DataFrame:
         "implied_float_shares_unstable_3pct",
         "implied_float_shares_unstable_5pct",
         "approx_circ_mv",
-        "akshare_circ_mv",
-        "akshare_total_mv",
+        "external_circ_mv",
+        "external_total_mv",
         "circ_mv_ratio",
         "rank_marketcap_used",
         "rank_approx",
@@ -635,7 +638,7 @@ def quality_summary(report: pd.DataFrame, prefilter: pd.DataFrame, ranked: pd.Da
     top_approx = set(ranked.sort_values("approx_circ_mv", ascending=False).head(args.top_n)["code"].astype(str))
     top_final = set(ranked.head(args.top_n)["code"].astype(str))
     cross = build_cross_check(ranked)
-    spearman = float(cross[["approx_circ_mv", "akshare_circ_mv"]].corr(method="spearman").iloc[0, 1]) if cross["akshare_circ_mv"].notna().sum() >= 2 else None
+    spearman = float(cross[["approx_circ_mv", "external_circ_mv"]].corr(method="spearman").iloc[0, 1]) if cross["external_circ_mv"].notna().sum() >= 2 else None
     return {
         "asof_date": args.asof_date,
         "history_start": args.history_start,
@@ -646,8 +649,8 @@ def quality_summary(report: pd.DataFrame, prefilter: pd.DataFrame, ranked: pd.Da
             "pass_90": int(report["pass_90"].sum()) if "pass_90" in report else 0,
             "pass_95": int(report["pass_95"].sum()) if "pass_95" in report else 0,
             "prefilter_candidates": int(len(prefilter)),
-            "akshare_marketcap_present": int(ranked["akshare_circ_mv"].notna().sum()) if "akshare_circ_mv" in ranked else 0,
-            "akshare_marketcap_missing": int(ranked["akshare_circ_mv"].isna().sum()) if "akshare_circ_mv" in ranked else 0,
+            "external_marketcap_present": int(ranked["external_circ_mv"].notna().sum()) if "external_circ_mv" in ranked else 0,
+            "external_marketcap_missing": int(ranked["external_circ_mv"].isna().sum()) if "external_circ_mv" in ranked else 0,
             "final_allA": int(len(all_a)),
             "final_mainboard": int(len(mainboard)),
         },
@@ -662,7 +665,7 @@ def quality_summary(report: pd.DataFrame, prefilter: pd.DataFrame, ranked: pd.Da
             "forbidden_eastmoney_source_count": int(ranked["marketcap_source"].astype(str).str.contains("eastmoney|_em", case=False, regex=True).sum()) if "marketcap_source" in ranked else 0,
         },
         "marketcap_cross_check": {
-            "spearman_approx_vs_akshare": spearman,
+            "spearman_approx_vs_external": spearman,
             "top1000_overlap_approx_vs_final": int(len(top_approx & top_final)),
             "circ_mv_ratio_lt_0_2_or_gt_5": int(((cross["circ_mv_ratio"] < 0.2) | (cross["circ_mv_ratio"] > 5)).sum()) if "circ_mv_ratio" in cross else 0,
         },
@@ -675,7 +678,7 @@ def quality_summary(report: pd.DataFrame, prefilter: pd.DataFrame, ranked: pd.Da
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="Build static A-share universes using BaoStock plus non-EM AKShare market cap")
+    p = argparse.ArgumentParser(description="Build static A-share universes using BaoStock only")
     p.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR))
     p.add_argument("--asof-date", default=default_asof_date())
     p.add_argument("--history-start", default=None, help="Default: history-end minus 7 years")
@@ -687,13 +690,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--recent-window", type=int, default=252)
     p.add_argument("--min-recent-valid-days", type=int, default=240)
     p.add_argument("--baostock-cache-dir", default=str(DEFAULT_BAOSTOCK_CACHE))
-    p.add_argument("--ak-marketcap-cache-dir", default=str(DEFAULT_AK_MARKETCAP_CACHE))
-    p.add_argument("--ak-retries", type=int, default=2)
-    p.add_argument("--ak-retry-sleep", type=float, default=2.0)
-    p.add_argument("--ak-sleep", type=float, default=0.05)
     p.add_argument("--max-history-candidates", type=int, default=None, help="Smoke-test limit before BaoStock history checks")
-    p.add_argument("--max-marketcap-candidates", type=int, default=None, help="Smoke-test limit before AKShare market cap checks")
-    p.add_argument("--skip-akshare-marketcap", action="store_true", help="Use BaoStock approx_circ_mv only, marked low confidence")
+    p.add_argument("--workers", type=int, default=1, help="BaoStock history worker processes. Use 4-8 on a server; default is 1.")
     return p.parse_args()
 
 
@@ -705,8 +703,6 @@ def main() -> None:
     args.history_start = pd.to_datetime(args.history_start or (pd.Timestamp(args.history_end) - pd.DateOffset(years=7))).strftime("%Y-%m-%d")
     if str(args.baostock_cache_dir) == str(DEFAULT_BAOSTOCK_CACHE):
         args.baostock_cache_dir = str(out_dir / "baostock_daily_cache")
-    if str(args.ak_marketcap_cache_dir) == str(DEFAULT_AK_MARKETCAP_CACHE):
-        args.ak_marketcap_cache_dir = str(out_dir / "akshare_non_em_marketcap_cache")
     rules = CompletenessRules(
         min_valid_ratio=args.min_valid_ratio,
         strict_valid_ratio=args.strict_valid_ratio,
@@ -726,7 +722,11 @@ def main() -> None:
         base = base.head(args.max_history_candidates).copy()
     print(f"[base-prefilter] rows={len(base)}", flush=True)
 
-    report = build_history_report(base, args.history_start, args.history_end, Path(args.baostock_cache_dir), rules)
+    workers = max(1, int(args.workers))
+    if workers == 1:
+        report = build_history_report(base, args.history_start, args.history_end, Path(args.baostock_cache_dir), rules)
+    else:
+        report = build_history_report_parallel(base, args.history_start, args.history_end, Path(args.baostock_cache_dir), rules, workers)
     report = report.sort_values(["approx_circ_mv", "recent_amount"], ascending=[False, False]).reset_index(drop=True)
     report.to_csv(out_dir / "03_baostock_history_completeness.csv", index=False, encoding="utf-8-sig")
 
@@ -735,38 +735,27 @@ def main() -> None:
     prefilter.to_csv(out_dir / "04_baostock_prefilter_candidates.csv", index=False, encoding="utf-8-sig")
     print(f"[history-prefilter] eligible={len(eligible)} candidates={len(prefilter)}", flush=True)
 
-    if args.max_marketcap_candidates is not None:
-        marketcap_scope = prefilter.head(args.max_marketcap_candidates).copy()
-    else:
-        marketcap_scope = prefilter.copy()
-
-    if args.skip_akshare_marketcap:
-        marketcap = pd.DataFrame(
-            {
-                "code": marketcap_scope["code"].astype(str),
-                "akshare_total_mv": pd.NA,
-                "akshare_circ_mv": pd.NA,
-                "marketcap_source": "akshare_stock_zh_a_hist_163",
-                "marketcap_error": "skipped_by_user",
-            }
-        )
-    else:
-        marketcap = fetch_marketcaps_non_em(
-            marketcap_scope,
-            args.asof_date,
-            Path(args.ak_marketcap_cache_dir),
-            retries=args.ak_retries,
-            retry_sleep=args.ak_retry_sleep,
-            sleep_seconds=args.ak_sleep,
-        )
-    marketcap.to_csv(out_dir / "05_akshare_non_em_marketcap.csv", index=False, encoding="utf-8-sig")
-
-    ranked_scope = prefilter[prefilter["code"].isin(marketcap_scope["code"])].copy()
-    ranked = rank_with_marketcap(ranked_scope, marketcap)
+    ranked = rank_with_marketcap(prefilter)
+    ranked[
+        [
+            "code",
+            "name",
+            "board",
+            "industry",
+            "recent_close",
+            "recent_turn",
+            "recent_volume",
+            "approx_float_shares",
+            "implied_float_shares_5d_median",
+            "implied_float_shares_5d_obs",
+            "implied_float_shares_5d_range_pct",
+            "approx_circ_mv",
+            "marketcap_source",
+            "marketcap_confidence",
+        ]
+    ].to_csv(out_dir / "05_baostock_approx_marketcap.csv", index=False, encoding="utf-8-sig")
     cross = build_cross_check(ranked)
     cross.to_csv(out_dir / "06_marketcap_cross_check.csv", index=False, encoding="utf-8-sig")
-    missing = ranked[ranked["akshare_circ_mv"].isna()].copy()
-    missing.to_csv(out_dir / "05_akshare_non_em_marketcap_missing.csv", index=False, encoding="utf-8-sig")
 
     all_a, mainboard = make_final_universes(ranked, args.top_n)
     all_a.to_csv(out_dir / "07_universe_allA_top1000_static.csv", index=False, encoding="utf-8-sig")

@@ -1,5 +1,4 @@
 tomli; python_version < "3.11"
 scikit-learn
 joblib
-akshare
 baostock
