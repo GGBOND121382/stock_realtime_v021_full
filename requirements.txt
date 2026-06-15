@@ -4,3 +4,4 @@ joblib
 baostock
 tables
 TA-Lib
+tensorflow
