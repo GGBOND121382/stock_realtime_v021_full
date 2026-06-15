@@ -1,0 +1,50 @@
+{
+  "asof_date": "2026-06-15",
+  "history_start": "2019-06-15",
+  "history_end": "2026-06-15",
+  "rules": {
+    "years": 7,
+    "trading_days_per_year": 240,
+    "min_valid_ratio": 0.9,
+    "strict_valid_ratio": 0.95,
+    "recent_window": 252,
+    "min_recent_valid_days": 240
+  },
+  "counts": {
+    "history_report_rows": 3405,
+    "pass_90": 3400,
+    "pass_95": 3399,
+    "prefilter_candidates": 2500,
+    "external_marketcap_present": 0,
+    "external_marketcap_missing": 2500,
+    "final_allA": 1000,
+    "final_mainboard": 1000
+  },
+  "quality_checks": {
+    "allA_exact_top_n": true,
+    "mainboard_exact_top_n": true,
+    "allA_recent_valid_lt_min": 0,
+    "mainboard_recent_valid_lt_min": 0,
+    "allA_recent_st": 0,
+    "mainboard_recent_st": 0,
+    "mainboard_growth_or_star_count": 0,
+    "forbidden_eastmoney_source_count": 0
+  },
+  "marketcap_cross_check": {
+    "spearman_approx_vs_external": null,
+    "top1000_overlap_approx_vs_final": 1000,
+    "circ_mv_ratio_lt_0_2_or_gt_5": 0
+  },
+  "board_distribution": {
+    "allA_top1000": {
+      "chinext": 135,
+      "sh_mainboard": 510,
+      "sz_mainboard": 355
+    },
+    "mainboard_top1000": {
+      "sh_mainboard": 576,
+      "sz_mainboard": 424
+    }
+  },
+  "known_limitation": "Static current snapshot universe. Use rolling point-in-time universes for rigorous historical backtests."
+}

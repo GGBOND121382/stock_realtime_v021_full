@@ -1,0 +1,3019 @@
+[start] asof=2026-06-15 history=2019-06-15..2026-06-15 out=/root/stock_realtime_v021_full/saved_data/ashare_static_universe
+login success!
+[base-prefilter] rows=3405
+[baostock-history:6w] 1/3405 600000 valid=1697 recent=252 approx=317384946728.04535 error=
+[baostock-history:6w] 50/3405 600073 valid=1697 recent=252 approx=4763462731.457801 error=
+[baostock-history:6w] 100/3405 600141 valid=1696 recent=252 approx=44752707018.602745 error=
+[baostock-history:6w] 150/3405 600188 valid=1697 recent=252 approx=125665292353.33017 error=
+[baostock-history:6w] 200/3405 600268 valid=1697 recent=252 approx=12896559351.102112 error=
+[baostock-history:6w] 250/3405 600339 valid=1697 recent=252 approx=18703732968.65138 error=
+[baostock-history:6w] 300/3405 600400 valid=1697 recent=252 approx=6049219777.625257 error=
+[baostock-history:6w] 350/3405 600486 valid=1692 recent=252 approx=23111921873.697372 error=
+[baostock-history:6w] 400/3405 600551 valid=1697 recent=252 approx=5017592697.176242 error=
+[baostock-history:6w] 450/3405 600610 valid=1401 recent=252 approx=5641475512.618835 error=
+[baostock-history:6w] 500/3405 600666 valid=1689 recent=252 approx=11310171229.15156 error=
+[baostock-history:6w] 550/3405 600726 valid=1687 recent=252 approx=63989280111.058235 error=
+[baostock-history:6w] 600/3405 600787 valid=1697 recent=252 approx=9982333553.06526 error=
+[baostock-history:6w] 650/3405 600841 valid=1686 recent=252 approx=7228191209.37918 error=
+[baostock-history:6w] 700/3405 600919 valid=1691 recent=252 approx=216726701124.50354 error=
+[baostock-history:6w] 750/3405 601007 valid=1697 recent=252 approx=2613048004.5855126 error=
+[baostock-history:6w] 800/3405 601200 valid=1697 recent=252 approx=9787269860.105654 error=
+[baostock-history:6w] 850/3405 601615 valid=1689 recent=244 approx=27974864696.73747 error=
+[baostock-history:6w] 900/3405 601900 valid=1697 recent=252 approx=10406964329.046347 error=
+[baostock-history:6w] 950/3405 603035 valid=1697 recent=252 approx=4268056738.7477994 error=
+[baostock-history:6w] 1000/3405 603117 valid=1695 recent=252 approx=2288905985.7837634 error=
+[baostock-history:6w] 1050/3405 603233 valid=1697 recent=252 approx=18995819790.77253 error=
+[baostock-history:6w] 1100/3405 603336 valid=1692 recent=247 approx=5113279290.617849 error=
+[baostock-history:6w] 1150/3405 603517 valid=1696 recent=251 approx=9241635031.552517 error=
+[baostock-history:6w] 1200/3405 603626 valid=1697 recent=252 approx=12151924104.08922 error=
+[baostock-history:6w] 1250/3405 603721 valid=1695 recent=251 approx=2421900000.0 error=
+[baostock-history:6w] 1300/3405 603838 valid=1695 recent=252 approx=1363278840.222085 error=
+[baostock-history:6w] 1350/3405 603936 valid=1697 recent=252 approx=15741047898.581015 error=
+[baostock-history:6w] 1400/3405 000026 valid=1697 recent=252 approx=7531863180.54188 error=
+[baostock-history:6w] 1450/3405 000403 valid=1684 recent=250 approx=11128136532.878822 error=
+[baostock-history:6w] 1500/3405 000534 valid=1697 recent=252 approx=15287821419.87697 error=
+[baostock-history:6w] 1550/3405 000609 valid=1689 recent=247 approx=1089492137.4087994 error=
+[baostock-history:6w] 1600/3405 000698 valid=1696 recent=251 approx=3134959859.1549296 error=
+[baostock-history:6w] 1650/3405 000782 valid=1686 recent=252 approx=3987440839.8785715 error=
+[baostock-history:6w] 1700/3405 000856 valid=1697 recent=252 approx=1816029201.7140136 error=
+[baostock-history:6w] 1750/3405 000931 valid=1697 recent=252 approx=3056556435.486431 error=
+[baostock-history:6w] 1800/3405 001914 valid=1696 recent=252 approx=9946795246.03388 error=
+[baostock-history:6w] 1850/3405 002057 valid=1697 recent=252 approx=9115093205.588894 error=
+[baostock-history:6w] 1900/3405 002102 valid=1695 recent=251 approx=6062406192.718761 error=
+[baostock-history:6w] 1950/3405 002162 valid=1697 recent=252 approx=3361715098.3045454 error=
+[baostock-history:6w] 2000/3405 002214 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002214: 10002007 网络接收错误。
+[baostock-history:6w] 2050/3405 002265 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002265: 10002007 网络接收错误。
+[baostock-history:6w] 2100/3405 002322 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002322: 10002007 网络接收错误。
+[baostock-history:6w] 2150/3405 002376 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002376: 10002007 网络接收错误。
+[baostock-history:6w] 2200/3405 002425 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002425: 10002007 网络接收错误。
+[baostock-history:6w] 2250/3405 002480 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002480: 10002007 网络接收错误。
+[baostock-history:6w] 2300/3405 002539 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002539: 10002007 网络接收错误。
+[baostock-history:6w] 2350/3405 002592 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002592: 10002007 网络接收错误。
+[baostock-history:6w] 2400/3405 002646 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002646: 10002007 网络接收错误。
+[baostock-history:6w] 2450/3405 002683 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002683: 10002007 网络接收错误。
+[baostock-history:6w] 2500/3405 002755 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002755: 10002007 网络接收错误。
+[baostock-history:6w] 2550/3405 002807 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002807: 10002007 网络接收错误。
+[baostock-history:6w] 2600/3405 002867 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002867: 10002007 网络接收错误。
+login success!
+[Errno 104] Connection reset by peer
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+login success!
+[Errno 104] Connection reset by peer
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+[baostock-history:6w] 2650/3405 002906 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.002906: 10002007 网络接收错误。
+[baostock-history:6w] 2700/3405 300014 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300014: 10002007 网络接收错误。
+login success!
+[Errno 104] Connection reset by peer
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+login success!
+[Errno 104] Connection reset by peer
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+[baostock-history:6w] 2750/3405 300058 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300058: 10002007 网络接收错误。
+login success!
+[Errno 104] Connection reset by peer
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+[baostock-history:6w] 2800/3405 300133 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300133: 10002007 网络接收错误。
+login success!
+[Errno 104] Connection reset by peer
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+[baostock-history:6w] 2850/3405 300177 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300177: 10002007 网络接收错误。
+[baostock-history:6w] 2900/3405 300236 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300236: 10002007 网络接收错误。
+[baostock-history:6w] 2950/3405 300293 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300293: 10002007 网络接收错误。
+[baostock-history:6w] 3000/3405 300349 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300349: 10002007 网络接收错误。
+[baostock-history:6w] 3050/3405 300409 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300409: 10002007 网络接收错误。
+[baostock-history:6w] 3100/3405 300449 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300449: 10002007 网络接收错误。
+[baostock-history:6w] 3150/3405 300509 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300509: 10002007 网络接收错误。
+[baostock-history:6w] 3200/3405 300563 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300563: 10002007 网络接收错误。
+[baostock-history:6w] 3250/3405 300618 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300618: 10002007 网络接收错误。
+[baostock-history:6w] 3300/3405 300670 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300670: 10002007 网络接收错误。
+[baostock-history:6w] 3350/3405 300722 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300722: 10002007 网络接收错误。
+[baostock-history:6w] 3400/3405 300778 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300778: 10002007 网络接收错误。
+[baostock-history:6w] 3405/3405 300775 valid=0 recent=0 approx=<NA> error=RuntimeError: history query failed for sz.300775: 10002007 网络接收错误。
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[Errno 32] Broken pipe
+接收数据异常，请稍后再试。
+[history-prefilter] eligible=1805 candidates=1805
+{
+  "history_report_rows": 3405,
+  "pass_90": 1949,
+  "pass_95": 1949,
+  "prefilter_candidates": 1805,
+  "external_marketcap_present": 0,
+  "external_marketcap_missing": 1805,
+  "final_allA": 1000,
+  "final_mainboard": 1000
+}
+{
+  "allA_exact_top_n": true,
+  "mainboard_exact_top_n": true,
+  "allA_recent_valid_lt_min": 0,
+  "mainboard_recent_valid_lt_min": 0,
+  "allA_recent_st": 0,
+  "mainboard_recent_st": 0,
+  "mainboard_growth_or_star_count": 0,
+  "forbidden_eastmoney_source_count": 0
+}
+{
+  "spearman_approx_vs_external": null,
+  "top1000_overlap_approx_vs_final": 1000,
+  "circ_mv_ratio_lt_0_2_or_gt_5": 0
+}
+{
+  "allA_top1000": {
+    "sh_mainboard": 717,
+    "sz_mainboard": 283
+  },
+  "mainboard_top1000": {
+    "sh_mainboard": 717,
+    "sz_mainboard": 283
+  }
+}
+[Errno 104] Connection reset by peer
+接收数据异常，请稍后再试。

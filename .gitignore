@@ -507,3 +507,4 @@ ml4t_windows_one_click/machine-learning-for-trading/**/checkpoint/
 # END ML4T local reproduction
 saved_data/ashare_static_universe_smoke_baostock_first5/
 saved_data/ashare_static_universe_speed*/
+saved_data/ashare_static_universe/baostock_daily_cache/
