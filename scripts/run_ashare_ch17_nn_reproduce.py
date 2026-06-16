@@ -241,6 +241,7 @@ def train_cv(
     logs_dir: Path,
     force_train: bool,
     smoke: bool,
+    full_cv_smoke: bool = False,
 ) -> None:
     scores_path = results_dir / "scores.h5"
     if scores_path.exists() and not force_train:
@@ -255,7 +256,7 @@ def train_cv(
         dropout_opts = [DROPOUT_OPTS[0]]
         batch_size_opts = [BATCH_SIZE_OPTS[0]]
         n_epochs = 2
-        max_folds = 1
+        max_folds = N_SPLITS if full_cv_smoke else 1
     else:
         dense_layer_opts = DENSE_LAYER_OPTS
         dropout_opts = DROPOUT_OPTS
@@ -336,6 +337,7 @@ def generate_predictions_one(
     dropout: float,
     batch_size: int,
     epoch: int,
+    max_folds: int | None = None,
 ) -> pd.Series:
     cv = make_cv()
     scaler = StandardScaler()
@@ -345,25 +347,38 @@ def generate_predictions_one(
     if not checkpoint_dir.exists():
         checkpoint_dir = logs_dir / str(dense_layers) / activation / str(dropout) / str(batch_size)
     for fold, (train_idx, test_idx) in enumerate(cv.split(X_cv)):
+        if max_folds is not None and fold >= max_folds:
+            break
         x_train, y_train, x_val, y_val = get_train_valid_data(X_cv, y_cv, train_idx, test_idx)
         x_val = scaler.fit(x_train).transform(x_val)
         model = make_model(X_cv.shape[1], make_tuple(dense_layers), activation, dropout)
-        status = model.load_weights((checkpoint_dir / f"ckpt_{fold}_{int(epoch)}.weights.h5").as_posix())
+        checkpoint_path = checkpoint_dir / f"ckpt_{fold}_{int(epoch)}.weights.h5"
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"missing checkpoint for fold={fold}, epoch={epoch}: {checkpoint_path}")
+        status = model.load_weights(checkpoint_path.as_posix())
         if hasattr(status, "expect_partial"):
             status.expect_partial()
         predictions.append(pd.Series(model.predict(x_val, verbose=0).squeeze(), index=y_val.index))
     return pd.concat(predictions)
 
 
-def generate_predictions(X_cv: pd.DataFrame, y_cv: pd.Series, results_dir: Path, logs_dir: Path) -> pd.DataFrame:
-    best_params = get_best_params(results_dir, n=5)
+def generate_predictions(
+    X_cv: pd.DataFrame,
+    y_cv: pd.Series,
+    results_dir: Path,
+    logs_dir: Path,
+    smoke: bool = False,
+    full_cv_smoke: bool = False,
+) -> pd.DataFrame:
+    best_params = get_best_params(results_dir, n=1 if smoke else 5)
     predictions = []
     for i, params in enumerate(best_params):
         params = dict(params)
         params["dropout"] = float(params["dropout"])
         params["batch_size"] = int(params["batch_size"])
         params["epoch"] = int(params["epoch"])
-        predictions.append(generate_predictions_one(X_cv, y_cv, logs_dir, **params).to_frame(i))
+        max_folds = N_SPLITS if (smoke and full_cv_smoke) else (1 if smoke else None)
+        predictions.append(generate_predictions_one(X_cv, y_cv, logs_dir, max_folds=max_folds, **params).to_frame(i))
     out = pd.concat(predictions, axis=1)
     out.columns = list(range(len(predictions)))
     out.to_hdf(results_dir / "test_preds.h5", "predictions")
@@ -406,11 +421,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--train-end", default=None, help="YYYY or YYYY-MM-DD. Default: max date in model_data")
     p.add_argument("--force-train", action="store_true", help="Retrain even when results/scores.h5 exists")
     p.add_argument("--smoke", action="store_true", help="Run 1 param combo, 1 fold, 2 epochs")
+    p.add_argument("--full-cv-smoke", action="store_true", help="With --smoke, run all CV folds while keeping 1 param combo and 2 epochs")
     return p.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+    if args.full_cv_smoke and not args.smoke:
+        raise SystemExit("--full-cv-smoke requires --smoke")
     require_runtime_deps()
     model_data_path = Path(args.model_data)
     out_dir = Path(args.out_dir)
@@ -428,9 +446,9 @@ def main() -> None:
     write_cv_split_report(cv, X_cv, y_cv, results_dir / "cv_split_report.csv")
     param_grid_frame().to_csv(results_dir / "param_grid.csv", index=False, encoding="utf-8-sig")
 
-    train_cv(X_cv, y_cv, results_dir, logs_dir, force_train=args.force_train, smoke=args.smoke)
+    train_cv(X_cv, y_cv, results_dir, logs_dir, force_train=args.force_train, smoke=args.smoke, full_cv_smoke=args.full_cv_smoke)
     write_score_summaries(results_dir)
-    predictions = generate_predictions(X_cv, y_cv, results_dir, logs_dir)
+    predictions = generate_predictions(X_cv, y_cv, results_dir, logs_dir, smoke=args.smoke, full_cv_smoke=args.full_cv_smoke)
     best = pd.read_csv(results_dir / "best_params.csv")
     write_predictions_summary(results_dir, predictions, best)
     print(json.dumps({"results_dir": str(results_dir.resolve()), "predictions_shape": list(predictions.shape)}, ensure_ascii=False, indent=2), flush=True)
