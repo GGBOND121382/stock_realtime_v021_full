@@ -8,6 +8,7 @@ model loop. It changes only paths and the train-end date.
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 from ast import literal_eval as make_tuple
 from dataclasses import asdict, dataclass
@@ -148,26 +149,53 @@ def make_model(input_dim: int, dense_layers: Iterable[int], activation: str, dro
     return model
 
 
-def load_training_data(model_data_path: Path, train_end: str):
-    raw = pd.read_hdf(model_data_path, "model_data")
-    data = raw.dropna().sort_index()
+def clear_model_session() -> None:
+    from tensorflow.keras.backend import clear_session
+
+    clear_session()
+    gc.collect()
+
+
+def load_training_data(model_data_path: Path, train_end: Any):
+    data = pd.read_hdf(model_data_path, "model_data")
+    n_rows_before_dropna = int(len(data))
     if list(data.index.names) != ["symbol", "date"]:
         raise RuntimeError(f"unexpected index names: {data.index.names}")
     outcomes = data.filter(like="fwd").columns.tolist()
     if outcomes != EXPECTED_OUTCOMES:
         raise RuntimeError(f"unexpected outcomes: {outcomes}")
-    idx = pd.IndexSlice
-    X_cv = data.loc[idx[:, :train_end], :].drop(outcomes, axis=1)
-    y_cv = data.loc[idx[:, :train_end], "r01_fwd"]
+
+    dates = data.index.get_level_values("date")
+    if train_end is None:
+        train_end = pd.Timestamp(dates.max()).strftime("%Y-%m-%d")
+    else:
+        data = data.loc[dates <= train_end]
+    data.dropna(inplace=True)
+    data.sort_index(inplace=True)
+    n_rows_after_dropna = int(len(data))
+
+    y_cv = data.pop("r01_fwd")
+    data.drop(["r05_fwd", "r21_fwd"], axis=1, inplace=True)
+    X_cv = data
     if any("fwd" in c for c in X_cv.columns):
         raise RuntimeError("X_cv contains fwd columns")
     if y_cv.empty or y_cv.isna().any():
         raise RuntimeError("y_cv is empty or contains NA")
-    return raw, data, X_cv, y_cv, outcomes
+    return X_cv, y_cv, outcomes, train_end, n_rows_before_dropna, n_rows_after_dropna
 
 
-def write_train_data_summary(path: Path, model_data_path: Path, results_dir: Path, train_end: str, raw: pd.DataFrame, data: pd.DataFrame, X_cv: pd.DataFrame, y_cv: pd.Series, outcomes: list[str]) -> TrainDataSummary:
-    dates = data.index.get_level_values("date")
+def write_train_data_summary(
+    path: Path,
+    model_data_path: Path,
+    results_dir: Path,
+    train_end: str,
+    X_cv: pd.DataFrame,
+    y_cv: pd.Series,
+    outcomes: list[str],
+    n_rows_before_dropna: int,
+    n_rows_after_dropna: int,
+) -> TrainDataSummary:
+    dates = X_cv.index.get_level_values("date")
     summary = TrainDataSummary(
         model_data_path=str(model_data_path.resolve()),
         results_dir=str(results_dir.resolve()),
@@ -175,9 +203,9 @@ def write_train_data_summary(path: Path, model_data_path: Path, results_dir: Pat
         min_date=pd.Timestamp(dates.min()).strftime("%Y-%m-%d"),
         max_date=pd.Timestamp(dates.max()).strftime("%Y-%m-%d"),
         n_dates=int(dates.nunique()),
-        n_symbols=int(data.index.get_level_values("symbol").nunique()),
-        n_rows_before_dropna=int(len(raw)),
-        n_rows_after_dropna=int(len(data)),
+        n_symbols=int(X_cv.index.get_level_values("symbol").nunique()),
+        n_rows_before_dropna=n_rows_before_dropna,
+        n_rows_after_dropna=n_rows_after_dropna,
         X_cv_shape=[int(X_cv.shape[0]), int(X_cv.shape[1])],
         y_cv_shape=[int(y_cv.shape[0])],
         n_features=int(X_cv.shape[1]),
@@ -306,6 +334,8 @@ def train_cv(
                         fold=fold,
                     )
                 )
+                del model, x_train, y_train, x_val, y_val, preds, r
+                clear_model_session()
             pd.concat(ic).to_hdf(scores_path, "ic_by_day")
 
 
@@ -359,6 +389,8 @@ def generate_predictions_one(
         if hasattr(status, "expect_partial"):
             status.expect_partial()
         predictions.append(pd.Series(model.predict(x_val, verbose=0).squeeze(), index=y_val.index))
+        del model, x_train, y_train, x_val, y_val
+        clear_model_session()
     return pd.concat(predictions)
 
 
@@ -437,11 +469,18 @@ def main() -> None:
     results_dir.mkdir(parents=True, exist_ok=True)
     logs_dir.mkdir(parents=True, exist_ok=True)
 
-    raw_preview = pd.read_hdf(model_data_path, "model_data")
-    date_max = raw_preview.index.get_level_values("date").max()
-    train_end = args.train_end or pd.Timestamp(date_max).strftime("%Y-%m-%d")
-    raw, data, X_cv, y_cv, outcomes = load_training_data(model_data_path, train_end)
-    write_train_data_summary(results_dir / "train_data_summary.json", model_data_path, results_dir, train_end, raw, data, X_cv, y_cv, outcomes)
+    X_cv, y_cv, outcomes, train_end, n_rows_before_dropna, n_rows_after_dropna = load_training_data(model_data_path, args.train_end)
+    write_train_data_summary(
+        results_dir / "train_data_summary.json",
+        model_data_path,
+        results_dir,
+        train_end,
+        X_cv,
+        y_cv,
+        outcomes,
+        n_rows_before_dropna,
+        n_rows_after_dropna,
+    )
     cv = make_cv()
     write_cv_split_report(cv, X_cv, y_cv, results_dir / "cv_split_report.csv")
     param_grid_frame().to_csv(results_dir / "param_grid.csv", index=False, encoding="utf-8-sig")
