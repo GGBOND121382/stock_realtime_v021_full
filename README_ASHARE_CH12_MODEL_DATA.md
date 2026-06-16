@@ -85,6 +85,12 @@ Full build:
 python3 scripts/build_ashare_ch12_model_data.py --workers 4
 ```
 
+or
+
+```bash
+python3 scripts/build_ashare_ch12_model_data.py   --workers 4   --cache-dir saved_data/ashare_ml4t/ch12_reproduce/baostock_qfq_daily_cache   --source-cache-dir saved_data/ashare_ml4t/ch12_reproduce/baostock_qfq_daily_cache   --source-cache-pattern "{code}_qfq_daily.csv"   --source-cache-adjust qfq   --no-fetch-missing-source-cache   --out-dir saved_data/ashare_ml4t/ch12_reproduce
+```
+
 Background run in tmux:
 
 ```bash

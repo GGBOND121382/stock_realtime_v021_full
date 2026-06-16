@@ -32,6 +32,14 @@ Smoke test:
 python3 scripts/run_ashare_ch17_nn_reproduce.py --smoke
 ```
 
+```bash
+python3 scripts/run_ashare_ch17_nn_reproduce.py \
+  --model-data saved_data/ashare_ml4t/ch12_reproduce/model_data.h5 \
+  --out-dir saved_data/ashare_ml4t/ch17_nn_smoke \
+  --smoke \
+  --force-train
+```
+
 Full run:
 
 ```bash
