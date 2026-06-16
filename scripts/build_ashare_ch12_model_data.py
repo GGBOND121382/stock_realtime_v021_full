@@ -105,6 +105,12 @@ class BuildSummary:
     end_date: str
     workers: int
     min_obs: int
+    sample_mode: str
+    industry_sample_size: int
+    min_industry_sample_size: int
+    source_cache_dir: Optional[str]
+    source_cache_pattern: str
+    source_cache_adjust: str
     universe_rows: int
     fetched_symbols: int
     symbols_after_min_obs: int
@@ -116,6 +122,7 @@ class BuildSummary:
     chapter17_outcomes: list[str]
     chapter17_X_rows: int
     chapter17_y_rows: int
+    price_sources: dict[str, int]
 
 
 def ensure_dir(path: Path) -> Path:
@@ -131,6 +138,49 @@ def normalize_code(value: Any) -> str:
 def baostock_code(code: str) -> str:
     code6 = normalize_code(code)
     return f"{'sh' if code6.startswith(('6', '9')) else 'sz'}.{code6}"
+
+
+def sample_universe(
+    universe: pd.DataFrame,
+    max_symbols: Optional[int],
+    sample_mode: str,
+    industry_sample_size: int,
+    min_industry_sample_size: int,
+) -> pd.DataFrame:
+    if not max_symbols:
+        return universe.copy()
+    limit = int(max_symbols)
+    if str(sample_mode) == "head":
+        return universe.head(limit).copy()
+    if str(sample_mode) != "industry-balanced":
+        raise ValueError(f"unknown sample_mode={sample_mode}")
+
+    per_industry = max(1, int(industry_sample_size))
+    min_per_industry = max(1, int(min_industry_sample_size))
+    if per_industry < min_per_industry:
+        raise ValueError("--industry-sample-size must be >= --min-industry-sample-size")
+
+    src = universe.copy()
+    src["industry"] = src["industry"].fillna("").astype(str).str.strip()
+    src = src[src["industry"].ne("")]
+    industry_counts = src.groupby("industry")["code"].transform("nunique")
+    src = src[industry_counts >= min_per_industry].copy()
+
+    selected = []
+    seen_industries = []
+    for industry in src["industry"]:
+        if industry not in seen_industries:
+            seen_industries.append(industry)
+    for industry in seen_industries:
+        remaining = limit - sum(len(x) for x in selected)
+        if remaining < min_per_industry:
+            break
+        part = src[src["industry"].eq(industry)].head(min(per_industry, remaining))
+        if len(part) >= min_per_industry:
+            selected.append(part)
+    if not selected:
+        raise RuntimeError("industry-balanced sample selected no symbols; lower --min-industry-sample-size")
+    return pd.concat(selected, ignore_index=True).head(limit).copy()
 
 
 def result_to_df(rs: Any) -> pd.DataFrame:
@@ -184,30 +234,55 @@ def merge_cache(cache_path: Path, new_df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def load_or_fetch_symbol(code: str, start_date: str, end_date: str, cache_dir: Path) -> tuple[str, pd.DataFrame, str]:
-    if _WORKER_BAOSTOCK is None:
-        init_baostock_worker()
+def load_cache_window(cache_path: Path, start_date: str, end_date: str, start_slack_days: int, end_slack_days: int) -> Optional[pd.DataFrame]:
+    if not cache_path.exists():
+        return None
+    cached = pd.read_csv(cache_path, dtype={"code": str})
+    cached["date"] = pd.to_datetime(cached["date"], errors="coerce")
+    have = cached[(cached["date"] >= pd.Timestamp(start_date)) & (cached["date"] <= pd.Timestamp(end_date))]
+    if (
+        not have.empty
+        and have["date"].max() >= pd.Timestamp(end_date) - pd.Timedelta(days=end_slack_days)
+    ):
+        return have.copy()
+    return None
+
+
+def load_or_fetch_symbol(
+    code: str,
+    start_date: str,
+    end_date: str,
+    cache_dir: Path,
+    source_cache_dir: Optional[Path] = None,
+    source_cache_pattern: str = "{code}_daily_raw.csv",
+    fetch_missing_source_cache: bool = True,
+) -> tuple[str, pd.DataFrame, str, str]:
     code6 = normalize_code(code)
     bs_code = baostock_code(code6)
     cache_path = cache_dir / f"{code6}_qfq_daily.csv"
     try:
-        if cache_path.exists():
-            cached = pd.read_csv(cache_path, dtype={"code": str})
-            cached["date"] = pd.to_datetime(cached["date"], errors="coerce")
-            have = cached[(cached["date"] >= pd.Timestamp(start_date)) & (cached["date"] <= pd.Timestamp(end_date))]
-            if (
-                not have.empty
-                and have["date"].min() <= pd.Timestamp(start_date) + pd.Timedelta(days=21)
-                and have["date"].max() >= pd.Timestamp(end_date) - pd.Timedelta(days=21)
-            ):
-                return code6, normalize_price_frame(code6, have), ""
+        have = load_cache_window(cache_path, start_date, end_date, start_slack_days=21, end_slack_days=21)
+        if have is not None:
+            return code6, normalize_price_frame(code6, have), "", "primary_cache"
+
+        if source_cache_dir is not None:
+            source_name = source_cache_pattern.format(code=code6, bs_code=bs_code)
+            source_path = source_cache_dir / source_name
+            have = load_cache_window(source_path, start_date, end_date, start_slack_days=14, end_slack_days=14)
+            if have is not None:
+                return code6, normalize_price_frame(code6, have), "", "source_cache"
+            if not fetch_missing_source_cache:
+                return code6, pd.DataFrame(), f"source cache missing or incomplete: {source_path}", "missing_source_cache"
+
+        if _WORKER_BAOSTOCK is None:
+            init_baostock_worker()
         new_df = fetch_qfq_daily(_WORKER_BAOSTOCK, bs_code, start_date, end_date)
         merged = merge_cache(cache_path, new_df)
         merged["date"] = pd.to_datetime(merged["date"], errors="coerce")
         have = merged[(merged["date"] >= pd.Timestamp(start_date)) & (merged["date"] <= pd.Timestamp(end_date))]
-        return code6, normalize_price_frame(code6, have), ""
+        return code6, normalize_price_frame(code6, have), "", "baostock_qfq"
     except Exception as exc:
-        return code6, pd.DataFrame(), f"{type(exc).__name__}: {exc}"
+        return code6, pd.DataFrame(), f"{type(exc).__name__}: {exc}", "error"
 
 
 def normalize_price_frame(code6: str, df: pd.DataFrame) -> pd.DataFrame:
@@ -223,38 +298,73 @@ def normalize_price_frame(code6: str, df: pd.DataFrame) -> pd.DataFrame:
     return out[["symbol", "date", "open", "high", "low", "close", "volume"]].sort_values(["symbol", "date"])
 
 
-def fetch_prices(universe: pd.DataFrame, start_date: str, end_date: str, cache_dir: Path, workers: int) -> tuple[pd.DataFrame, pd.DataFrame]:
+def fetch_prices(
+    universe: pd.DataFrame,
+    start_date: str,
+    end_date: str,
+    cache_dir: Path,
+    workers: int,
+    source_cache_dir: Optional[Path] = None,
+    source_cache_pattern: str = "{code}_daily_raw.csv",
+    fetch_missing_source_cache: bool = True,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     ensure_dir(cache_dir)
     codes = universe["code"].astype(str).map(normalize_code).tolist()
     records = []
     errors = []
+    sources = []
     if workers <= 1:
-        init_baostock_worker()
         for i, code in enumerate(codes, start=1):
-            code6, df, err = load_or_fetch_symbol(code, start_date, end_date, cache_dir)
+            code6, df, err, source = load_or_fetch_symbol(
+                code,
+                start_date,
+                end_date,
+                cache_dir,
+                source_cache_dir,
+                source_cache_pattern,
+                fetch_missing_source_cache,
+            )
+            sources.append({"code": code6, "source": source})
             if not df.empty:
                 records.append(df)
             if err:
-                errors.append({"code": code6, "error": err})
+                errors.append({"code": code6, "source": source, "error": err})
             if i == 1 or i % 50 == 0 or i == len(codes):
-                print(f"[qfq] {i}/{len(codes)} {code6} rows={len(df)} error={err}", flush=True)
+                print(f"[prices] {i}/{len(codes)} {code6} source={source} rows={len(df)} error={err}", flush=True)
     else:
-        with futures.ProcessPoolExecutor(max_workers=workers, initializer=init_baostock_worker) as executor:
-            futs = {executor.submit(load_or_fetch_symbol, code, start_date, end_date, cache_dir): code for code in codes}
+        with futures.ProcessPoolExecutor(max_workers=workers) as executor:
+            futs = {
+                executor.submit(
+                    load_or_fetch_symbol,
+                    code,
+                    start_date,
+                    end_date,
+                    cache_dir,
+                    source_cache_dir,
+                    source_cache_pattern,
+                    fetch_missing_source_cache,
+                ): code
+                for code in codes
+            }
             for i, fut in enumerate(futures.as_completed(futs), start=1):
-                code6, df, err = fut.result()
+                code6, df, err, source = fut.result()
+                sources.append({"code": code6, "source": source})
                 if not df.empty:
                     records.append(df)
                 if err:
-                    errors.append({"code": code6, "error": err})
+                    errors.append({"code": code6, "source": source, "error": err})
                 if i == 1 or i % 50 == 0 or i == len(codes):
-                    print(f"[qfq:{workers}w] {i}/{len(codes)} {code6} rows={len(df)} error={err}", flush=True)
+                    print(f"[prices:{workers}w] {i}/{len(codes)} {code6} source={source} rows={len(df)} error={err}", flush=True)
+    if source_cache_dir is not None and not fetch_missing_source_cache and errors:
+        first = errors[0]
+        raise RuntimeError(f"{len(errors)} source cache files missing or incomplete; first={first['code']} {first['error']}")
     if not records:
         raise RuntimeError("No BaoStock qfq daily rows fetched")
     prices = pd.concat(records, ignore_index=True).drop_duplicates(["symbol", "date"], keep="last")
     prices = prices.sort_values(["symbol", "date"]).set_index(["symbol", "date"])
-    errors_df = pd.DataFrame(errors, columns=["code", "error"])
-    return prices, errors_df
+    errors_df = pd.DataFrame(errors, columns=["code", "source", "error"])
+    sources_df = pd.DataFrame(sources, columns=["code", "source"])
+    return prices, errors_df, sources_df
 
 
 def require_runtime_deps() -> None:
@@ -280,6 +390,15 @@ def qcut_codes(x: pd.Series, q: int) -> pd.Series:
         return pd.qcut(x, q=q, labels=False, duplicates="drop")
     except ValueError:
         return pd.Series(np.nan, index=x.index)
+
+
+def quantile_rank_codes(values: pd.Series, group_keys: Any, q: int) -> pd.Series:
+    grouped = values.groupby(group_keys, sort=False)
+    count = grouped.transform("count")
+    nunique = grouped.transform("nunique")
+    rank = grouped.rank(method="average", na_option="keep")
+    codes = np.floor((rank - 1) * (q - 1) / (count - 1))
+    return codes.where((count > 1) & (nunique > 1))
 
 
 def compute_features(prices: pd.DataFrame, metadata: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -325,11 +444,12 @@ def compute_features(prices: pd.DataFrame, metadata: pd.DataFrame) -> tuple[pd.D
     for t in T:
         prices[f"r{t:02}"] = by_sym.pct_change(t)
 
+    dates = prices.index.get_level_values("date")
     for t in T:
-        prices[f"r{t:02}dec"] = prices[f"r{t:02}"].groupby(level="date", group_keys=False).apply(lambda x: qcut_codes(x, 10))
+        prices[f"r{t:02}dec"] = quantile_rank_codes(prices[f"r{t:02}"], dates, 10)
 
     for t in T:
-        prices[f"r{t:02}q_sector"] = prices.groupby(["date", "sector"])[f"r{t:02}"].transform(lambda x: qcut_codes(x, 5))
+        prices[f"r{t:02}q_sector"] = quantile_rank_codes(prices[f"r{t:02}"], [dates, prices["sector"]], 5)
 
     for t in FWD_T:
         prices[f"r{t:02}_fwd"] = prices.groupby(level="symbol")[f"r{t:02}"].shift(-t)
@@ -339,7 +459,6 @@ def compute_features(prices: pd.DataFrame, metadata: pd.DataFrame) -> tuple[pd.D
     if len(outliers):
         prices = prices.drop(outliers, level="symbol")
 
-    dates = prices.index.get_level_values("date")
     prices["year"] = dates.year
     prices["month"] = dates.month
     prices["weekday"] = dates.weekday
@@ -393,6 +512,7 @@ def write_reports(
     model_data: pd.DataFrame,
     outliers: pd.DataFrame,
     fetch_errors: pd.DataFrame,
+    price_sources: pd.DataFrame,
 ) -> None:
     ensure_dir(reports_dir)
     pd.DataFrame(
@@ -419,6 +539,7 @@ def write_reports(
     )
     outliers.to_csv(reports_dir / "outlier_symbols_r01_gt_1.csv", index=False, encoding="utf-8-sig")
     fetch_errors.to_csv(reports_dir / "fetch_errors.csv", index=False, encoding="utf-8-sig")
+    price_sources.to_csv(reports_dir / "price_sources.csv", index=False, encoding="utf-8-sig")
     universe["board"].value_counts().rename_axis("board").rename("count").to_csv(
         reports_dir / "board_distribution.csv", encoding="utf-8-sig"
     )
@@ -468,7 +589,46 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--end-date", default=None, help="Default: universe asof_date max, or today")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--max-symbols", type=int, default=None, help="Smoke-test limit")
+    p.add_argument(
+        "--sample-mode",
+        default="head",
+        choices=["head", "industry-balanced"],
+        help="How --max-symbols selects a smoke-test subset.",
+    )
+    p.add_argument(
+        "--industry-sample-size",
+        type=int,
+        default=3,
+        help="With --sample-mode industry-balanced, select up to this many symbols per industry.",
+    )
+    p.add_argument(
+        "--min-industry-sample-size",
+        type=int,
+        default=2,
+        help="With --sample-mode industry-balanced, skip industries with fewer selected symbols than this.",
+    )
     p.add_argument("--min-obs", type=int, default=MIN_OBS)
+    p.add_argument(
+        "--source-cache-dir",
+        default=None,
+        help="Optional existing daily CSV cache to read before fetching BaoStock qfq data, e.g. ashare_static_universe/baostock_daily_cache",
+    )
+    p.add_argument(
+        "--source-cache-pattern",
+        default="{code}_daily_raw.csv",
+        help="Filename pattern under --source-cache-dir. Available placeholders: {code}, {bs_code}",
+    )
+    p.add_argument(
+        "--source-cache-adjust",
+        default="raw",
+        choices=["raw", "qfq"],
+        help="Only metadata for reports; raw means BaoStock adjustflag=3 and is not strict qfq.",
+    )
+    p.add_argument(
+        "--no-fetch-missing-source-cache",
+        action="store_true",
+        help="When --source-cache-dir is set, fail missing/incomplete source cache files instead of fetching BaoStock qfq fallback data.",
+    )
     return p.parse_args()
 
 
@@ -482,8 +642,13 @@ def main() -> None:
 
     universe = pd.read_csv(args.universe, dtype={"code": str})
     universe["code"] = universe["code"].map(normalize_code)
-    if args.max_symbols:
-        universe = universe.head(args.max_symbols).copy()
+    universe = sample_universe(
+        universe,
+        args.max_symbols,
+        str(args.sample_mode),
+        int(args.industry_sample_size),
+        int(args.min_industry_sample_size),
+    )
     end_date = args.end_date
     if end_date is None:
         end_date = pd.to_datetime(universe.get("asof_date", pd.Series([pd.Timestamp.today()])).dropna().max()).strftime("%Y-%m-%d")
@@ -497,7 +662,23 @@ def main() -> None:
     metadata["industry"] = metadata["industry"].fillna("").astype(str).str.strip()
     metadata = metadata[metadata["industry"].ne("")]
 
-    raw_prices, fetch_errors = fetch_prices(metadata, start_date, end_date, Path(args.cache_dir), max(1, int(args.workers)))
+    source_cache_dir = Path(args.source_cache_dir) if args.source_cache_dir else None
+    if source_cache_dir is not None and str(args.source_cache_adjust) != "qfq":
+        print(
+            f"[warning] using source cache with adjust={args.source_cache_adjust}; "
+            "this avoids BaoStock downloads but is not strict qfq-adjusted pricing.",
+            flush=True,
+        )
+    raw_prices, fetch_errors, price_sources = fetch_prices(
+        metadata,
+        start_date,
+        end_date,
+        Path(args.cache_dir),
+        max(1, int(args.workers)),
+        source_cache_dir=source_cache_dir,
+        source_cache_pattern=str(args.source_cache_pattern),
+        fetch_missing_source_cache=not bool(args.no_fetch_missing_source_cache),
+    )
     nobs = raw_prices.groupby(level="symbol").size()
     keep_symbols = nobs[nobs > int(args.min_obs)].index
     prices = raw_prices.loc[raw_prices.index.get_level_values("symbol").isin(keep_symbols)].copy()
@@ -519,7 +700,7 @@ def main() -> None:
     metadata_assets.to_hdf(assets_path, "/ashare/metadata", mode="w")
     model_data.to_hdf(model_data_path, "model_data", mode="w")
 
-    write_reports(reports_dir, universe, metadata_assets, raw_prices, prices, model_data, outliers, fetch_errors)
+    write_reports(reports_dir, universe, metadata_assets, raw_prices, prices, model_data, outliers, fetch_errors, price_sources)
     chapter17 = validate_model_data(model_data_path)
     (reports_dir / "chapter17_read_smoke_test.json").write_text(json.dumps(chapter17, ensure_ascii=False, indent=2), encoding="utf-8")
 
@@ -532,6 +713,12 @@ def main() -> None:
         end_date=end_date,
         workers=int(args.workers),
         min_obs=int(args.min_obs),
+        sample_mode=str(args.sample_mode),
+        industry_sample_size=int(args.industry_sample_size),
+        min_industry_sample_size=int(args.min_industry_sample_size),
+        source_cache_dir=str(source_cache_dir.resolve()) if source_cache_dir is not None else None,
+        source_cache_pattern=str(args.source_cache_pattern),
+        source_cache_adjust=str(args.source_cache_adjust),
         universe_rows=int(len(universe)),
         fetched_symbols=int(raw_prices.index.get_level_values("symbol").nunique()),
         symbols_after_min_obs=int(len(keep_symbols)),
@@ -543,6 +730,7 @@ def main() -> None:
         chapter17_outcomes=chapter17["outcomes"],
         chapter17_X_rows=int(chapter17["X_shape"][0]),
         chapter17_y_rows=int(chapter17["y_rows"]),
+        price_sources={str(k): int(v) for k, v in price_sources["source"].value_counts().sort_index().items()},
     )
     (out_dir / "build_summary.json").write_text(json.dumps(asdict(summary), ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(asdict(summary), ensure_ascii=False, indent=2), flush=True)
