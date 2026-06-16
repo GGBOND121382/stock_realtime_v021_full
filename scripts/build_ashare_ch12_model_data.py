@@ -18,6 +18,7 @@ import atexit
 import concurrent.futures as futures
 import json
 import math
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Iterable, Optional
@@ -93,6 +94,18 @@ FORBIDDEN_MODEL_COLUMNS = {
 }
 
 _WORKER_BAOSTOCK = None
+
+
+def log_memory(enabled: bool, label: str) -> None:
+    if not enabled:
+        return
+    try:
+        import psutil
+
+        rss_mb = psutil.Process(os.getpid()).memory_info().rss / 1024**2
+        print(f"[memory] {label}: rss_mb={rss_mb:.1f}", flush=True)
+    except Exception as exc:
+        print(f"[memory] {label}: unavailable {type(exc).__name__}: {exc}", flush=True)
 
 
 @dataclass
@@ -360,8 +373,11 @@ def fetch_prices(
         raise RuntimeError(f"{len(errors)} source cache files missing or incomplete; first={first['code']} {first['error']}")
     if not records:
         raise RuntimeError("No BaoStock qfq daily rows fetched")
-    prices = pd.concat(records, ignore_index=True).drop_duplicates(["symbol", "date"], keep="last")
-    prices = prices.sort_values(["symbol", "date"]).set_index(["symbol", "date"])
+    prices = pd.concat(records, ignore_index=True)
+    records.clear()
+    prices.drop_duplicates(["symbol", "date"], keep="last", inplace=True)
+    prices.sort_values(["symbol", "date"], inplace=True)
+    prices.set_index(["symbol", "date"], inplace=True)
     errors_df = pd.DataFrame(errors, columns=["code", "source", "error"])
     sources_df = pd.DataFrame(sources, columns=["code", "source"])
     return prices, errors_df, sources_df
@@ -393,38 +409,65 @@ def qcut_codes(x: pd.Series, q: int) -> pd.Series:
 
 
 def quantile_rank_codes(values: pd.Series, group_keys: Any, q: int) -> pd.Series:
-    grouped = values.groupby(group_keys, sort=False)
-    count = grouped.transform("count")
-    nunique = grouped.transform("nunique")
-    rank = grouped.rank(method="average", na_option="keep")
-    codes = np.floor((rank - 1) * (q - 1) / (count - 1))
-    return codes.where((count > 1) & (nunique > 1))
+    if isinstance(group_keys, (list, tuple)):
+        groups = pd.MultiIndex.from_arrays(group_keys)
+    else:
+        groups = group_keys
+    group_codes, _uniques = pd.factorize(groups, sort=False)
+    ngroups = int(group_codes.max()) + 1 if len(group_codes) else 0
+    if ngroups <= 0:
+        return pd.Series(np.nan, index=values.index)
+
+    valid = values.notna().to_numpy()
+    counts = np.bincount(group_codes[valid], minlength=ngroups)
+    nunique_by_group = values.groupby(group_codes, sort=False).nunique()
+    nunique = np.zeros(ngroups, dtype=np.int64)
+    nunique[nunique_by_group.index.to_numpy(dtype=np.int64)] = nunique_by_group.to_numpy(dtype=np.int64)
+    rank = values.groupby(group_codes, sort=False).rank(method="average", na_option="keep").to_numpy()
+
+    count_by_row = counts[group_codes]
+    nunique_by_row = nunique[group_codes]
+    result = np.full(len(values), np.nan, dtype=np.float64)
+    mask = valid & (count_by_row > 1) & (nunique_by_row > 1)
+    result[mask] = np.floor((rank[mask] - 1) * (q - 1) / (count_by_row[mask] - 1))
+    return pd.Series(result, index=values.index)
 
 
-def compute_features(prices: pd.DataFrame, metadata: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+def compute_features(prices: pd.DataFrame, metadata: pd.DataFrame, profile_memory: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
     import talib
     from talib import ATR, BBANDS, MACD, RSI
 
-    prices = prices.sort_index().copy()
+    log_memory(profile_memory, "compute_features:start")
+    if not prices.index.is_monotonic_increasing:
+        prices.sort_index(inplace=True)
+        log_memory(profile_memory, "compute_features:after_sort_index")
     metadata = metadata.copy()
     metadata["sector"] = pd.factorize(metadata["industry"])[0].astype(int)
     metadata = metadata.set_index("code", drop=False)
 
-    prices["dollar_vol"] = prices[["close", "volume"]].prod(axis=1).div(1e3)
+    prices["dollar_vol"] = prices["close"].mul(prices["volume"]).div(1e3)
     dollar_vol_ma = prices.dollar_vol.unstack("symbol").rolling(window=MONTH, min_periods=1).mean()
     prices["dollar_vol_rank"] = dollar_vol_ma.rank(axis=1, ascending=False).stack().swaplevel()
+    del dollar_vol_ma
+    log_memory(profile_memory, "compute_features:after_dollar_vol_rank")
 
     prices["rsi"] = prices.groupby(level="symbol", group_keys=False).close.apply(RSI)
+    log_memory(profile_memory, "compute_features:after_rsi")
 
     def compute_bb(close: pd.Series) -> pd.DataFrame:
         high, _mid, low = BBANDS(close, timeperiod=20)
         return pd.DataFrame({"bb_high": high, "bb_low": low}, index=close.index)
 
-    prices = prices.join(prices.groupby(level="symbol", group_keys=False).close.apply(compute_bb))
+    bbands = prices.groupby(level="symbol", group_keys=False).close.apply(compute_bb)
+    prices["bb_high"] = bbands["bb_high"]
+    prices["bb_low"] = bbands["bb_low"]
+    del bbands
     prices["bb_high"] = prices.bb_high.sub(prices.close).div(prices.bb_high).apply(np.log1p)
     prices["bb_low"] = prices.close.sub(prices.bb_low).div(prices.close).apply(np.log1p)
+    log_memory(profile_memory, "compute_features:after_bbands")
 
     prices["NATR"] = prices.groupby(level="symbol", group_keys=False).apply(lambda x: talib.NATR(x.high, x.low, x.close))
+    log_memory(profile_memory, "compute_features:after_natr")
 
     def compute_atr(stock_data: pd.DataFrame) -> pd.Series:
         s = ATR(stock_data.high, stock_data.low, stock_data.close, timeperiod=14)
@@ -432,37 +475,46 @@ def compute_features(prices: pd.DataFrame, metadata: pd.DataFrame) -> tuple[pd.D
 
     prices["ATR"] = prices.groupby("symbol", group_keys=False).apply(compute_atr)
     prices["PPO"] = prices.groupby(level="symbol", group_keys=False).close.apply(talib.PPO)
+    log_memory(profile_memory, "compute_features:after_atr_ppo")
 
     def compute_macd(close: pd.Series) -> pd.Series:
         macd = MACD(close)[0]
         return (macd - np.mean(macd)) / np.std(macd)
 
     prices["MACD"] = prices.groupby("symbol", group_keys=False).close.apply(compute_macd)
-    prices = prices.join(metadata[["sector"]], on="symbol")
+    sector_map = metadata["sector"]
+    prices["sector"] = prices.index.get_level_values("symbol").map(sector_map).astype(int)
+    log_memory(profile_memory, "compute_features:after_macd_sector")
 
     by_sym = prices.groupby(level="symbol").close
     for t in T:
         prices[f"r{t:02}"] = by_sym.pct_change(t)
+    log_memory(profile_memory, "compute_features:after_returns")
 
     dates = prices.index.get_level_values("date")
     for t in T:
         prices[f"r{t:02}dec"] = quantile_rank_codes(prices[f"r{t:02}"], dates, 10)
+        log_memory(profile_memory, f"compute_features:after_r{t:02}dec")
 
     for t in T:
         prices[f"r{t:02}q_sector"] = quantile_rank_codes(prices[f"r{t:02}"], [dates, prices["sector"]], 5)
+        log_memory(profile_memory, f"compute_features:after_r{t:02}q_sector")
 
     for t in FWD_T:
         prices[f"r{t:02}_fwd"] = prices.groupby(level="symbol")[f"r{t:02}"].shift(-t)
+    log_memory(profile_memory, "compute_features:after_forward_returns")
 
     outliers = prices[prices.r01 > 1].index.get_level_values("symbol").unique()
     outlier_df = pd.DataFrame({"symbol": list(outliers)})
     if len(outliers):
-        prices = prices.drop(outliers, level="symbol")
+        prices.drop(outliers, level="symbol", inplace=True)
+        log_memory(profile_memory, "compute_features:after_outlier_drop")
 
     dates = prices.index.get_level_values("date")
     prices["year"] = dates.year
     prices["month"] = dates.month
     prices["weekday"] = dates.weekday
+    log_memory(profile_memory, "compute_features:end")
     return prices, outlier_df
 
 
@@ -495,25 +547,49 @@ def validate_forward_label_alignment(prices_with_close: pd.DataFrame, tolerance:
     out: dict[str, float] = {}
     for t in FWD_T:
         fwd_col = f"r{t:02}_fwd"
-        manual = prices_with_close.groupby(level="symbol")["close"].shift(-t).div(prices_with_close["close"]).sub(1.0)
-        diff = prices_with_close[fwd_col].sub(manual).abs().dropna()
-        max_diff = float(diff.max()) if not diff.empty else float("nan")
+        max_diff = float("nan")
+        for _symbol, g in prices_with_close.groupby(level="symbol", sort=False):
+            close = g["close"]
+            manual = close.shift(-t).div(close).sub(1.0)
+            diff = g[fwd_col].sub(manual).abs().dropna()
+            if diff.empty:
+                continue
+            group_max = float(diff.max())
+            if math.isnan(max_diff) or group_max > max_diff:
+                max_diff = group_max
         out[f"max_abs_diff_{fwd_col}"] = max_diff
-        if not diff.empty and max_diff >= tolerance:
+        if not math.isnan(max_diff) and max_diff >= tolerance:
             raise RuntimeError(f"{fwd_col} label alignment failed: max_abs_diff={max_diff} >= {tolerance}")
     return out
+
+
+def compute_na_report_and_clean_mask(model_data: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
+    clean_mask = pd.Series(True, index=model_data.index)
+    rows = []
+    total = len(model_data)
+    for column in model_data.columns:
+        is_na = model_data[column].isna()
+        na_count = int(is_na.sum())
+        clean_mask &= ~is_na
+        rows.append({"column": column, "na_count": na_count, "na_ratio": na_count / total})
+    na_report = pd.DataFrame(rows).set_index("column")
+    return na_report, clean_mask
 
 
 def write_reports(
     reports_dir: Path,
     universe: pd.DataFrame,
     metadata: pd.DataFrame,
-    raw_prices: pd.DataFrame,
-    prices: pd.DataFrame,
+    nobs_by_symbol: pd.DataFrame,
+    unique_symbols_with_prices: int,
     model_data: pd.DataFrame,
+    na_report: pd.DataFrame,
+    clean_mask: pd.Series,
     outliers: pd.DataFrame,
     fetch_errors: pd.DataFrame,
     price_sources: pd.DataFrame,
+    label_samples: pd.DataFrame,
+    label_validation: dict[str, float],
 ) -> None:
     ensure_dir(reports_dir)
     pd.DataFrame(
@@ -523,17 +599,14 @@ def write_reports(
             "matches_expected_position": [a == b for a, b in zip(EXPECTED_COLUMNS, model_data.columns)],
         }
     ).to_csv(reports_dir / "column_check.csv", index=False, encoding="utf-8-sig")
-    model_data.isna().sum().rename("na_count").to_frame().assign(na_ratio=lambda x: x.na_count / len(model_data)).to_csv(
-        reports_dir / "na_report_before_dropna.csv", encoding="utf-8-sig"
-    )
+    na_report.to_csv(reports_dir / "na_report_before_dropna.csv", encoding="utf-8-sig")
     model_data.groupby(level="date").size().rename("sample_count").to_csv(
         reports_dir / "daily_sample_count_before_dropna.csv", encoding="utf-8-sig"
     )
-    model_data.dropna().groupby(level="date").size().rename("sample_count").to_csv(
+    clean_mask.groupby(level="date").sum().astype(int).rename("sample_count").to_csv(
         reports_dir / "daily_sample_count_after_dropna.csv", encoding="utf-8-sig"
     )
-    make_label_alignment_samples(prices).to_csv(reports_dir / "label_alignment_samples.csv", index=False, encoding="utf-8-sig")
-    label_validation = validate_forward_label_alignment(prices)
+    label_samples.to_csv(reports_dir / "label_alignment_samples.csv", index=False, encoding="utf-8-sig")
     (reports_dir / "label_alignment_validation.json").write_text(
         json.dumps(label_validation, ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -544,41 +617,61 @@ def write_reports(
     universe["board"].value_counts().rename_axis("board").rename("count").to_csv(
         reports_dir / "board_distribution.csv", encoding="utf-8-sig"
     )
-    nobs = raw_prices.groupby(level="symbol").size().rename("nobs").reset_index()
-    nobs.to_csv(reports_dir / "nobs_by_symbol.csv", index=False, encoding="utf-8-sig")
+    nobs_by_symbol.to_csv(reports_dir / "nobs_by_symbol.csv", index=False, encoding="utf-8-sig")
+    clean_index = model_data.index[clean_mask.to_numpy()]
+    daily_after = clean_mask.groupby(level="date").sum()
     pool = {
         "unique_symbols_before": int(universe["code"].nunique()),
-        "unique_symbols_with_prices": int(raw_prices.index.get_level_values("symbol").nunique()),
-        "unique_symbols_after_outlier_drop": int(prices.index.get_level_values("symbol").nunique()),
-        "unique_symbols_after_dropna": int(model_data.dropna().index.get_level_values("symbol").nunique()),
+        "unique_symbols_with_prices": int(unique_symbols_with_prices),
+        "unique_symbols_after_outlier_drop": int(model_data.index.get_level_values("symbol").nunique()),
+        "unique_symbols_after_dropna": int(clean_index.get_level_values("symbol").nunique()),
         "daily_symbol_count_before_dropna_min": int(model_data.groupby(level="date").size().min()),
-        "daily_symbol_count_after_dropna_min": int(model_data.dropna().groupby(level="date").size().min()),
+        "daily_symbol_count_after_dropna_min": int(daily_after[daily_after > 0].min()),
     }
     (reports_dir / "pool_validation.json").write_text(json.dumps(pool, ensure_ascii=False, indent=2), encoding="utf-8")
     metadata.to_csv(reports_dir / "metadata_used.csv", index=False, encoding="utf-8-sig")
 
 
-def validate_model_data(model_data_path: Path) -> dict[str, Any]:
-    data = pd.read_hdf(model_data_path, "model_data").dropna().sort_index()
-    outcomes = data.filter(like="fwd").columns.tolist()
-    X = data.drop(outcomes, axis=1)
-    y = data["r01_fwd"]
+def summarize_chapter17_data(model_data: pd.DataFrame, clean_mask: pd.Series) -> dict[str, Any]:
+    outcomes = model_data.filter(like="fwd").columns.tolist()
     if outcomes != ["r01_fwd", "r05_fwd", "r21_fwd"]:
         raise RuntimeError(f"unexpected outcomes: {outcomes}")
-    if any("fwd" in c for c in X.columns):
+    feature_cols = [c for c in model_data.columns if c not in outcomes]
+    if any("fwd" in c for c in feature_cols):
         raise RuntimeError("X contains fwd columns")
-    if y.isna().any():
-        raise RuntimeError("y contains NA")
-    if X.shape[0] != y.shape[0]:
-        raise RuntimeError("X/y row mismatch")
+    clean_rows = int(clean_mask.sum())
+    if clean_rows <= 0:
+        raise RuntimeError("model_data.dropna() is empty")
+    clean_index = model_data.index[clean_mask.to_numpy()]
     return {
         "outcomes": outcomes,
-        "X_shape": list(X.shape),
-        "y_rows": int(y.shape[0]),
-        "symbols": int(data.index.get_level_values("symbol").nunique()),
-        "date_start": data.index.get_level_values("date").min().strftime("%Y-%m-%d"),
-        "date_end": data.index.get_level_values("date").max().strftime("%Y-%m-%d"),
+        "X_shape": [clean_rows, len(feature_cols)],
+        "y_rows": clean_rows,
+        "symbols": int(clean_index.get_level_values("symbol").nunique()),
+        "date_start": clean_index.get_level_values("date").min().strftime("%Y-%m-%d"),
+        "date_end": clean_index.get_level_values("date").max().strftime("%Y-%m-%d"),
     }
+
+
+def validate_model_data_file(model_data_path: Path, expected_shape: tuple[int, int]) -> None:
+    with pd.HDFStore(model_data_path, mode="r") as store:
+        if "/model_data" not in store.keys():
+            raise RuntimeError("model_data.h5 does not contain /model_data")
+        storer = store.get_storer("model_data")
+        storer_shape = storer.shape
+        if np.isscalar(storer_shape):
+            actual_shape = (int(storer_shape), int(expected_shape[1]))
+        else:
+            actual_shape = tuple(storer_shape)
+    if actual_shape != tuple(expected_shape):
+        raise RuntimeError(f"model_data.h5 shape mismatch: {actual_shape} != {tuple(expected_shape)}")
+
+
+def write_model_data_hdf(model_data_path: Path, model_data: pd.DataFrame, chunk_rows: int = 250_000) -> None:
+    with pd.HDFStore(model_data_path, mode="w") as store:
+        for start in range(0, len(model_data), chunk_rows):
+            stop = min(start + chunk_rows, len(model_data))
+            store.append("model_data", model_data.iloc[start:stop], format="table", index=True)
 
 
 def parse_args() -> argparse.Namespace:
@@ -630,6 +723,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="When --source-cache-dir is set, fail missing/incomplete source cache files instead of fetching BaoStock qfq fallback data.",
     )
+    p.add_argument("--profile-memory", action="store_true", help="Print RSS checkpoints during the build.")
     return p.parse_args()
 
 
@@ -680,16 +774,28 @@ def main() -> None:
         source_cache_pattern=str(args.source_cache_pattern),
         fetch_missing_source_cache=not bool(args.no_fetch_missing_source_cache),
     )
+    log_memory(bool(args.profile_memory), "main:after_fetch_prices")
     nobs = raw_prices.groupby(level="symbol").size()
+    nobs_by_symbol = nobs.rename("nobs").reset_index()
+    unique_symbols_with_prices = int(raw_prices.index.get_level_values("symbol").nunique())
     keep_symbols = nobs[nobs > int(args.min_obs)].index
-    prices = raw_prices.loc[raw_prices.index.get_level_values("symbol").isin(keep_symbols)].copy()
+    drop_symbols = nobs.index.difference(keep_symbols)
+    if len(drop_symbols):
+        raw_prices.drop(drop_symbols, level="symbol", inplace=True)
+    prices = raw_prices
+    del raw_prices, drop_symbols, nobs
+    log_memory(bool(args.profile_memory), "main:after_min_obs_filter")
     metadata = metadata[metadata["code"].isin(keep_symbols)].copy()
     if prices.empty:
         raise RuntimeError(f"No symbols passed nobs > {args.min_obs}; try an earlier --start-date")
 
-    prices, outliers = compute_features(prices, metadata)
-    model_data = prices.drop(["open", "close", "low", "high", "volume"], axis=1)
-    model_data = model_data[EXPECTED_COLUMNS]
+    prices, outliers = compute_features(prices, metadata, profile_memory=bool(args.profile_memory))
+    label_samples = make_label_alignment_samples(prices)
+    label_validation = validate_forward_label_alignment(prices)
+    log_memory(bool(args.profile_memory), "main:after_label_validation")
+    prices.drop(columns=["open", "close", "low", "high", "volume"], inplace=True)
+    model_data = prices
+    log_memory(bool(args.profile_memory), "main:after_drop_ohlcv")
     if list(model_data.columns) != EXPECTED_COLUMNS:
         raise RuntimeError("actual_columns != expected_columns")
     forbidden = sorted(FORBIDDEN_MODEL_COLUMNS.intersection(model_data.columns))
@@ -698,11 +804,34 @@ def main() -> None:
 
     metadata_assets = metadata.copy()
     metadata_assets["sector"] = pd.factorize(metadata_assets["industry"])[0].astype(int)
+    for path in (assets_path, model_data_path):
+        if path.exists():
+            path.unlink()
     metadata_assets.to_hdf(assets_path, "/ashare/metadata", mode="w")
-    model_data.to_hdf(model_data_path, "model_data", mode="w")
+    write_model_data_hdf(model_data_path, model_data)
+    validate_model_data_file(model_data_path, tuple(model_data.shape))
+    log_memory(bool(args.profile_memory), "main:after_hdf_write")
 
-    write_reports(reports_dir, universe, metadata_assets, raw_prices, prices, model_data, outliers, fetch_errors, price_sources)
-    chapter17 = validate_model_data(model_data_path)
+    na_report, clean_mask = compute_na_report_and_clean_mask(model_data)
+    log_memory(bool(args.profile_memory), "main:after_clean_mask")
+
+    write_reports(
+        reports_dir,
+        universe,
+        metadata_assets,
+        nobs_by_symbol,
+        unique_symbols_with_prices,
+        model_data,
+        na_report,
+        clean_mask,
+        outliers,
+        fetch_errors,
+        price_sources,
+        label_samples,
+        label_validation,
+    )
+    chapter17 = summarize_chapter17_data(model_data, clean_mask)
+    log_memory(bool(args.profile_memory), "main:after_reports")
     (reports_dir / "chapter17_read_smoke_test.json").write_text(json.dumps(chapter17, ensure_ascii=False, indent=2), encoding="utf-8")
 
     summary = BuildSummary(
@@ -721,12 +850,12 @@ def main() -> None:
         source_cache_pattern=str(args.source_cache_pattern),
         source_cache_adjust=str(args.source_cache_adjust),
         universe_rows=int(len(universe)),
-        fetched_symbols=int(raw_prices.index.get_level_values("symbol").nunique()),
+        fetched_symbols=int(unique_symbols_with_prices),
         symbols_after_min_obs=int(len(keep_symbols)),
-        symbols_after_outlier_drop=int(prices.index.get_level_values("symbol").nunique()),
-        symbols_after_dropna=int(model_data.dropna().index.get_level_values("symbol").nunique()),
+        symbols_after_outlier_drop=int(model_data.index.get_level_values("symbol").nunique()),
+        symbols_after_dropna=int(model_data.index[clean_mask.to_numpy()].get_level_values("symbol").nunique()),
         model_rows_before_dropna=int(len(model_data)),
-        model_rows_after_dropna=int(len(model_data.dropna())),
+        model_rows_after_dropna=int(clean_mask.sum()),
         model_columns=int(model_data.shape[1]),
         chapter17_outcomes=chapter17["outcomes"],
         chapter17_X_rows=int(chapter17["X_shape"][0]),
