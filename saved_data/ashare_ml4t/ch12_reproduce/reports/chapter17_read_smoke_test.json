@@ -1,0 +1,15 @@
+{
+  "outcomes": [
+    "r01_fwd",
+    "r05_fwd",
+    "r21_fwd"
+  ],
+  "X_shape": [
+    3249217,
+    31
+  ],
+  "y_rows": 3249217,
+  "symbols": 980,
+  "date_start": "2010-04-09",
+  "date_end": "2026-05-15"
+}

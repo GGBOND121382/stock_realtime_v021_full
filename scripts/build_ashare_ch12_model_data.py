@@ -459,6 +459,7 @@ def compute_features(prices: pd.DataFrame, metadata: pd.DataFrame) -> tuple[pd.D
     if len(outliers):
         prices = prices.drop(outliers, level="symbol")
 
+    dates = prices.index.get_level_values("date")
     prices["year"] = dates.year
     prices["month"] = dates.month
     prices["weekday"] = dates.weekday

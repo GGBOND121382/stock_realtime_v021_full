@@ -1,0 +1,8 @@
+{
+  "unique_symbols_before": 1000,
+  "unique_symbols_with_prices": 1000,
+  "unique_symbols_after_outlier_drop": 987,
+  "unique_symbols_after_dropna": 980,
+  "daily_symbol_count_before_dropna_min": 457,
+  "daily_symbol_count_after_dropna_min": 259
+}

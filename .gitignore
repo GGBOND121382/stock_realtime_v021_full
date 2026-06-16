@@ -510,3 +510,5 @@ saved_data/ashare_static_universe_speed*/
 saved_data/ashare_static_universe/baostock_daily_cache/
 saved_data/ashare_ml4t/ch12_reproduce/baostock_qfq_daily_cache/
 saved_data/ashare_ml4t/*smoke*/
+saved_data/ashare_ml4t/ch12_reproduce/assets_ashare.h5
+saved_data/ashare_ml4t/ch12_reproduce/model_data.h5

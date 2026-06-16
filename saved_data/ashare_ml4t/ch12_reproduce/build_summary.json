@@ -1,0 +1,34 @@
+{
+  "universe_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\ashare_static_universe\\07_universe_allA_top1000_static.csv",
+  "output_dir": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\ashare_ml4t\\ch12_reproduce",
+  "model_data_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\ashare_ml4t\\ch12_reproduce\\model_data.h5",
+  "assets_path": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\ashare_ml4t\\ch12_reproduce\\assets_ashare.h5",
+  "start_date": "2010-01-01",
+  "end_date": "2026-06-15",
+  "workers": 4,
+  "min_obs": 1764,
+  "sample_mode": "head",
+  "industry_sample_size": 3,
+  "min_industry_sample_size": 2,
+  "source_cache_dir": "D:\\VSCodeWorkspace\\stock_realtime_v021_full\\saved_data\\ashare_ml4t\\ch12_reproduce\\baostock_qfq_daily_cache",
+  "source_cache_pattern": "{code}_qfq_daily.csv",
+  "source_cache_adjust": "qfq",
+  "universe_rows": 1000,
+  "fetched_symbols": 1000,
+  "symbols_after_min_obs": 989,
+  "symbols_after_outlier_drop": 987,
+  "symbols_after_dropna": 980,
+  "model_rows_before_dropna": 3366754,
+  "model_rows_after_dropna": 3249217,
+  "model_columns": 34,
+  "chapter17_outcomes": [
+    "r01_fwd",
+    "r05_fwd",
+    "r21_fwd"
+  ],
+  "chapter17_X_rows": 3249217,
+  "chapter17_y_rows": 3249217,
+  "price_sources": {
+    "primary_cache": 1000
+  }
+}
