@@ -5,6 +5,12 @@
 This script does not retrain models. It consumes only
 test_preds.h5::/predictions for signal construction and builds execution
 panels from the local BaoStock qfq daily cache plus static universe metadata.
+
+python3 scripts/run_ashare_ch17_backtest_profiles.py \
+  --predictions saved_data/ashare_ml4t/ch17_reproduce/results/test_preds.h5 \
+  --out-dir saved_data/ashare_ml4t/ch17_reproduce/backtest \
+  --cache-dir saved_data/ashare_ml4t/ch12_reproduce/baostock_qfq_daily_cache \
+  --universe saved_data/ashare_static_universe/07_universe_allA_top1000_static.csv
 """
 from __future__ import annotations
 
