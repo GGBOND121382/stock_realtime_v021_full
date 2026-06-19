@@ -512,3 +512,7 @@ saved_data/ashare_ml4t/ch12_reproduce/baostock_qfq_daily_cache/
 saved_data/ashare_ml4t/*smoke*/
 saved_data/ashare_ml4t/ch12_reproduce/assets_ashare.h5
 saved_data/ashare_ml4t/ch12_reproduce/model_data.h5
+saved_data/ashare_ml4t/ch17_reproduce/results/logs/
+
+# Ignore generated A-share ML4T ch17 data and backtest outputs
+saved_data/ashare_ml4t/ch17_reproduce/
