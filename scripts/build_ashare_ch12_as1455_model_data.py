@@ -287,16 +287,22 @@ def query_baostock_5m_isolated(symbol: str, start_date: str, end_date: str, adju
             pass
 
 
-def query_baostock_5m_worker(symbol: str, start_date: str, end_date: str, adjustflag: str, queue: Any) -> None:
+def query_baostock_5m_worker(symbol: str, start_date: str, end_date: str, adjustflag: str, out_path: str, queue: Any) -> None:
     try:
-        queue.put(("ok", query_baostock_5m_isolated(symbol, start_date, end_date, adjustflag), ""))
+        df = query_baostock_5m_isolated(symbol, start_date, end_date, adjustflag)
+        n_rows = int(len(df))
+        if n_rows > 0:
+            df.to_csv(out_path, index=False, encoding="utf-8-sig")
+            queue.put(("ok", n_rows, out_path, ""))
+        else:
+            queue.put(("empty", 0, "", ""))
     except Exception as exc:
-        queue.put(("error", None, f"{type(exc).__name__}: {exc}"))
+        queue.put(("error", 0, "", f"{type(exc).__name__}: {exc}"))
 
 
-def query_baostock_5m_with_timeout(symbol: str, start_date: str, end_date: str, adjustflag: str, timeout: float) -> pd.DataFrame:
+def query_baostock_5m_with_timeout(symbol: str, start_date: str, end_date: str, adjustflag: str, out_path: Path, timeout: float) -> tuple[str, int, str]:
     queue: Any = mp.Queue(maxsize=1)
-    proc = mp.Process(target=query_baostock_5m_worker, args=(symbol, start_date, end_date, adjustflag, queue))
+    proc = mp.Process(target=query_baostock_5m_worker, args=(symbol, start_date, end_date, adjustflag, str(out_path), queue))
     proc.start()
     proc.join(timeout)
     if proc.is_alive():
@@ -305,10 +311,10 @@ def query_baostock_5m_with_timeout(symbol: str, start_date: str, end_date: str, 
         raise TimeoutError(f"timeout after {timeout:g}s")
     if queue.empty():
         raise RuntimeError(f"BaoStock worker exited with code {proc.exitcode} without returning data")
-    status, df, error = queue.get()
-    if status != "ok":
+    status, n_rows, path, error = queue.get()
+    if status == "error":
         raise RuntimeError(error)
-    return df
+    return status, int(n_rows), str(path)
 
 
 def date_for_baostock(value: Any) -> str:
@@ -360,10 +366,8 @@ def fetch_missing_baostock_5m(
         n_rows = 0
         for attempt in range(1, max(retries, 1) + 1):
             try:
-                df = query_baostock_5m_with_timeout(symbol, start, end, adjustflag, query_timeout)
-                n_rows = int(len(df))
-                if n_rows > 0:
-                    df.to_csv(out_path, index=False, encoding="utf-8-sig")
+                status, n_rows, written_path = query_baostock_5m_with_timeout(symbol, start, end, adjustflag, out_path, query_timeout)
+                if status == "ok" and n_rows > 0:
                     fetched[symbol] = out_path
                 else:
                     status = "empty"
@@ -380,8 +384,8 @@ def fetch_missing_baostock_5m(
         if sleep_seconds > 0:
             time.sleep(sleep_seconds)
         rows.append({"symbol": symbol, "start_date": start, "end_date": end, "status": status, "rows": n_rows, "path": str(out_path if n_rows else ""), "error": error})
-        if i % 25 == 0:
-            pd.DataFrame(rows).to_csv(reports_dir / "as1455_baostock_5m_fetch_report.csv", index=False, encoding="utf-8-sig")
+        print(f"[baostock] {i}/{len(missing_symbols)} {symbol} status={status} rows={n_rows} path={out_path if n_rows else ''} error={error}", flush=True)
+        pd.DataFrame(rows).to_csv(reports_dir / "as1455_baostock_5m_fetch_report.csv", index=False, encoding="utf-8-sig")
     report = pd.DataFrame(rows)
     report.to_csv(reports_dir / "as1455_baostock_5m_fetch_report.csv", index=False, encoding="utf-8-sig")
     return fetched, report
