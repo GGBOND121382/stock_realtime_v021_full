@@ -35,6 +35,63 @@ EPOCHS = 20
 TRAIN_IC_DATES = 24 * 21
 PARAMS = ["dense_layers", "activation", "dropout", "batch_size"]
 EXPECTED_OUTCOMES = ["r01_fwd", "r05_fwd", "r21_fwd"]
+EXPECTED_MODEL_COLUMNS = [
+    "dollar_vol",
+    "dollar_vol_rank",
+    "rsi",
+    "bb_high",
+    "bb_low",
+    "NATR",
+    "ATR",
+    "PPO",
+    "MACD",
+    "sector",
+    "r01",
+    "r05",
+    "r10",
+    "r21",
+    "r42",
+    "r63",
+    "r01dec",
+    "r05dec",
+    "r10dec",
+    "r21dec",
+    "r42dec",
+    "r63dec",
+    "r01q_sector",
+    "r05q_sector",
+    "r10q_sector",
+    "r21q_sector",
+    "r42q_sector",
+    "r63q_sector",
+    "r01_fwd",
+    "r05_fwd",
+    "r21_fwd",
+    "year",
+    "month",
+    "weekday",
+]
+FORBIDDEN_MODEL_COLUMNS = {
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "board",
+    "industry",
+    "is_mainboard",
+    "tradestatus",
+    "isST",
+    "raw_open_as1455",
+    "raw_high_as1455",
+    "raw_low_as1455",
+    "raw_close_as1455",
+    "raw_volume_as1455",
+    "raw_amount_as1455",
+    "last_bar_time",
+    "open_limit_up",
+    "open_limit_down",
+}
 
 DENSE_LAYER_OPTS = [(16, 8), (32, 16), (32, 32), (64, 32)]
 ACTIVATION_OPTS = ["tanh"]
@@ -66,18 +123,21 @@ class TrainDataSummary:
     epochs: int
 
 
-def require_runtime_deps() -> None:
+def require_hdf_deps() -> None:
     missing = []
-    try:
-        import tensorflow  # noqa: F401
-    except Exception:
-        missing.append("tensorflow")
     try:
         import tables  # noqa: F401
     except Exception:
         missing.append("tables/PyTables")
     if missing:
         raise SystemExit("Missing required dependency: " + ", ".join(missing))
+
+
+def require_training_deps() -> None:
+    try:
+        import tensorflow  # noqa: F401
+    except Exception:
+        raise SystemExit("Missing required dependency: tensorflow")
 
 
 def format_time(t: float) -> str:
@@ -108,6 +168,11 @@ class MultipleTimeSeriesCV:
     def split(self, X: pd.DataFrame, y: pd.Series | None = None, groups: Any = None):
         unique_dates = X.index.get_level_values(self.date_idx).unique()
         days = sorted(unique_dates, reverse=True)
+        required_days = self.train_length + self.lookahead + self.n_splits * self.test_length
+        if len(days) < required_days:
+            raise RuntimeError(
+                f"not enough dates for {self.n_splits} CV folds: need at least {required_days}, got {len(days)}"
+            )
         split_idx = []
         for i in range(self.n_splits):
             test_end_idx = i * self.test_length
@@ -161,6 +226,11 @@ def load_training_data(model_data_path: Path, train_end: Any):
     n_rows_before_dropna = int(len(data))
     if list(data.index.names) != ["symbol", "date"]:
         raise RuntimeError(f"unexpected index names: {data.index.names}")
+    if list(data.columns) != EXPECTED_MODEL_COLUMNS:
+        raise RuntimeError(f"unexpected model_data columns: {list(data.columns)}")
+    forbidden = sorted(FORBIDDEN_MODEL_COLUMNS.intersection(data.columns))
+    if forbidden:
+        raise RuntimeError(f"forbidden columns in model_data: {forbidden}")
     outcomes = data.filter(like="fwd").columns.tolist()
     if outcomes != EXPECTED_OUTCOMES:
         raise RuntimeError(f"unexpected outcomes: {outcomes}")
@@ -179,6 +249,8 @@ def load_training_data(model_data_path: Path, train_end: Any):
     X_cv = data
     if any("fwd" in c for c in X_cv.columns):
         raise RuntimeError("X_cv contains fwd columns")
+    if X_cv.shape[1] != 31:
+        raise RuntimeError(f"X_cv must have 31 features after dropping outcomes, got {X_cv.shape[1]}")
     if y_cv.empty or y_cv.isna().any():
         raise RuntimeError("y_cv is empty or contains NA")
     return X_cv, y_cv, outcomes, train_end, n_rows_before_dropna, n_rows_after_dropna
@@ -454,6 +526,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--force-train", action="store_true", help="Retrain even when results/scores.h5 exists")
     p.add_argument("--smoke", action="store_true", help="Run 1 param combo, 1 fold, 2 epochs")
     p.add_argument("--full-cv-smoke", action="store_true", help="With --smoke, run all CV folds while keeping 1 param combo and 2 epochs")
+    p.add_argument("--input-check-only", action="store_true", help="Validate model_data schema/dropna/CV splits and exit before training")
     return p.parse_args()
 
 
@@ -461,7 +534,7 @@ def main() -> None:
     args = parse_args()
     if args.full_cv_smoke and not args.smoke:
         raise SystemExit("--full-cv-smoke requires --smoke")
-    require_runtime_deps()
+    require_hdf_deps()
     model_data_path = Path(args.model_data)
     out_dir = Path(args.out_dir)
     results_dir = out_dir / "results"
@@ -484,7 +557,11 @@ def main() -> None:
     cv = make_cv()
     write_cv_split_report(cv, X_cv, y_cv, results_dir / "cv_split_report.csv")
     param_grid_frame().to_csv(results_dir / "param_grid.csv", index=False, encoding="utf-8-sig")
+    if args.input_check_only:
+        print(json.dumps({"status": "input_check_passed", "results_dir": str(results_dir.resolve()), "X_shape": list(X_cv.shape), "y_rows": int(len(y_cv))}, ensure_ascii=False, indent=2), flush=True)
+        return
 
+    require_training_deps()
     train_cv(X_cv, y_cv, results_dir, logs_dir, force_train=args.force_train, smoke=args.smoke, full_cv_smoke=args.full_cv_smoke)
     write_score_summaries(results_dir)
     predictions = generate_predictions(X_cv, y_cv, results_dir, logs_dir, smoke=args.smoke, full_cv_smoke=args.full_cv_smoke)
