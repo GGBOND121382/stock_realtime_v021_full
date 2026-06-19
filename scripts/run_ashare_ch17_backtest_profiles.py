@@ -197,7 +197,9 @@ def read_cache_symbol(path: Path, symbol: str) -> pd.DataFrame:
     df["date"] = pd.to_datetime(df["date"]).dt.normalize()
     for col in ["open", "high", "low", "close", "volume"]:
         df[col] = pd.to_numeric(df[col], errors="coerce")
-    return df[["symbol", "date", "open", "high", "low", "close", "volume"]].dropna()
+    df = df[["symbol", "date", "open", "high", "low", "close", "volume"]].dropna(subset=["open", "high", "low", "close"])
+    df["volume"] = df["volume"].fillna(0.0)
+    return df
 
 
 def build_execution_panel(cache_dir: Path, universe: pd.DataFrame, symbols: list[str]) -> pd.DataFrame:
@@ -453,6 +455,348 @@ def run_realistic_hold(
     return write_profile_outputs(out_dir, profile, top_n, returns, positions, fills_df, orders=orders_df, skipped=blocked_df, extra=extra, metrics_extra=metrics_extra, total_cost=float(daily["cost"].sum()) if "cost" in daily else 0.0)
 
 
+def panel_value(panel: pd.DataFrame, date: pd.Timestamp, symbol: str, default: Any = np.nan) -> Any:
+    if date not in panel.index or symbol not in panel.columns:
+        return default
+    return panel.at[date, symbol]
+
+
+def trade_fee(notional: float, action: str, cost: CostConfig) -> float:
+    if notional <= 0:
+        return 0.0
+    commission_rate = cost.buy_commission_rate if action == "buy" else cost.sell_commission_rate
+    commission = max(cost.min_commission, notional * commission_rate) if commission_rate or cost.min_commission else 0.0
+    stamp = notional * cost.stamp_tax_rate if action == "sell" else 0.0
+    slippage = notional * cost.slippage_bps / 10000.0
+    return float(commission + stamp + slippage)
+
+
+def valid_price(value: Any) -> float | None:
+    if pd.isna(value):
+        return None
+    value = float(value)
+    if value <= 0 or not np.isfinite(value):
+        return None
+    return value
+
+
+def block_reason(
+    action: str,
+    date: pd.Timestamp,
+    symbol: str,
+    open_: pd.DataFrame,
+    trade: pd.DataFrame,
+    is_st: pd.DataFrame,
+    is_main: pd.DataFrame,
+    open_up: pd.DataFrame,
+    open_down: pd.DataFrame,
+    enforce_limits: bool,
+) -> str | None:
+    price = valid_price(panel_value(open_, date, symbol))
+    if price is None:
+        return "missing_open"
+    if not enforce_limits:
+        return None
+    if not bool(panel_value(trade, date, symbol, False)):
+        return "suspended"
+    if action == "buy":
+        if not bool(panel_value(is_main, date, symbol, False)):
+            return "non_mainboard"
+        if bool(panel_value(is_st, date, symbol, True)):
+            return "st"
+        if bool(panel_value(open_up, date, symbol, False)):
+            return "open_limit_up"
+    else:
+        if bool(panel_value(open_down, date, symbol, False)):
+            return "open_limit_down"
+    return None
+
+
+def run_open_rebalance_profile(
+    profile: str,
+    signal_panel: pd.DataFrame,
+    execution: pd.DataFrame,
+    out_dir: Path,
+    top_n: int,
+    enforce_limits: bool,
+    cost: CostConfig | None = None,
+    sell_rank_gt: int | None = None,
+) -> dict[str, Any]:
+    cost = cost or CostConfig(0, 0, 0, 0, 0)
+    open_ = panel_from_exec(execution, "adj_open")
+    close = panel_from_exec(execution, "adj_close")
+    preclose = panel_from_exec(execution, "preclose")
+    trade = panel_from_exec(execution, "tradestatus").fillna(0).astype(int).eq(1)
+    is_main = panel_from_exec(execution, "is_mainboard").fillna(False).astype(bool)
+    is_st = panel_from_exec(execution, "isST").fillna(False).astype(bool)
+    open_up = panel_from_exec(execution, "open_limit_up").fillna(False).astype(bool)
+    open_down = panel_from_exec(execution, "open_limit_down").fillna(False).astype(bool)
+    dates = pd.Index(signal_panel.index.intersection(open_.index).intersection(close.index)).sort_values()
+    next1, _next2 = next_date_maps(open_.index)
+
+    cash = float(cost.capital)
+    shares: dict[str, float] = {}
+    cost_basis: dict[str, float] = {}
+    last_price: dict[str, float] = {}
+    prev_nav = float(cost.capital)
+    target_weight = 1.0 / top_n
+
+    nav_rows = []
+    cash_rows = []
+    return_rows = []
+    pos_rows = []
+    target_rows = []
+    order_rows = []
+    fill_rows = []
+    blocked_rows = []
+    cost_rows = []
+    turnover_rows = []
+
+    for signal_date in dates:
+        signal_date = pd.Timestamp(signal_date)
+        trade_date = next1.get(signal_date)
+        if trade_date is None or trade_date not in open_.index or trade_date not in close.index:
+            continue
+
+        scores = signal_panel.loc[signal_date].dropna()
+        main_mask = is_main.loc[signal_date].reindex(scores.index).fillna(False) if signal_date in is_main.index else pd.Series(False, index=scores.index)
+        candidates = scores[(scores > 0) & main_mask]
+        rank_limit = max(top_n, sell_rank_gt or top_n)
+        ranked = candidates.nlargest(min(rank_limit, len(candidates)))
+        rank_by_symbol = {symbol: rank for rank, symbol in enumerate(ranked.index, 1)}
+        buy_target = set(ranked.iloc[: min(top_n, len(ranked))].index)
+        if sell_rank_gt is None:
+            hold_target = buy_target
+        else:
+            hold_target = {symbol for symbol, rank in rank_by_symbol.items() if rank <= sell_rank_gt}
+        for rank, (symbol, signal) in enumerate(ranked.iloc[: min(top_n, len(ranked))].items(), 1):
+            target_rows.append(
+                {
+                    "signal_date": signal_date,
+                    "trade_date": trade_date,
+                    "symbol": symbol,
+                    "rank": rank,
+                    "signal": float(signal),
+                    "target_weight": target_weight,
+                    "is_mainboard": bool(panel_value(is_main, signal_date, symbol, False)),
+                }
+            )
+
+        open_nav = cash
+        for symbol, qty in shares.items():
+            px = valid_price(panel_value(open_, trade_date, symbol))
+            if px is None:
+                px = valid_price(panel_value(close, signal_date, symbol))
+            if px is None:
+                px = last_price.get(symbol, 0.0)
+            open_nav += qty * px
+
+        desired: dict[str, float] = {symbol: open_nav * target_weight for symbol in buy_target}
+        current_symbols = set(shares)
+        all_symbols = sorted(current_symbols.union(buy_target))
+        day_buy_notional = 0.0
+        day_sell_notional = 0.0
+        day_cost_abs = 0.0
+
+        sell_orders = []
+        buy_orders = []
+        for symbol in all_symbols:
+            exec_px = valid_price(panel_value(open_, trade_date, symbol))
+            mark_px = exec_px or last_price.get(symbol, 0.0)
+            current_notional = shares.get(symbol, 0.0) * mark_px
+            if sell_rank_gt is not None and symbol in current_symbols and symbol in hold_target:
+                target_notional = max(current_notional, desired.get(symbol, 0.0))
+            else:
+                target_notional = desired.get(symbol, 0.0)
+            delta = target_notional - current_notional
+            if not np.isfinite(delta):
+                continue
+            if abs(delta) < 1e-8:
+                continue
+            row = {
+                "date": trade_date,
+                "signal_date": signal_date,
+                "symbol": symbol,
+                "action": "buy" if delta > 0 else "sell",
+                "signal": float(scores.get(symbol, np.nan)),
+                "current_notional": float(current_notional),
+                "target_notional": float(target_notional),
+                "rank": rank_by_symbol.get(symbol, pd.NA),
+                "target_weight": target_weight if symbol in buy_target else 0.0,
+                "open": exec_px if exec_px is not None else np.nan,
+            }
+            if delta < 0:
+                row["order_notional"] = float(-delta)
+                sell_orders.append(row)
+            else:
+                row["order_notional"] = float(delta)
+                buy_orders.append(row)
+
+        for order in sell_orders:
+            symbol = order["symbol"]
+            reason = block_reason("sell", trade_date, symbol, open_, trade, is_st, is_main, open_up, open_down, enforce_limits)
+            order_rows.append(order)
+            if reason:
+                blocked_rows.append(
+                    {
+                        "date": trade_date,
+                        "symbol": symbol,
+                        "action": "sell",
+                        "reason": reason,
+                        "signal": order["signal"],
+                        "open": order["open"],
+                        "close": panel_value(close, trade_date, symbol),
+                        "preclose": panel_value(preclose, trade_date, symbol),
+                        "tradestatus": int(panel_value(trade, trade_date, symbol, False)),
+                        "isST": bool(panel_value(is_st, trade_date, symbol, False)),
+                        "open_limit_up": bool(panel_value(open_up, trade_date, symbol, False)),
+                        "open_limit_down": bool(panel_value(open_down, trade_date, symbol, False)),
+                    }
+                )
+                continue
+            px = valid_price(order["open"])
+            if px is None:
+                continue
+            notional = min(order["order_notional"], shares.get(symbol, 0.0) * px)
+            if not np.isfinite(notional) or notional <= 0:
+                continue
+            qty = notional / px
+            fee = trade_fee(notional, "sell", cost)
+            old_qty = shares.get(symbol, 0.0)
+            if old_qty <= 0:
+                continue
+            basis_reduction = cost_basis.get(symbol, 0.0) * min(qty / old_qty, 1.0)
+            shares[symbol] = old_qty - qty
+            cost_basis[symbol] = cost_basis.get(symbol, 0.0) - basis_reduction
+            if shares[symbol] <= 1e-10:
+                shares.pop(symbol, None)
+                cost_basis.pop(symbol, None)
+            cash += notional - fee
+            day_sell_notional += notional
+            day_cost_abs += fee
+            fill_rows.append({**order, "shares": qty, "fill_price": px, "fill_notional": notional, "cost": fee})
+
+        for order in buy_orders:
+            symbol = order["symbol"]
+            reason = block_reason("buy", trade_date, symbol, open_, trade, is_st, is_main, open_up, open_down, enforce_limits)
+            order_rows.append(order)
+            if reason:
+                blocked_rows.append(
+                    {
+                        "date": trade_date,
+                        "symbol": symbol,
+                        "action": "buy",
+                        "reason": reason,
+                        "signal": order["signal"],
+                        "open": order["open"],
+                        "close": panel_value(close, trade_date, symbol),
+                        "preclose": panel_value(preclose, trade_date, symbol),
+                        "tradestatus": int(panel_value(trade, trade_date, symbol, False)),
+                        "isST": bool(panel_value(is_st, trade_date, symbol, False)),
+                        "open_limit_up": bool(panel_value(open_up, trade_date, symbol, False)),
+                        "open_limit_down": bool(panel_value(open_down, trade_date, symbol, False)),
+                    }
+                )
+                continue
+            px = valid_price(order["open"])
+            if px is None:
+                continue
+            notional = min(order["order_notional"], cash)
+            fee = trade_fee(notional, "buy", cost)
+            if notional + fee > cash:
+                notional = max(cash - fee, 0.0)
+                fee = trade_fee(notional, "buy", cost)
+            if notional <= 0 or notional + fee > cash:
+                blocked_rows.append(
+                    {
+                        "date": trade_date,
+                        "symbol": symbol,
+                        "action": "buy",
+                        "reason": "insufficient_cash",
+                        "signal": order["signal"],
+                        "open": order["open"],
+                        "close": panel_value(close, trade_date, symbol),
+                        "preclose": panel_value(preclose, trade_date, symbol),
+                        "tradestatus": int(panel_value(trade, trade_date, symbol, False)),
+                        "isST": bool(panel_value(is_st, trade_date, symbol, False)),
+                        "open_limit_up": bool(panel_value(open_up, trade_date, symbol, False)),
+                        "open_limit_down": bool(panel_value(open_down, trade_date, symbol, False)),
+                    }
+                )
+                continue
+            qty = notional / px
+            shares[symbol] = shares.get(symbol, 0.0) + qty
+            cost_basis[symbol] = cost_basis.get(symbol, 0.0) + notional
+            cash -= notional + fee
+            day_buy_notional += notional
+            day_cost_abs += fee
+            fill_rows.append({**order, "shares": qty, "fill_price": px, "fill_notional": notional, "cost": fee})
+
+        close_nav = cash
+        for symbol, qty in shares.items():
+            px = valid_price(panel_value(close, trade_date, symbol))
+            if px is None:
+                px = valid_price(panel_value(open_, trade_date, symbol))
+            if px is None:
+                px = last_price.get(symbol, 0.0)
+            else:
+                last_price[symbol] = px
+            close_nav += qty * px
+        daily_return = close_nav / prev_nav - 1.0 if prev_nav else 0.0
+        prev_nav = close_nav
+        nav = close_nav / cost.capital
+        return_rows.append({"date": trade_date, "daily_return": daily_return})
+        nav_rows.append({"date": trade_date, "nav": nav, "portfolio_value": close_nav})
+        cash_rows.append({"date": trade_date, "cash": cash, "cash_weight": cash / close_nav if close_nav else np.nan})
+        cost_rows.append({"date": trade_date, "cost": day_cost_abs, "cost_nav": day_cost_abs / cost.capital})
+        turnover_rows.append(
+            {
+                "date": trade_date,
+                "buy_notional": day_buy_notional,
+                "sell_notional": day_sell_notional,
+                "turnover": (day_buy_notional + day_sell_notional) / close_nav if close_nav else np.nan,
+            }
+        )
+        for symbol, qty in shares.items():
+            px = valid_price(panel_value(close, trade_date, symbol))
+            if px is None:
+                px = last_price.get(symbol)
+            if px is None:
+                continue
+            market_value = qty * px
+            pos_rows.append(
+                {
+                    "date": trade_date,
+                    "symbol": symbol,
+                    "shares": qty,
+                    "market_value": market_value,
+                    "weight": market_value / close_nav if close_nav else np.nan,
+                    "close": px,
+                    "unrealized_pnl": market_value - cost_basis.get(symbol, 0.0),
+                    "signal": float(scores.get(symbol, np.nan)),
+                }
+            )
+
+    returns = pd.DataFrame(return_rows).drop_duplicates("date", keep="last").set_index("date")["daily_return"] if return_rows else pd.Series(dtype=float)
+    positions = pd.DataFrame(pos_rows)
+    orders = pd.DataFrame(order_rows)
+    fills = pd.DataFrame(fill_rows)
+    blocked = pd.DataFrame(blocked_rows)
+    daily_nav = pd.DataFrame(nav_rows)
+    extra = {
+        "daily_nav.csv": daily_nav,
+        "target_positions.csv": pd.DataFrame(target_rows),
+        "fills.csv": fills,
+        "blocked_orders.csv": blocked,
+        "cash.csv": pd.DataFrame(cash_rows),
+        "turnover.csv": pd.DataFrame(turnover_rows),
+        "cost_breakdown.csv": pd.DataFrame(cost_rows),
+    }
+    metrics_extra = {"cost_config": asdict(cost), "enforce_limits": enforce_limits, "sell_rank_gt": sell_rank_gt}
+    total_cost_rate = float(pd.DataFrame(cost_rows)["cost"].sum() / cost.capital) if cost_rows else 0.0
+    return write_profile_outputs(out_dir, profile, top_n, returns, positions, fills, orders=orders, skipped=blocked, extra=extra, metrics_extra=metrics_extra, total_cost=total_cost_rate)
+
+
 def write_common(predictions_path: Path, cache_dir: Path, universe_path: Path, out_root: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     common = ensure_dir(out_root / "common")
     predictions = load_predictions(predictions_path)
@@ -503,6 +847,40 @@ def run_all(args: argparse.Namespace) -> None:
     leaderboard.append(run_independent_profile("ashare_mainboard_skip_open_limit", signal_panel, execution, out_root / "ashare_mainboard_skip_open_limit", 25, is_main, "long_only", "next_open", skip_open_limit=True))
     leaderboard.append(run_realistic_hold("ashare_mainboard_realistic_hold", signal_panel, execution, out_root / "ashare_mainboard_realistic_hold", top_n=25, cost=CostConfig(0, 0, 0, 0, 0)))
     leaderboard.append(run_realistic_hold("ashare_mainboard_realistic_hold_cost", signal_panel, execution, out_root / "ashare_mainboard_realistic_hold_cost", top_n=25, cost=CostConfig()))
+    for n in TOP_NS:
+        leaderboard.append(
+            run_open_rebalance_profile(
+                "ashare_ch17_open_rebalance_mainboard",
+                signal_panel,
+                execution,
+                out_root / "ashare_ch17_open_rebalance_mainboard" / f"top{n}",
+                n,
+                enforce_limits=False,
+                cost=CostConfig(0, 0, 0, 0, 0),
+            )
+        )
+        leaderboard.append(
+            run_open_rebalance_profile(
+                "ashare_ch17_open_rebalance_mainboard_limit_hold",
+                signal_panel,
+                execution,
+                out_root / "ashare_ch17_open_rebalance_mainboard_limit_hold" / f"top{n}",
+                n,
+                enforce_limits=True,
+                cost=CostConfig(0, 0, 0, 0, 0),
+            )
+        )
+        leaderboard.append(
+            run_open_rebalance_profile(
+                "ashare_ch17_open_rebalance_mainboard_limit_hold_cost",
+                signal_panel,
+                execution,
+                out_root / "ashare_ch17_open_rebalance_mainboard_limit_hold_cost" / f"top{n}",
+                n,
+                enforce_limits=True,
+                cost=CostConfig(),
+            )
+        )
 
     board = pd.DataFrame(leaderboard)
     board.to_csv(out_root / "leaderboard.csv", index=False, encoding="utf-8-sig")
