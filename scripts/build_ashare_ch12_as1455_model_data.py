@@ -8,9 +8,11 @@ run backtests.
 from __future__ import annotations
 
 import argparse
+import gc
 import json
 import math
 import multiprocessing as mp
+import os
 import re
 import time
 from dataclasses import asdict, dataclass
@@ -29,6 +31,7 @@ DEFAULT_BAR_ROOT = PROJECT_DIR / "saved_data"
 DEFAULT_BAR_GLOB = "**/*_5m_raw.csv"
 DEFAULT_QFQ_DAILY_CACHE = PROJECT_DIR / "saved_data" / "ashare_ml4t" / "ch12_reproduce" / "baostock_qfq_daily_cache"
 DEFAULT_BAOSTOCK_5M_CACHE = DEFAULT_OUT_DIR / "baostock_5m_cache"
+DEFAULT_AS1455_DAILY_CACHE = DEFAULT_OUT_DIR / "as1455_daily_cache"
 
 MONTH = 21
 YEAR = 12 * MONTH
@@ -95,6 +98,18 @@ FORBIDDEN_MODEL_COLUMNS = {
     "open_limit_up",
     "open_limit_down",
 }
+
+
+def log_memory(enabled: bool, label: str) -> None:
+    if not enabled:
+        return
+    try:
+        import psutil
+
+        rss_mb = psutil.Process(os.getpid()).memory_info().rss / 1024**2
+        print(f"[memory] {label}: rss_mb={rss_mb:.1f}", flush=True)
+    except Exception as exc:
+        print(f"[memory] {label}: unavailable {type(exc).__name__}: {exc}", flush=True)
 
 
 @dataclass
@@ -175,7 +190,25 @@ def qcut_codes(x: pd.Series, q: int) -> pd.Series:
 
 
 def qcut_by_group(values: pd.Series, groupers: Any, q: int) -> pd.Series:
-    return values.groupby(groupers, group_keys=False).apply(lambda x: qcut_codes(x, q)).reindex(values.index)
+    if isinstance(groupers, (list, tuple)):
+        group_index = pd.MultiIndex.from_arrays(groupers)
+        group_codes, _ = pd.factorize(group_index, sort=False)
+    else:
+        group_codes, _ = pd.factorize(groupers, sort=False)
+    result = np.full(len(values), np.nan, dtype=np.float64)
+    if not len(values):
+        return pd.Series(result, index=values.index)
+
+    order = np.argsort(group_codes, kind="stable")
+    ordered_codes = group_codes[order]
+    boundaries = np.flatnonzero(np.r_[True, ordered_codes[1:] != ordered_codes[:-1], True])
+    for start, stop in zip(boundaries[:-1], boundaries[1:]):
+        positions = order[start:stop]
+        if ordered_codes[start] < 0:
+            continue
+        cut = qcut_codes(values.iloc[positions], q)
+        result[positions] = cut.to_numpy(dtype=np.float64, na_value=np.nan)
+    return pd.Series(result, index=values.index)
 
 
 def zscore(s: pd.Series) -> pd.Series:
@@ -317,6 +350,102 @@ def query_baostock_5m_with_timeout(symbol: str, start_date: str, end_date: str, 
     return status, int(n_rows), str(path)
 
 
+def query_baostock_qfq_daily_worker(symbol: str, start_date: str, end_date: str, out_path: str, queue: Any) -> None:
+    try:
+        import baostock as bs  # type: ignore
+
+        lg = bs.login()
+        if getattr(lg, "error_code", "") != "0":
+            raise RuntimeError(f"BaoStock login failed: {lg.error_code} {lg.error_msg}")
+        try:
+            fields = "date,code,open,high,low,close,volume"
+            rs = bs.query_history_k_data_plus(
+                baostock_code(symbol),
+                fields,
+                start_date=start_date,
+                end_date=end_date,
+                frequency="d",
+                adjustflag="2",
+            )
+            if getattr(rs, "error_code", "") != "0":
+                raise RuntimeError(f"BaoStock qfq daily query failed: {rs.error_code} {rs.error_msg}")
+            rows = []
+            while rs.error_code == "0" and rs.next():
+                rows.append(rs.get_row_data())
+            df = pd.DataFrame(rows, columns=rs.fields)
+            if not df.empty:
+                df.to_csv(out_path, index=False, encoding="utf-8-sig")
+            queue.put(("ok" if len(df) else "empty", int(len(df)), out_path if len(df) else "", ""))
+        finally:
+            try:
+                bs.logout()
+            except Exception:
+                pass
+    except Exception as exc:
+        queue.put(("error", 0, "", f"{type(exc).__name__}: {exc}"))
+
+
+def query_baostock_qfq_daily_with_timeout(symbol: str, start_date: str, end_date: str, out_path: Path, timeout: float) -> tuple[str, int, str]:
+    queue: Any = mp.Queue(maxsize=1)
+    proc = mp.Process(target=query_baostock_qfq_daily_worker, args=(symbol, start_date, end_date, str(out_path), queue))
+    proc.start()
+    proc.join(timeout)
+    if proc.is_alive():
+        proc.terminate()
+        proc.join(10)
+        raise TimeoutError(f"timeout after {timeout:g}s")
+    if queue.empty():
+        raise RuntimeError(f"BaoStock qfq daily worker exited with code {proc.exitcode} without returning data")
+    status, n_rows, path, error = queue.get()
+    if status == "error":
+        raise RuntimeError(error)
+    return status, int(n_rows), str(path)
+
+
+def materialize_qfq_daily_cache(
+    symbols: list[str],
+    cache_dir: Path,
+    reports_dir: Path,
+    start_date: str,
+    end_date: str,
+    retries: int,
+    sleep_seconds: float,
+    query_timeout: float,
+) -> pd.DataFrame:
+    ensure_dir(cache_dir)
+    report_rows = []
+    for i, symbol in enumerate(symbols, 1):
+        out_path = cache_dir / f"{symbol}_qfq_daily.csv"
+        status = "cached"
+        n_rows = 0
+        error = ""
+        needs_fetch = not out_path.exists() or out_path.stat().st_size == 0
+        if not needs_fetch:
+            try:
+                cached_dates = pd.to_datetime(pd.read_csv(out_path, usecols=["date"])["date"], errors="coerce").dropna()
+                needs_fetch = cached_dates.empty or cached_dates.min() > pd.Timestamp(start_date) + pd.Timedelta(days=10) or cached_dates.max() < pd.Timestamp(end_date) - pd.Timedelta(days=10)
+                n_rows = int(len(cached_dates))
+            except Exception:
+                needs_fetch = True
+        if needs_fetch:
+            for attempt in range(1, max(1, retries) + 1):
+                try:
+                    status, n_rows, _ = query_baostock_qfq_daily_with_timeout(symbol, start_date, end_date, out_path, query_timeout)
+                    error = ""
+                    break
+                except Exception as exc:
+                    status = "timeout" if isinstance(exc, TimeoutError) else "error"
+                    error = f"attempt {attempt}/{max(1, retries)} {type(exc).__name__}: {exc}"
+                    if sleep_seconds > 0:
+                        time.sleep(sleep_seconds)
+        report_rows.append({"symbol": symbol, "status": status, "rows": n_rows, "path": str(out_path if out_path.exists() else ""), "error": error})
+        print(f"[qfq-daily] {i}/{len(symbols)} {symbol} status={status} rows={n_rows} error={error}", flush=True)
+        pd.DataFrame(report_rows).to_csv(reports_dir / "as1455_qfq_daily_fetch_report.csv", index=False, encoding="utf-8-sig")
+        if sleep_seconds > 0 and status != "cached":
+            time.sleep(sleep_seconds)
+    return pd.DataFrame(report_rows)
+
+
 def date_for_baostock(value: Any) -> str:
     ts = pd.Timestamp(value)
     return ts.strftime("%Y-%m-%d")
@@ -448,79 +577,184 @@ def build_timestamp_convention_report(bars: pd.DataFrame, reports_dir: Path) -> 
     return out
 
 
-def aggregate_raw_as1455(
+def aggregate_symbol_as1455(
+    path: Path,
+    symbol: str,
+    start_date: str | None,
+    end_date: str | None,
+    timestamp_convention: str,
+) -> pd.DataFrame:
+    cutoff_time = pd.Timestamp(CUTOFF).time()
+    strict_lt = timestamp_convention == "left"
+    bars = read_5m_file(path, symbol)
+    if start_date:
+        bars = bars[bars["date"] >= pd.Timestamp(start_date)]
+    if end_date:
+        bars = bars[bars["date"] <= pd.Timestamp(end_date)]
+    observed_bar_times = " ".join(sorted(bars["datetime"].dt.strftime("%H:%M").dropna().unique().tolist()))
+    full_day_close = bars.sort_values("datetime").groupby("date", sort=False, observed=True)["close"].last()
+    time_series = bars["datetime"].dt.time
+    bars = bars[time_series < cutoff_time] if strict_lt else bars[time_series <= cutoff_time]
+    if bars.empty:
+        return pd.DataFrame()
+
+    bars.sort_values("datetime", inplace=True)
+    bars["has_14_55_bar"] = bars["datetime"].dt.strftime("%H:%M").eq(CUTOFF)
+    grouped = bars.groupby("date", sort=False, observed=True)
+    daily = grouped.agg(
+        raw_open_as1455=("open", "first"),
+        raw_high_as1455=("high", "max"),
+        raw_low_as1455=("low", "min"),
+        raw_close_as1455=("close", "last"),
+        raw_volume_as1455=("volume", "sum"),
+        raw_amount_as1455=("amount", "sum"),
+        max_datetime_used=("datetime", "last"),
+        has_14_55_bar=("has_14_55_bar", "any"),
+    ).reset_index()
+    daily.insert(0, "symbol", symbol)
+    daily["raw_daily_close"] = daily["date"].map(full_day_close)
+    daily["last_bar_time"] = daily["max_datetime_used"].dt.strftime("%H:%M")
+    daily["used_after_cutoff"] = daily["max_datetime_used"].dt.time.gt(cutoff_time)
+    daily["source_path"] = str(path)
+    daily.attrs["bar_times_observed"] = observed_bar_times
+    return daily
+
+
+def materialize_as1455_daily_cache(
     bar_files: dict[str, Path],
+    cache_dir: Path,
     reports_dir: Path,
     start_date: str | None,
     end_date: str | None,
     timestamp_convention: str,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    cutoff_time = pd.Timestamp(CUTOFF).time()
-    rows = []
-    missing = []
-    convention_samples = []
-    strict_lt = timestamp_convention == "left"
-    for symbol, path in sorted(bar_files.items()):
+    rebuild: bool,
+) -> tuple[dict[str, Path], pd.DataFrame]:
+    ensure_dir(cache_dir)
+    report_rows = []
+    cache_files: dict[str, Path] = {}
+    total = len(bar_files)
+    for i, (symbol, path) in enumerate(sorted(bar_files.items()), 1):
+        cache_path = cache_dir / f"{symbol}_as1455_daily.csv"
+        timestamp_meta_path = cache_dir / f"{symbol}_as1455_daily.timestamp.json"
+        status = "cached"
+        error = ""
+        rows = 0
+        bar_times_observed = ""
+        if rebuild or not cache_path.exists() or cache_path.stat().st_size == 0:
+            try:
+                daily = aggregate_symbol_as1455(path, symbol, start_date, end_date, timestamp_convention)
+                rows = int(len(daily))
+                bar_times_observed = str(daily.attrs.get("bar_times_observed", ""))
+                if daily.empty:
+                    status = "empty"
+                else:
+                    daily.to_csv(cache_path, index=False, encoding="utf-8-sig")
+                    timestamp_meta_path.write_text(
+                        json.dumps({"symbol": symbol, "bar_times_observed": bar_times_observed}, ensure_ascii=False, indent=2),
+                        encoding="utf-8",
+                    )
+                    status = "ok"
+                del daily
+            except Exception as exc:
+                status = "error"
+                error = f"{type(exc).__name__}: {exc}"
+        else:
+            try:
+                with cache_path.open("r", encoding="utf-8-sig") as fh:
+                    rows = max(0, sum(1 for _ in fh) - 1)
+                if timestamp_meta_path.exists():
+                    bar_times_observed = str(json.loads(timestamp_meta_path.read_text(encoding="utf-8")).get("bar_times_observed", ""))
+            except Exception:
+                rows = -1
+        if cache_path.exists() and cache_path.stat().st_size > 0:
+            cache_files[symbol] = cache_path
+        report_rows.append(
+            {
+                "symbol": symbol,
+                "source_path": str(path),
+                "daily_cache_path": str(cache_path),
+                "timestamp_meta_path": str(timestamp_meta_path),
+                "bar_times_observed": bar_times_observed,
+                "status": status,
+                "rows": rows,
+                "error": error,
+            }
+        )
+        if i == 1 or i % 25 == 0 or i == total or status in {"error", "empty"}:
+            print(f"[as1455-daily] {i}/{total} {symbol} status={status} rows={rows} error={error}", flush=True)
+            pd.DataFrame(report_rows).to_csv(reports_dir / "as1455_daily_cache_build_report.csv", index=False, encoding="utf-8-sig")
+        if i % 25 == 0:
+            gc.collect()
+    report = pd.DataFrame(report_rows)
+    report.to_csv(reports_dir / "as1455_daily_cache_build_report.csv", index=False, encoding="utf-8-sig")
+    return cache_files, report
+
+
+def load_as1455_daily_panel(cache_files: dict[str, Path], reports_dir: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+    frames = []
+    missing_rows = []
+    convention_rows = []
+    for i, (symbol, path) in enumerate(sorted(cache_files.items()), 1):
         try:
-            bars = read_5m_file(path, symbol)
-        except Exception as exc:
-            missing.append({"symbol": symbol, "date": "", "reason": f"read_error:{type(exc).__name__}:{exc}"})
-            continue
-        if start_date:
-            bars = bars[bars["date"] >= pd.Timestamp(start_date)]
-        if end_date:
-            bars = bars[bars["date"] <= pd.Timestamp(end_date)]
-        if len(convention_samples) < 100_000:
-            convention_samples.append(bars.head(500))
-        time_series = bars["datetime"].dt.time
-        bars_asof = bars[time_series < cutoff_time] if strict_lt else bars[time_series <= cutoff_time]
-        if bars_asof.empty:
-            continue
-        for date, g in bars_asof.sort_values("datetime").groupby("date", sort=False):
-            if g.empty:
-                missing.append({"symbol": symbol, "date": pd.Timestamp(date).strftime("%Y-%m-%d"), "reason": "missing_as1455"})
-                continue
-            last_dt = g["datetime"].iloc[-1]
-            has_1455 = bool((g["datetime"].dt.strftime("%H:%M") == CUTOFF).any())
-            if not has_1455:
-                missing.append(
+            timestamp_meta_path = path.with_name(path.name.replace(".csv", ".timestamp.json"))
+            bar_times_observed = ""
+            if timestamp_meta_path.exists():
+                bar_times_observed = str(json.loads(timestamp_meta_path.read_text(encoding="utf-8")).get("bar_times_observed", ""))
+            daily = pd.read_csv(path, dtype={"symbol": str, "last_bar_time": str})
+            daily["symbol"] = daily["symbol"].map(normalize_symbol)
+            daily["date"] = pd.to_datetime(daily["date"], errors="coerce").dt.normalize()
+            daily["max_datetime_used"] = pd.to_datetime(daily["max_datetime_used"], errors="coerce")
+            daily["has_14_55_bar"] = daily["has_14_55_bar"].astype(str).str.lower().eq("true")
+            daily["used_after_cutoff"] = daily["used_after_cutoff"].astype(str).str.lower().eq("true")
+            daily.dropna(subset=["date", "max_datetime_used"], inplace=True)
+            for col in [
+                "raw_open_as1455",
+                "raw_high_as1455",
+                "raw_low_as1455",
+                "raw_close_as1455",
+                "raw_volume_as1455",
+                "raw_amount_as1455",
+                "raw_daily_close",
+            ]:
+                daily[col] = pd.to_numeric(daily[col], errors="coerce")
+            absent = daily.loc[~daily["has_14_55_bar"], ["symbol", "date", "last_bar_time"]]
+            if not absent.empty:
+                absent = absent.assign(reason="missing_14_55_bar_used_last_before_cutoff")
+                missing_rows.append(absent)
+            if len(convention_rows) < 5000:
+                sample = daily.head(5000 - len(convention_rows))
+                convention_rows.extend(
                     {
-                        "symbol": symbol,
-                        "date": pd.Timestamp(date).strftime("%Y-%m-%d"),
-                        "reason": "missing_14_55_bar_used_last_before_cutoff",
-                        "last_bar_time": last_dt.strftime("%H:%M"),
+                        "date": row.date.strftime("%Y-%m-%d"),
+                        "symbol": row.symbol,
+                        "last_bar_before_cutoff": row.last_bar_time,
+                        "bar_times_observed": bar_times_observed,
+                        "has_14_55_bar": bool(row.has_14_55_bar),
+                        "suspected_timestamp_convention": "right_endpoint" if row.has_14_55_bar else "unknown",
                     }
+                    for row in sample.itertuples(index=False)
                 )
-            rows.append(
-                {
-                    "symbol": symbol,
-                    "date": pd.Timestamp(date),
-                    "raw_open_as1455": float(g["open"].iloc[0]),
-                    "raw_high_as1455": float(g["high"].max()),
-                    "raw_low_as1455": float(g["low"].min()),
-                    "raw_close_as1455": float(g["close"].iloc[-1]),
-                    "raw_volume_as1455": float(g["volume"].fillna(0.0).sum()),
-                    "raw_amount_as1455": float(g["amount"].fillna(0.0).sum()),
-                    "last_bar_time": last_dt.strftime("%H:%M"),
-                    "max_datetime_used": last_dt,
-                    "has_14_55_bar": has_1455,
-                    "used_after_cutoff": bool(last_dt.time() > cutoff_time),
-                    "source_path": str(path),
-                }
-            )
-    convention_bars = pd.concat(convention_samples, ignore_index=True) if convention_samples else pd.DataFrame()
-    build_timestamp_convention_report(convention_bars, reports_dir)
-    raw = pd.DataFrame(rows)
-    if not raw.empty:
-        raw = raw.set_index(["symbol", "date"]).sort_index()
-        dist = raw.reset_index().groupby("last_bar_time").size().rename("count").reset_index()
-    else:
-        dist = pd.DataFrame(columns=["last_bar_time", "count"])
+            frames.append(daily)
+        except Exception as exc:
+            missing_rows.append(pd.DataFrame([{"symbol": symbol, "date": "", "last_bar_time": "", "reason": f"read_error:{type(exc).__name__}:{exc}"}]))
+        if i % 100 == 0 or i == len(cache_files):
+            print(f"[as1455-panel] {i}/{len(cache_files)} loaded", flush=True)
+    if not frames:
+        return pd.DataFrame(), pd.DataFrame()
+    raw = pd.concat(frames, ignore_index=True, copy=False)
+    frames.clear()
+    raw.drop_duplicates(["symbol", "date"], keep="last", inplace=True)
+    raw.set_index(["symbol", "date"], inplace=True)
+    raw.sort_index(inplace=True)
+    missing = pd.concat(missing_rows, ignore_index=True) if missing_rows else pd.DataFrame(columns=["symbol", "date", "last_bar_time", "reason"])
+    pd.DataFrame(convention_rows).to_csv(reports_dir / "as1455_bar_timestamp_convention_check.csv", index=False, encoding="utf-8-sig")
+    dist = raw.groupby("last_bar_time", observed=True).size().rename("count").reset_index()
     dist.to_csv(reports_dir / "as1455_last_bar_time_distribution.csv", index=False, encoding="utf-8-sig")
-    pd.DataFrame(missing).to_csv(reports_dir / "as1455_missing_bar_report.csv", index=False, encoding="utf-8-sig")
-    cutoff_report = raw.reset_index()[["symbol", "date", "max_datetime_used", "last_bar_time", "has_14_55_bar", "used_after_cutoff"]] if not raw.empty else pd.DataFrame(columns=["symbol", "date", "max_datetime_used", "last_bar_time", "has_14_55_bar", "used_after_cutoff"])
+    missing.to_csv(reports_dir / "as1455_missing_bar_report.csv", index=False, encoding="utf-8-sig")
+    cutoff_report = raw.reset_index()[["symbol", "date", "max_datetime_used", "last_bar_time", "has_14_55_bar", "used_after_cutoff"]]
     cutoff_report.to_csv(reports_dir / "as1455_cutoff_leakage_check.csv", index=False, encoding="utf-8-sig")
-    return raw, pd.DataFrame(missing)
+    del cutoff_report
+    return raw, missing
 
 
 def read_daily_close(cache_dir: Path, symbol: str) -> pd.Series:
@@ -552,14 +786,21 @@ def build_adjusted_ohlcv(
         adj_factor = pd.Series(1.0, index=raw.index)
         rows.append({"mode": "identity", "note": "explicit identity factor; assumes 5min bars are already adjusted"})
     else:
-        if raw_daily_cache is None:
-            raise RuntimeError("--raw-daily-cache-dir is required when --adjust-factor-mode daily_qfq_div_raw")
         factors = []
         for symbol in raw.index.get_level_values("symbol").unique():
             qfq = read_daily_close(qfq_daily_cache, symbol)
-            raw_daily = read_daily_close(raw_daily_cache, symbol)
+            if raw_daily_cache is not None:
+                raw_daily = read_daily_close(raw_daily_cache, symbol)
+                raw_source = "raw_daily_cache"
+            elif "raw_daily_close" in raw.columns:
+                raw_daily = raw.xs(symbol, level="symbol")["raw_daily_close"].dropna()
+                raw_daily.index = pd.to_datetime(raw_daily.index).normalize()
+                raw_source = "5min_full_day_close"
+            else:
+                raw_daily = pd.Series(dtype=float, name=symbol)
+                raw_source = "missing"
             if qfq.empty or raw_daily.empty:
-                rows.append({"symbol": symbol, "factor_missing": True, "qfq_obs": int(len(qfq)), "raw_obs": int(len(raw_daily))})
+                rows.append({"symbol": symbol, "factor_missing": True, "qfq_obs": int(len(qfq)), "raw_obs": int(len(raw_daily)), "raw_source": raw_source})
                 continue
             factor = qfq.div(raw_daily).replace([np.inf, -np.inf], np.nan).dropna().rename(symbol)
             factors.append(factor)
@@ -569,18 +810,22 @@ def build_adjusted_ohlcv(
                     "factor_missing": False,
                     "qfq_obs": int(len(qfq)),
                     "raw_obs": int(len(raw_daily)),
+                    "raw_source": raw_source,
                     "factor_obs": int(len(factor)),
                     "factor_min": float(factor.min()),
                     "factor_max": float(factor.max()),
                 }
             )
-        factor_panel = pd.concat(factors, axis=1).stack() if factors else pd.Series(dtype=float)
-        factor_panel.index = factor_panel.index.set_names(["date", "symbol"]).swaplevel()
-        adj_factor = factor_panel.reindex(raw.index)
+        if factors:
+            factor_panel = pd.concat(factors, axis=1).stack()
+            factor_panel.index = factor_panel.index.set_names(["date", "symbol"]).swaplevel()
+            adj_factor = factor_panel.reindex(raw.index)
+        else:
+            adj_factor = pd.Series(np.nan, index=raw.index, dtype=float)
         missing_factor = adj_factor.isna()
         if missing_factor.any():
-            missing = raw.index[missing_factor]
             rows.append({"mode": "daily_qfq_div_raw", "missing_factor_rows": int(missing_factor.sum())})
+            pd.DataFrame(rows).to_csv(reports_dir / "as1455_adjust_factor_check.csv", index=False, encoding="utf-8-sig")
             raise RuntimeError(f"missing adjustment factors for {int(missing_factor.sum())} rows; see as1455_adjust_factor_check.csv")
     adj["adj_factor"] = adj_factor.to_numpy()
     for col in ["open", "high", "low", "close"]:
@@ -629,11 +874,13 @@ def filter_prices_and_universe(prices: pd.DataFrame, universe: pd.DataFrame, min
     return prices, metadata, nobs
 
 
-def compute_features(prices: pd.DataFrame, universe_meta: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+def compute_features(prices: pd.DataFrame, universe_meta: pd.DataFrame, profile_memory: bool = False) -> tuple[pd.DataFrame, pd.DataFrame]:
     import talib
     from talib import ATR, BBANDS, MACD, RSI
 
-    prices = prices.sort_index().copy()
+    log_memory(profile_memory, "compute_features:start")
+    if not prices.index.is_monotonic_increasing:
+        prices.sort_index(inplace=True)
     meta = universe_meta.copy()
     meta["sector"] = pd.factorize(meta["industry"])[0].astype(int)
     sector_map = meta.set_index("code")["sector"]
@@ -645,6 +892,8 @@ def compute_features(prices: pd.DataFrame, universe_meta: pd.DataFrame) -> tuple
     dollar_vol_ma = prices["dollar_vol"].unstack("symbol").rolling(window=MONTH, min_periods=1).mean()
     prices["dollar_vol_rank"] = dollar_vol_ma.rank(axis=1, ascending=False).stack().swaplevel()
     del dollar_vol_ma
+    gc.collect()
+    log_memory(profile_memory, "compute_features:after_dollar_vol_rank")
 
     prices["rsi"] = prices.groupby(level="symbol", group_keys=False)["close"].apply(RSI)
 
@@ -656,13 +905,22 @@ def compute_features(prices: pd.DataFrame, universe_meta: pd.DataFrame) -> tuple
     prices["bb_high"] = bb["bb_high"].sub(prices["close"]).div(bb["bb_high"]).apply(np.log1p)
     prices["bb_low"] = prices["close"].sub(bb["bb_low"]).div(prices["close"]).apply(np.log1p)
     del bb
+    gc.collect()
+    log_memory(profile_memory, "compute_features:after_bbands")
 
-    prices["NATR"] = prices.groupby(level="symbol", group_keys=False).apply(lambda x: talib.NATR(x["high"], x["low"], x["close"]))
+    def compute_natr(g: pd.DataFrame) -> pd.Series:
+        return pd.Series(talib.NATR(g["high"], g["low"], g["close"]), index=g.index)
+
+    natr_parts = [compute_natr(g) for _symbol, g in prices.groupby(level="symbol", sort=False)]
+    prices["NATR"] = pd.concat(natr_parts).reindex(prices.index)
+    del natr_parts
 
     def compute_atr(g: pd.DataFrame) -> pd.Series:
         return zscore(ATR(g["high"], g["low"], g["close"], timeperiod=14))
 
-    prices["ATR"] = prices.groupby(level="symbol", group_keys=False).apply(compute_atr)
+    atr_parts = [compute_atr(g) for _symbol, g in prices.groupby(level="symbol", sort=False)]
+    prices["ATR"] = pd.concat(atr_parts).reindex(prices.index)
+    del atr_parts
     prices["PPO"] = prices.groupby(level="symbol", group_keys=False)["close"].apply(talib.PPO)
 
     def compute_macd(close: pd.Series) -> pd.Series:
@@ -678,8 +936,12 @@ def compute_features(prices: pd.DataFrame, universe_meta: pd.DataFrame) -> tuple
     dates = prices.index.get_level_values("date")
     for t in T:
         prices[f"r{t:02}dec"] = qcut_by_group(prices[f"r{t:02}"], dates, 10)
+        gc.collect()
+        log_memory(profile_memory, f"compute_features:after_r{t:02}dec")
     for t in T:
         prices[f"r{t:02}q_sector"] = qcut_by_group(prices[f"r{t:02}"], [dates, prices["sector"]], 5)
+        gc.collect()
+        log_memory(profile_memory, f"compute_features:after_r{t:02}q_sector")
     for t in FWD_T:
         prices[f"r{t:02}_fwd"] = prices.groupby(level="symbol")[f"r{t:02}"].shift(-t)
 
@@ -692,6 +954,7 @@ def compute_features(prices: pd.DataFrame, universe_meta: pd.DataFrame) -> tuple
     prices["year"] = dates.year
     prices["month"] = dates.month
     prices["weekday"] = dates.weekday
+    log_memory(profile_memory, "compute_features:end")
     return prices, outlier_df
 
 
@@ -827,6 +1090,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--bar-root", default=str(DEFAULT_BAR_ROOT))
     p.add_argument("--bar-glob", default=DEFAULT_BAR_GLOB)
     p.add_argument("--baostock-5m-cache-dir", default=str(DEFAULT_BAOSTOCK_5M_CACHE))
+    p.add_argument("--as1455-daily-cache-dir", default=str(DEFAULT_AS1455_DAILY_CACHE))
+    p.add_argument("--rebuild-as1455-daily-cache", action="store_true", help="Rebuild per-symbol as1455 daily CSV cache from 5min files")
+    p.add_argument("--daily-cache-only", action="store_true", help="Build per-symbol as1455 daily CSV cache and exit before panel/features/HDF")
     p.add_argument("--fetch-missing-baostock", action=argparse.BooleanOptionalAction, default=True)
     p.add_argument(
         "--baostock-adjustflag",
@@ -839,6 +1105,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--baostock-query-timeout", type=float, default=180.0, help="Per-symbol BaoStock query timeout in seconds")
     p.add_argument("--qfq-daily-cache-dir", default=str(DEFAULT_QFQ_DAILY_CACHE))
     p.add_argument("--raw-daily-cache-dir", default=None)
+    p.add_argument("--fetch-missing-qfq-daily", action=argparse.BooleanOptionalAction, default=True, help="Automatically fetch missing BaoStock qfq daily files needed for adjustment factors")
     p.add_argument("--adjust-factor-mode", choices=["daily_qfq_div_raw", "identity"], default="daily_qfq_div_raw")
     p.add_argument("--timestamp-convention", choices=["right", "left"], default="right")
     p.add_argument("--start-date", default=None)
@@ -846,6 +1113,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--min-obs", type=int, default=MIN_OBS)
     p.add_argument("--max-symbols", type=int, default=None)
     p.add_argument("--allow-partial-coverage", action="store_true", help="Write partial sample output when 5min files do not cover the full universe")
+    p.add_argument("--profile-memory", action="store_true", help="Print process RSS checkpoints during the build")
     return p.parse_args()
 
 
@@ -855,6 +1123,10 @@ def main() -> None:
     out_dir = ensure_dir(Path(args.out_dir))
     reports_dir = ensure_dir(out_dir / "reports")
     model_data_path = out_dir / "model_data_as1455.h5"
+    if str(args.baostock_5m_cache_dir) == str(DEFAULT_BAOSTOCK_5M_CACHE):
+        args.baostock_5m_cache_dir = str(out_dir / "baostock_5m_cache")
+    if str(args.as1455_daily_cache_dir) == str(DEFAULT_AS1455_DAILY_CACHE):
+        args.as1455_daily_cache_dir = str(out_dir / "as1455_daily_cache")
 
     universe = load_universe(Path(args.universe), args.start_date, args.end_date, args.max_symbols)
     universe_symbols = set(universe["code"])
@@ -901,34 +1173,110 @@ def main() -> None:
         (reports_dir / "as1455_build_summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
         raise SystemExit(json.dumps(summary, ensure_ascii=False))
 
-    raw, missing = aggregate_raw_as1455(bar_files, reports_dir, args.start_date, args.end_date, args.timestamp_convention)
+    daily_cache_files, daily_cache_report = materialize_as1455_daily_cache(
+        bar_files,
+        Path(args.as1455_daily_cache_dir),
+        reports_dir,
+        args.start_date,
+        args.end_date,
+        args.timestamp_convention,
+        bool(args.rebuild_as1455_daily_cache),
+    )
+    expected_daily_symbols = set(bar_files) if args.allow_partial_coverage else universe_symbols
+    daily_cache_missing = sorted(expected_daily_symbols.difference(daily_cache_files))
+    if daily_cache_missing:
+        summary = {
+            "status": "blocked",
+            "reason": "per-symbol as1455 daily cache is incomplete; inspect as1455_daily_cache_build_report.csv",
+            "expected_daily_symbols": len(expected_daily_symbols),
+            "symbols_with_daily_cache": len(daily_cache_files),
+            "symbols_missing_daily_cache": len(daily_cache_missing),
+            "daily_cache_dir": str(Path(args.as1455_daily_cache_dir).resolve()),
+        }
+        (reports_dir / "as1455_build_summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+        raise SystemExit(json.dumps(summary, ensure_ascii=False))
+    if args.daily_cache_only:
+        summary = {
+            "status": "daily_cache_complete",
+            "expected_daily_symbols": len(expected_daily_symbols),
+            "symbols_with_daily_cache": len(daily_cache_files),
+            "daily_cache_rows": int(pd.to_numeric(daily_cache_report["rows"], errors="coerce").clip(lower=0).sum()),
+            "daily_cache_dir": str(Path(args.as1455_daily_cache_dir).resolve()),
+        }
+        (reports_dir / "as1455_build_summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(json.dumps(summary, ensure_ascii=False, indent=2), flush=True)
+        return
+
+    log_memory(bool(args.profile_memory), "main:before_daily_panel_load")
+    raw, missing = load_as1455_daily_panel(daily_cache_files, reports_dir)
     if raw.empty:
         raise SystemExit("No as1455 raw OHLCV rows were constructed; see reports.")
+    del daily_cache_report
+    gc.collect()
+    log_memory(bool(args.profile_memory), "main:after_daily_panel_load")
     used_after_cutoff_count = int(raw["used_after_cutoff"].sum())
     if used_after_cutoff_count:
         raise RuntimeError(f"cutoff leakage detected: used_after_cutoff_count={used_after_cutoff_count}")
+    raw_ohlcv_rows = int(len(raw))
+    max_dt = pd.to_datetime(raw["max_datetime_used"]).max()
+
+    if args.adjust_factor_mode == "daily_qfq_div_raw" and args.fetch_missing_qfq_daily:
+        raw_dates = raw.index.get_level_values("date")
+        qfq_symbols = sorted(raw.index.get_level_values("symbol").unique().tolist())
+        materialize_qfq_daily_cache(
+            qfq_symbols,
+            Path(args.qfq_daily_cache_dir),
+            reports_dir,
+            pd.Timestamp(raw_dates.min()).strftime("%Y-%m-%d"),
+            pd.Timestamp(raw_dates.max()).strftime("%Y-%m-%d"),
+            args.baostock_fetch_retries,
+            args.baostock_fetch_sleep,
+            args.baostock_query_timeout,
+        )
+        missing_qfq = [symbol for symbol in qfq_symbols if not (Path(args.qfq_daily_cache_dir) / f"{symbol}_qfq_daily.csv").exists()]
+        if missing_qfq:
+            raise SystemExit(
+                f"qfq daily cache remains incomplete for {len(missing_qfq)} symbols; rerun the same command to resume. "
+                f"See {reports_dir / 'as1455_qfq_daily_fetch_report.csv'}"
+            )
+        gc.collect()
+        log_memory(bool(args.profile_memory), "main:after_qfq_daily_cache")
 
     raw_hdf = out_dir / "as1455_ohlcv_raw.h5"
     write_hdf(raw_hdf, "ohlcv", raw)
+    log_memory(bool(args.profile_memory), "main:after_raw_hdf")
 
     adj, factor_check = build_adjusted_ohlcv(raw, reports_dir, Path(args.qfq_daily_cache_dir), Path(args.raw_daily_cache_dir) if args.raw_daily_cache_dir else None, args.adjust_factor_mode)
+    adj_ohlcv_rows = int(len(adj))
     adj_hdf = out_dir / "as1455_ohlcv_adj.h5"
     write_hdf(adj_hdf, "ohlcv", adj)
+    del raw
+    gc.collect()
+    log_memory(bool(args.profile_memory), "main:after_adj_hdf_and_raw_release")
 
     prices, exec_meta = make_prices_and_metadata(adj)
     exec_meta_hdf = out_dir / "as1455_execution_metadata.h5"
     write_hdf(exec_meta_hdf, "metadata", exec_meta)
+    del exec_meta, adj, factor_check
+    gc.collect()
+    log_memory(bool(args.profile_memory), "main:after_execution_metadata_and_adj_release")
 
     prices, metadata, nobs = filter_prices_and_universe(prices, universe, args.min_obs, reports_dir)
     if prices.empty:
         raise SystemExit("No symbols satisfy min_obs and industry filters; see reports/as1455_nobs_by_symbol.csv")
-    features_with_prices, outliers = compute_features(prices, metadata)
+    symbols_after_min_obs = int(prices.index.get_level_values("symbol").nunique())
+    symbols_after_industry_filter = int(metadata["code"].nunique())
+    compare_with_daily_leakage(prices, Path(args.qfq_daily_cache_dir), reports_dir)
+    features_with_prices, outliers = compute_features(prices, metadata, profile_memory=bool(args.profile_memory))
+    del metadata, nobs
+    gc.collect()
     outliers.to_csv(reports_dir / "as1455_outlier_symbols_r01_gt_1.csv", index=False, encoding="utf-8-sig")
     label_validation = make_label_alignment_samples(features_with_prices, reports_dir)
-    compare_with_daily_leakage(prices, Path(args.qfq_daily_cache_dir), reports_dir)
 
-    model_data = features_with_prices.drop(["open", "high", "low", "close", "volume"], axis=1)
-    model_data = model_data[EXPECTED_COLUMNS]
+    features_with_prices.drop(columns=["open", "high", "low", "close", "volume"], inplace=True)
+    model_data = features_with_prices
+    if list(model_data.columns) != EXPECTED_COLUMNS:
+        model_data = model_data[EXPECTED_COLUMNS]
     forbidden = sorted(FORBIDDEN_MODEL_COLUMNS.intersection(model_data.columns))
     if forbidden:
         raise RuntimeError(f"forbidden columns in model_data: {forbidden}")
@@ -938,10 +1286,16 @@ def main() -> None:
         raise RuntimeError(f"model_data must have 34 columns, got {model_data.shape[1]}")
     write_feature_column_check(model_data, reports_dir)
     clean_mask = write_daily_counts(model_data, reports_dir)
+    model_rows_before_dropna = int(len(model_data))
+    model_rows_after_dropna = int(clean_mask.sum())
+    model_columns = int(model_data.shape[1])
+    symbols_after_outlier_drop = int(model_data.index.get_level_values("symbol").nunique())
     write_model_data_hdf(model_data_path, model_data)
+    del model_data, features_with_prices, clean_mask, prices
+    gc.collect()
+    log_memory(bool(args.profile_memory), "main:after_model_hdf_and_feature_release")
     smoke_ok = run_chapter17_read_smoke(model_data_path, reports_dir)
 
-    max_dt = pd.to_datetime(raw["max_datetime_used"]).max()
     summary = BuildSummary(
         universe_path=str(Path(args.universe).resolve()),
         bar_root=str(Path(args.bar_root).resolve()),
@@ -959,14 +1313,14 @@ def main() -> None:
         bar_files_found=int(len(bar_file_rows)),
         symbols_with_bar_files=int(len(bar_files)),
         symbols_missing_bar_files=int(len(missing_symbols)),
-        raw_ohlcv_rows=int(len(raw)),
-        adj_ohlcv_rows=int(len(adj)),
-        symbols_after_min_obs=int(prices.index.get_level_values("symbol").nunique()),
-        symbols_after_industry_filter=int(metadata["code"].nunique()),
-        symbols_after_outlier_drop=int(model_data.index.get_level_values("symbol").nunique()),
-        model_rows_before_dropna=int(len(model_data)),
-        model_rows_after_dropna=int(clean_mask.sum()),
-        model_columns=int(model_data.shape[1]),
+        raw_ohlcv_rows=raw_ohlcv_rows,
+        adj_ohlcv_rows=adj_ohlcv_rows,
+        symbols_after_min_obs=symbols_after_min_obs,
+        symbols_after_industry_filter=symbols_after_industry_filter,
+        symbols_after_outlier_drop=symbols_after_outlier_drop,
+        model_rows_before_dropna=model_rows_before_dropna,
+        model_rows_after_dropna=model_rows_after_dropna,
+        model_columns=model_columns,
         max_datetime_used=max_dt.strftime("%Y-%m-%d %H:%M:%S"),
         used_after_cutoff_count=used_after_cutoff_count,
         volume_adjustment="none",
