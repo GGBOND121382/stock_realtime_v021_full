@@ -13,6 +13,7 @@ import json
 import math
 import multiprocessing as mp
 import os
+import queue as queue_module
 import re
 import time
 from dataclasses import asdict, dataclass
@@ -342,9 +343,10 @@ def query_baostock_5m_with_timeout(symbol: str, start_date: str, end_date: str, 
         proc.terminate()
         proc.join(10)
         raise TimeoutError(f"timeout after {timeout:g}s")
-    if queue.empty():
-        raise RuntimeError(f"BaoStock worker exited with code {proc.exitcode} without returning data")
-    status, n_rows, path, error = queue.get()
+    try:
+        status, n_rows, path, error = queue.get(timeout=5)
+    except queue_module.Empty as exc:
+        raise RuntimeError(f"BaoStock worker exited with code {proc.exitcode} without returning data") from exc
     if status == "error":
         raise RuntimeError(error)
     return status, int(n_rows), str(path)
@@ -394,9 +396,10 @@ def query_baostock_qfq_daily_with_timeout(symbol: str, start_date: str, end_date
         proc.terminate()
         proc.join(10)
         raise TimeoutError(f"timeout after {timeout:g}s")
-    if queue.empty():
-        raise RuntimeError(f"BaoStock qfq daily worker exited with code {proc.exitcode} without returning data")
-    status, n_rows, path, error = queue.get()
+    try:
+        status, n_rows, path, error = queue.get(timeout=5)
+    except queue_module.Empty as exc:
+        raise RuntimeError(f"BaoStock qfq daily worker exited with code {proc.exitcode} without returning data") from exc
     if status == "error":
         raise RuntimeError(error)
     return status, int(n_rows), str(path)
@@ -404,10 +407,9 @@ def query_baostock_qfq_daily_with_timeout(symbol: str, start_date: str, end_date
 
 def materialize_qfq_daily_cache(
     symbols: list[str],
+    required_dates_by_symbol: dict[str, pd.DatetimeIndex],
     cache_dir: Path,
     reports_dir: Path,
-    start_date: str,
-    end_date: str,
     retries: int,
     sleep_seconds: float,
     query_timeout: float,
@@ -415,6 +417,9 @@ def materialize_qfq_daily_cache(
     ensure_dir(cache_dir)
     report_rows = []
     for i, symbol in enumerate(symbols, 1):
+        required_dates = pd.DatetimeIndex(required_dates_by_symbol[symbol]).normalize().unique().sort_values()
+        start_date = pd.Timestamp(required_dates.min()).strftime("%Y-%m-%d")
+        end_date = pd.Timestamp(required_dates.max()).strftime("%Y-%m-%d")
         out_path = cache_dir / f"{symbol}_qfq_daily.csv"
         status = "cached"
         n_rows = 0
@@ -422,8 +427,8 @@ def materialize_qfq_daily_cache(
         needs_fetch = not out_path.exists() or out_path.stat().st_size == 0
         if not needs_fetch:
             try:
-                cached_dates = pd.to_datetime(pd.read_csv(out_path, usecols=["date"])["date"], errors="coerce").dropna()
-                needs_fetch = cached_dates.empty or cached_dates.min() > pd.Timestamp(start_date) + pd.Timedelta(days=10) or cached_dates.max() < pd.Timestamp(end_date) - pd.Timedelta(days=10)
+                cached_dates = pd.DatetimeIndex(pd.to_datetime(pd.read_csv(out_path, usecols=["date"])["date"], errors="coerce").dropna()).normalize().unique()
+                needs_fetch = cached_dates.empty or len(required_dates.difference(cached_dates)) > 0
                 n_rows = int(len(cached_dates))
             except Exception:
                 needs_fetch = True
@@ -438,12 +443,25 @@ def materialize_qfq_daily_cache(
                     error = f"attempt {attempt}/{max(1, retries)} {type(exc).__name__}: {exc}"
                     if sleep_seconds > 0:
                         time.sleep(sleep_seconds)
+            if status == "ok":
+                try:
+                    fetched_dates = pd.DatetimeIndex(pd.to_datetime(pd.read_csv(out_path, usecols=["date"])["date"], errors="coerce").dropna()).normalize().unique()
+                    missing_required = required_dates.difference(fetched_dates)
+                    if len(missing_required):
+                        status = "incomplete"
+                        error = f"qfq daily still missing {len(missing_required)} required 5min trading dates"
+                except Exception as exc:
+                    status = "error"
+                    error = f"post_fetch_validation {type(exc).__name__}: {exc}"
         report_rows.append({"symbol": symbol, "status": status, "rows": n_rows, "path": str(out_path if out_path.exists() else ""), "error": error})
-        print(f"[qfq-daily] {i}/{len(symbols)} {symbol} status={status} rows={n_rows} error={error}", flush=True)
-        pd.DataFrame(report_rows).to_csv(reports_dir / "as1455_qfq_daily_fetch_report.csv", index=False, encoding="utf-8-sig")
+        if status != "cached" or i == 1 or i % 25 == 0 or i == len(symbols):
+            print(f"[qfq-daily] {i}/{len(symbols)} {symbol} status={status} rows={n_rows} error={error}", flush=True)
+            pd.DataFrame(report_rows).to_csv(reports_dir / "as1455_qfq_daily_fetch_report.csv", index=False, encoding="utf-8-sig")
         if sleep_seconds > 0 and status != "cached":
             time.sleep(sleep_seconds)
-    return pd.DataFrame(report_rows)
+    report = pd.DataFrame(report_rows)
+    report.to_csv(reports_dir / "as1455_qfq_daily_fetch_report.csv", index=False, encoding="utf-8-sig")
+    return report
 
 
 def date_for_baostock(value: Any) -> str:
@@ -592,7 +610,9 @@ def aggregate_symbol_as1455(
     if end_date:
         bars = bars[bars["date"] <= pd.Timestamp(end_date)]
     observed_bar_times = " ".join(sorted(bars["datetime"].dt.strftime("%H:%M").dropna().unique().tolist()))
-    full_day_close = bars.sort_values("datetime").groupby("date", sort=False, observed=True)["close"].last()
+    full_day_bars = bars[bars["datetime"].dt.time <= dtime(15, 0)].sort_values("datetime")
+    full_day_close = full_day_bars.groupby("date", sort=False, observed=True)["close"].last()
+    del full_day_bars
     time_series = bars["datetime"].dt.time
     bars = bars[time_series < cutoff_time] if strict_lt else bars[time_series <= cutoff_time]
     if bars.empty:
@@ -641,6 +661,9 @@ def materialize_as1455_daily_cache(
         rows = 0
         bar_times_observed = ""
         if rebuild or not cache_path.exists() or cache_path.stat().st_size == 0:
+            if rebuild:
+                cache_path.unlink(missing_ok=True)
+                timestamp_meta_path.unlink(missing_ok=True)
             try:
                 daily = aggregate_symbol_as1455(path, symbol, start_date, end_date, timestamp_convention)
                 rows = int(len(daily))
@@ -666,7 +689,7 @@ def materialize_as1455_daily_cache(
                     bar_times_observed = str(json.loads(timestamp_meta_path.read_text(encoding="utf-8")).get("bar_times_observed", ""))
             except Exception:
                 rows = -1
-        if cache_path.exists() and cache_path.stat().st_size > 0:
+        if cache_path.exists() and cache_path.stat().st_size > 0 and rows > 0 and status in {"ok", "cached"}:
             cache_files[symbol] = cache_path
         report_rows.append(
             {
@@ -1221,24 +1244,29 @@ def main() -> None:
     max_dt = pd.to_datetime(raw["max_datetime_used"]).max()
 
     if args.adjust_factor_mode == "daily_qfq_div_raw" and args.fetch_missing_qfq_daily:
-        raw_dates = raw.index.get_level_values("date")
         qfq_symbols = sorted(raw.index.get_level_values("symbol").unique().tolist())
-        materialize_qfq_daily_cache(
+        required_dates_by_symbol = {
+            symbol: pd.DatetimeIndex(group.index.get_level_values("date"))
+            for symbol, group in raw.groupby(level="symbol", sort=False)
+        }
+        qfq_report = materialize_qfq_daily_cache(
             qfq_symbols,
+            required_dates_by_symbol,
             Path(args.qfq_daily_cache_dir),
             reports_dir,
-            pd.Timestamp(raw_dates.min()).strftime("%Y-%m-%d"),
-            pd.Timestamp(raw_dates.max()).strftime("%Y-%m-%d"),
             args.baostock_fetch_retries,
             args.baostock_fetch_sleep,
             args.baostock_query_timeout,
         )
+        del required_dates_by_symbol
         missing_qfq = [symbol for symbol in qfq_symbols if not (Path(args.qfq_daily_cache_dir) / f"{symbol}_qfq_daily.csv").exists()]
-        if missing_qfq:
+        failed_qfq = qfq_report.loc[~qfq_report["status"].isin(["cached", "ok"]), "symbol"].tolist()
+        if missing_qfq or failed_qfq:
             raise SystemExit(
-                f"qfq daily cache remains incomplete for {len(missing_qfq)} symbols; rerun the same command to resume. "
+                f"qfq daily cache remains incomplete for {len(set(missing_qfq + failed_qfq))} symbols; rerun the same command to resume. "
                 f"See {reports_dir / 'as1455_qfq_daily_fetch_report.csv'}"
             )
+        del qfq_report
         gc.collect()
         log_memory(bool(args.profile_memory), "main:after_qfq_daily_cache")
 

@@ -9,7 +9,7 @@ PYTHON="${PYTHON:-python3}"
 OUT_DIR="${OUT_DIR:-saved_data/ashare_ml4t/ch12_as1455}"
 BAR_CACHE_DIR="${BAR_CACHE_DIR:-$OUT_DIR/baostock_5m_cache}"
 DAILY_CACHE_DIR="${DAILY_CACHE_DIR:-$OUT_DIR/as1455_daily_cache}"
-QFQ_CACHE_DIR="${QFQ_CACHE_DIR:-$OUT_DIR/baostock_qfq_daily_cache}"
+QFQ_CACHE_DIR="${QFQ_CACHE_DIR:-saved_data/ashare_ml4t/ch12_reproduce/baostock_qfq_daily_cache}"
 
 if [[ ! -d "$BAR_CACHE_DIR" ]]; then
   echo "Missing completed 5min cache directory: $BAR_CACHE_DIR" >&2
@@ -44,6 +44,7 @@ else
 fi
 
 echo "Using completed 5min cache: $BAR_CACHE_DIR (${#bar_files[@]} files)"
+echo "Using qfq daily cache: $QFQ_CACHE_DIR"
 echo "The builder is forced to --no-fetch-missing-baostock; 5min data will not be downloaded."
 
 exec "$PYTHON" scripts/build_ashare_ch12_as1455_model_data.py \
