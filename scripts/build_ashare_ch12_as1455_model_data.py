@@ -1228,6 +1228,7 @@ def write_as1455_vs_daily_quality_report(adj: pd.DataFrame, qfq_daily_cache: Pat
             diagnosed_counts = diagnosed.groupby("symbol").size().astype(int).to_dict()
     symbol_rows: list[dict[str, object]] = []
     worst_parts: list[pd.DataFrame] = []
+    violation_parts: list[pd.DataFrame] = []
     quantile_samples: list[pd.DataFrame] = []
     totals = {
         "as1455_rows": int(len(adj)),
@@ -1326,8 +1327,18 @@ def write_as1455_vs_daily_quality_report(adj: pd.DataFrame, qfq_daily_cache: Pat
             daily_close=joined.loc[metrics.index, "daily_close"],
             as1455_volume=joined.loc[metrics.index, "raw_volume_as1455"],
             daily_volume=joined.loc[metrics.index, "daily_volume"],
+            as1455_high=joined.loc[metrics.index, "adj_high_as1455"],
+            daily_high=joined.loc[metrics.index, "daily_high"],
+            as1455_low=joined.loc[metrics.index, "adj_low_as1455"],
+            daily_low=joined.loc[metrics.index, "daily_low"],
         )
         worst_parts.append(detail.nlargest(min(20, n), "close_abs_diff_pct"))
+        violations = detail.loc[high_bad | low_bad | volume_bad].copy()
+        if not violations.empty:
+            violations["high_above_daily"] = high_bad.loc[violations.index].to_numpy()
+            violations["low_below_daily"] = low_bad.loc[violations.index].to_numpy()
+            violations["volume_above_daily"] = volume_bad.loc[violations.index].to_numpy()
+            violation_parts.append(violations)
         sample_mask = ((metrics.index.view("int64") // 86_400_000_000_000 + int(symbol)) % 20) == 0
         quantile_samples.append(metrics.loc[sample_mask])
 
@@ -1341,6 +1352,8 @@ def write_as1455_vs_daily_quality_report(adj: pd.DataFrame, qfq_daily_cache: Pat
         )
     worst = pd.concat(worst_parts, ignore_index=True).nlargest(1000, "close_abs_diff_pct") if worst_parts else pd.DataFrame()
     worst.to_csv(reports_dir / "as1455_vs_daily_largest_differences.csv", index=False, encoding="utf-8-sig")
+    violations = pd.concat(violation_parts, ignore_index=True) if violation_parts else pd.DataFrame()
+    violations.to_csv(reports_dir / "as1455_vs_daily_integrity_violations.csv", index=False, encoding="utf-8-sig")
     sample = pd.concat(quantile_samples, ignore_index=True) if quantile_samples else pd.DataFrame()
     matched = int(totals["matched_rows"])
     summary: dict[str, object] = {
