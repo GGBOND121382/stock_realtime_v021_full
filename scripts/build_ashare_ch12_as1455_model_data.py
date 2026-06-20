@@ -647,6 +647,11 @@ def aggregate_symbol_as1455(
     if end_date:
         bars = bars[bars["date"] <= pd.Timestamp(end_date)]
     observed_bar_times = " ".join(sorted(bars["datetime"].dt.strftime("%H:%M").dropna().unique().tolist()))
+    price_cols = ["open", "high", "low", "close"]
+    valid_price = bars[price_cols].notna().all(axis=1) & bars[price_cols].gt(0).all(axis=1)
+    bars = bars.loc[valid_price].copy()
+    if bars.empty:
+        return pd.DataFrame()
     time_series = bars["datetime"].dt.time
     bars = bars[time_series < cutoff_time] if strict_lt else bars[time_series <= cutoff_time]
     if bars.empty:
@@ -1212,6 +1217,148 @@ def compare_with_daily_leakage(prices: pd.DataFrame, qfq_daily_cache: Path, repo
     pd.DataFrame(rows).to_csv(reports_dir / "as1455_daily_leakage_sample_check.csv", index=False, encoding="utf-8-sig")
 
 
+def write_as1455_vs_daily_quality_report(adj: pd.DataFrame, qfq_daily_cache: Path, reports_dir: Path) -> None:
+    """Compare adjusted 14:55 bars with BaoStock qfq daily bars without materializing a second full panel."""
+    symbol_rows: list[dict[str, object]] = []
+    worst_parts: list[pd.DataFrame] = []
+    quantile_samples: list[pd.DataFrame] = []
+    totals = {
+        "as1455_rows": int(len(adj)),
+        "matched_rows": 0,
+        "close_abs_sum": 0.0,
+        "close_sq_sum": 0.0,
+        "volume_missing_sum": 0.0,
+        "high_above_daily_rows": 0,
+        "low_below_daily_rows": 0,
+        "volume_above_daily_rows": 0,
+    }
+    close_thresholds = [0.1, 0.5, 1.0, 2.0, 5.0]
+    volume_thresholds = [1.0, 5.0, 10.0, 20.0, 50.0]
+    close_counts = {value: 0 for value in close_thresholds}
+    volume_counts = {value: 0 for value in volume_thresholds}
+
+    for symbol, group in adj.groupby(level="symbol", sort=False):
+        daily_path = qfq_daily_cache / f"{symbol}_qfq_daily.csv"
+        if not daily_path.exists():
+            symbol_rows.append({"symbol": symbol, "as1455_rows": len(group), "matched_rows": 0, "match_rate": 0.0, "error": "daily_file_missing"})
+            continue
+        daily = pd.read_csv(daily_path, usecols=lambda col: col in {"date", "open", "high", "low", "close", "volume"})
+        if "date" not in daily:
+            symbol_rows.append({"symbol": symbol, "as1455_rows": len(group), "matched_rows": 0, "match_rate": 0.0, "error": "daily_date_missing"})
+            continue
+        daily["date"] = pd.to_datetime(daily["date"], errors="coerce").dt.normalize()
+        daily = daily.dropna(subset=["date"]).drop_duplicates("date", keep="last").set_index("date")
+        for col in ["open", "high", "low", "close", "volume"]:
+            daily[col] = pd.to_numeric(daily[col], errors="coerce") if col in daily else np.nan
+        current = group.droplevel("symbol").copy()
+        current.index = pd.to_datetime(current.index).normalize()
+        joined = current.join(daily.add_prefix("daily_"), how="inner")
+        required = ["daily_open", "daily_high", "daily_low", "daily_close", "daily_volume"]
+        joined = joined.dropna(subset=required)
+        joined = joined[(joined[required] > 0).all(axis=1)]
+        n = int(len(joined))
+        if not n:
+            symbol_rows.append({"symbol": symbol, "as1455_rows": len(group), "matched_rows": 0, "match_rate": 0.0, "error": "no_valid_daily_matches"})
+            continue
+
+        metrics = pd.DataFrame(index=joined.index)
+        metrics["close_diff_pct"] = joined["adj_close_as1455"].div(joined["daily_close"]).sub(1).mul(100)
+        metrics["high_diff_pct"] = joined["adj_high_as1455"].div(joined["daily_high"]).sub(1).mul(100)
+        metrics["low_diff_pct"] = joined["adj_low_as1455"].div(joined["daily_low"]).sub(1).mul(100)
+        metrics["volume_missing_pct"] = joined["raw_volume_as1455"].div(joined["daily_volume"]).rsub(1).mul(100)
+        metrics.replace([np.inf, -np.inf], np.nan, inplace=True)
+        metrics.dropna(inplace=True)
+        n = int(len(metrics))
+        close_abs = metrics["close_diff_pct"].abs()
+        high_bad = metrics["high_diff_pct"].gt(1e-6)
+        low_bad = metrics["low_diff_pct"].lt(-1e-6)
+        volume_bad = metrics["volume_missing_pct"].lt(-1e-6)
+        totals["matched_rows"] += n
+        totals["close_abs_sum"] += float(close_abs.sum())
+        totals["close_sq_sum"] += float(metrics["close_diff_pct"].pow(2).sum())
+        totals["volume_missing_sum"] += float(metrics["volume_missing_pct"].sum())
+        totals["high_above_daily_rows"] += int(high_bad.sum())
+        totals["low_below_daily_rows"] += int(low_bad.sum())
+        totals["volume_above_daily_rows"] += int(volume_bad.sum())
+        for value in close_thresholds:
+            close_counts[value] += int(close_abs.gt(value).sum())
+        for value in volume_thresholds:
+            volume_counts[value] += int(metrics["volume_missing_pct"].gt(value).sum())
+
+        symbol_rows.append(
+            {
+                "symbol": symbol,
+                "as1455_rows": int(len(group)),
+                "matched_rows": n,
+                "match_rate": n / len(group),
+                "close_abs_diff_mean_pct": float(close_abs.mean()),
+                "close_abs_diff_p95_pct": float(close_abs.quantile(0.95)),
+                "close_abs_diff_p99_pct": float(close_abs.quantile(0.99)),
+                "close_abs_diff_max_pct": float(close_abs.max()),
+                "volume_missing_mean_pct": float(metrics["volume_missing_pct"].mean()),
+                "volume_missing_p95_pct": float(metrics["volume_missing_pct"].quantile(0.95)),
+                "volume_missing_max_pct": float(metrics["volume_missing_pct"].max()),
+                "high_above_daily_rows": int(high_bad.sum()),
+                "low_below_daily_rows": int(low_bad.sum()),
+                "volume_above_daily_rows": int(volume_bad.sum()),
+                "error": "",
+            }
+        )
+        detail = metrics.assign(
+            symbol=symbol,
+            date=metrics.index.strftime("%Y-%m-%d"),
+            close_abs_diff_pct=close_abs,
+            as1455_close=joined.loc[metrics.index, "adj_close_as1455"],
+            daily_close=joined.loc[metrics.index, "daily_close"],
+            as1455_volume=joined.loc[metrics.index, "raw_volume_as1455"],
+            daily_volume=joined.loc[metrics.index, "daily_volume"],
+        )
+        worst_parts.append(detail.nlargest(min(20, n), "close_abs_diff_pct"))
+        sample_mask = ((metrics.index.view("int64") // 86_400_000_000_000 + int(symbol)) % 20) == 0
+        quantile_samples.append(metrics.loc[sample_mask])
+
+    by_symbol = pd.DataFrame(symbol_rows)
+    if "close_abs_diff_p95_pct" in by_symbol:
+        by_symbol.sort_values(["close_abs_diff_p95_pct", "symbol"], ascending=[False, True], na_position="last", inplace=True)
+    by_symbol.to_csv(reports_dir / "as1455_vs_daily_by_symbol.csv", index=False, encoding="utf-8-sig")
+    worst = pd.concat(worst_parts, ignore_index=True).nlargest(1000, "close_abs_diff_pct") if worst_parts else pd.DataFrame()
+    worst.to_csv(reports_dir / "as1455_vs_daily_largest_differences.csv", index=False, encoding="utf-8-sig")
+    sample = pd.concat(quantile_samples, ignore_index=True) if quantile_samples else pd.DataFrame()
+    matched = int(totals["matched_rows"])
+    summary: dict[str, object] = {
+        "comparison": "adjusted as1455 versus BaoStock qfq daily",
+        "as1455_rows": totals["as1455_rows"],
+        "matched_rows": matched,
+        "match_rate": matched / totals["as1455_rows"] if totals["as1455_rows"] else 0.0,
+        "quantile_sample_rows": int(len(sample)),
+        "close_abs_diff_mean_pct": totals["close_abs_sum"] / matched if matched else None,
+        "close_diff_rmse_pct": (totals["close_sq_sum"] / matched) ** 0.5 if matched else None,
+        "volume_missing_mean_pct": totals["volume_missing_sum"] / matched if matched else None,
+        "high_above_daily_rows": totals["high_above_daily_rows"],
+        "low_below_daily_rows": totals["low_below_daily_rows"],
+        "volume_above_daily_rows": totals["volume_above_daily_rows"],
+        "integrity_check_passed": bool(
+            matched == totals["as1455_rows"]
+            and totals["high_above_daily_rows"] == 0
+            and totals["low_below_daily_rows"] == 0
+            and totals["volume_above_daily_rows"] == 0
+        ),
+    }
+    if "close_abs_diff_max_pct" in by_symbol:
+        summary["close_abs_diff_max_pct"] = float(pd.to_numeric(by_symbol["close_abs_diff_max_pct"], errors="coerce").max())
+    if "volume_missing_max_pct" in by_symbol:
+        summary["volume_missing_max_pct"] = float(pd.to_numeric(by_symbol["volume_missing_max_pct"], errors="coerce").max())
+    for value, count in close_counts.items():
+        summary[f"close_abs_diff_gt_{value:g}pct_rate"] = count / matched if matched else None
+    for value, count in volume_counts.items():
+        summary[f"volume_missing_gt_{value:g}pct_rate"] = count / matched if matched else None
+    if not sample.empty:
+        for col in ["close_diff_pct", "high_diff_pct", "low_diff_pct", "volume_missing_pct"]:
+            for quantile in [0.01, 0.05, 0.5, 0.95, 0.99]:
+                summary[f"{col}_sample_p{int(quantile * 100):02d}"] = float(sample[col].quantile(quantile))
+    (reports_dir / "as1455_vs_daily_summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="Build Chapter 12-style model_data from 14:55 5min bars")
     p.add_argument("--universe", default=str(DEFAULT_UNIVERSE))
@@ -1383,6 +1530,7 @@ def main() -> None:
     adj_ohlcv_rows = int(len(adj))
     adj_hdf = out_dir / "as1455_ohlcv_adj.h5"
     write_hdf(adj_hdf, "ohlcv", adj)
+    write_as1455_vs_daily_quality_report(adj, Path(args.qfq_daily_cache_dir), reports_dir)
     del raw
     gc.collect()
     log_memory(bool(args.profile_memory), "main:after_adj_hdf_and_raw_release")

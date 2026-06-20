@@ -78,10 +78,16 @@ def main() -> None:
     reports = base / "reports"
     daily_cache = base / "as1455_daily_cache"
     qfq_cache = Path(args.qfq_cache_dir)
+    if not daily_cache.is_dir():
+        raise SystemExit(f"required daily cache directory not found: {daily_cache}; existing reports were not modified")
     factor_report = pd.read_csv(reports / "as1455_adjust_factor_check.csv", dtype={"symbol": str})
     raw_obs = pd.to_numeric(factor_report.get("raw_obs"), errors="coerce")
     factor_obs = pd.to_numeric(factor_report.get("factor_obs"), errors="coerce")
-    bad_symbols = factor_report.loc[raw_obs.gt(factor_obs), "symbol"].map(normalize_symbol).tolist()
+    old_report_bad_symbols = set(factor_report.loc[raw_obs.gt(factor_obs), "symbol"].map(normalize_symbol))
+    cache_symbols = {path.name.removesuffix("_as1455_daily.csv") for path in daily_cache.glob("*_as1455_daily.csv")}
+    if not cache_symbols:
+        raise SystemExit(f"no daily cache files found in {daily_cache}; existing reports were not modified")
+    bad_symbols = sorted(old_report_bad_symbols | cache_symbols)
 
     detail_rows: list[dict[str, object]] = []
     symbol_rows: list[dict[str, object]] = []
@@ -107,13 +113,17 @@ def main() -> None:
         daily["qfq_daily_open"] = daily["date"].map(qfq["qfq_daily_open"])
         daily["qfq_daily_close"] = daily["date"].map(qfq["qfq_daily_close"])
         daily["open_factor"] = daily["qfq_daily_open"].div(daily["raw_open_as1455"])
+        new_bad_mask = ~np.isfinite(daily["open_factor"])
         if "raw_daily_close" in daily:
             daily["old_close_factor"] = daily["qfq_daily_close"].div(daily["raw_daily_close"])
-            bad_mask = ~np.isfinite(daily["old_close_factor"])
+            old_bad_mask = ~np.isfinite(daily["old_close_factor"])
         else:
             daily["old_close_factor"] = np.nan
-            bad_mask = ~np.isfinite(daily["open_factor"])
+            old_bad_mask = pd.Series(False, index=daily.index)
+        bad_mask = old_bad_mask | new_bad_mask
         bad = daily.loc[bad_mask].copy()
+        bad["old_factor_bad"] = old_bad_mask.loc[bad.index].to_numpy()
+        bad["new_open_factor_bad"] = new_bad_mask.loc[bad.index].to_numpy()
         source_path = resolve_source_path(daily["source_path"].dropna().iloc[0] if "source_path" in daily and daily["source_path"].notna().any() else "")
         source = inspect_5m(source_path, set(bad["date"].dropna()))
         for row in bad.itertuples(index=False):
@@ -128,14 +138,17 @@ def main() -> None:
                 "qfq_daily_close": getattr(row, "qfq_daily_close", np.nan),
                 "open_factor": getattr(row, "open_factor", np.nan),
                 "old_close_factor": getattr(row, "old_close_factor", np.nan),
+                "old_factor_bad": bool(getattr(row, "old_factor_bad", False)),
+                "new_open_factor_bad": bool(getattr(row, "new_open_factor_bad", False)),
             }
             item.update(source.get(date, {}))
             detail_rows.append(item)
         symbol_rows.append(
             {
                 "symbol": symbol,
-                "old_bad_rows": int(len(bad)),
-                "new_open_factor_bad_rows": int((~np.isfinite(daily["open_factor"])).sum()),
+                "old_report_bad_symbol": symbol in old_report_bad_symbols,
+                "old_bad_rows": int(old_bad_mask.sum()),
+                "new_open_factor_bad_rows": int(new_bad_mask.sum()),
                 "source_5m_path": str(source_path or ""),
                 "source_5m_exists": bool(source_path and source_path.exists()),
                 "error": "",
@@ -149,8 +162,11 @@ def main() -> None:
     new_bad = pd.to_numeric(symbols["new_open_factor_bad_rows"], errors="coerce").fillna(0) if "new_open_factor_bad_rows" in symbols else pd.Series(dtype=float)
     source_exists = symbols["source_5m_exists"].fillna(False).astype(bool) if "source_5m_exists" in symbols else pd.Series(dtype=bool)
     summary = {
-        "bad_symbols_from_old_report": len(bad_symbols),
-        "old_bad_rows_diagnosed": int(len(details)),
+        "symbols_scanned": len(bad_symbols),
+        "bad_symbols_from_old_report": len(old_report_bad_symbols),
+        "union_bad_symbols_diagnosed": int(details["symbol"].nunique()) if "symbol" in details else 0,
+        "union_bad_rows_diagnosed": int(len(details)),
+        "old_bad_rows_diagnosed": int(details["old_factor_bad"].sum()) if "old_factor_bad" in details else 0,
         "new_open_factor_bad_rows": int(new_bad.sum()),
         "source_5m_files_inspected": int(source_exists.sum()),
     }

@@ -531,3 +531,4 @@ saved_data/ashare_ml4t/ch12_as1455/*cache/
 # local generated ML4T data
 saved_data/ashare_ml4t/ch12_as1455/as1455_ohlcv_raw.h5
 saved_data/ashare_ml4t/ch12_as1455_open_factor_test/
+saved_data/ashare_ml4t/ch12_as1455/reports/as1455_adjustment_failure_details.csv
