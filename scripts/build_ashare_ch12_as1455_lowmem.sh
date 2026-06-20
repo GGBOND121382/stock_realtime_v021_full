@@ -27,20 +27,6 @@ fi
 rebuild_args=()
 if [[ "${REBUILD_DAILY_CACHE:-0}" == "1" ]]; then
   rebuild_args+=(--rebuild-as1455-daily-cache)
-else
-  shopt -s nullglob
-  daily_files=("$DAILY_CACHE_DIR"/*_as1455_daily.csv)
-  shopt -u nullglob
-  if (( ${#daily_files[@]} > 0 )); then
-    for daily_file in "${daily_files[@]}"; do
-      header="$(head -n 1 "$daily_file")"
-      if [[ ",$header," != *",raw_daily_close,"* ]]; then
-        echo "Existing as1455 daily cache uses the old schema; rebuilding it once."
-        rebuild_args+=(--rebuild-as1455-daily-cache)
-        break
-      fi
-    done
-  fi
 fi
 
 echo "Using completed 5min cache: $BAR_CACHE_DIR (${#bar_files[@]} files)"

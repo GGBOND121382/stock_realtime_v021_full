@@ -100,6 +100,22 @@ FORBIDDEN_MODEL_COLUMNS = {
     "open_limit_down",
 }
 
+AS1455_DAILY_CACHE_COLUMNS = [
+    "symbol",
+    "date",
+    "raw_open_as1455",
+    "raw_high_as1455",
+    "raw_low_as1455",
+    "raw_close_as1455",
+    "raw_volume_as1455",
+    "raw_amount_as1455",
+    "max_datetime_used",
+    "has_14_55_bar",
+    "last_bar_time",
+    "used_after_cutoff",
+    "source_path",
+]
+
 
 def log_memory(enabled: bool, label: str) -> None:
     if not enabled:
@@ -149,6 +165,26 @@ class BuildSummary:
 def ensure_dir(path: Path) -> Path:
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+
+def write_csv_atomic(df: pd.DataFrame, path: Path) -> None:
+    temp_path = path.with_name(f".{path.name}.tmp")
+    try:
+        df.to_csv(temp_path, index=False, encoding="utf-8-sig")
+        temp_path.replace(path)
+    finally:
+        temp_path.unlink(missing_ok=True)
+
+
+def source_fingerprint(path: Path) -> dict[str, int]:
+    stat = path.stat()
+    return {"source_size": int(stat.st_size), "source_mtime_ns": int(stat.st_mtime_ns)}
+
+
+def write_timestamp_metadata(path: Path, symbol: str, bar_times_observed: str, source_path: Path) -> None:
+    payload: dict[str, object] = {"symbol": symbol, "bar_times_observed": bar_times_observed}
+    payload.update(source_fingerprint(source_path))
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def normalize_symbol(value: Any) -> str:
@@ -302,7 +338,7 @@ def query_baostock_5m_logged_in(bs: Any, symbol: str, start_date: str, end_date:
     if out.empty:
         return out
     t = out["datetime"].dt.time
-    session = ((t >= dtime(9, 30)) & (t <= dtime(11, 30))) | ((t >= dtime(13, 0)) & (t <= dtime(15, 0)))
+    session = ((t >= dtime(9, 30)) & (t <= dtime(11, 30))) | ((t >= dtime(13, 0)) & (t <= pd.Timestamp(CUTOFF).time()))
     return out.loc[session].sort_values("datetime").drop_duplicates("datetime", keep="last").reset_index(drop=True)
 
 
@@ -551,9 +587,10 @@ def read_5m_file(path: Path, symbol: str) -> pd.DataFrame:
         if col not in df.columns:
             df[col] = np.nan
         df[col] = pd.to_numeric(df[col], errors="coerce")
-    return df[["symbol", "date", "datetime", "open", "high", "low", "close", "volume", "amount"]].dropna(
+    out = df[["symbol", "date", "datetime", "open", "high", "low", "close", "volume", "amount"]].dropna(
         subset=["open", "high", "low", "close"]
     )
+    return out[(out[["open", "high", "low", "close"]] > 0).all(axis=1)]
 
 
 def write_coverage_report(reports_dir: Path, universe: pd.DataFrame, bar_files: dict[str, Path]) -> None:
@@ -610,9 +647,6 @@ def aggregate_symbol_as1455(
     if end_date:
         bars = bars[bars["date"] <= pd.Timestamp(end_date)]
     observed_bar_times = " ".join(sorted(bars["datetime"].dt.strftime("%H:%M").dropna().unique().tolist()))
-    full_day_bars = bars[bars["datetime"].dt.time <= dtime(15, 0)].sort_values("datetime")
-    full_day_close = full_day_bars.groupby("date", sort=False, observed=True)["close"].last()
-    del full_day_bars
     time_series = bars["datetime"].dt.time
     bars = bars[time_series < cutoff_time] if strict_lt else bars[time_series <= cutoff_time]
     if bars.empty:
@@ -632,10 +666,10 @@ def aggregate_symbol_as1455(
         has_14_55_bar=("has_14_55_bar", "any"),
     ).reset_index()
     daily.insert(0, "symbol", symbol)
-    daily["raw_daily_close"] = daily["date"].map(full_day_close)
     daily["last_bar_time"] = daily["max_datetime_used"].dt.strftime("%H:%M")
     daily["used_after_cutoff"] = daily["max_datetime_used"].dt.time.gt(cutoff_time)
     daily["source_path"] = str(path)
+    daily = daily[AS1455_DAILY_CACHE_COLUMNS]
     daily.attrs["bar_times_observed"] = observed_bar_times
     return daily
 
@@ -660,10 +694,53 @@ def materialize_as1455_daily_cache(
         error = ""
         rows = 0
         bar_times_observed = ""
-        if rebuild or not cache_path.exists() or cache_path.stat().st_size == 0:
-            if rebuild:
-                cache_path.unlink(missing_ok=True)
-                timestamp_meta_path.unlink(missing_ok=True)
+        cache_validation = ""
+        cache_migration = ""
+        timestamp_meta: dict[str, object] = {}
+        if timestamp_meta_path.exists():
+            try:
+                timestamp_meta = json.loads(timestamp_meta_path.read_text(encoding="utf-8"))
+                bar_times_observed = str(timestamp_meta.get("bar_times_observed", ""))
+            except Exception:
+                timestamp_meta = {}
+        needs_rebuild = rebuild or not cache_path.exists() or cache_path.stat().st_size == 0
+        if not needs_rebuild:
+            try:
+                existing_columns = pd.read_csv(cache_path, nrows=0).columns.tolist()
+                missing_columns = [col for col in AS1455_DAILY_CACHE_COLUMNS if col not in existing_columns]
+                extra_columns = [col for col in existing_columns if col not in AS1455_DAILY_CACHE_COLUMNS]
+                current_fingerprint = source_fingerprint(path)
+                if "source_size" in timestamp_meta and "source_mtime_ns" in timestamp_meta:
+                    source_is_newer = any(int(timestamp_meta[key]) != current_fingerprint[key] for key in current_fingerprint)
+                else:
+                    source_is_newer = path.stat().st_mtime > cache_path.stat().st_mtime
+                if missing_columns:
+                    needs_rebuild = True
+                    cache_validation = f"missing_canonical_columns={','.join(missing_columns)}"
+                elif source_is_newer:
+                    needs_rebuild = True
+                    cache_validation = "source_5m_newer_than_daily_cache"
+                elif extra_columns:
+                    cached_daily = pd.read_csv(cache_path, dtype={"symbol": str})
+                    cached_daily = cached_daily[AS1455_DAILY_CACHE_COLUMNS]
+                    write_csv_atomic(cached_daily, cache_path)
+                    write_timestamp_metadata(timestamp_meta_path, symbol, bar_times_observed, path)
+                    rows = int(len(cached_daily))
+                    cache_migration = f"dropped_columns={','.join(extra_columns)}"
+                    del cached_daily
+                if not needs_rebuild:
+                    price_cols = ["raw_open_as1455", "raw_high_as1455", "raw_low_as1455", "raw_close_as1455"]
+                    cached_prices = pd.read_csv(cache_path, usecols=price_cols).apply(pd.to_numeric, errors="coerce")
+                    invalid_price = cached_prices.isna().any(axis=1) | cached_prices.le(0).any(axis=1)
+                    needs_rebuild = cached_prices.empty or bool(invalid_price.any())
+                    if needs_rebuild:
+                        cache_validation = f"invalid_as1455_ohlc_rows={int(invalid_price.sum())}"
+            except Exception as exc:
+                needs_rebuild = True
+                cache_validation = f"cache_validation_error={type(exc).__name__}:{exc}"
+        if needs_rebuild:
+            cache_path.unlink(missing_ok=True)
+            timestamp_meta_path.unlink(missing_ok=True)
             try:
                 daily = aggregate_symbol_as1455(path, symbol, start_date, end_date, timestamp_convention)
                 rows = int(len(daily))
@@ -671,11 +748,8 @@ def materialize_as1455_daily_cache(
                 if daily.empty:
                     status = "empty"
                 else:
-                    daily.to_csv(cache_path, index=False, encoding="utf-8-sig")
-                    timestamp_meta_path.write_text(
-                        json.dumps({"symbol": symbol, "bar_times_observed": bar_times_observed}, ensure_ascii=False, indent=2),
-                        encoding="utf-8",
-                    )
+                    write_csv_atomic(daily, cache_path)
+                    write_timestamp_metadata(timestamp_meta_path, symbol, bar_times_observed, path)
                     status = "ok"
                 del daily
             except Exception as exc:
@@ -685,8 +759,6 @@ def materialize_as1455_daily_cache(
             try:
                 with cache_path.open("r", encoding="utf-8-sig") as fh:
                     rows = max(0, sum(1 for _ in fh) - 1)
-                if timestamp_meta_path.exists():
-                    bar_times_observed = str(json.loads(timestamp_meta_path.read_text(encoding="utf-8")).get("bar_times_observed", ""))
             except Exception:
                 rows = -1
         if cache_path.exists() and cache_path.stat().st_size > 0 and rows > 0 and status in {"ok", "cached"}:
@@ -698,12 +770,14 @@ def materialize_as1455_daily_cache(
                 "daily_cache_path": str(cache_path),
                 "timestamp_meta_path": str(timestamp_meta_path),
                 "bar_times_observed": bar_times_observed,
+                "cache_validation": cache_validation,
+                "cache_migration": cache_migration,
                 "status": status,
                 "rows": rows,
                 "error": error,
             }
         )
-        if i == 1 or i % 25 == 0 or i == total or status in {"error", "empty"}:
+        if i == 1 or i % 25 == 0 or i == total or status in {"error", "empty"} or cache_migration or cache_validation:
             print(f"[as1455-daily] {i}/{total} {symbol} status={status} rows={rows} error={error}", flush=True)
             pd.DataFrame(report_rows).to_csv(reports_dir / "as1455_daily_cache_build_report.csv", index=False, encoding="utf-8-sig")
         if i % 25 == 0:
@@ -737,9 +811,25 @@ def load_as1455_daily_panel(cache_files: dict[str, Path], reports_dir: Path) -> 
                 "raw_close_as1455",
                 "raw_volume_as1455",
                 "raw_amount_as1455",
-                "raw_daily_close",
             ]:
                 daily[col] = pd.to_numeric(daily[col], errors="coerce")
+            daily = daily[
+                [
+                    "symbol",
+                    "date",
+                    "raw_open_as1455",
+                    "raw_high_as1455",
+                    "raw_low_as1455",
+                    "raw_close_as1455",
+                    "raw_volume_as1455",
+                    "raw_amount_as1455",
+                    "max_datetime_used",
+                    "has_14_55_bar",
+                    "last_bar_time",
+                    "used_after_cutoff",
+                    "source_path",
+                ]
+            ]
             absent = daily.loc[~daily["has_14_55_bar"], ["symbol", "date", "last_bar_time"]]
             if not absent.empty:
                 absent = absent.assign(reason="missing_14_55_bar_used_last_before_cutoff")
@@ -780,7 +870,7 @@ def load_as1455_daily_panel(cache_files: dict[str, Path], reports_dir: Path) -> 
     return raw, missing
 
 
-def read_daily_close(cache_dir: Path, symbol: str) -> pd.Series:
+def read_daily_field(cache_dir: Path, symbol: str, field: str) -> pd.Series:
     candidates = [
         cache_dir / f"{symbol}_qfq_daily.csv",
         cache_dir / f"{symbol}_daily_raw.csv",
@@ -789,9 +879,9 @@ def read_daily_close(cache_dir: Path, symbol: str) -> pd.Series:
     for path in candidates:
         if path.exists():
             df = pd.read_csv(path)
-            if "date" not in df.columns or "close" not in df.columns:
+            if "date" not in df.columns or field not in df.columns:
                 continue
-            s = pd.Series(pd.to_numeric(df["close"], errors="coerce").to_numpy(), index=pd.to_datetime(df["date"]).dt.normalize(), name=symbol)
+            s = pd.Series(pd.to_numeric(df[field], errors="coerce").to_numpy(), index=pd.to_datetime(df["date"]).dt.normalize(), name=symbol)
             return s.dropna()
     return pd.Series(dtype=float, name=symbol)
 
@@ -800,7 +890,6 @@ def build_adjusted_ohlcv(
     raw: pd.DataFrame,
     reports_dir: Path,
     qfq_daily_cache: Path,
-    raw_daily_cache: Path | None,
     adjust_factor_mode: str,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     adj = raw.copy()
@@ -811,29 +900,29 @@ def build_adjusted_ohlcv(
     else:
         factors = []
         for symbol in raw.index.get_level_values("symbol").unique():
-            qfq = read_daily_close(qfq_daily_cache, symbol)
-            if raw_daily_cache is not None:
-                raw_daily = read_daily_close(raw_daily_cache, symbol)
-                raw_source = "raw_daily_cache"
-            elif "raw_daily_close" in raw.columns:
-                raw_daily = raw.xs(symbol, level="symbol")["raw_daily_close"].dropna()
-                raw_daily.index = pd.to_datetime(raw_daily.index).normalize()
-                raw_source = "5min_full_day_close"
-            else:
-                raw_daily = pd.Series(dtype=float, name=symbol)
-                raw_source = "missing"
-            if qfq.empty or raw_daily.empty:
-                rows.append({"symbol": symbol, "factor_missing": True, "qfq_obs": int(len(qfq)), "raw_obs": int(len(raw_daily)), "raw_source": raw_source})
+            qfq_open = read_daily_field(qfq_daily_cache, symbol, "open")
+            raw_open = raw.xs(symbol, level="symbol")["raw_open_as1455"].dropna()
+            raw_open.index = pd.to_datetime(raw_open.index).normalize()
+            if qfq_open.empty or raw_open.empty:
+                rows.append(
+                    {
+                        "symbol": symbol,
+                        "factor_missing": True,
+                        "qfq_obs": int(len(qfq_open)),
+                        "raw_obs": int(len(raw_open)),
+                        "factor_basis": "qfq_daily_open/raw_open_as1455",
+                    }
+                )
                 continue
-            factor = qfq.div(raw_daily).replace([np.inf, -np.inf], np.nan).dropna().rename(symbol)
+            factor = qfq_open.div(raw_open).replace([np.inf, -np.inf], np.nan).dropna().rename(symbol)
             factors.append(factor)
             rows.append(
                 {
                     "symbol": symbol,
                     "factor_missing": False,
-                    "qfq_obs": int(len(qfq)),
-                    "raw_obs": int(len(raw_daily)),
-                    "raw_source": raw_source,
+                    "qfq_obs": int(len(qfq_open)),
+                    "raw_obs": int(len(raw_open)),
+                    "factor_basis": "qfq_daily_open/raw_open_as1455",
                     "factor_obs": int(len(factor)),
                     "factor_min": float(factor.min()),
                     "factor_max": float(factor.max()),
@@ -847,6 +936,23 @@ def build_adjusted_ohlcv(
             adj_factor = pd.Series(np.nan, index=raw.index, dtype=float)
         missing_factor = adj_factor.isna()
         if missing_factor.any():
+            missing_detail = raw.loc[missing_factor, ["raw_open_as1455", "raw_close_as1455"]].reset_index()
+            qfq_values = []
+            for symbol, group in missing_detail.groupby("symbol", sort=False):
+                qfq_open = read_daily_field(qfq_daily_cache, symbol, "open")
+                qfq_values.append(pd.Series(group["date"].map(qfq_open).to_numpy(), index=group.index))
+            missing_detail["qfq_daily_open"] = pd.concat(qfq_values).sort_index() if qfq_values else np.nan
+            missing_detail["reason"] = np.select(
+                [
+                    missing_detail["qfq_daily_open"].isna(),
+                    missing_detail["raw_open_as1455"].isna(),
+                    missing_detail["qfq_daily_open"].eq(0),
+                    missing_detail["raw_open_as1455"].eq(0),
+                ],
+                ["qfq_open_missing", "raw_open_as1455_missing", "qfq_open_zero", "raw_open_as1455_zero"],
+                default="non_finite_factor",
+            )
+            missing_detail.to_csv(reports_dir / "as1455_missing_adjust_factor_rows.csv", index=False, encoding="utf-8-sig")
             rows.append({"mode": "daily_qfq_div_raw", "missing_factor_rows": int(missing_factor.sum())})
             pd.DataFrame(rows).to_csv(reports_dir / "as1455_adjust_factor_check.csv", index=False, encoding="utf-8-sig")
             raise RuntimeError(f"missing adjustment factors for {int(missing_factor.sum())} rows; see as1455_adjust_factor_check.csv")
@@ -1127,7 +1233,6 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--baostock-fetch-limit", type=int, default=None, help="Fetch at most this many missing symbols in this run; useful for resumable batches")
     p.add_argument("--baostock-query-timeout", type=float, default=180.0, help="Per-symbol BaoStock query timeout in seconds")
     p.add_argument("--qfq-daily-cache-dir", default=str(DEFAULT_QFQ_DAILY_CACHE))
-    p.add_argument("--raw-daily-cache-dir", default=None)
     p.add_argument("--fetch-missing-qfq-daily", action=argparse.BooleanOptionalAction, default=True, help="Automatically fetch missing BaoStock qfq daily files needed for adjustment factors")
     p.add_argument("--adjust-factor-mode", choices=["daily_qfq_div_raw", "identity"], default="daily_qfq_div_raw")
     p.add_argument("--timestamp-convention", choices=["right", "left"], default="right")
@@ -1274,7 +1379,7 @@ def main() -> None:
     write_hdf(raw_hdf, "ohlcv", raw)
     log_memory(bool(args.profile_memory), "main:after_raw_hdf")
 
-    adj, factor_check = build_adjusted_ohlcv(raw, reports_dir, Path(args.qfq_daily_cache_dir), Path(args.raw_daily_cache_dir) if args.raw_daily_cache_dir else None, args.adjust_factor_mode)
+    adj, factor_check = build_adjusted_ohlcv(raw, reports_dir, Path(args.qfq_daily_cache_dir), args.adjust_factor_mode)
     adj_ohlcv_rows = int(len(adj))
     adj_hdf = out_dir / "as1455_ohlcv_adj.h5"
     write_hdf(adj_hdf, "ohlcv", adj)
