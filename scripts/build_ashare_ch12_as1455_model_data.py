@@ -1219,6 +1219,13 @@ def compare_with_daily_leakage(prices: pd.DataFrame, qfq_daily_cache: Path, repo
 
 def write_as1455_vs_daily_quality_report(adj: pd.DataFrame, qfq_daily_cache: Path, reports_dir: Path) -> None:
     """Compare adjusted 14:55 bars with BaoStock qfq daily bars without materializing a second full panel."""
+    diagnosed_path = reports_dir / "as1455_adjustment_failure_details.csv"
+    diagnosed_counts: dict[str, int] = {}
+    if diagnosed_path.exists():
+        diagnosed = pd.read_csv(diagnosed_path, dtype={"symbol": str}, usecols=lambda col: col in {"symbol", "date"})
+        if "symbol" in diagnosed:
+            diagnosed["symbol"] = diagnosed["symbol"].map(normalize_symbol)
+            diagnosed_counts = diagnosed.groupby("symbol").size().astype(int).to_dict()
     symbol_rows: list[dict[str, object]] = []
     worst_parts: list[pd.DataFrame] = []
     quantile_samples: list[pd.DataFrame] = []
@@ -1252,6 +1259,8 @@ def write_as1455_vs_daily_quality_report(adj: pd.DataFrame, qfq_daily_cache: Pat
             daily[col] = pd.to_numeric(daily[col], errors="coerce") if col in daily else np.nan
         current = group.droplevel("symbol").copy()
         current.index = pd.to_datetime(current.index).normalize()
+        daily_in_range = daily.loc[daily.index.to_series().between(current.index.min(), current.index.max())]
+        daily_valid_rows_in_range = int(daily_in_range[["open", "high", "low", "close", "volume"]].gt(0).all(axis=1).sum())
         joined = current.join(daily.add_prefix("daily_"), how="inner")
         required = ["daily_open", "daily_high", "daily_low", "daily_close", "daily_volume"]
         joined = joined.dropna(subset=required)
@@ -1291,6 +1300,11 @@ def write_as1455_vs_daily_quality_report(adj: pd.DataFrame, qfq_daily_cache: Pat
                 "as1455_rows": int(len(group)),
                 "matched_rows": n,
                 "match_rate": n / len(group),
+                "daily_valid_rows_in_as1455_range": daily_valid_rows_in_range,
+                "daily_rows_without_as1455": max(0, daily_valid_rows_in_range - n),
+                "daily_coverage_rate": n / daily_valid_rows_in_range if daily_valid_rows_in_range else np.nan,
+                "previously_diagnosed_bad_symbol": symbol in diagnosed_counts,
+                "diagnosed_excluded_dates": diagnosed_counts.get(symbol, 0),
                 "close_abs_diff_mean_pct": float(close_abs.mean()),
                 "close_abs_diff_p95_pct": float(close_abs.quantile(0.95)),
                 "close_abs_diff_p99_pct": float(close_abs.quantile(0.99)),
@@ -1321,6 +1335,10 @@ def write_as1455_vs_daily_quality_report(adj: pd.DataFrame, qfq_daily_cache: Pat
     if "close_abs_diff_p95_pct" in by_symbol:
         by_symbol.sort_values(["close_abs_diff_p95_pct", "symbol"], ascending=[False, True], na_position="last", inplace=True)
     by_symbol.to_csv(reports_dir / "as1455_vs_daily_by_symbol.csv", index=False, encoding="utf-8-sig")
+    if "previously_diagnosed_bad_symbol" in by_symbol:
+        by_symbol.loc[by_symbol["previously_diagnosed_bad_symbol"].fillna(False)].to_csv(
+            reports_dir / "as1455_vs_daily_previously_abnormal_symbols.csv", index=False, encoding="utf-8-sig"
+        )
     worst = pd.concat(worst_parts, ignore_index=True).nlargest(1000, "close_abs_diff_pct") if worst_parts else pd.DataFrame()
     worst.to_csv(reports_dir / "as1455_vs_daily_largest_differences.csv", index=False, encoding="utf-8-sig")
     sample = pd.concat(quantile_samples, ignore_index=True) if quantile_samples else pd.DataFrame()
@@ -1331,6 +1349,8 @@ def write_as1455_vs_daily_quality_report(adj: pd.DataFrame, qfq_daily_cache: Pat
         "matched_rows": matched,
         "match_rate": matched / totals["as1455_rows"] if totals["as1455_rows"] else 0.0,
         "quantile_sample_rows": int(len(sample)),
+        "previously_diagnosed_bad_symbols": len(diagnosed_counts),
+        "diagnosed_excluded_dates": int(sum(diagnosed_counts.values())),
         "close_abs_diff_mean_pct": totals["close_abs_sum"] / matched if matched else None,
         "close_diff_rmse_pct": (totals["close_sq_sum"] / matched) ** 0.5 if matched else None,
         "volume_missing_mean_pct": totals["volume_missing_sum"] / matched if matched else None,
@@ -1348,6 +1368,20 @@ def write_as1455_vs_daily_quality_report(adj: pd.DataFrame, qfq_daily_cache: Pat
         summary["close_abs_diff_max_pct"] = float(pd.to_numeric(by_symbol["close_abs_diff_max_pct"], errors="coerce").max())
     if "volume_missing_max_pct" in by_symbol:
         summary["volume_missing_max_pct"] = float(pd.to_numeric(by_symbol["volume_missing_max_pct"], errors="coerce").max())
+    if "previously_diagnosed_bad_symbol" in by_symbol:
+        abnormal = by_symbol.loc[by_symbol["previously_diagnosed_bad_symbol"].fillna(False)].copy()
+        abnormal_matched = pd.to_numeric(abnormal.get("matched_rows"), errors="coerce").fillna(0)
+        abnormal_close_mean = pd.to_numeric(abnormal.get("close_abs_diff_mean_pct"), errors="coerce")
+        summary["previously_abnormal_remaining_matched_rows"] = int(abnormal_matched.sum())
+        summary["previously_abnormal_daily_rows_without_as1455"] = int(
+            pd.to_numeric(abnormal.get("daily_rows_without_as1455"), errors="coerce").fillna(0).sum()
+        )
+        summary["previously_abnormal_close_abs_diff_weighted_mean_pct"] = (
+            float(abnormal_close_mean.mul(abnormal_matched).sum() / abnormal_matched.sum()) if abnormal_matched.sum() else None
+        )
+        summary["previously_abnormal_close_abs_diff_max_pct"] = float(
+            pd.to_numeric(abnormal.get("close_abs_diff_max_pct"), errors="coerce").max()
+        )
     for value, count in close_counts.items():
         summary[f"close_abs_diff_gt_{value:g}pct_rate"] = count / matched if matched else None
     for value, count in volume_counts.items():
