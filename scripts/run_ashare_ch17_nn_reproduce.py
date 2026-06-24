@@ -28,7 +28,7 @@ DEFAULT_MODEL_DATA = PROJECT_DIR / "saved_data" / "ashare_ml4t" / "ch12_reproduc
 DEFAULT_OUT_DIR = PROJECT_DIR / "saved_data" / "ashare_ml4t" / "ch17_reproduce"
 
 LOOKAHEAD = 1
-N_SPLITS = 12
+N_SPLITS = 7
 TRAIN_PERIOD_LENGTH = 21 * 12 * 4
 TEST_PERIOD_LENGTH = 21 * 3
 EPOCHS = 20

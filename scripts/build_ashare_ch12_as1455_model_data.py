@@ -31,12 +31,13 @@ DEFAULT_OUT_DIR = PROJECT_DIR / "saved_data" / "ashare_ml4t" / "ch12_as1455"
 DEFAULT_BAR_ROOT = PROJECT_DIR / "saved_data"
 DEFAULT_BAR_GLOB = "**/*_5m_raw.csv"
 DEFAULT_QFQ_DAILY_CACHE = PROJECT_DIR / "saved_data" / "ashare_ml4t" / "ch12_reproduce" / "baostock_qfq_daily_cache"
+DEFAULT_RAW_DAILY_CACHE = DEFAULT_OUT_DIR / "baostock_raw_daily_cache"
 DEFAULT_BAOSTOCK_5M_CACHE = DEFAULT_OUT_DIR / "baostock_5m_cache"
 DEFAULT_AS1455_DAILY_CACHE = DEFAULT_OUT_DIR / "as1455_daily_cache"
 
 MONTH = 21
 YEAR = 12 * MONTH
-MIN_OBS = 7 * YEAR
+MIN_OBS = 1500
 T = [1, 5, 10, 21, 42, 63]
 FWD_T = [1, 5, 21]
 CUTOFF = "14:55"
@@ -338,7 +339,9 @@ def query_baostock_5m_logged_in(bs: Any, symbol: str, start_date: str, end_date:
     if out.empty:
         return out
     t = out["datetime"].dt.time
-    session = ((t >= dtime(9, 30)) & (t <= dtime(11, 30))) | ((t >= dtime(13, 0)) & (t <= pd.Timestamp(CUTOFF).time()))
+    # Keep the full raw intraday session in the 5m cache.  The AS1455
+    # cutoff is applied only when aggregating daily 14:55 samples.
+    session = ((t >= dtime(9, 30)) & (t <= dtime(11, 30))) | ((t >= dtime(13, 0)) & (t <= dtime(15, 0)))
     return out.loc[session].sort_values("datetime").drop_duplicates("datetime", keep="last").reset_index(drop=True)
 
 
@@ -440,6 +443,157 @@ def query_baostock_qfq_daily_with_timeout(symbol: str, start_date: str, end_date
         raise RuntimeError(error)
     return status, int(n_rows), str(path)
 
+
+
+
+def query_baostock_raw_daily_worker(symbol: str, start_date: str, end_date: str, out_path: str, queue: Any) -> None:
+    try:
+        import baostock as bs  # type: ignore
+
+        lg = bs.login()
+        if getattr(lg, "error_code", "") != "0":
+            raise RuntimeError(f"BaoStock login failed: {lg.error_code} {lg.error_msg}")
+        try:
+            fields = "date,code,open,high,low,close,preclose,volume,amount,adjustflag,pctChg,tradestatus,isST"
+            rs = bs.query_history_k_data_plus(
+                baostock_code(symbol),
+                fields,
+                start_date=start_date,
+                end_date=end_date,
+                frequency="d",
+                adjustflag="3",
+            )
+            if getattr(rs, "error_code", "") != "0":
+                raise RuntimeError(f"BaoStock raw daily query failed: {rs.error_code} {rs.error_msg}")
+            rows = []
+            while rs.error_code == "0" and rs.next():
+                rows.append(rs.get_row_data())
+            df = pd.DataFrame(rows, columns=rs.fields)
+            if not df.empty:
+                df.to_csv(out_path, index=False, encoding="utf-8-sig")
+            queue.put(("ok" if len(df) else "empty", int(len(df)), out_path if len(df) else "", ""))
+        finally:
+            try:
+                bs.logout()
+            except Exception:
+                pass
+    except Exception as exc:
+        queue.put(("error", 0, "", f"{type(exc).__name__}: {exc}"))
+
+
+def query_baostock_raw_daily_with_timeout(symbol: str, start_date: str, end_date: str, out_path: Path, timeout: float) -> tuple[str, int, str]:
+    queue: Any = mp.Queue(maxsize=1)
+    proc = mp.Process(target=query_baostock_raw_daily_worker, args=(symbol, start_date, end_date, str(out_path), queue))
+    proc.start()
+    proc.join(timeout)
+    if proc.is_alive():
+        proc.terminate()
+        proc.join(10)
+        raise TimeoutError(f"timeout after {timeout:g}s")
+    try:
+        status, n_rows, path, error = queue.get(timeout=5)
+    except queue_module.Empty as exc:
+        raise RuntimeError(f"BaoStock raw daily worker exited with code {proc.exitcode} without returning data") from exc
+    if status == "error":
+        raise RuntimeError(error)
+    return status, int(n_rows), str(path)
+
+
+def materialize_raw_daily_cache(
+    symbols: list[str],
+    required_dates_by_symbol: dict[str, pd.DatetimeIndex],
+    cache_dir: Path,
+    reports_dir: Path,
+    retries: int,
+    sleep_seconds: float,
+    query_timeout: float,
+    lookback_days: int,
+) -> pd.DataFrame:
+    ensure_dir(cache_dir)
+    report_rows = []
+    for i, symbol in enumerate(symbols, 1):
+        required_dates = pd.DatetimeIndex(required_dates_by_symbol[symbol]).normalize().unique().sort_values()
+        first_required_date = pd.Timestamp(required_dates.min())
+        # Do not hard-code a natural date such as 2019-12-31 as the previous
+        # trading day.  Fetch a small raw-daily buffer before the first AS1455
+        # date, then compute close.shift(1) on the actually returned trading
+        # rows.  This handles holidays, suspensions, and symbols whose first
+        # available trading date differs from the market calendar.
+        start_date = (first_required_date - pd.Timedelta(days=max(0, int(lookback_days)))).strftime("%Y-%m-%d")
+        end_date = pd.Timestamp(required_dates.max()).strftime("%Y-%m-%d")
+        out_path = cache_dir / f"{symbol}_daily_raw.csv"
+        status = "cached"
+        n_rows = 0
+        error = ""
+        needs_fetch = not out_path.exists() or out_path.stat().st_size == 0
+        if not needs_fetch:
+            try:
+                cached = pd.read_csv(out_path, usecols=lambda c: c in {"date", "close", "preclose"})
+                cached_dates = pd.DatetimeIndex(pd.to_datetime(cached["date"], errors="coerce").dropna()).normalize().unique().sort_values()
+                missing_required = required_dates.difference(cached_dates)
+                has_prior_date = bool(len(cached_dates[cached_dates < first_required_date]))
+                needs_fetch = cached_dates.empty or len(missing_required) > 0 or not has_prior_date
+                n_rows = int(len(cached_dates))
+                if "close" not in cached or "preclose" not in cached:
+                    needs_fetch = True
+            except Exception:
+                needs_fetch = True
+        if needs_fetch:
+            for attempt in range(1, max(1, retries) + 1):
+                try:
+                    status, n_rows, _ = query_baostock_raw_daily_with_timeout(symbol, start_date, end_date, out_path, query_timeout)
+                    error = ""
+                    break
+                except Exception as exc:
+                    status = "timeout" if isinstance(exc, TimeoutError) else "error"
+                    error = f"attempt {attempt}/{max(1, retries)} {type(exc).__name__}: {exc}"
+                    if sleep_seconds > 0:
+                        time.sleep(sleep_seconds)
+            if status == "ok":
+                try:
+                    fetched = pd.read_csv(out_path, usecols=lambda c: c in {"date", "close", "preclose"})
+                    fetched_dates = pd.DatetimeIndex(pd.to_datetime(fetched["date"], errors="coerce").dropna()).normalize().unique().sort_values()
+                    missing_required = required_dates.difference(fetched_dates)
+                    if len(missing_required):
+                        status = "incomplete"
+                        error = f"raw daily still missing {len(missing_required)} required AS1455 trading dates"
+                except Exception as exc:
+                    status = "error"
+                    error = f"post_fetch_validation {type(exc).__name__}: {exc}"
+        first_cached_date = ""
+        last_cached_date = ""
+        has_prior_date_report = False
+        try:
+            if out_path.exists() and out_path.stat().st_size > 0:
+                check = pd.read_csv(out_path, usecols=lambda c: c in {"date"})
+                check_dates = pd.DatetimeIndex(pd.to_datetime(check["date"], errors="coerce").dropna()).normalize().unique().sort_values()
+                if len(check_dates):
+                    first_cached_date = pd.Timestamp(check_dates.min()).strftime("%Y-%m-%d")
+                    last_cached_date = pd.Timestamp(check_dates.max()).strftime("%Y-%m-%d")
+                    has_prior_date_report = bool(len(check_dates[check_dates < first_required_date]))
+        except Exception:
+            pass
+        report_rows.append({
+            "symbol": symbol,
+            "status": status,
+            "rows": n_rows,
+            "requested_start_date": start_date,
+            "requested_end_date": end_date,
+            "first_required_as1455_date": first_required_date.strftime("%Y-%m-%d"),
+            "first_cached_date": first_cached_date,
+            "last_cached_date": last_cached_date,
+            "has_prior_date_before_first_as1455": has_prior_date_report,
+            "path": str(out_path if out_path.exists() else ""),
+            "error": error,
+        })
+        if status != "cached" or i == 1 or i % 25 == 0 or i == len(symbols):
+            print(f"[raw-daily] {i}/{len(symbols)} {symbol} status={status} rows={n_rows} error={error}", flush=True)
+            pd.DataFrame(report_rows).to_csv(reports_dir / "as1455_raw_daily_fetch_report.csv", index=False, encoding="utf-8-sig")
+        if sleep_seconds > 0 and status != "cached":
+            time.sleep(sleep_seconds)
+    report = pd.DataFrame(report_rows)
+    report.to_csv(reports_dir / "as1455_raw_daily_fetch_report.csv", index=False, encoding="utf-8-sig")
+    return report
 
 def materialize_qfq_daily_cache(
     symbols: list[str],
@@ -578,9 +732,10 @@ def read_5m_file(path: Path, symbol: str) -> pd.DataFrame:
     df = pd.read_csv(path)
     if "datetime" not in df.columns:
         raise RuntimeError(f"{path} missing datetime column")
-    if "symbol" not in df.columns:
-        df["symbol"] = symbol
-    df["symbol"] = df["symbol"].map(normalize_symbol)
+    # Do not trust the symbol column inside cached CSVs.  Some historical
+    # 5m files have an empty symbol column; the file-discovery symbol is the
+    # canonical identifier for this build.
+    df["symbol"] = normalize_symbol(symbol)
     df["datetime"] = pd.to_datetime(df["datetime"])
     df["date"] = df["datetime"].dt.normalize()
     for col in ["open", "high", "low", "close", "volume", "amount"]:
@@ -837,8 +992,11 @@ def load_as1455_daily_panel(cache_files: dict[str, Path], reports_dir: Path) -> 
             ]
             absent = daily.loc[~daily["has_14_55_bar"], ["symbol", "date", "last_bar_time"]]
             if not absent.empty:
-                absent = absent.assign(reason="missing_14_55_bar_used_last_before_cutoff")
+                absent = absent.assign(reason="missing_14_55_bar_excluded")
                 missing_rows.append(absent)
+            daily = daily.loc[daily["has_14_55_bar"]].copy()
+            if daily.empty:
+                continue
             if len(convention_rows) < 5000:
                 sample = daily.head(5000 - len(convention_rows))
                 convention_rows.extend(
@@ -891,76 +1049,241 @@ def read_daily_field(cache_dir: Path, symbol: str, field: str) -> pd.Series:
     return pd.Series(dtype=float, name=symbol)
 
 
-def build_adjusted_ohlcv(
-    raw: pd.DataFrame,
+def read_raw_daily_close_preclose(cache_dir: Path, symbol: str) -> pd.DataFrame:
+    candidates = [cache_dir / f"{symbol}_daily_raw.csv", cache_dir / f"{symbol}.csv"]
+    for path in candidates:
+        if not path.exists():
+            continue
+        df = pd.read_csv(path)
+        if "date" not in df.columns or "close" not in df.columns or "preclose" not in df.columns:
+            continue
+        out = pd.DataFrame(
+            {
+                "date": pd.to_datetime(df["date"], errors="coerce").dt.normalize(),
+                "raw_daily_close": pd.to_numeric(df["close"], errors="coerce"),
+                "raw_daily_preclose": pd.to_numeric(df["preclose"], errors="coerce"),
+            }
+        ).dropna(subset=["date", "raw_daily_close", "raw_daily_preclose"])
+        out = out[(out["raw_daily_close"] > 0) & (out["raw_daily_preclose"] > 0)]
+        return out.drop_duplicates("date", keep="last").sort_values("date").reset_index(drop=True)
+    return pd.DataFrame(columns=["date", "raw_daily_close", "raw_daily_preclose"])
+
+
+def compute_baostock_style_qfq_factor(raw_daily: pd.DataFrame) -> pd.DataFrame:
+    """Compute BaoStock-style current front-adjustment factors from raw daily preclose.
+
+    BaoStock's涨跌幅复权口径 can be reproduced from the event boundary ratio
+    preclose_d / close_{d-1}.  A current/front-adjusted factor for date t is
+    the cumulative product of all later event ratios.
+    """
+    out = raw_daily.copy().sort_values("date").reset_index(drop=True)
+    out["prev_raw_daily_close"] = out["raw_daily_close"].shift(1)
+    out["event_ratio"] = out["raw_daily_preclose"].div(out["prev_raw_daily_close"])
+    out.loc[~np.isfinite(out["event_ratio"]), "event_ratio"] = np.nan
+    out.loc[out["event_ratio"].isna(), "event_ratio"] = 1.0
+    # Trading-day preclose can differ by a few round-off cents; keep the exact
+    # ratio for factor reproduction, and flag jumps in reports separately.
+    future_event_ratio = out["event_ratio"].shift(-1).fillna(1.0)
+    out["manual_qfq_factor_current"] = future_event_ratio.iloc[::-1].cumprod().iloc[::-1].to_numpy()
+    out["factor_jump_abs_pct"] = out["event_ratio"].sub(1.0).abs().mul(100)
+    out["is_factor_jump_date"] = out["factor_jump_abs_pct"].gt(0.05)
+    return out
+
+
+def write_strict_asof_factor_sample(factor_frames: list[pd.DataFrame], reports_dir: Path, sample_n: int = 2000) -> None:
+    rows: list[dict[str, object]] = []
+    for f in factor_frames:
+        if f.empty or len(rows) >= sample_n:
+            continue
+        symbol = str(f["symbol"].iloc[0])
+        dates = f["date"].reset_index(drop=True)
+        raw_close = f["raw_daily_close"].reset_index(drop=True)
+        current_factor = f["manual_qfq_factor_current"].reset_index(drop=True)
+        event_ratio = f["event_ratio"].reset_index(drop=True)
+        if len(f) < 80:
+            continue
+        step = max(1, len(f) // 20)
+        for signal_pos in range(min(63, len(f) - 1), len(f), step):
+            if len(rows) >= sample_n:
+                break
+            history_pos = max(0, signal_pos - 63)
+            strict_asof_factor = float(current_factor.iloc[history_pos] / current_factor.iloc[signal_pos])
+            current_qfq_factor = float(current_factor.iloc[history_pos])
+            future_events = int(event_ratio.iloc[signal_pos + 1 :].sub(1.0).abs().gt(5e-4).sum())
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "signal_date": pd.Timestamp(dates.iloc[signal_pos]).strftime("%Y-%m-%d"),
+                    "history_date": pd.Timestamp(dates.iloc[history_pos]).strftime("%Y-%m-%d"),
+                    "raw_close_history": float(raw_close.iloc[history_pos]),
+                    "strict_asof_factor": strict_asof_factor,
+                    "strict_asof_qfq_close": float(raw_close.iloc[history_pos] * strict_asof_factor),
+                    "baostock_current_qfq_factor_reproduced": current_qfq_factor,
+                    "baostock_current_qfq_close_reproduced": float(raw_close.iloc[history_pos] * current_qfq_factor),
+                    "future_event_count_after_signal_date": future_events,
+                    "factor_diff_pct": float((current_qfq_factor / strict_asof_factor - 1.0) * 100),
+                    "price_diff_pct": float((current_qfq_factor / strict_asof_factor - 1.0) * 100),
+                    "sample_reason": "63-trading-day-history-window",
+                }
+            )
+    pd.DataFrame(rows).to_csv(reports_dir / "as1455_strict_asof_vs_baostock_current_qfq_sample.csv", index=False, encoding="utf-8-sig")
+
+
+def audit_manual_factor_against_baostock_qfq5m(
+    adj: pd.DataFrame,
     reports_dir: Path,
-    qfq_daily_cache: Path,
-    adjust_factor_mode: str,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    adj = raw.copy()
-    rows = []
-    if adjust_factor_mode == "identity":
-        adj_factor = pd.Series(1.0, index=raw.index)
-        rows.append({"mode": "identity", "note": "explicit identity factor; assumes 5min bars are already adjusted"})
+    sample_n: int,
+    start_date: str | None,
+    end_date: str | None,
+    query_timeout: float,
+) -> None:
+    report_path = reports_dir / "as1455_factor_manual_vs_baostock_qfq5m_sample.csv"
+    if sample_n <= 0:
+        pd.DataFrame([{"status": "skipped", "reason": "sample_n<=0"}]).to_csv(report_path, index=False, encoding="utf-8-sig")
+        return
+    try:
+        import baostock as bs  # type: ignore
+    except Exception as exc:
+        pd.DataFrame([{"status": "unavailable", "reason": f"baostock_import_failed:{type(exc).__name__}:{exc}"}]).to_csv(report_path, index=False, encoding="utf-8-sig")
+        return
+
+    sample = adj.reset_index()[["symbol", "date", "raw_close_as1455", "adj_close_as1455", "adj_factor", "is_factor_jump_date"]].copy()
+    if sample.empty:
+        pd.DataFrame([{"status": "empty", "reason": "no_adjusted_rows"}]).to_csv(report_path, index=False, encoding="utf-8-sig")
+        return
+    sample["date"] = pd.to_datetime(sample["date"]).dt.normalize()
+    # Deterministic coverage: include jump dates first, then ordinary rows.
+    jumps = sample[sample["is_factor_jump_date"].fillna(False)].head(sample_n)
+    if len(jumps) < sample_n:
+        ordinary = sample[~sample.index.isin(jumps.index)]
+        ordinary = ordinary.iloc[np.linspace(0, len(ordinary) - 1, min(sample_n - len(jumps), len(ordinary)), dtype=int)] if len(ordinary) else ordinary
+        sample = pd.concat([jumps, ordinary], ignore_index=True)
     else:
-        factors = []
-        for symbol in raw.index.get_level_values("symbol").unique():
-            qfq_open = read_daily_field(qfq_daily_cache, symbol, "open")
-            raw_open = raw.xs(symbol, level="symbol")["raw_open_as1455"].dropna()
-            raw_open.index = pd.to_datetime(raw_open.index).normalize()
-            if qfq_open.empty or raw_open.empty:
+        sample = jumps
+    rows: list[dict[str, object]] = []
+    lg = bs.login()
+    if getattr(lg, "error_code", "") != "0":
+        pd.DataFrame([{"status": "error", "reason": f"baostock_login_failed:{lg.error_code}:{lg.error_msg}"}]).to_csv(report_path, index=False, encoding="utf-8-sig")
+        return
+    try:
+        for symbol, group in sample.groupby("symbol", sort=False):
+            dates = pd.DatetimeIndex(group["date"]).normalize().sort_values().unique()
+            if len(dates) == 0:
+                continue
+            qfq = query_baostock_5m_logged_in(bs, symbol, dates.min().strftime("%Y-%m-%d"), dates.max().strftime("%Y-%m-%d"), "2")
+            if qfq.empty:
+                for r in group.itertuples(index=False):
+                    rows.append({"symbol": symbol, "date": r.date.strftime("%Y-%m-%d"), "status": "qfq5m_empty"})
+                continue
+            qfq["date"] = pd.to_datetime(qfq["datetime"]).dt.normalize()
+            qfq["time"] = qfq["datetime"].dt.strftime("%H:%M")
+            qfq1455 = qfq[qfq["time"].eq(CUTOFF)].drop_duplicates("date", keep="last").set_index("date")
+            for r in group.itertuples(index=False):
+                date = pd.Timestamp(r.date).normalize()
+                if date not in qfq1455.index:
+                    rows.append({"symbol": symbol, "date": date.strftime("%Y-%m-%d"), "status": "missing_qfq_1455"})
+                    continue
+                qfq_close = float(qfq1455.at[date, "close"])
+                manual_close = float(r.adj_close_as1455)
+                rel_err = manual_close / qfq_close - 1.0 if qfq_close else np.nan
                 rows.append(
                     {
                         "symbol": symbol,
-                        "factor_missing": True,
-                        "qfq_obs": int(len(qfq_open)),
-                        "raw_obs": int(len(raw_open)),
-                        "factor_basis": "qfq_daily_open/raw_open_as1455",
+                        "date": date.strftime("%Y-%m-%d"),
+                        "status": "ok",
+                        "raw_close_as1455": float(r.raw_close_as1455),
+                        "manual_qfq_factor_current": float(r.adj_factor),
+                        "manual_qfq_close_as1455": manual_close,
+                        "baostock_qfq_5m_close_1455": qfq_close,
+                        "abs_err": abs(manual_close - qfq_close),
+                        "rel_err_pct": float(rel_err * 100),
+                        "is_factor_jump_date": bool(r.is_factor_jump_date),
+                        "sample_reason": "factor_jump_first_then_deterministic_sample",
                     }
                 )
+    finally:
+        try:
+            bs.logout()
+        except Exception:
+            pass
+    pd.DataFrame(rows).to_csv(report_path, index=False, encoding="utf-8-sig")
+
+
+def build_adjusted_ohlcv(
+    raw: pd.DataFrame,
+    reports_dir: Path,
+    raw_daily_cache: Path,
+    adjust_factor_mode: str,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    adj = raw.copy()
+    rows: list[dict[str, object]] = []
+    factor_frames: list[pd.DataFrame] = []
+    if adjust_factor_mode == "identity":
+        adj_factor = pd.Series(1.0, index=raw.index)
+        adj["is_factor_jump_date"] = False
+        rows.append({"mode": "identity", "note": "explicit identity factor; assumes 5min bars are already adjusted"})
+    else:
+        factors = []
+        jump_parts = []
+        for symbol in raw.index.get_level_values("symbol").unique():
+            daily = read_raw_daily_close_preclose(raw_daily_cache, symbol)
+            raw_dates = pd.DatetimeIndex(raw.xs(symbol, level="symbol").index).normalize().unique().sort_values()
+            if daily.empty:
+                rows.append({"symbol": symbol, "factor_missing": True, "raw_daily_obs": 0, "factor_basis": "raw_daily_preclose/prev_raw_close"})
                 continue
-            factor = qfq_open.div(raw_open).replace([np.inf, -np.inf], np.nan).dropna().rename(symbol)
+            factor_df = compute_baostock_style_qfq_factor(daily)
+            factor_df.insert(0, "symbol", symbol)
+            factor_frames.append(factor_df)
+            factor = pd.Series(factor_df["manual_qfq_factor_current"].to_numpy(), index=factor_df["date"], name=symbol)
             factors.append(factor)
+            matched = raw_dates.intersection(pd.DatetimeIndex(factor.index))
+            jump_count = int(factor_df["is_factor_jump_date"].sum())
             rows.append(
                 {
                     "symbol": symbol,
                     "factor_missing": False,
-                    "qfq_obs": int(len(qfq_open)),
-                    "raw_obs": int(len(raw_open)),
-                    "factor_basis": "qfq_daily_open/raw_open_as1455",
+                    "factor_basis": "raw_daily_preclose/prev_raw_close_reverse_cumprod",
+                    "raw_daily_obs": int(len(daily)),
+                    "as1455_dates": int(len(raw_dates)),
+                    "matched_factor_dates": int(len(matched)),
+                    "missing_factor_dates": int(len(raw_dates.difference(pd.DatetimeIndex(factor.index)))),
                     "factor_obs": int(len(factor)),
                     "factor_min": float(factor.min()),
                     "factor_max": float(factor.max()),
+                    "factor_jump_dates": jump_count,
                 }
             )
+            jumps = factor_df.loc[factor_df["is_factor_jump_date"], ["symbol", "date", "raw_daily_preclose", "prev_raw_daily_close", "event_ratio", "factor_jump_abs_pct"]]
+            if not jumps.empty:
+                jump_parts.append(jumps)
         if factors:
             factor_panel = pd.concat(factors, axis=1).stack()
             factor_panel.index = factor_panel.index.set_names(["date", "symbol"]).swaplevel()
             adj_factor = factor_panel.reindex(raw.index)
         else:
             adj_factor = pd.Series(np.nan, index=raw.index, dtype=float)
+        jump_report = pd.concat(jump_parts, ignore_index=True) if jump_parts else pd.DataFrame(columns=["symbol", "date", "raw_daily_preclose", "prev_raw_daily_close", "event_ratio", "factor_jump_abs_pct"])
+        jump_report.to_csv(reports_dir / "as1455_factor_jump_report.csv", index=False, encoding="utf-8-sig")
+        if factor_frames:
+            factor_daily = pd.concat(factor_frames, ignore_index=True)
+            factor_daily.to_csv(reports_dir / "as1455_manual_qfq_factor_daily.csv", index=False, encoding="utf-8-sig")
+            write_strict_asof_factor_sample(factor_frames, reports_dir)
         missing_factor = adj_factor.isna()
         if missing_factor.any():
             missing_detail = raw.loc[missing_factor, ["raw_open_as1455", "raw_close_as1455"]].reset_index()
-            qfq_values = []
-            for symbol, group in missing_detail.groupby("symbol", sort=False):
-                qfq_open = read_daily_field(qfq_daily_cache, symbol, "open")
-                qfq_values.append(pd.Series(group["date"].map(qfq_open).to_numpy(), index=group.index))
-            missing_detail["qfq_daily_open"] = pd.concat(qfq_values).sort_index() if qfq_values else np.nan
-            missing_detail["reason"] = np.select(
-                [
-                    missing_detail["qfq_daily_open"].isna(),
-                    missing_detail["raw_open_as1455"].isna(),
-                    missing_detail["qfq_daily_open"].eq(0),
-                    missing_detail["raw_open_as1455"].eq(0),
-                ],
-                ["qfq_open_missing", "raw_open_as1455_missing", "qfq_open_zero", "raw_open_as1455_zero"],
-                default="non_finite_factor",
-            )
+            missing_detail["reason"] = "manual_qfq_factor_missing_from_raw_daily_cache"
             missing_detail.to_csv(reports_dir / "as1455_missing_adjust_factor_rows.csv", index=False, encoding="utf-8-sig")
-            rows.append({"mode": "daily_qfq_div_raw", "missing_factor_rows": int(missing_factor.sum())})
+            rows.append({"mode": "raw_preclose", "missing_factor_rows": int(missing_factor.sum())})
             pd.DataFrame(rows).to_csv(reports_dir / "as1455_adjust_factor_check.csv", index=False, encoding="utf-8-sig")
-            raise RuntimeError(f"missing adjustment factors for {int(missing_factor.sum())} rows; see as1455_adjust_factor_check.csv")
+            raise RuntimeError(f"missing adjustment factors for {int(missing_factor.sum())} rows; see as1455_missing_adjust_factor_rows.csv")
+        # Align the per-date jump flag to AS1455 rows for sampling/audit only.
+        if factor_frames:
+            jump_flags = pd.concat(
+                [pd.Series(f["is_factor_jump_date"].to_numpy(), index=pd.MultiIndex.from_arrays([[f["symbol"].iloc[0]] * len(f), f["date"]], names=["symbol", "date"])) for f in factor_frames]
+            )
+            adj["is_factor_jump_date"] = jump_flags.reindex(raw.index).fillna(False).astype(bool).to_numpy()
+        else:
+            adj["is_factor_jump_date"] = False
     adj["adj_factor"] = adj_factor.to_numpy()
     for col in ["open", "high", "low", "close"]:
         adj[f"adj_{col}_as1455"] = adj[f"raw_{col}_as1455"].mul(adj["adj_factor"])
@@ -1426,9 +1749,13 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--baostock-fetch-sleep", type=float, default=1.0)
     p.add_argument("--baostock-fetch-limit", type=int, default=None, help="Fetch at most this many missing symbols in this run; useful for resumable batches")
     p.add_argument("--baostock-query-timeout", type=float, default=180.0, help="Per-symbol BaoStock query timeout in seconds")
-    p.add_argument("--qfq-daily-cache-dir", default=str(DEFAULT_QFQ_DAILY_CACHE))
-    p.add_argument("--fetch-missing-qfq-daily", action=argparse.BooleanOptionalAction, default=True, help="Automatically fetch missing BaoStock qfq daily files needed for adjustment factors")
-    p.add_argument("--adjust-factor-mode", choices=["daily_qfq_div_raw", "identity"], default="daily_qfq_div_raw")
+    p.add_argument("--qfq-daily-cache-dir", default=str(DEFAULT_QFQ_DAILY_CACHE), help="Optional BaoStock qfq daily cache for legacy comparison reports only")
+    p.add_argument("--raw-daily-cache-dir", default=str(DEFAULT_RAW_DAILY_CACHE), help="BaoStock raw daily cache with close/preclose used to reproduce qfq factors")
+    p.add_argument("--fetch-missing-qfq-daily", action=argparse.BooleanOptionalAction, default=False, help="Fetch optional BaoStock qfq daily files for legacy comparison reports")
+    p.add_argument("--fetch-missing-raw-daily", action=argparse.BooleanOptionalAction, default=True, help="Fetch BaoStock raw daily files needed for preclose-based qfq factors")
+    p.add_argument("--raw-daily-lookback-days", type=int, default=45, help="Calendar-day buffer fetched before each symbol's first AS1455 date, so close.shift(1) uses the actual prior trading row instead of a hard-coded previous date")
+    p.add_argument("--adjust-factor-mode", choices=["raw_preclose", "identity"], default="raw_preclose")
+    p.add_argument("--qfq5m-audit-samples", type=int, default=200, help="Temporary BaoStock qfq-5m sample rows for manual-factor audit; set 0 to skip")
     p.add_argument("--timestamp-convention", choices=["right", "left"], default="right")
     p.add_argument("--start-date", default=None)
     p.add_argument("--end-date", default=None)
@@ -1449,6 +1776,8 @@ def main() -> None:
         args.baostock_5m_cache_dir = str(out_dir / "baostock_5m_cache")
     if str(args.as1455_daily_cache_dir) == str(DEFAULT_AS1455_DAILY_CACHE):
         args.as1455_daily_cache_dir = str(out_dir / "as1455_daily_cache")
+    if str(args.raw_daily_cache_dir) == str(DEFAULT_RAW_DAILY_CACHE):
+        args.raw_daily_cache_dir = str(out_dir / "baostock_raw_daily_cache")
 
     universe = load_universe(Path(args.universe), args.start_date, args.end_date, args.max_symbols)
     universe_symbols = set(universe["code"])
@@ -1542,14 +1871,35 @@ def main() -> None:
     raw_ohlcv_rows = int(len(raw))
     max_dt = pd.to_datetime(raw["max_datetime_used"]).max()
 
-    if args.adjust_factor_mode == "daily_qfq_div_raw" and args.fetch_missing_qfq_daily:
-        qfq_symbols = sorted(raw.index.get_level_values("symbol").unique().tolist())
-        required_dates_by_symbol = {
-            symbol: pd.DatetimeIndex(group.index.get_level_values("date"))
-            for symbol, group in raw.groupby(level="symbol", sort=False)
-        }
+    factor_symbols = sorted(raw.index.get_level_values("symbol").unique().tolist())
+    required_dates_by_symbol = {
+        symbol: pd.DatetimeIndex(group.index.get_level_values("date"))
+        for symbol, group in raw.groupby(level="symbol", sort=False)
+    }
+    if args.adjust_factor_mode == "raw_preclose" and args.fetch_missing_raw_daily:
+        raw_daily_report = materialize_raw_daily_cache(
+            factor_symbols,
+            required_dates_by_symbol,
+            Path(args.raw_daily_cache_dir),
+            reports_dir,
+            args.baostock_fetch_retries,
+            args.baostock_fetch_sleep,
+            args.baostock_query_timeout,
+            args.raw_daily_lookback_days,
+        )
+        missing_raw_daily = [symbol for symbol in factor_symbols if not (Path(args.raw_daily_cache_dir) / f"{symbol}_daily_raw.csv").exists()]
+        failed_raw_daily = raw_daily_report.loc[~raw_daily_report["status"].isin(["cached", "ok"]), "symbol"].tolist()
+        if missing_raw_daily or failed_raw_daily:
+            raise SystemExit(
+                f"raw daily cache remains incomplete for {len(set(missing_raw_daily + failed_raw_daily))} symbols; rerun the same command to resume. "
+                f"See {reports_dir / 'as1455_raw_daily_fetch_report.csv'}"
+            )
+        del raw_daily_report
+        gc.collect()
+        log_memory(bool(args.profile_memory), "main:after_raw_daily_cache")
+    if args.fetch_missing_qfq_daily:
         qfq_report = materialize_qfq_daily_cache(
-            qfq_symbols,
+            factor_symbols,
             required_dates_by_symbol,
             Path(args.qfq_daily_cache_dir),
             reports_dir,
@@ -1557,27 +1907,22 @@ def main() -> None:
             args.baostock_fetch_sleep,
             args.baostock_query_timeout,
         )
-        del required_dates_by_symbol
-        missing_qfq = [symbol for symbol in qfq_symbols if not (Path(args.qfq_daily_cache_dir) / f"{symbol}_qfq_daily.csv").exists()]
-        failed_qfq = qfq_report.loc[~qfq_report["status"].isin(["cached", "ok"]), "symbol"].tolist()
-        if missing_qfq or failed_qfq:
-            raise SystemExit(
-                f"qfq daily cache remains incomplete for {len(set(missing_qfq + failed_qfq))} symbols; rerun the same command to resume. "
-                f"See {reports_dir / 'as1455_qfq_daily_fetch_report.csv'}"
-            )
         del qfq_report
         gc.collect()
-        log_memory(bool(args.profile_memory), "main:after_qfq_daily_cache")
+        log_memory(bool(args.profile_memory), "main:after_optional_qfq_daily_cache")
+    del required_dates_by_symbol
 
     raw_hdf = out_dir / "as1455_ohlcv_raw.h5"
     write_hdf(raw_hdf, "ohlcv", raw)
     log_memory(bool(args.profile_memory), "main:after_raw_hdf")
 
-    adj, factor_check = build_adjusted_ohlcv(raw, reports_dir, Path(args.qfq_daily_cache_dir), args.adjust_factor_mode)
+    adj, factor_check = build_adjusted_ohlcv(raw, reports_dir, Path(args.raw_daily_cache_dir), args.adjust_factor_mode)
     adj_ohlcv_rows = int(len(adj))
     adj_hdf = out_dir / "as1455_ohlcv_adj.h5"
     write_hdf(adj_hdf, "ohlcv", adj)
-    write_as1455_vs_daily_quality_report(adj, Path(args.qfq_daily_cache_dir), reports_dir)
+    audit_manual_factor_against_baostock_qfq5m(adj, reports_dir, int(args.qfq5m_audit_samples), args.start_date, args.end_date, args.baostock_query_timeout)
+    if any(Path(args.qfq_daily_cache_dir).glob("*_qfq_daily.csv")):
+        write_as1455_vs_daily_quality_report(adj, Path(args.qfq_daily_cache_dir), reports_dir)
     del raw
     gc.collect()
     log_memory(bool(args.profile_memory), "main:after_adj_hdf_and_raw_release")
@@ -1594,7 +1939,10 @@ def main() -> None:
         raise SystemExit("No symbols satisfy min_obs and industry filters; see reports/as1455_nobs_by_symbol.csv")
     symbols_after_min_obs = int(prices.index.get_level_values("symbol").nunique())
     symbols_after_industry_filter = int(metadata["code"].nunique())
-    compare_with_daily_leakage(prices, Path(args.qfq_daily_cache_dir), reports_dir)
+    if any(Path(args.qfq_daily_cache_dir).glob("*_qfq_daily.csv")):
+        compare_with_daily_leakage(prices, Path(args.qfq_daily_cache_dir), reports_dir)
+    else:
+        pd.DataFrame().to_csv(reports_dir / "as1455_daily_leakage_sample_check.csv", index=False, encoding="utf-8-sig")
     features_with_prices, outliers = compute_features(prices, metadata, profile_memory=bool(args.profile_memory))
     del metadata, nobs
     gc.collect()
