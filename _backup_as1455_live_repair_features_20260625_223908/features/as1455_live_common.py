@@ -543,13 +543,7 @@ def snapshots_to_raw_panel(latest: pd.DataFrame, trade_date: str) -> pd.DataFram
             qdt = pd.to_datetime(r.get("collected_at"), errors="coerce")
         age = None if pd.isna(qdt) else max(0.0, (now - qdt.to_pydatetime()).total_seconds())
         quality = "ok"
-        raw_miss = r.get("missing_core_fields", "")
-        if raw_miss is None or pd.isna(raw_miss):
-            miss = ""
-        else:
-            miss = str(raw_miss).strip()
-            if miss.lower() in {"", "nan", "none", "null", "na", "n/a", "[]", "{}"}:
-                miss = ""
+        miss = str(r.get("missing_core_fields", "") or "")
         try:
             lo = float(r["low"]); hi = float(r["high"]); op = float(r["open"]); cl = float(r["last_price"])
             if not (lo <= op <= hi and lo <= cl <= hi):

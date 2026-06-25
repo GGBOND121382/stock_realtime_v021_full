@@ -549,3 +549,7 @@ saved_data/ashare_ml4t/ch17_as1455_close_auction_bt_cv7_v3/
 saved_data/ashare_ml4t/ch17_as1455_train_20260622_cv7/results/
 saved_data/ashare_ml4t/live_as1455_probe/
 logs/
+saved_data/ashare_ml4t/ch17_as1455_backtest_grid_v7_models_20260625/
+saved_data/ashare_ml4t/ch17_as1455_top5_full_20260625_144220/
+saved_data/ashare_ml4t/ch17_as1455_weekly_retrain_top5_full_20260625_163510/
+saved_data/ashare_ml4t/ch17_as1455_weekly_retrain_top5_full_20260625_152927/
