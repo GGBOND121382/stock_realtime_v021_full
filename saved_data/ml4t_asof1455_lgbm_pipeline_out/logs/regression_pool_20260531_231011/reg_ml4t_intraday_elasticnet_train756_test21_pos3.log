@@ -1,6 +1,0 @@
-============================================================
-[START] 2026-05-31 23:10:11 feature_group=ml4t_intraday, model_family=elasticnet, sample_globs=saved_data/*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv
-[CMD] python3 scripts/backtest_ml4t_asof1455_lgbm.py --bars-glob saved_data/\*_pipeline_out/00_base/\*_5m.csv --out-root saved_data/ml4t_asof1455_lgbm_pipeline_out --run-name reg_ml4t_intraday_elasticnet_train756_test21_pos3 --feature-group ml4t_intraday --model-family elasticnet --entry-price-col close_asof1455 --exit-price-col next_day_close --entry-policy all_days --round-trip-cost-bps 1.7 --train-days 756 --valid-days 0 --test-days 21 --embargo-days 1 --step-days 21 --selection-rule strict_top_decile_positive --min-pred-return-bps 0.0 --min-daily-candidates 10 --max-positions 3 --max-missing 0.70 --winsorize-target --objective-alpha 0.90 --n-jobs 1 --sample-glob saved_data/\*_pipeline_out/01_samples_asof1455/training_samples_asof1455.csv 
-============================================================
-[DRY-RUN] skipped execution
-[DONE] 2026-05-31 23:10:11 feature_group=ml4t_intraday, model_family=elasticnet, status=ok, elapsed=0s

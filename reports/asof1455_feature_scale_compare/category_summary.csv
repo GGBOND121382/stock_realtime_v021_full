@@ -1,8 +1,0 @@
-﻿stock_code,feature_category,rows,comparable,live_missing,train_missing,median_abs_rel_diff,p90_abs_rel_diff,max_abs_rel_diff
-600312.SH,fundamental,158,158,0,0,0.0,0.0,0.0
-600312.SH,stock_asof_derived,18,18,0,0,1.2914403287419107e-15,6.771695424119141e-15,2.0108914533523154e-14
-600312.SH,stock_asof_raw,16,16,0,0,0.0,0.0,0.0
-603308.SH,fundamental,162,162,0,0,0.0,0.0,0.0
-603308.SH,lagged_daily_external,132,132,0,0,0.0,0.0,0.0
-603308.SH,stock_asof_derived,18,18,0,0,2.680867298486992e-16,3.994374275784185e-15,2.5920329479282303e-14
-603308.SH,stock_asof_raw,16,16,0,0,0.0,0.0,0.0
