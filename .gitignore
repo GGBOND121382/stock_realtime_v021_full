@@ -560,3 +560,6 @@ saved_data/ashare_ml4t/ch17_as1455_weekly_retrain_top5_full_20260625_152927/
 /backup_as1455_live_pipeline_*/
 /backups/
 /as1455_*/
+saved_data/ashare_ml4t/ch12_as1455/model_data_as1455.h5*
+saved_data/ashare_ml4t/ch17_as1455_weekly_retrain_empty_2026-05-16_to_2026-06-26/
+saved_data/ashare_ml4t/ch17_as1455_weekly_retrain_empty_20260516_to_2026-06-26_after_hole_repair_v2/

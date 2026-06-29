@@ -75,7 +75,7 @@ SKIP_AS1455_AGGREGATE="${SKIP_AS1455_AGGREGATE:-0}"
 LOG_ROOT="${LOG_ROOT:-logs}"
 mkdir -p "${LOG_ROOT}"
 
-SCRIPT_HISTORY="${SCRIPT_HISTORY:-pipelines/as1455_update_history_to_prevday_fast_v4.py}"
+SCRIPT_HISTORY="${SCRIPT_HISTORY:-pipelines/as1455_update_history_to_prevday_fast_v3.py}"
 SCRIPT_PREPARE="pipelines/as1455_live_prepare.py"
 SCRIPT_COLLECT="data_collection/collect_as1455_live_quotes_as1455.py"
 SCRIPT_FEATURES="features/build_as1455_live_features.py"
