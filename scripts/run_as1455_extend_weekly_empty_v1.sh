@@ -41,7 +41,8 @@ START_DATE="${START_DATE:-2026-05-16}"
 END_DATE="${END_DATE:-2026-06-26}"
 MODEL_DATA="${MODEL_DATA:-saved_data/ashare_ml4t/ch12_as1455/model_data_as1455.h5}"
 AS1455_CACHE="${AS1455_CACHE:-saved_data/ashare_ml4t/ch12_as1455/as1455_daily_cache}"
-UNIVERSE="${UNIVERSE:-saved_data/ashare_ml4t/ch12_as1455/as1455_model_universe_from_h5.csv}"
+UNIVERSE="${UNIVERSE:-saved_data/ashare_static_universe/07_universe_allA_top1000_static.csv}"
+STATIC_UNIVERSE="${STATIC_UNIVERSE:-saved_data/ashare_static_universe/07_universe_allA_top1000_static.csv}"
 WEEKLY_SCRIPT="${WEEKLY_SCRIPT:-scripts/run_as1455_top5_weekly_retrain_full_v7.sh}"
 SKIP_AS1455_PRECHECK="${SKIP_AS1455_PRECHECK:-0}"
 FORCE="${FORCE:-0}"
@@ -65,12 +66,14 @@ log "END_DATE=${END_DATE}"
 log "MODEL_DATA=${MODEL_DATA}"
 log "AS1455_CACHE=${AS1455_CACHE}"
 log "UNIVERSE=${UNIVERSE}"
+log "STATIC_UNIVERSE=${STATIC_UNIVERSE}"
 log "OUT_ROOT=${OUT_ROOT}"
 log "RUN_LOG=${RUN_LOG}"
 
 require_file "features/as1455_live_common.py"
 require_file "${WEEKLY_SCRIPT}"
 require_file "${UNIVERSE}"
+require_file "${STATIC_UNIVERSE}"
 require_dir "${AS1455_CACHE}"
 require_file "${MODEL_DATA}"
 
@@ -132,11 +135,14 @@ log "backing up MODEL_DATA to ${backup}"
 cp -av "${MODEL_DATA}" "${backup}"
 
 log "rebuilding ${MODEL_DATA} from ${AS1455_CACHE}"
-"${PYTHON}" - "${AS1455_CACHE}" "${MODEL_DATA}" "${REPORT}" "${UNIVERSE}" "${END_DATE}" <<'PY'
+"${PYTHON}" - "${AS1455_CACHE}" "${MODEL_DATA}" "${REPORT}" "${UNIVERSE}" "${END_DATE}" "${STATIC_UNIVERSE}" <<'PY'
 import json
 import sys
 import pandas as pd
 from pathlib import Path
+
+if len(sys.argv) != 7:
+    raise SystemExit(f"bad argv count: expected 7 including script marker, got {len(sys.argv)}; argv={sys.argv}")
 
 from features.as1455_live_common import (
     compute_ch12_features,
@@ -149,6 +155,7 @@ OUT_H5 = Path(sys.argv[2])
 REPORT = Path(sys.argv[3])
 UNIVERSE_PATH = sys.argv[4]
 END_DATE = sys.argv[5]
+STATIC_UNIVERSE_PATH = sys.argv[6]
 
 EXPECTED_COLUMNS = [
     "dollar_vol",
@@ -187,8 +194,41 @@ EXPECTED_COLUMNS = [
     "weekday",
 ]
 
-universe = load_universe(UNIVERSE_PATH, None)
-universe["symbol"] = universe["symbol"].map(normalize_symbol)
+base_universe = load_universe(UNIVERSE_PATH, None)
+base_universe["symbol"] = base_universe["symbol"].map(normalize_symbol)
+base_universe["code"] = base_universe["symbol"].str.slice(0, 6)
+
+static_universe = load_universe(STATIC_UNIVERSE_PATH, None)
+static_universe["symbol"] = static_universe["symbol"].map(normalize_symbol)
+static_universe["code"] = static_universe["symbol"].str.slice(0, 6)
+
+static_cols = ["code", "name", "board", "industry", "is_mainboard", "trade_allowed_mainboard"]
+static_cols = [c for c in static_cols if c in static_universe.columns]
+static_meta = static_universe[static_cols].drop_duplicates("code", keep="last")
+
+universe = base_universe[["symbol", "code"]].drop_duplicates("symbol").merge(
+    static_meta,
+    on="code",
+    how="left",
+    validate="one_to_one",
+)
+
+if "industry" not in universe.columns:
+    raise RuntimeError("STATIC_UNIVERSE merge did not provide industry")
+
+universe["industry"] = universe["industry"].fillna("").astype(str).str.strip()
+bad_industry = universe.loc[
+    universe["industry"].eq("") | universe["industry"].str.lower().isin(["unknown", "nan", "none"]),
+    "symbol",
+].tolist()
+if bad_industry:
+    raise RuntimeError(f"missing/unknown industry after static universe merge: {bad_industry[:30]} total={len(bad_industry)}")
+
+sector_probe = pd.factorize(universe["industry"])[0]
+sector_nunique_probe = int(pd.Series(sector_probe).nunique())
+if sector_nunique_probe <= 1:
+    raise RuntimeError(f"sector would degenerate: sector_nunique={sector_nunique_probe}")
+
 symbols = sorted(universe["symbol"].dropna().unique().tolist())
 if len(symbols) != 1000:
     raise RuntimeError(f"expected 1000 universe symbols, got {len(symbols)}")
@@ -268,6 +308,8 @@ if outcomes != ["r01_fwd", "r05_fwd", "r21_fwd"]:
 X = model_data.drop(["r01_fwd", "r05_fwd", "r21_fwd"], axis=1)
 if X.shape[1] != 31:
     raise RuntimeError(f"expected 31 features, got {X.shape[1]}")
+if model_data["sector"].nunique(dropna=True) <= 1:
+    raise RuntimeError(f"sector degenerated in rebuilt model_data: {model_data['sector'].value_counts(dropna=False).head().to_dict()}")
 if any("fwd" in str(c) for c in X.columns):
     raise RuntimeError("feature matrix still contains fwd columns")
 
@@ -296,6 +338,8 @@ report = {
     "n_outlier_symbols": int(len(outliers)),
     "x_nan_rows": int(X.isna().any(axis=1).sum()),
     "label_nan_rows": int(model_data[["r01_fwd", "r05_fwd", "r21_fwd"]].isna().any(axis=1).sum()),
+    "sector_nunique": int(model_data["sector"].nunique(dropna=True)),
+    "industry_nunique": int(universe["industry"].nunique(dropna=True)),
 }
 REPORT.parent.mkdir(parents=True, exist_ok=True)
 REPORT.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")

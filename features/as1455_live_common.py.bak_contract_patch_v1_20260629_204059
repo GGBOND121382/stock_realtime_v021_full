@@ -31,7 +31,6 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 DEFAULT_LIVE_ROOT = PROJECT_DIR / "saved_data" / "ashare_ml4t" / "live_as1455"
 DEFAULT_CH12_DIR = PROJECT_DIR / "saved_data" / "ashare_ml4t" / "ch12_as1455"
 DEFAULT_UNIVERSE_CANDIDATES = [
-    PROJECT_DIR / "saved_data" / "ashare_static_universe" / "07_universe_allA_top1000_static.csv",
     DEFAULT_CH12_DIR / "as1455_model_universe_from_h5.csv",
     DEFAULT_CH12_DIR / "effective_universe.csv",
     DEFAULT_CH12_DIR / "universe" / "effective_universe.csv",

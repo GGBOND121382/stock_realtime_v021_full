@@ -195,8 +195,12 @@ def load_training_X(model_data_path: Path, train_end: str | None) -> pd.DataFram
     if list(data.index.names) != ["symbol", "date"]:
         raise RuntimeError(f"unexpected model_data index names: {data.index.names}")
 
-    required = FEATURE_COLUMNS + EXPECTED_OUTCOMES
-    missing = [c for c in required if c not in data.columns]
+    # Compatibility rule: the real training HDF stores forward-label columns before
+    # year/month/weekday, while live feature files store only FEATURE_COLUMNS.
+    # The original training script ultimately feeds the model with FEATURE_COLUMNS
+    # after dropping r01_fwd/r05_fwd/r21_fwd.  Therefore we validate by column name
+    # and then explicitly reorder X by FEATURE_COLUMNS.
+    missing = [c for c in REQUIRED_MODEL_DATA_COLUMNS if c not in data.columns]
     if missing:
         raise RuntimeError(
             "model_data is missing required columns: "
@@ -204,17 +208,17 @@ def load_training_X(model_data_path: Path, train_end: str | None) -> pd.DataFram
         )
 
     if train_end:
-        dates = pd.to_datetime(data.index.get_level_values("date"))
+        dates = data.index.get_level_values("date")
         data = data.loc[dates <= pd.Timestamp(train_end)]
 
-    # Contract: HDF full-column order is NOT part of the model interface.
-    # Training semantics are: drop rows with NA in model columns, then feed the
-    # neural net with FEATURE_COLUMNS in this exact order.
-    data = data[required].dropna().sort_index()
+    # Keep the same dropna semantics as the training script: rows with NA in any
+    # model feature or forward label are excluded before scaler fitting.
+    data = data[REQUIRED_MODEL_DATA_COLUMNS].dropna().sort_index()
     X = data[FEATURE_COLUMNS].copy()
     if list(X.columns) != FEATURE_COLUMNS:
         raise RuntimeError(f"unexpected feature columns after selection: {list(X.columns)}")
     return X
+
 
 def load_live_features(path: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
     if not path.exists():

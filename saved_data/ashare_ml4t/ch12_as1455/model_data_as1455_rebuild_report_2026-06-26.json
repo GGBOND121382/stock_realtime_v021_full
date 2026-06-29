@@ -15,6 +15,8 @@
   ],
   "outlier_symbols": [],
   "n_outlier_symbols": 0,
-  "x_nan_rows": 63000,
-  "label_nan_rows": 21000
+  "x_nan_rows": 73644,
+  "label_nan_rows": 21000,
+  "sector_nunique": 66,
+  "industry_nunique": 66
 }

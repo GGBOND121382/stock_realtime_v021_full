@@ -39,7 +39,7 @@ EVENT_THRESHOLD_PCT="${EVENT_THRESHOLD_PCT:-0.10}"
 MIN_VALID_RATE="${MIN_VALID_RATE:-0.98}"
 MIN_FEATURE_ROWS="${MIN_FEATURE_ROWS:-980}"
 
-UNIVERSE="${UNIVERSE:-saved_data/ashare_ml4t/ch12_as1455/as1455_model_universe_from_h5.csv}"
+UNIVERSE="${UNIVERSE:-saved_data/ashare_static_universe/07_universe_allA_top1000_static.csv}"
 OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/live_as1455}"
 RAW_5M_CACHE_DIR="${RAW_5M_CACHE_DIR:-saved_data/ashare_ml4t/ch12_as1455/baostock_5m_cache}"
 RAW_DAILY_CACHE_DIR="${RAW_DAILY_CACHE_DIR:-saved_data/ashare_ml4t/ch12_as1455/baostock_raw_daily_cache}"
