@@ -13,6 +13,7 @@ import gc
 import json
 import random
 from ast import literal_eval
+from datetime import datetime
 from itertools import product
 from pathlib import Path
 from time import time
@@ -48,6 +49,15 @@ PARAM_COLS = ["dense_layers", "activation", "dropout", "batch_size", "epoch"]
 
 def write_json(path: Path, payload: Any) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def utc_now() -> str:
+    return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
+
+
+def append_jsonl(path: Path, payload: dict[str, Any]) -> None:
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
 
 
 def parse_train_end(value: str | None) -> pd.Timestamp | None:
@@ -272,20 +282,104 @@ def score_top_bottom(pred: pd.Series, actual: pd.Series) -> pd.DataFrame:
 def train_search(X: pd.DataFrame, y: pd.Series, train_idx: np.ndarray, test_idx: np.ndarray, no_scale_cols: list[str], grid: list[dict[str, Any]], epochs: int, seed: int, out_dir: Path) -> pd.DataFrame:
     x_train, x_test = transform_X(X, train_idx, test_idx, no_scale_cols)
     y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
-    rows, daily_rows = [], []
+    rows, daily_rows, param_start_rows, param_end_rows = [], [], [], []
+    events_path = out_dir / "search_events.jsonl"
+    for stale in [events_path, out_dir / "param_start_log.csv", out_dir / "param_end_log.csv", out_dir / "search_progress.csv"]:
+        if stale.exists():
+            stale.unlink()
+    write_json(out_dir / "search_manifest.json", {
+        "created_at_utc": utc_now(),
+        "seed": int(seed),
+        "epochs": int(epochs),
+        "grid_size": int(len(grid)),
+        "param_grid": grid,
+        "input_dim": int(x_train.shape[1]),
+        "n_train_rows": int(len(y_train)),
+        "n_test_rows": int(len(y_test)),
+        "n_no_scale_cols": int(len(no_scale_cols)),
+        "no_scale_cols": no_scale_cols,
+    })
+    append_jsonl(events_path, {"event": "search_start", "timestamp_utc": utc_now(), "seed": int(seed), "epochs": int(epochs), "grid_size": int(len(grid)), "input_dim": int(x_train.shape[1]), "n_train_rows": int(len(y_train)), "n_test_rows": int(len(y_test))})
     start = time()
     for pid, params in enumerate(grid):
-        set_seed(seed + pid)
-        model = make_model(x_train.shape[1], literal_eval(params["dense_layers"]), params["activation"], params["dropout"])
-        print(f"[TRAIN] param_id={pid} {params}", flush=True)
+        param_seed = seed + pid
+        set_seed(param_seed)
+        dense_layers = literal_eval(params["dense_layers"])
+        model = make_model(x_train.shape[1], dense_layers, params["activation"], params["dropout"])
+        param_start = time()
+        param_start_row = {
+            "param_id": int(pid),
+            "timestamp_utc": utc_now(),
+            "seed": int(param_seed),
+            "dense_layers": str(params["dense_layers"]),
+            "activation": str(params["activation"]),
+            "dropout": float(params["dropout"]),
+            "batch_size": int(params["batch_size"]),
+            "epochs_planned": int(epochs),
+            "input_dim": int(x_train.shape[1]),
+            "n_train_rows": int(len(y_train)),
+            "n_test_rows": int(len(y_test)),
+            "elapsed": fmt(time() - start),
+        }
+        param_start_rows.append(param_start_row)
+        pd.DataFrame(param_start_rows).to_csv(out_dir / "param_start_log.csv", index=False, encoding="utf-8-sig")
+        append_jsonl(events_path, {"event": "param_start", **param_start_row})
+        print(f"[TRAIN] param_id={pid} seed={param_seed} {params}", flush=True)
         for epoch in range(epochs):
+            epoch_start = time()
             model.fit(x_train, y_train, batch_size=params["batch_size"], epochs=1, verbose=0, shuffle=True)
+            fit_seconds = time() - epoch_start
+            pred_start = time()
             pred = pd.Series(model.predict(x_test, verbose=0).squeeze(), index=y_test.index)
+            pred_seconds = time() - pred_start
+            score_start = time()
             ic = daily_ic(y_test, pred)
-            base = {"param_id": pid, **params, "epoch": epoch}
-            rows.append({**base, "pooled_spearman": safe_spearman(y_test, pred), "daily_ic_mean": float(ic.mean()), "daily_ic_median": float(ic.median()), "daily_ic_positive_rate": float((ic > 0).mean()), "n_dates": int(len(ic)), "n_rows": int(len(pred)), "elapsed": fmt(time() - start)})
-            daily_rows.extend([{**base, "date": pd.Timestamp(dt).strftime("%Y-%m-%d"), "spearman_ic": float(v)} for dt, v in ic.items()])
-            print(f"{fmt(time() - start)} | param {pid:02d} | epoch {epoch + 1:02d} | mean {ic.mean(): .5f} | median {ic.median(): .5f}", flush=True)
+            score_seconds = time() - score_start
+            base_row = {"param_id": int(pid), **params, "epoch": int(epoch)}
+            row = {
+                **base_row,
+                "seed": int(param_seed),
+                "epoch_1based": int(epoch + 1),
+                "pooled_spearman": safe_spearman(y_test, pred),
+                "daily_ic_mean": float(ic.mean()),
+                "daily_ic_median": float(ic.median()),
+                "daily_ic_positive_rate": float((ic > 0).mean()),
+                "n_dates": int(len(ic)),
+                "n_rows": int(len(pred)),
+                "fit_seconds": float(fit_seconds),
+                "predict_seconds": float(pred_seconds),
+                "score_seconds": float(score_seconds),
+                "elapsed": fmt(time() - start),
+                "timestamp_utc": utc_now(),
+            }
+            rows.append(row)
+            daily_rows.extend([{**base_row, "seed": int(param_seed), "epoch_1based": int(epoch + 1), "date": pd.Timestamp(dt).strftime("%Y-%m-%d"), "spearman_ic": float(v)} for dt, v in ic.items()])
+            append_jsonl(events_path, {"event": "epoch_end", **row})
+            pd.DataFrame(rows).to_csv(out_dir / "search_progress.csv", index=False, encoding="utf-8-sig")
+            print(f"{fmt(time() - start)} | param {pid:02d} | seed {param_seed} | epoch {epoch + 1:02d} | mean {ic.mean(): .5f} | median {ic.median(): .5f}", flush=True)
+        param_scores = pd.DataFrame([r for r in rows if r["param_id"] == pid])
+        best_idx = param_scores["daily_ic_median"].idxmax()
+        best_row = param_scores.loc[best_idx].to_dict()
+        param_end_row = {
+            "param_id": int(pid),
+            "timestamp_utc": utc_now(),
+            "seed": int(param_seed),
+            "dense_layers": str(params["dense_layers"]),
+            "activation": str(params["activation"]),
+            "dropout": float(params["dropout"]),
+            "batch_size": int(params["batch_size"]),
+            "epochs_done": int(epochs),
+            "best_epoch": int(best_row["epoch"]),
+            "best_epoch_1based": int(best_row["epoch_1based"]),
+            "best_daily_ic_median": float(best_row["daily_ic_median"]),
+            "best_daily_ic_mean": float(best_row["daily_ic_mean"]),
+            "best_pooled_spearman": float(best_row["pooled_spearman"]),
+            "param_elapsed_seconds": float(time() - param_start),
+            "elapsed": fmt(time() - start),
+        }
+        param_end_rows.append(param_end_row)
+        pd.DataFrame(param_end_rows).to_csv(out_dir / "param_end_log.csv", index=False, encoding="utf-8-sig")
+        append_jsonl(events_path, {"event": "param_end", **param_end_row})
         del model
         clear_model_session()
         pd.DataFrame(rows).to_csv(out_dir / "scores_summary.csv", index=False, encoding="utf-8-sig")
@@ -293,6 +387,7 @@ def train_search(X: pd.DataFrame, y: pd.Series, train_idx: np.ndarray, test_idx:
     summary = pd.DataFrame(rows).sort_values("daily_ic_median", ascending=False)
     summary.to_csv(out_dir / "scores_summary.csv", index=False, encoding="utf-8-sig")
     pd.DataFrame(daily_rows).to_hdf(out_dir / "scores.h5", "ic_by_day", mode="w")
+    append_jsonl(events_path, {"event": "search_end", "timestamp_utc": utc_now(), "elapsed": fmt(time() - start), "n_score_rows": int(len(rows)), "n_daily_rows": int(len(daily_rows))})
     return summary
 
 
@@ -300,15 +395,19 @@ def retrain_best(X: pd.DataFrame, y: pd.Series, train_idx: np.ndarray, test_idx:
     x_train, x_test = transform_X(X, train_idx, test_idx, no_scale_cols)
     y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
     pred_cols = []
+    retrain_rows = []
     for i, row in best.reset_index(drop=True).iterrows():
         params = row.to_dict()
-        set_seed(seed + 1000 + i)
+        retrain_seed = seed + 1000 + i
+        set_seed(retrain_seed)
         model = make_model(x_train.shape[1], literal_eval(str(params["dense_layers"])), str(params["activation"]), float(params["dropout"]))
+        retrain_rows.append({"best_rank": int(i), "seed": int(retrain_seed), **params, "epochs_done": int(params["epoch"]) + 1, "input_dim": int(x_train.shape[1]), "n_train_rows": int(len(y_train)), "n_test_rows": int(len(y_test)), "timestamp_utc": utc_now()})
         for _ in range(int(params["epoch"]) + 1):
             model.fit(x_train, y_train, batch_size=int(params["batch_size"]), epochs=1, verbose=0, shuffle=True)
         pred_cols.append(pd.Series(model.predict(x_test, verbose=0).squeeze(), index=y_test.index, name=f"best_{i}"))
         del model
         clear_model_session()
+    pd.DataFrame(retrain_rows).to_csv(out_dir / "retrain_best_log.csv", index=False, encoding="utf-8-sig")
     preds = pd.concat(pred_cols, axis=1)
     if preds.shape[1] > 1:
         preds["ensemble"] = preds.mean(axis=1)
