@@ -13,6 +13,7 @@ import gc
 import json
 import pickle
 import random
+import shutil
 from ast import literal_eval
 from datetime import datetime
 from itertools import product
@@ -48,8 +49,24 @@ BATCH_SIZE_OPTS = [64, 256]
 PARAM_COLS = ["dense_layers", "activation", "dropout", "batch_size", "epoch"]
 
 
+def to_jsonable(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(k): to_jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [to_jsonable(v) for v in value]
+    if isinstance(value, (np.integer,)):
+        return int(value)
+    if isinstance(value, (np.floating,)):
+        return None if np.isnan(value) else float(value)
+    if isinstance(value, float):
+        return None if np.isnan(value) else value
+    if isinstance(value, (pd.Timestamp, datetime)):
+        return value.isoformat()
+    return value
+
+
 def write_json(path: Path, payload: Any) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    path.write_text(json.dumps(to_jsonable(payload), ensure_ascii=False, indent=2), encoding="utf-8")
 
 
 def utc_now() -> str:
@@ -58,7 +75,7 @@ def utc_now() -> str:
 
 def append_jsonl(path: Path, payload: dict[str, Any]) -> None:
     with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        f.write(json.dumps(to_jsonable(payload), ensure_ascii=False) + "\n")
 
 
 def parse_train_end(value: str | None) -> pd.Timestamp | None:
@@ -342,27 +359,50 @@ def score_top_bottom(pred: pd.Series, actual: pd.Series) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def train_search(X: pd.DataFrame, y: pd.Series, train_idx: np.ndarray, test_idx: np.ndarray, no_scale_cols: list[str], grid: list[dict[str, Any]], epochs: int, seed: int, out_dir: Path) -> pd.DataFrame:
-    x_train, x_test = transform_X(X, train_idx, test_idx, no_scale_cols)
+def train_search(
+    X: pd.DataFrame,
+    y: pd.Series,
+    train_idx: np.ndarray,
+    test_idx: np.ndarray,
+    no_scale_cols: list[str],
+    grid: list[dict[str, Any]],
+    epochs: int,
+    seed: int,
+    out_dir: Path,
+    checkpoint_top_n: int = 5,
+) -> pd.DataFrame:
+    x_train, x_test, scaler, scale_cols = fit_transform_X(X, train_idx, test_idx, no_scale_cols)
+    save_preprocess_artifacts(out_dir, X, train_idx, test_idx, scaler, scale_cols, no_scale_cols)
     y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
     rows, daily_rows, param_start_rows, param_end_rows = [], [], [], []
+    checkpoint_top_n = max(0, int(checkpoint_top_n))
     events_path = out_dir / "search_events.jsonl"
+    checkpoint_dir = out_dir / "search_checkpoints"
     for stale in [events_path, out_dir / "param_start_log.csv", out_dir / "param_end_log.csv", out_dir / "search_progress.csv"]:
         if stale.exists():
             stale.unlink()
+    if checkpoint_dir.exists():
+        shutil.rmtree(checkpoint_dir)
+    if checkpoint_top_n > 0:
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+    saved_checkpoint_by_key: dict[tuple[int, int], dict[str, Any]] = {}
+    checkpoint_records: list[dict[str, Any]] = []
     write_json(out_dir / "search_manifest.json", {
         "created_at_utc": utc_now(),
         "seed": int(seed),
         "epochs": int(epochs),
         "grid_size": int(len(grid)),
         "param_grid": grid,
+        "checkpoint_top_n": int(checkpoint_top_n),
+        "checkpoint_sort_col": "daily_ic_median",
         "input_dim": int(x_train.shape[1]),
         "n_train_rows": int(len(y_train)),
         "n_test_rows": int(len(y_test)),
         "n_no_scale_cols": int(len(no_scale_cols)),
         "no_scale_cols": no_scale_cols,
     })
-    append_jsonl(events_path, {"event": "search_start", "timestamp_utc": utc_now(), "seed": int(seed), "epochs": int(epochs), "grid_size": int(len(grid)), "input_dim": int(x_train.shape[1]), "n_train_rows": int(len(y_train)), "n_test_rows": int(len(y_test))})
+    append_jsonl(events_path, {"event": "search_start", "timestamp_utc": utc_now(), "seed": int(seed), "epochs": int(epochs), "grid_size": int(len(grid)), "checkpoint_top_n": int(checkpoint_top_n), "input_dim": int(x_train.shape[1]), "n_train_rows": int(len(y_train)), "n_test_rows": int(len(y_test))})
     start = time()
     for pid, params in enumerate(grid):
         param_seed = seed + pid
@@ -419,6 +459,18 @@ def train_search(X: pd.DataFrame, y: pd.Series, train_idx: np.ndarray, test_idx:
             daily_rows.extend([{**base_row, "seed": int(param_seed), "epoch_1based": int(epoch + 1), "date": pd.Timestamp(dt).strftime("%Y-%m-%d"), "spearman_ic": float(v)} for dt, v in ic.items()])
             append_jsonl(events_path, {"event": "epoch_end", **row})
             pd.DataFrame(rows).to_csv(out_dir / "search_progress.csv", index=False, encoding="utf-8-sig")
+            if checkpoint_top_n > 0:
+                running_top = pd.DataFrame(rows).sort_values("daily_ic_median", ascending=False).head(checkpoint_top_n)
+                running_top_keys = {(int(r["param_id"]), int(r["epoch"])) for _, r in running_top.iterrows()}
+                key = (int(pid), int(epoch))
+                if key in running_top_keys and key not in saved_checkpoint_by_key:
+                    checkpoint_name = f"search_param{pid:03d}_epoch{epoch + 1:03d}"
+                    manifest = save_model_artifacts(model, checkpoint_dir, checkpoint_name, {"checkpoint_source": "search_epoch", **row})
+                    saved_checkpoint_by_key[key] = manifest
+                    checkpoint_record = {"param_id": int(pid), "epoch": int(epoch), "epoch_1based": int(epoch + 1), "checkpoint_name": checkpoint_name, **manifest}
+                    checkpoint_records.append(checkpoint_record)
+                    write_json(checkpoint_dir / "search_checkpoints_manifest.json", checkpoint_records)
+                    append_jsonl(events_path, {"event": "search_checkpoint_saved", "param_id": int(pid), "epoch": int(epoch), "epoch_1based": int(epoch + 1), "checkpoint_name": checkpoint_name, "daily_ic_median": float(row["daily_ic_median"]), "daily_ic_mean": float(row["daily_ic_mean"]), "pooled_spearman": float(row["pooled_spearman"])})
             print(f"{fmt(time() - start)} | param {pid:02d} | seed {param_seed} | epoch {epoch + 1:02d} | mean {ic.mean(): .5f} | median {ic.median(): .5f}", flush=True)
         param_scores = pd.DataFrame([r for r in rows if r["param_id"] == pid])
         best_idx = param_scores["daily_ic_median"].idxmax()
@@ -450,7 +502,15 @@ def train_search(X: pd.DataFrame, y: pd.Series, train_idx: np.ndarray, test_idx:
     summary = pd.DataFrame(rows).sort_values("daily_ic_median", ascending=False)
     summary.to_csv(out_dir / "scores_summary.csv", index=False, encoding="utf-8-sig")
     pd.DataFrame(daily_rows).to_hdf(out_dir / "scores.h5", "ic_by_day", mode="w")
-    append_jsonl(events_path, {"event": "search_end", "timestamp_utc": utc_now(), "elapsed": fmt(time() - start), "n_score_rows": int(len(rows)), "n_daily_rows": int(len(daily_rows))})
+    if checkpoint_top_n > 0:
+        final_rows = []
+        for _, top_row in summary.head(checkpoint_top_n).iterrows():
+            key = (int(top_row["param_id"]), int(top_row["epoch"]))
+            manifest = saved_checkpoint_by_key.get(key, {})
+            final_rows.append({**top_row.to_dict(), "checkpoint_saved": bool(manifest), "checkpoint_name": manifest.get("name"), "keras_model": manifest.get("keras_model"), "weights_h5": manifest.get("weights_h5"), "architecture_json": manifest.get("architecture_json")})
+        pd.DataFrame(final_rows).to_csv(out_dir / "search_best_checkpoints.csv", index=False, encoding="utf-8-sig")
+        write_json(checkpoint_dir / "final_top_checkpoints.json", final_rows)
+    append_jsonl(events_path, {"event": "search_end", "timestamp_utc": utc_now(), "elapsed": fmt(time() - start), "n_score_rows": int(len(rows)), "n_daily_rows": int(len(daily_rows)), "n_search_checkpoints_saved": int(len(checkpoint_records))})
     return summary
 
 
@@ -539,7 +599,7 @@ def main() -> None:
         print(f"[OK] input reports written to {out_dir}")
         return
     require_deps()
-    summary = train_search(X_final, y, train_idx, test_idx, no_scale_cols, grid, args.epochs, args.seed, out_dir)
+    summary = train_search(X_final, y, train_idx, test_idx, no_scale_cols, grid, args.epochs, args.seed, out_dir, checkpoint_top_n=args.best_n)
     best = summary.head(args.best_n).copy()
     best.to_csv(out_dir / "best_params.csv", index=False, encoding="utf-8-sig")
     print("[BEST]")
