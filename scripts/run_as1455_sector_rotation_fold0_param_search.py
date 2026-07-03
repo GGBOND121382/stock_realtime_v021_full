@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import gc
 import json
+import pickle
 import random
 from ast import literal_eval
 from datetime import datetime
@@ -241,16 +242,78 @@ def param_grid(smoke: bool) -> list[dict[str, Any]]:
     return rows[:1] if smoke else rows
 
 
-def transform_X(X: pd.DataFrame, train_idx: np.ndarray, test_idx: np.ndarray, no_scale_cols: list[str]) -> tuple[np.ndarray, np.ndarray]:
+def fit_transform_X(X: pd.DataFrame, train_idx: np.ndarray, test_idx: np.ndarray, no_scale_cols: list[str]) -> tuple[np.ndarray, np.ndarray, StandardScaler, list[str]]:
     scale_cols = [c for c in X.columns if c not in no_scale_cols]
     scaler = StandardScaler()
     x_train = scaler.fit_transform(X.iloc[train_idx][scale_cols]).astype(np.float32)
     x_test = scaler.transform(X.iloc[test_idx][scale_cols]).astype(np.float32)
     if not no_scale_cols:
-        return x_train, x_test
+        return x_train, x_test, scaler, scale_cols
     raw_train = X.iloc[train_idx][no_scale_cols].to_numpy(dtype=np.float32)
     raw_test = X.iloc[test_idx][no_scale_cols].to_numpy(dtype=np.float32)
-    return np.concatenate([x_train, raw_train], axis=1), np.concatenate([x_test, raw_test], axis=1)
+    return np.concatenate([x_train, raw_train], axis=1), np.concatenate([x_test, raw_test], axis=1), scaler, scale_cols
+
+
+def transform_X(X: pd.DataFrame, train_idx: np.ndarray, test_idx: np.ndarray, no_scale_cols: list[str]) -> tuple[np.ndarray, np.ndarray]:
+    x_train, x_test, _, _ = fit_transform_X(X, train_idx, test_idx, no_scale_cols)
+    return x_train, x_test
+
+
+def save_preprocess_artifacts(out_dir: Path, X: pd.DataFrame, train_idx: np.ndarray, test_idx: np.ndarray, scaler: StandardScaler, scale_cols: list[str], no_scale_cols: list[str]) -> None:
+    preprocess_dir = out_dir / "preprocess"
+    preprocess_dir.mkdir(parents=True, exist_ok=True)
+    model_input_cols = scale_cols + no_scale_cols
+    with (preprocess_dir / "scaler.pkl").open("wb") as f:
+        pickle.dump({"scaler": scaler, "scale_cols": scale_cols, "no_scale_cols": no_scale_cols, "model_input_cols": model_input_cols}, f)
+    train_index = X.iloc[train_idx].index
+    test_index = X.iloc[test_idx].index
+    write_json(preprocess_dir / "feature_manifest.json", {
+        "created_at_utc": utc_now(),
+        "feature_cols_final": list(X.columns),
+        "scale_cols": scale_cols,
+        "no_scale_cols": no_scale_cols,
+        "model_input_cols": model_input_cols,
+        "n_features_before_transform": int(X.shape[1]),
+        "n_model_input_features": int(len(model_input_cols)),
+        "train_start": pd.Timestamp(train_index.get_level_values("date").min()).strftime("%Y-%m-%d"),
+        "train_end": pd.Timestamp(train_index.get_level_values("date").max()).strftime("%Y-%m-%d"),
+        "test_start": pd.Timestamp(test_index.get_level_values("date").min()).strftime("%Y-%m-%d"),
+        "test_end": pd.Timestamp(test_index.get_level_values("date").max()).strftime("%Y-%m-%d"),
+    })
+
+
+def save_model_artifacts(model: Any, model_dir: Path, name: str, metadata: dict[str, Any]) -> dict[str, Any]:
+    model_dir.mkdir(parents=True, exist_ok=True)
+    manifest = {"name": name, "created_at_utc": utc_now(), **metadata}
+    architecture_path = model_dir / f"{name}.architecture.json"
+    try:
+        architecture_path.write_text(model.to_json(), encoding="utf-8")
+        manifest["architecture_json"] = str(architecture_path)
+        manifest["architecture_json_ok"] = True
+    except Exception as exc:
+        manifest["architecture_json_ok"] = False
+        manifest["architecture_json_error"] = repr(exc)
+
+    weights_path = model_dir / f"{name}.weights.h5"
+    try:
+        model.save_weights(str(weights_path))
+        manifest["weights_h5"] = str(weights_path)
+        manifest["weights_h5_ok"] = True
+    except Exception as exc:
+        manifest["weights_h5_ok"] = False
+        manifest["weights_h5_error"] = repr(exc)
+
+    keras_path = model_dir / f"{name}.keras"
+    try:
+        model.save(str(keras_path))
+        manifest["keras_model"] = str(keras_path)
+        manifest["keras_model_ok"] = True
+    except Exception as exc:
+        manifest["keras_model_ok"] = False
+        manifest["keras_model_error"] = repr(exc)
+
+    write_json(model_dir / f"{name}.manifest.json", manifest)
+    return manifest
 
 
 def safe_spearman(actual: pd.Series | np.ndarray, score: pd.Series | np.ndarray) -> float:
@@ -392,22 +455,29 @@ def train_search(X: pd.DataFrame, y: pd.Series, train_idx: np.ndarray, test_idx:
 
 
 def retrain_best(X: pd.DataFrame, y: pd.Series, train_idx: np.ndarray, test_idx: np.ndarray, no_scale_cols: list[str], best: pd.DataFrame, seed: int, out_dir: Path) -> None:
-    x_train, x_test = transform_X(X, train_idx, test_idx, no_scale_cols)
+    x_train, x_test, scaler, scale_cols = fit_transform_X(X, train_idx, test_idx, no_scale_cols)
     y_train, y_test = y.iloc[train_idx], y.iloc[test_idx]
+    save_preprocess_artifacts(out_dir, X, train_idx, test_idx, scaler, scale_cols, no_scale_cols)
     pred_cols = []
     retrain_rows = []
+    model_manifests = []
+    model_dir = out_dir / "models"
     for i, row in best.reset_index(drop=True).iterrows():
         params = row.to_dict()
         retrain_seed = seed + 1000 + i
         set_seed(retrain_seed)
         model = make_model(x_train.shape[1], literal_eval(str(params["dense_layers"])), str(params["activation"]), float(params["dropout"]))
-        retrain_rows.append({"best_rank": int(i), "seed": int(retrain_seed), **params, "epochs_done": int(params["epoch"]) + 1, "input_dim": int(x_train.shape[1]), "n_train_rows": int(len(y_train)), "n_test_rows": int(len(y_test)), "timestamp_utc": utc_now()})
+        retrain_row = {"best_rank": int(i), "seed": int(retrain_seed), **params, "epochs_done": int(params["epoch"]) + 1, "input_dim": int(x_train.shape[1]), "n_train_rows": int(len(y_train)), "n_test_rows": int(len(y_test)), "timestamp_utc": utc_now()}
+        retrain_rows.append(retrain_row)
         for _ in range(int(params["epoch"]) + 1):
             model.fit(x_train, y_train, batch_size=int(params["batch_size"]), epochs=1, verbose=0, shuffle=True)
+        model_manifest = save_model_artifacts(model, model_dir, f"best_{i}", retrain_row)
+        model_manifests.append(model_manifest)
         pred_cols.append(pd.Series(model.predict(x_test, verbose=0).squeeze(), index=y_test.index, name=f"best_{i}"))
         del model
         clear_model_session()
     pd.DataFrame(retrain_rows).to_csv(out_dir / "retrain_best_log.csv", index=False, encoding="utf-8-sig")
+    write_json(model_dir / "models_manifest.json", model_manifests)
     preds = pd.concat(pred_cols, axis=1)
     if preds.shape[1] > 1:
         preds["ensemble"] = preds.mean(axis=1)
