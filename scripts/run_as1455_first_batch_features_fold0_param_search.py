@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""AS1455 fold-0 NN search with first-batch stable context features.
+"""AS1455 fold-0 NN search with compact first-batch stable context features.
 
-This script reuses the existing sector-rotation search/training code and adds
-features that can be generated from the current model_data_as1455.h5 only:
-market regime/breadth, leave-one-out sector rotation/breadth, sector liquidity,
-and stock dollar-volume ratios.
+This script reuses the existing sector-rotation search/training code and adds a
+compact set of features that can be generated from the current
+model_data_as1455.h5 only: market regime/breadth, leave-one-out sector
+rotation/breadth, sector liquidity, and stock dollar-volume ratios.
 
-Features requiring raw OHLCV/tradability fields are listed in the output report
-instead of being silently fabricated.
+The compact version removes mechanically redundant medium-or-higher redundancy
+features from the previous wide diagnostic version. Features requiring raw
+OHLCV/tradability fields are listed in the output report instead of being
+silently fabricated.
 """
 from __future__ import annotations
 
@@ -22,9 +24,25 @@ import pandas as pd
 
 import run_as1455_sector_rotation_fold0_param_search as base
 
-DEFAULT_OUT_DIR = base.PROJECT_DIR / "saved_data" / "ashare_ml4t" / "ch17_as1455_first_batch_features_fold0_search"
+DEFAULT_OUT_DIR = base.PROJECT_DIR / "saved_data" / "ashare_ml4t" / "ch17_as1455_first_batch_features_compact_fold0_search"
 CORE_RETURN_COLS = ["r01", "r05", "r21"]
 SECTOR_LOO_RETURN_COLS = ["r01", "r05", "r21", "r63"]
+COMPACT_REMOVED_REDUNDANT_FEATURES = [
+    "market_r01_top_decile_ratio",
+    "market_r01_bottom_decile_ratio",
+    "market_r05_top_decile_ratio",
+    "market_r05_bottom_decile_ratio",
+    "market_dollar_vol_sum",
+    "sector_r01_mean_ex_self",
+    "sector_r05_mean_ex_self",
+    "sector_r21_mean_ex_self",
+    "sector_r63_mean_ex_self",
+    "sector_r01_top_decile_ratio_ex_self",
+    "sector_r01_bottom_decile_ratio_ex_self",
+    "sector_r05_top_decile_ratio_ex_self",
+    "sector_r05_bottom_decile_ratio_ex_self",
+    "sector_dollar_vol_sum",
+]
 UNAVAILABLE_FIRST_BATCH_FEATURES = [
     "volume_ratio_20 requires raw volume, not only model_data.dollar_vol",
     "turnover_ratio_20 requires turnover/float shares",
@@ -47,7 +65,7 @@ def safe_divide(num: np.ndarray, den: np.ndarray, fill: float = 0.0) -> np.ndarr
 
 
 def add_first_batch_context_features(X: pd.DataFrame) -> tuple[pd.DataFrame, list[str], dict[str, list[str]]]:
-    """Add stable first-batch features available from existing model_data only.
+    """Add compact stable first-batch features available from model_data only.
 
     No forward-return columns are used.
     """
@@ -65,7 +83,8 @@ def add_first_batch_context_features(X: pd.DataFrame) -> tuple[pd.DataFrame, lis
         "stock_liquidity": [],
     }
 
-    # Market regime and breadth.
+    # Market regime and breadth.  Do not add market top/bottom decile ratios;
+    # they are near-constant by construction because rXXdec is a daily decile.
     for c in CORE_RETURN_COLS:
         market_mean = base_df.groupby("__date", sort=False)[c].mean()
         market_std = base_df.groupby("__date", sort=False)[c].std(ddof=0).fillna(0)
@@ -77,24 +96,15 @@ def add_first_batch_context_features(X: pd.DataFrame) -> tuple[pd.DataFrame, lis
         groups["market_regime"] += cols[:2]
         groups["market_breadth"].append(cols[2])
 
-    for c in ["r01", "r05"]:
-        dec_col = f"{c}dec"
-        top = base_df[dec_col].ge(9).groupby(base_df["__date"], sort=False).mean()
-        bottom = base_df[dec_col].le(0).groupby(base_df["__date"], sort=False).mean()
-        cols = [f"market_{c}_top_decile_ratio", f"market_{c}_bottom_decile_ratio"]
-        out[cols[0]] = top.reindex(dates).to_numpy()
-        out[cols[1]] = bottom.reindex(dates).to_numpy()
-        groups["market_breadth"] += cols
-
     market_dv_sum = base_df.groupby("__date", sort=True)["dollar_vol"].sum().sort_index()
     market_dv_prior20 = market_dv_sum.shift(1).rolling(20, min_periods=5).mean()
     market_dv_ratio20 = safe_divide(market_dv_sum.to_numpy(), market_dv_prior20.to_numpy(), fill=1.0)
     market_dv_ratio20 = pd.Series(market_dv_ratio20, index=market_dv_sum.index).replace([np.inf, -np.inf], np.nan).fillna(1.0)
-    out["market_dollar_vol_sum"] = market_dv_sum.reindex(dates).to_numpy()
     out["market_dollar_vol_ratio_20"] = market_dv_ratio20.reindex(dates).to_numpy()
-    groups["market_regime"] += ["market_dollar_vol_sum", "market_dollar_vol_ratio_20"]
+    groups["market_regime"].append("market_dollar_vol_ratio_20")
 
-    # Leave-one-out sector rotation.
+    # Leave-one-out sector rotation.  Keep relative-to-market value and rank;
+    # drop raw sector mean because it is highly redundant with rel_mkt + market.
     sector_count = base_df.groupby(["__date", "__sector"], sort=False).size()
     market_count = base_df.groupby("__date", sort=False).size()
     sector_sum = base_df.groupby(["__date", "__sector"], sort=False)[SECTOR_LOO_RETURN_COLS].sum()
@@ -120,13 +130,13 @@ def add_first_batch_context_features(X: pd.DataFrame) -> tuple[pd.DataFrame, lis
             safe_divide(market_sum_values - x, market_count_values - 1, fill=0.0),
             market_mean_full,
         )
-        cols = [f"sector_{c}_mean_ex_self", f"sector_{c}_rel_mkt_ex_self", f"sector_{c}_rank_pct"]
-        out[cols[0]] = sector_mean_ex_self
-        out[cols[1]] = sector_mean_ex_self - market_mean_ex_self
-        out[cols[2]] = sector_rank[c].reindex(key).to_numpy()
+        cols = [f"sector_{c}_rel_mkt_ex_self", f"sector_{c}_rank_pct"]
+        out[cols[0]] = sector_mean_ex_self - market_mean_ex_self
+        out[cols[1]] = sector_rank[c].reindex(key).to_numpy()
         groups["sector_rotation_leave_one_out"] += cols
 
-    # Sector breadth, leave-one-out where possible.
+    # Sector breadth.  Keep positive-rate breadth and drop top/bottom decile
+    # breadth from the compact default to reduce medium-level redundancy.
     for c in ["r01", "r05"]:
         x_pos = out[c].gt(0).to_numpy(dtype=float)
         sector_pos_sum = base_df[c].gt(0).groupby([base_df["__date"], base_df["__sector"]], sort=False).sum()
@@ -141,40 +151,16 @@ def add_first_batch_context_features(X: pd.DataFrame) -> tuple[pd.DataFrame, lis
         out[col] = pos_ex_self
         groups["sector_breadth"].append(col)
 
-        dec_col = f"{c}dec"
-        x_top = out[dec_col].ge(9).to_numpy(dtype=float)
-        x_bottom = out[dec_col].le(0).to_numpy(dtype=float)
-        sector_top_sum = base_df[dec_col].ge(9).groupby([base_df["__date"], base_df["__sector"]], sort=False).sum()
-        sector_bottom_sum = base_df[dec_col].le(0).groupby([base_df["__date"], base_df["__sector"]], sort=False).sum()
-        top_values = sector_top_sum.reindex(key).to_numpy(dtype=float)
-        bottom_values = sector_bottom_sum.reindex(key).to_numpy(dtype=float)
-        top_full = safe_divide(top_values, sector_count_values, fill=0.0)
-        bottom_full = safe_divide(bottom_values, sector_count_values, fill=0.0)
-        top_ex_self = np.where(
-            sector_count_values > 1,
-            safe_divide(top_values - x_top, sector_count_values - 1, fill=0.0),
-            top_full,
-        )
-        bottom_ex_self = np.where(
-            sector_count_values > 1,
-            safe_divide(bottom_values - x_bottom, sector_count_values - 1, fill=0.0),
-            bottom_full,
-        )
-        cols = [f"sector_{c}_top_decile_ratio_ex_self", f"sector_{c}_bottom_decile_ratio_ex_self"]
-        out[cols[0]] = top_ex_self
-        out[cols[1]] = bottom_ex_self
-        groups["sector_breadth"] += cols
-
-    # Sector dollar-volume heat and stock dollar-volume ratios.
+    # Sector dollar-volume heat and stock dollar-volume ratios.  Keep share/rank
+    # and ratio; drop raw sector_dollar_vol_sum as a model feature.
     sector_dv_sum = base_df.groupby(["__date", "__sector"], sort=False)["dollar_vol"].sum()
     market_dv_sum_unsorted = base_df.groupby("__date", sort=False)["dollar_vol"].sum()
     sector_dv_rank = sector_dv_sum.groupby(level=0).rank(pct=True, ascending=True)
     dv_values = sector_dv_sum.reindex(key).to_numpy(dtype=float)
     market_dv_values = market_dv_sum_unsorted.reindex(dates).to_numpy(dtype=float)
-    out["sector_dollar_vol_sum"] = dv_values
     out["sector_dollar_vol_share"] = safe_divide(dv_values, market_dv_values, fill=0.0)
     out["sector_dollar_vol_rank_pct"] = sector_dv_rank.reindex(key).to_numpy()
-    groups["sector_liquidity"] += ["sector_dollar_vol_sum", "sector_dollar_vol_share", "sector_dollar_vol_rank_pct"]
+    groups["sector_liquidity"] += ["sector_dollar_vol_share", "sector_dollar_vol_rank_pct"]
 
     sector_dv_df = sector_dv_sum.rename("sector_dollar_vol_sum").reset_index().sort_values(["__sector", "__date"])
     sector_dv_df["prior20"] = sector_dv_df.groupby("__sector")["sector_dollar_vol_sum"].transform(lambda s: s.shift(1).rolling(20, min_periods=5).mean())
@@ -196,12 +182,12 @@ def add_first_batch_context_features(X: pd.DataFrame) -> tuple[pd.DataFrame, lis
     out[new_cols] = out[new_cols].replace([np.inf, -np.inf], np.nan)
     if out[new_cols].isna().any().any():
         bad = out[new_cols].isna().sum()
-        raise RuntimeError(f"NA in first-batch context features: {bad[bad > 0].to_dict()}")
+        raise RuntimeError(f"NA in compact first-batch context features: {bad[bad > 0].to_dict()}")
     return out, new_cols, groups
 
 
 def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="AS1455 first-batch stable feature fold-0 NN parameter search")
+    p = argparse.ArgumentParser(description="AS1455 compact first-batch stable feature fold-0 NN parameter search")
     p.add_argument("--model-data", default=str(base.DEFAULT_MODEL_DATA))
     p.add_argument("--out-dir", default=str(DEFAULT_OUT_DIR))
     p.add_argument("--train-end", default=None)
@@ -239,6 +225,7 @@ def main() -> None:
         "base_feature_count": int(X_base.shape[1]),
         "context_feature_count": len(context_cols),
         "final_feature_count": int(X_final.shape[1]),
+        "feature_preset": "compact",
         "sector_encoding": args.sector_encoding,
         "dropna_mode": args.dropna_mode,
         "fold_index": args.fold_index,
@@ -250,6 +237,7 @@ def main() -> None:
     write_json(out_dir / "feature_cols_base.json", list(X_base.columns))
     write_json(out_dir / "context_feature_cols.json", context_cols)
     write_json(out_dir / "feature_group_cols.json", feature_groups)
+    write_json(out_dir / "removed_redundant_features.json", COMPACT_REMOVED_REDUNDANT_FEATURES)
     write_json(out_dir / "unavailable_first_batch_features.json", UNAVAILABLE_FIRST_BATCH_FEATURES)
     write_json(out_dir / "rotation_feature_cols.json", context_cols)
     write_json(out_dir / "feature_cols_final.json", list(X_final.columns))
