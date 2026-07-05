@@ -583,3 +583,15 @@ saved_data/*_pipeline_out/
 saved_data/*_model_search_out/
 saved_data/*_ridge_search_out/
 saved_data/tmp_*.csv
+saved_data/ashare_ml4t/ch17_as1455_weekly_retrain_empty_2026-05-16_to_2026-06-26_clean_adj/
+saved_data/ashare_ml4t/as1455_baostock_audit_20260630/
+saved_data/ashare_ml4t/ch17_as1455_sector_rotation_onehot_fold*_search/
+saved_data/ashare_ml4t/ch17_as1455_full_rotation_plus_first_batch_compact_fold*_search/
+saved_data/ashare_ml4t/ch17_as1455_train_latest_cv7/
+saved_data/ashare_ml4t/ch17_as1455_sector_rotation_onehot_fold*_full/
+saved_data/ashare_ml4t/ch17_as1455_sector_rotation_onehot_fold*_check/
+saved_data/ashare_ml4t/ch17_as1455_sector_onehot_fold_test/
+saved_data/ashare_ml4t/ch17_as1455_first_batch_features_compact_fold*_search/
+saved_data/ashare_ml4t/as1455_sector_audit*/
+saved_data/ashare_ml4t/ch12_as1455/model_data_contract.json
+saved_data/ashare_ml4t/ch12_as1455/model_data_contract_validation.json

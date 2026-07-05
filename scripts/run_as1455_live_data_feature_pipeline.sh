@@ -405,6 +405,16 @@ run_collect() {
 run_features() {
   info "building live features"
   mkdir -p "${LIVE_DIR}"
+  # BEGIN AS1455_LIVE_SECTOR_REFERENCE_CONTRACT_GATE
+  if [[ "${SKIP_SECTOR_REFERENCE_CONTRACT_CHECK:-0}" != "1" ]]; then
+    "${PYTHON}" tools/validate_as1455_model_data_contract.py \
+      --model-data "${SECTOR_REFERENCE}" \
+      --require-contract \
+      --require-adjusted-artifacts
+  else
+    echo "[WARN] SKIP_SECTOR_REFERENCE_CONTRACT_CHECK=1; sector reference contract validation skipped"
+  fi
+  # END AS1455_LIVE_SECTOR_REFERENCE_CONTRACT_GATE
   local args=(
     "${SCRIPT_FEATURES}"
     --trade-date "${TRADE_DATE}"

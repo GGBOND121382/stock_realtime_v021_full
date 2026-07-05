@@ -21,6 +21,20 @@ FORCE="${FORCE:-0}"
 
 mkdir -p "$OUT_ROOT" "$BT_ROOT"
 
+# BEGIN AS1455_ADJUSTED_CONTRACT_GATE
+CONTRACT_VALIDATOR="${CONTRACT_VALIDATOR:-tools/validate_as1455_model_data_contract.py}"
+if [[ "${SKIP_MODEL_DATA_CONTRACT_CHECK:-0}" != "1" ]]; then
+  echo "[INFO] validating adjusted AS1455 model_data contract: ${MODEL_DATA}"
+  python3 "${CONTRACT_VALIDATOR}" \
+    --model-data "${MODEL_DATA}" \
+    --require-contract \
+    --require-adjusted-artifacts
+else
+  echo "[WARN] SKIP_MODEL_DATA_CONTRACT_CHECK=1; adjusted model_data contract validation skipped"
+fi
+# END AS1455_ADJUSTED_CONTRACT_GATE
+
+
 TRAIN_CMD=(
   python3 code/training/run_as1455_weekly_retrain_predict_v1.py
   --model-data "$MODEL_DATA"
