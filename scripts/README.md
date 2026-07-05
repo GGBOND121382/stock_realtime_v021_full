@@ -1,3 +1,3 @@
 # scripts
 
-This directory contains project entry scripts. Temporary patch executors and backup files have been removed from the active scripts directory.
+See repository history for detailed usage. Current main entry is run_as1455_sector_rotation_fold0_param_search.py.
