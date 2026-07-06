@@ -5,7 +5,11 @@ cd "$(dirname "$0")/.."
 OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_rotation_addon_one_lag_daily_backtest_$(date +%Y%m%d)}"
 MODEL_DATA="${MODEL_DATA:-saved_data/ashare_ml4t/ch12_as1455/model_data_as1455.h5}"
 RAW_DAILY_CACHE_DIR="${RAW_DAILY_CACHE_DIR:-saved_data/ashare_ml4t/ch12_as1455/baostock_raw_daily_cache}"
-FOLD_DIR_TEMPLATE="${FOLD_DIR_TEMPLATE:-saved_data/ashare_ml4t/ch17_as1455_full_rotation_plus_first_batch_compact_fold{fold}_search}"
+# Do not put the literal {fold} placeholder inside ${VAR:-...}; bash may
+# terminate the parameter expansion at the inner }, corrupting the template.
+if [[ -z "${FOLD_DIR_TEMPLATE:-}" ]]; then
+  FOLD_DIR_TEMPLATE='saved_data/ashare_ml4t/ch17_as1455_full_rotation_plus_first_batch_compact_fold{fold}_search'
+fi
 CAPACITY_MODE="${CAPACITY_MODE:-none}"
 OUTPUT_MODE="${OUTPUT_MODE:-compact}"
 MAX_POSITIONS_LIST="${MAX_POSITIONS_LIST:-5,10,15,20,25}"
