@@ -13,6 +13,26 @@ This directory contains reusable project entrypoints. Do not add backup copies o
 - `run_ashare_ch17_backtest_profiles.py`: Ch17 prediction and backtest profile helper.
 - `analyze_ashare_ch17_model_predictions.py`: prediction diagnostics.
 
+## One-fold-lag daily close-auction backtests
+
+These scripts generate target-fold predictions from previous-fold search-time checkpoints and then call the existing close-auction v7 grid with daily rebalance only (`rebalance_every=1`, `rebalance_offset=0`).
+
+- `run_as1455_rotation_one_lag_daily_backtest.py` / `.sh`: original 31 features + full sector rotation + sector one-hot.
+- `run_as1455_rotation_addon_one_lag_daily_backtest.py` / `.sh`: original 31 features + full sector rotation + compact add-on features + sector one-hot.
+
+Main metric files are written under `<OUT_ROOT>/01_close_auction_daily_grid/02_summary/`:
+
+- `grid_summary_compact.csv`: compact table with return, drawdown, win-rate, turnover, fee, order and rejection metrics.
+- `leaderboard_by_total_return.csv`
+- `leaderboard_by_annual_return.csv`
+- `leaderboard_by_sharpe.csv`
+- `leaderboard_by_calmar.csv`
+- `leaderboard_by_max_drawdown.csv`
+- `leaderboard_by_trade_win_rate.csv`
+- `leaderboard_by_fee_efficiency.csv`
+
+Important columns include `total_return`, `annual_return`, `sharpe`, `calmar`, `max_drawdown`, `daily_win_rate`, `monthly_win_rate`, `trade_win_rate`, `round_trip_win_rate`, `avg_turnover`, `annualized_turnover`, `gross_trade_amount`, `total_fee`, `fee_to_initial_cash`, `avg_positions`, `n_orders`, and `n_rejections`.
+
 ## Live and weekly AS1455 pipeline
 
 - `run_as1455_live_data_feature_pipeline.sh`: live data and feature pipeline.
