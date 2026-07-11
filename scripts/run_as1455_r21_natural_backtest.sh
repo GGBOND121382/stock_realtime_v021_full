@@ -13,7 +13,11 @@ CAPACITY_MODE="${CAPACITY_MODE:-none}"
 OUTPUT_MODE="${OUTPUT_MODE:-compact}"
 MAX_POSITIONS_LIST="${MAX_POSITIONS_LIST:-5,10,15,20,25}"
 SELL_RANK_LIST="${SELL_RANK_LIST:-75,100,150,200,250,300}"
-TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4,5}"
+# r21_fwd does not have enough valid dates for source fold6 in the current AS1455 dataset.
+# Therefore the default one-fold-lag backtest uses target folds 0..4:
+# source fold5 -> target fold4, ..., source fold1 -> target fold0.
+# If fold6_search is available in a future dataset, override with TARGET_FOLDS="0,1,2,3,4,5".
+TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4}"
 TOP_N="${TOP_N:-5}"
 OUT_BASE="${OUT_BASE:-saved_data/ashare_ml4t/ch17_as1455_target_backtest}"
 FORCE_GRID="${FORCE_GRID:-1}"
@@ -22,7 +26,7 @@ DRY_RUN="${DRY_RUN:-0}"
 
 for preset in $FEATURE_PRESETS; do
   out_root="$OUT_BASE/${preset}_${TARGET_COL}_reb${REBALANCE_EVERY}_$(date +%Y%m%d)"
-  echo "===== backtest preset=${preset} target=${TARGET_COL} rebalance_every=${REBALANCE_EVERY} ====="
+  echo "===== backtest preset=${preset} target=${TARGET_COL} rebalance_every=${REBALANCE_EVERY} target_folds=${TARGET_FOLDS} ====="
   args=(
     scripts/run_as1455_target_one_lag_backtest.py
     --feature-preset "$preset"
