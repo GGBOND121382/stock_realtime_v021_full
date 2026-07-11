@@ -18,11 +18,12 @@ TOP_N="${TOP_N:-5}"
 OUT_BASE="${OUT_BASE:-saved_data/ashare_ml4t/ch17_as1455_target_backtest}"
 FORCE_GRID="${FORCE_GRID:-1}"
 SMOKE="${SMOKE:-0}"
+PARITY_CHECK_ONLY="${PARITY_CHECK_ONLY:-0}"
 DRY_RUN="${DRY_RUN:-0}"
 
 for preset in $FEATURE_PRESETS; do
   out_root="$OUT_BASE/${preset}_${TARGET_COL}_reb${REBALANCE_EVERY}_$(date +%Y%m%d)"
-  echo "===== backtest preset=${preset} target=${TARGET_COL} rebalance_every=${REBALANCE_EVERY} ====="
+  echo "===== backtest preset=${preset} target=${TARGET_COL} rebalance_every=${REBALANCE_EVERY} target_folds=${TARGET_FOLDS} output_mode=${OUTPUT_MODE} ====="
   args=(
     scripts/run_as1455_target_one_lag_backtest.py
     --feature-preset "$preset"
@@ -46,6 +47,9 @@ for preset in $FEATURE_PRESETS; do
   fi
   if [[ "$SMOKE" == "1" ]]; then
     args+=(--smoke)
+  fi
+  if [[ "$PARITY_CHECK_ONLY" == "1" ]]; then
+    args+=(--parity-check-only)
   fi
   if [[ "$DRY_RUN" == "1" ]]; then
     args+=(--dry-run)
