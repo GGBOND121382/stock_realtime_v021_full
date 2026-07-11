@@ -148,7 +148,10 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--prediction-file", default=None)
     p.add_argument("--skip-predictions", action="store_true")
     p.add_argument("--skip-grid", action="store_true")
-    p.add_argument("--grid-script", default=str(core.DEFAULT_GRID_SCRIPT))
+    p.add_argument(
+        "--grid-script",
+        default=str(PROJECT_DIR / "code" / "backtest" / "run_as1455_close_auction_grid_inprocess.py"),
+    )
     p.add_argument("--grid-out-root", default=None)
     p.add_argument("--raw-daily-cache-dir", default=str(core.DEFAULT_RAW_DAILY_CACHE_DIR))
     p.add_argument("--profile", default="close_auction_skip_limit")
