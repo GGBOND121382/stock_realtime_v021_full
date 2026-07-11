@@ -877,6 +877,11 @@ def parse_args():
     p.add_argument("--force", action="store_true")
     p.add_argument("--dry-run", action="store_true")
     p.add_argument("--skip-parity-check", action="store_true")
+    p.add_argument(
+        "--parity-check-only",
+        action="store_true",
+        help="Build shared caches, compare one optimized run with original v7, then exit.",
+    )
     p.add_argument("--model-family", default="ML4T Ch17 NN")
     p.add_argument("--model-run", default=None)
     p.add_argument("--model-params-file", default=None)
@@ -1070,6 +1075,30 @@ def main():
         )
         parity_result["skipped"] = False
         print("[PARITY] PASS")
+
+    if args.parity_check_only:
+        if args.skip_parity_check:
+            raise SystemExit("--parity-check-only cannot be combined with --skip-parity-check")
+        manifest = {
+            "engine": "inprocess_shared_rank_v2",
+            "configs": len(configs),
+            "signals": [x["signal_name"] for x in args.signal_specs],
+            "execution_panel_built_once": True,
+            "daily_rankings_built_once_per_signal": True,
+            "rankings_reused_across_all_grid_configs": True,
+            "non_rebalance_rank_maps_accessed_only_for_full_output": True,
+            "dynamic_source_rewrite": False,
+            "prediction_file_sha256": prediction_sha,
+            "output_mode": args.run_output_mode,
+            "parity_check_only": True,
+            "parity_check": parity_result,
+        }
+        (out_root / "grid_engine_manifest.json").write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        print("[PARITY] check-only completed; grid was not executed")
+        return
 
     rows: list[dict[str, Any]] = []
     for i, cfg_tuple in enumerate(configs, 1):
