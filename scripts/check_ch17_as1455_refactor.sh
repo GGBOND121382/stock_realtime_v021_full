@@ -10,6 +10,7 @@ echo '===== Python syntax ====='
   utils/as1455_ch17_common.py \
   utils/as1455_cli.py \
   utils/as1455_signal_specs.py \
+  utils/as1455_model_selection.py \
   utils/as1455_rank_cache.py \
   utils/as1455_backtest_io.py \
   utils/as1455_grid_runner.py \
@@ -22,6 +23,7 @@ echo '===== Python syntax ====='
   scripts/run_as1455_rotation_addon_one_lag_daily_backtest.py \
   scripts/plot_as1455_backtest_return_curves.py \
   scripts/check_ch17_as1455_refactor.py \
+  scripts/check_as1455_historical_model_selection.py \
   scripts/compare_as1455_backtest_runs.py \
   code/backtest/run_as1455_close_auction_grid_inprocess.py
 
@@ -39,9 +41,13 @@ for script in \
 done
 
 echo '===== Default selection policy ====='
-grep -F 'TOP_N="${TOP_N:-5}"' scripts/run_as1455_fold0_forward_backtests.sh >/dev/null
+grep -F 'MODEL_SELECTION_MODE="${MODEL_SELECTION_MODE:-historical_best}"' scripts/run_as1455_fold0_forward_backtests.sh >/dev/null
+grep -F 'SELECTION_RANK_METRIC="${SELECTION_RANK_METRIC:-sharpe}"' scripts/run_as1455_fold0_forward_backtests.sh >/dev/null
 grep -F 'RANK_METRIC="${RANK_METRIC:-sharpe}"' scripts/plot_as1455_default_ab_nav_curves.sh >/dev/null
-echo '[OK] fold0 candidates=top5+ensembles; plot selection metric=sharpe'
+echo '[OK] fold0 model signal and plotting both use historical best by Sharpe'
+
+echo '===== Historical model-selection synthetic check ====='
+"$PYTHON_BIN" scripts/check_as1455_historical_model_selection.py
 
 echo '===== Structural and synthetic checks ====='
 "$PYTHON_BIN" scripts/check_ch17_as1455_refactor.py
