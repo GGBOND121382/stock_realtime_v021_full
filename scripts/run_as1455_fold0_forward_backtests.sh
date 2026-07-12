@@ -124,10 +124,9 @@ PY
 
     "$PYTHON_BIN" "${args[@]}"
 
-    if [[ "$KEEP_PREDICTION_CSV" != "1" ]]; then
-      rm -f \
-        "$out_root/00_predictions/fold0_forward_preds.csv" \
-        "$out_root/00_predictions/actual_${target}.csv"
+    if [[ "$KEEP_PREDICTION_CSV" != "1" && "$DRY_RUN" != "1" ]]; then
+      "$PYTHON_BIN" scripts/compact_as1455_prediction_artifacts.py \
+        --prediction-dir "$out_root/00_predictions"
     fi
     echo "Output root: $out_root"
   done
