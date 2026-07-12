@@ -13,7 +13,7 @@ BACKTEST_ROOTS="${BACKTEST_ROOTS:-}"
 LABELS="${LABELS:-}"
 
 args=(
-  scripts/plot_as1455_backtest_return_curves_accessible.py
+  scripts/plot_as1455_backtest_return_curves.py
   --rank-metric "$RANK_METRIC"
   --frequencies "$FREQUENCIES"
   --out-dir "$OUT_DIR"
