@@ -24,6 +24,10 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
+from utils.as1455_artifact_retention import (  # noqa: E402
+    prediction_sidecar_candidates,
+    update_prediction_manifests,
+)
 from utils.as1455_model_selection import (  # noqa: E402
     find_summary_file,
     read_csv_auto,
@@ -36,7 +40,7 @@ OBSOLETE_DIRS = (
     "as1455_sector_audit_v2",
     "ch17_as1455_weekly_retrain_top5_full_20260625_152927",
     "live_as1455_probe",
-    "ch17_as1455_weekly_retrain_empty_2026-05-16_to_2026-06-26",
+    "ch17_as1455_weekly_retrain_empty_2026-05-16_to_2026-26",
     "ch17_as1455_weekly_retrain_empty_2026-05-16_to_2026-06-26_clean_adj",
     "ch17_as1455_smoke",
     "ch17_nn_smoke",
@@ -222,19 +226,15 @@ def cleanup_live(cleaner: Cleaner, keep_dates: int) -> dict[str, Any]:
 
 def cleanup_prediction_csv(cleaner: Cleaner) -> int:
     removed = 0
-    for csv_path in cleaner.base.glob("**/00_predictions/*.csv"):
-        if csv_path.name.startswith("selected_"):
+    for prediction_dir in cleaner.base.glob("**/00_predictions"):
+        if not prediction_dir.is_dir():
             continue
-        if csv_path.name.startswith("actual_"):
-            hdfs = list(csv_path.parent.glob("*.h5"))
-            if not hdfs:
-                continue
-        else:
-            hdf = csv_path.with_suffix(".h5")
-            if not hdf.exists() or hdf.stat().st_size == 0:
-                continue
-        cleaner.remove(csv_path, "duplicate prediction CSV; HDF is canonical")
-        removed += 1
+        candidates = prediction_sidecar_candidates(prediction_dir)
+        for path in candidates:
+            cleaner.remove(path, "duplicate prediction CSV; HDF is canonical")
+            removed += 1
+        if cleaner.apply and candidates:
+            update_prediction_manifests(prediction_dir, candidates)
     return removed
 
 
@@ -255,16 +255,15 @@ def selected_run_names(root: Path) -> set[str]:
             for _signal, group in valid.groupby("signal_name"):
                 keep.add(str(group.sort_values(metric, ascending=ascending).iloc[0]["run_name"]))
 
-    for manifest_name in ("materialized_best_run.json",):
-        path = root / manifest_name
-        if path.exists():
-            try:
-                obj = json.loads(path.read_text(encoding="utf-8"))
-                run_name = (obj.get("selection") or {}).get("run_name")
-                if run_name:
-                    keep.add(str(run_name))
-            except Exception:
-                pass
+    path = root / "materialized_best_run.json"
+    if path.exists():
+        try:
+            obj = json.loads(path.read_text(encoding="utf-8"))
+            run_name = (obj.get("selection") or {}).get("run_name")
+            if run_name:
+                keep.add(str(run_name))
+        except Exception:
+            pass
     for path in root.glob("**/strict_oos_manifest.json"):
         try:
             run_name = json.loads(path.read_text(encoding="utf-8")).get("retained_run_name")
