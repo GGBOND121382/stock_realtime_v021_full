@@ -20,6 +20,7 @@ echo '===== Python syntax ====='
   scripts/run_as1455_rotation_addon_one_lag_daily_backtest.py \
   scripts/plot_as1455_backtest_return_curves.py \
   scripts/check_ch17_as1455_refactor.py \
+  scripts/compare_as1455_backtest_runs.py \
   code/backtest/run_as1455_close_auction_grid_inprocess.py
 
 echo '===== Shell syntax ====='
@@ -45,6 +46,7 @@ echo '===== CLI imports ====='
 "$PYTHON_BIN" scripts/run_as1455_rotation_one_lag_daily_backtest.py --help >/dev/null
 "$PYTHON_BIN" scripts/run_as1455_rotation_addon_one_lag_daily_backtest.py --help >/dev/null
 "$PYTHON_BIN" scripts/plot_as1455_backtest_return_curves.py --help >/dev/null
+"$PYTHON_BIN" scripts/compare_as1455_backtest_runs.py --help >/dev/null
 "$PYTHON_BIN" code/backtest/run_as1455_close_auction_grid_inprocess.py --help >/dev/null
 
 echo '[PASS] Ch17 AS1455 refactor validation passed'
