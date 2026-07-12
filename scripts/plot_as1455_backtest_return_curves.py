@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Plot AS1455 backtest return curves for multiple backtest roots.
+"""Plot AS1455 return curves for the best run in each backtest root.
 
-For each backtest root, select the best grid run by ``--rank-metric``, load its
-NAV, and draw daily/weekly/monthly cumulative-return curves. Curves are always
-distinguished by both line style and marker, so the figures do not rely on
-color perception alone.
+Best-run selection is shared with fold0-forward model selection through
+``utils.as1455_model_selection``.  By default both workflows rank successful
+rows by Sharpe, so they cannot silently disagree about which historical signal
+is best.
 """
 from __future__ import annotations
 
@@ -26,6 +26,11 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
+from utils.as1455_model_selection import (  # noqa: E402
+    find_summary_file,
+    read_csv_auto,
+    select_best_run,
+)
 from utils.as1455_plotting import plot_frequency as plot_frequency_shared  # noqa: E402
 
 DEFAULT_BACKTEST_ROOTS = [
@@ -47,80 +52,10 @@ FREQ_RULES = {
     "weekly": "W-FRI",
     "monthly": "M",
 }
-HIGHER_IS_BETTER = {
-    "total_return",
-    "annual_return",
-    "sharpe",
-    "calmar",
-    "max_drawdown",
-    "daily_win_rate",
-    "monthly_win_rate",
-    "trade_win_rate",
-    "round_trip_win_rate",
-}
-LOWER_IS_BETTER = {
-    "avg_turnover",
-    "annualized_turnover",
-    "gross_trade_amount",
-    "total_fee",
-    "fee_to_initial_cash",
-    "n_orders",
-    "n_rejections",
-}
-SUMMARY_CANDIDATES = [
-    "01_close_auction_daily_grid/02_summary/grid_summary_compact.csv",
-    "01_close_auction_grid/02_summary/grid_summary_compact.csv",
-    "01_close_auction_daily_grid/02_summary/grid_summary.csv",
-    "01_close_auction_grid/02_summary/grid_summary.csv",
-]
 GRID_DIR_CANDIDATES = [
     "01_close_auction_daily_grid",
     "01_close_auction_grid",
 ]
-
-
-def read_csv_auto(path: Path) -> pd.DataFrame:
-    try:
-        return pd.read_csv(path)
-    except UnicodeDecodeError:
-        return pd.read_csv(path, encoding="utf-8-sig")
-
-
-def find_summary_file(root: Path) -> tuple[Path, Path]:
-    for relative in SUMMARY_CANDIDATES:
-        path = root / relative
-        if path.exists():
-            return path, path.parents[1]
-    matches = sorted(root.glob("**/02_summary/grid_summary_compact.csv"))
-    if matches:
-        path = matches[0]
-        return path, path.parents[1]
-    matches = sorted(root.glob("**/02_summary/grid_summary.csv"))
-    if matches:
-        path = matches[0]
-        return path, path.parents[1]
-    raise FileNotFoundError(f"cannot find grid summary under {root}")
-
-
-def select_best_run(summary: pd.DataFrame, metric: str) -> pd.Series:
-    frame = summary.copy()
-    if "status" in frame.columns:
-        ok = frame["status"].astype(str).str.lower().eq("ok")
-        if ok.any():
-            frame = frame.loc[ok].copy()
-    if metric not in frame.columns:
-        raise RuntimeError(
-            f"rank metric {metric!r} not found in summary columns: "
-            f"{list(frame.columns)}"
-        )
-    if "run_name" not in frame.columns:
-        raise RuntimeError("summary does not contain run_name column")
-    frame[metric] = pd.to_numeric(frame[metric], errors="coerce")
-    frame = frame.dropna(subset=[metric])
-    if frame.empty:
-        raise RuntimeError(f"no valid rows for metric {metric!r}")
-    ascending = metric in LOWER_IS_BETTER and metric not in HIGHER_IS_BETTER
-    return frame.sort_values(metric, ascending=ascending).iloc[0]
 
 
 def find_nav_file(root: Path, grid_dir: Path, run_name: str) -> Path:
@@ -175,10 +110,9 @@ def sample_curve(curve: pd.DataFrame, frequency: str) -> pd.DataFrame:
         )
     if frequency == "daily":
         return curve.copy()
-    rule = FREQ_RULES[frequency]
     return (
         curve.set_index("date")[["nav", "return_pct"]]
-        .resample(rule)
+        .resample(FREQ_RULES[frequency])
         .last()
         .dropna()
         .reset_index()
@@ -263,11 +197,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--title-prefix", default="AS1455 best-grid cumulative return"
     )
-    parser.add_argument(
-        "--show-selected",
-        action="store_true",
-        help="Print selected runs to stdout",
-    )
+    parser.add_argument("--show-selected", action="store_true")
     return parser.parse_args()
 
 
@@ -316,8 +246,7 @@ def main() -> None:
         if not root.exists():
             raise FileNotFoundError(root)
         summary_file, grid_dir = find_summary_file(root)
-        summary = read_csv_auto(summary_file)
-        best = select_best_run(summary, args.rank_metric)
+        best = select_best_run(read_csv_auto(summary_file), args.rank_metric)
         run_name = str(best["run_name"])
         nav_file = find_nav_file(root, grid_dir, run_name)
         curve = load_curve(nav_file)
