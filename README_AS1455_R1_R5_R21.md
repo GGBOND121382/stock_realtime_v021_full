@@ -95,6 +95,7 @@ bash scripts/check_ch17_as1455_refactor.sh
 - 关键 CLI 导入；
 - r1/r5/r21 目标映射；
 - `TOP_N` 与 signal 列；
+- fold0 默认候选模型与绘图默认选择规则一致；
 - 排名缓存与原逐日排序结果一致；
 - grid 不含第二套交易函数；
 - wrapper 不复制 checkpoint 或交易逻辑；
@@ -285,25 +286,9 @@ PARITY_CHECK_ONLY=1 \
 bash scripts/run_as1455_r05_natural_backtest.sh
 ```
 
-正确输出：
-
-```text
-[PARITY] single v7 trade engine smoke run ...
-[PARITY] PASS
-[PARITY] check-only completed; grid was not executed
-```
-
 正式运行 A/B：
 
 ```bash
-OUTPUT_MODE=full \
-bash scripts/run_as1455_r05_natural_backtest.sh
-```
-
-只跑 A：
-
-```bash
-FEATURE_PRESETS='rotation_onehot' \
 OUTPUT_MODE=full \
 bash scripts/run_as1455_r05_natural_backtest.sh
 ```
@@ -338,7 +323,7 @@ bash scripts/run_as1455_r21_natural_backtest.sh
 0,1,2,3,4
 ```
 
-参数空间：
+默认参数空间：
 
 ```text
 7 signals × 5 max_positions × 6 sell_rank × 21 offsets
@@ -347,7 +332,7 @@ bash scripts/run_as1455_r21_natural_backtest.sh
 
 ---
 
-## 6. fold0 最优模型用于 fold0 后续日期
+## 6. fold0 模型用于 fold0 后续日期
 
 协议：
 
@@ -357,7 +342,62 @@ bash scripts/run_as1455_r21_natural_backtest.sh
 - 每个参数组合从初始资金和空仓开始；
 - 不继承 fold0 测试期持仓。
 
-### 6.1 更新最新数据
+### 6.1 默认模型候选与绘图选择规则
+
+fold0-forward 默认：
+
+```text
+TOP_N=5
+```
+
+`search_best_checkpoints.csv` 中按 `daily_ic_median` 排名前五的 checkpoint 会生成：
+
+```text
+model_0
+model_1
+model_2
+model_3
+model_4
+ensemble_first3_mean
+ensemble_all5_mean
+```
+
+回测会为这 7 个 signal 遍历持仓数、卖出排名和 offset。绘图默认：
+
+```text
+RANK_METRIC=sharpe
+```
+
+因此默认流程是：
+
+```text
+fold0 top5 checkpoint + 两个 ensemble
+→ 完整参数网格回测
+→ 每个回测根目录中选择 Sharpe 最高的完整 run
+→ 绘制该 run 的 NAV
+```
+
+这里的“完整 run”同时包含：
+
+```text
+signal_name
+max_positions
+sell_rank
+rebalance_every
+rebalance_offset
+```
+
+需要只测试训练阶段 `daily_ic_median` 第一名的单模型时，显式设置：
+
+```bash
+TOP_N=1 \
+TARGETS='r05_fwd' \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+此时只有 `model_0`，绘图只在交易参数之间按 Sharpe 选择。
+
+### 6.2 更新最新数据
 
 默认 forward wrapper 会自动执行：
 
@@ -380,7 +420,7 @@ bash scripts/refresh_as1455_forward_model_data.sh
 saved_data/ashare_ml4t/ch12_as1455_forward_latest/model_data_as1455.h5
 ```
 
-### 6.2 r1
+### 6.3 r1
 
 ```bash
 TARGETS='r01_fwd' \
@@ -389,7 +429,7 @@ OUTPUT_MODE=full \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-### 6.3 r5
+### 6.4 r5
 
 ```bash
 TARGETS='r05_fwd' \
@@ -398,30 +438,12 @@ OUTPUT_MODE=full \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-### 6.4 r21
+### 6.5 r21
 
 ```bash
 TARGETS='r21_fwd' \
 FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
 OUTPUT_MODE=full \
-bash scripts/run_as1455_fold0_forward_backtests.sh
-```
-
-### 6.5 单模型与 top5
-
-fold0-forward 默认：
-
-```text
-TOP_N=1
-```
-
-因此只回测 `model_0`，与“fold0 最优模型”定义一致。
-
-需要 top5 和 ensemble：
-
-```bash
-TOP_N=5 \
-TARGETS='r05_fwd' \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
@@ -493,7 +515,14 @@ transfer_fee_rate = 0.00001
 scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-曲线同时使用颜色、线型和 marker，并输出实际选中的 signal 和参数。
+默认：
+
+```text
+RANK_METRIC=sharpe
+FREQUENCIES=daily,weekly,monthly
+```
+
+对每一个 `BACKTEST_ROOT`，绘图器独立选择该目录中指标最优的完整 run。曲线同时使用颜色、线型和 marker，并输出实际选中的 signal 和参数。
 
 ### 8.1 r1 A/B
 
@@ -563,7 +592,7 @@ RANK_METRIC=total_return bash scripts/plot_as1455_default_ab_nav_curves.sh
 RANK_METRIC=calmar bash scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-输出：
+绘图输出：
 
 ```text
 return_curve_daily.png
@@ -575,6 +604,8 @@ return_curve_monthly.csv
 selected_best_grids.csv
 selected_best_grids.json
 ```
+
+`selected_best_grids.csv` 是实际模型和参数选择的最终依据。
 
 ---
 
