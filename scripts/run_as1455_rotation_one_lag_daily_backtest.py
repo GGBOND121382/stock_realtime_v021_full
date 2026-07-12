@@ -2,51 +2,29 @@
 # -*- coding: utf-8 -*-
 """Compatibility entry point for r1 rotation+one-hot one-fold-lag backtests.
 
-The implementation lives in ``run_as1455_target_one_lag_backtest.py``.  This
-file only supplies the historical r1/A defaults so existing commands keep
-working without maintaining a second prediction pipeline.
+The implementation lives in ``run_as1455_target_one_lag_backtest.py``. This
+file only supplies historical r1/A defaults.
 """
 from __future__ import annotations
 
 import sys
-from datetime import datetime
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
-DEFAULT_MODEL_DATA = (
-    PROJECT_DIR
-    / "saved_data"
-    / "ashare_ml4t"
-    / "ch12_as1455"
-    / "model_data_as1455.h5"
+from utils import as1455_ch17_common as common  # noqa: E402
+from utils import as1455_paths  # noqa: E402
+
+DEFAULT_MODEL_DATA = as1455_paths.DEFAULT_MODEL_DATA
+DEFAULT_FOLD_DIR_TEMPLATE = common.default_fold_dir_template(
+    "rotation_onehot", "r01_fwd"
 )
-DEFAULT_FOLD_DIR_TEMPLATE = str(
-    PROJECT_DIR
-    / "saved_data"
-    / "ashare_ml4t"
-    / "ch17_as1455_sector_rotation_onehot_fold{fold}_search"
-)
-DEFAULT_RAW_DAILY_CACHE_DIR = (
-    PROJECT_DIR
-    / "saved_data"
-    / "ashare_ml4t"
-    / "ch12_as1455"
-    / "baostock_raw_daily_cache"
-)
-DEFAULT_GRID_SCRIPT = (
-    PROJECT_DIR
-    / "code"
-    / "backtest"
-    / "run_as1455_close_auction_grid_inprocess.py"
-)
-DEFAULT_OUT_ROOT = (
-    PROJECT_DIR
-    / "saved_data"
-    / "ashare_ml4t"
-    / f"ch17_as1455_rotation_one_lag_daily_backtest_{datetime.now():%Y%m%d}"
+DEFAULT_RAW_DAILY_CACHE_DIR = as1455_paths.DEFAULT_RAW_DAILY_CACHE_DIR
+DEFAULT_GRID_SCRIPT = as1455_paths.DEFAULT_GRID_SCRIPT
+DEFAULT_OUT_ROOT = common.default_one_lag_out_root(
+    "rotation_onehot", "r01_fwd", 1
 )
 
 
