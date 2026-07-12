@@ -129,12 +129,7 @@ one-fold-lag 和 fold0-forward 只保留各自协议参数。
 每个 signal 的每日排名缓存：
 
 1. 按日期分组；
-2. 对每个日期执行一次与 v7 完全相同的：
-
-```python
-sort_values("score", ascending=False)
-```
-
+2. 每个日期执行一次与 v7 完全相同的 `sort_values("score", ascending=False)`；
 3. 返回显式 `PreSortedPredictionFrame`；
 4. v7 后续对同一日执行相同排序请求时只返回副本，不再次排序。
 
@@ -152,7 +147,7 @@ sort_values("score", ascending=False)
 
 ### 3.7 `utils/as1455_grid_runner.py`
 
-当前 in-process grid 的完整编排层：
+当前 in-process grid 编排层：
 
 - prediction 每个 signal 加载一次；
 - 每个 signal 的每日 score 排序一次；
@@ -265,11 +260,6 @@ scripts/run_as1455_target_fold_param_search.py
 
 支持 A/B、r1/r5/r21、指定 fold、原参数网格和 search-time top-N checkpoint。
 
-默认目录使用同一个 fold 模板：
-
-- r1 继续兼容原有训练目录；
-- r5/r21 使用 `ch17_as1455_target_search/<preset>/<target>/foldN_search`。
-
 ### 5.3 批量训练入口
 
 通用入口：
@@ -301,7 +291,7 @@ fold_report.json
 
 ---
 
-## 6. 预测协议层
+## 6. 预测协议与模型选择
 
 ### 6.1 one-fold-lag
 
@@ -344,9 +334,57 @@ scripts/run_as1455_fold0_forward_backtest.py
 scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-默认 `TOP_N=1`，即只测试 fold0 最优单模型。top5/ensemble 需显式设置 `TOP_N=5`。
+### 6.3 默认候选模型与绘图一致性
 
-### 6.3 预测文件契约
+fold0-forward 默认：
+
+```text
+TOP_N=5
+```
+
+候选 signal：
+
+```text
+model_0
+model_1
+model_2
+model_3
+model_4
+ensemble_first3_mean
+ensemble_all5_mean
+```
+
+其中 checkpoint 先按训练阶段的 `daily_ic_median` 排名确定 top5。随后回测对 7 个 signal 执行完整交易参数网格。
+
+绘图默认：
+
+```text
+RANK_METRIC=sharpe
+```
+
+因此默认选择政策是：
+
+```text
+训练阶段 daily_ic_median top5 checkpoint
+→ 构造 5 个单模型 signal + 2 个 ensemble
+→ 完整回测参数网格
+→ 每个 BACKTEST_ROOT 中选择 Sharpe 最高的完整 run
+→ 绘制该 run 的 NAV
+```
+
+“完整 run”包含：
+
+```text
+signal_name
+max_positions
+sell_rank
+rebalance_every
+rebalance_offset
+```
+
+只测试训练阶段排名第一的单模型时，显式设置 `TOP_N=1`。这属于受控实验覆盖，不是默认策略。
+
+### 6.4 预测文件契约
 
 ```text
 HDF key: /predictions
@@ -382,7 +420,7 @@ code/backtest/run_as1455_close_auction_grid_v1.py
 code/backtest/run_as1455_close_auction_grid_inprocess.py
 ```
 
-该文件现在是薄入口，调用：
+该文件是薄入口，调用：
 
 ```text
 utils/as1455_grid_runner.py
@@ -394,30 +432,23 @@ utils/as1455_grid_runner.py
 inprocess_shared_rank_v4
 ```
 
-已实现：
+保证：
 
-- 一个进程；
+- 每个 signal 每日只排序一次；
 - execution panel 只构造一次；
-- 每个 signal 每日只实际排序一次；
-- 全部 `max_positions × sell_rank × offset` 共享排序结果；
-- 每个组合仍调用唯一 v7 交易函数；
-- 不存在第二套买卖、费用或 NAV 实现。
-
-已删除：
-
-- `backtest_prepared()` 第二套交易循环；
-- `inspect.getsource + exec` 动态改写；
-- 独立 accessible 绘图 monkey-patch。
+- 所有配置在同一进程运行；
+- 每个配置调用唯一 v7 `backtest()`；
+- 没有 `backtest_prepared()`、动态源码替换或第二套交易循环。
 
 ### 7.4 自然周期 wrapper
 
-通用入口：
+通用：
 
 ```text
 scripts/run_as1455_target_natural_backtest.sh
 ```
 
-兼容入口：
+兼容：
 
 ```text
 scripts/run_as1455_r05_natural_backtest.sh
@@ -428,7 +459,7 @@ scripts/run_as1455_r21_natural_backtest.sh
 
 ## 8. 绘图层
 
-唯一 Python 入口：
+唯一 Python 绘图器：
 
 ```text
 scripts/plot_as1455_backtest_return_curves.py
@@ -440,81 +471,79 @@ shell 入口：
 scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-职责：查找 grid summary、按指标选择最优 run、读取 NAV、生成 daily/weekly/monthly 曲线、保存选中参数并使用统一线型与 marker。
+对每个 `BACKTEST_ROOT`：
 
-已删除：
+1. 读取 `grid_summary_compact.csv` 或 `grid_summary.csv`；
+2. 过滤正常完成的 run；
+3. 默认按 Sharpe 降序选择第一行；
+4. 读取该 `run_name` 的 `close_auction_nav.csv`；
+5. 生成 daily、weekly、monthly 曲线；
+6. 写 `selected_best_grids.csv/json`。
 
-```text
-scripts/plot_as1455_backtest_return_curves_accessible.py
-```
-
----
-
-## 9. 重复开发治理结果
-
-| 原问题 | 当前处理 |
-|---|---|
-| target、lookahead、调仓周期多处定义 | 统一到 `TARGET_SPECS` |
-| one-fold-lag 与 fold0-forward 复制 checkpoint 推理 | 抽到 `as1455_ch17_common.py` |
-| 两个协议复制 grid CLI 和命令 | 抽到 `as1455_cli.py` |
-| `TOP_N` 与 signal 列不匹配 | 由 `as1455_signal_specs.py` 动态生成 |
-| r1 A/B 各维护预测逻辑 | 改成薄 wrapper |
-| r05/r21 训练 shell 重复 | 统一到 `run_as1455_target_search_all.sh` |
-| r05/r21 回测 shell 重复 | 统一到 `run_as1455_target_natural_backtest.sh` |
-| in-process grid 复制交易循环 | 删除，统一调用 v7 `backtest()` |
-| 每个 config 重复排序 | 由 `as1455_rank_cache.py` 每个 signal 每日排序一次 |
-| 回测输出逻辑散落 | 抽到 `as1455_backtest_io.py` |
-| 无障碍绘图另建 monkey-patch | 合并进唯一绘图器 |
-| 默认路径散落 | 抽到 `as1455_paths.py` |
+禁止新建第二个绘图器或使用 monkey-patch 修改基础绘图函数。
 
 ---
 
-## 10. 验证入口
+## 9. 重复开发治理规则
 
-结构、语法和合成排名缓存验证：
+wrapper 只允许：
+
+- 设置默认参数；
+- 组合已有入口；
+- 确定输出目录；
+- 检查输入存在性；
+- 输出运行上下文。
+
+wrapper 禁止：
+
+- 重新实现特征；
+- monkey-patch 业务函数；
+- 复制 checkpoint 推理循环；
+- 复制交易循环；
+- 复制 summary/leaderboard；
+- 维护另一份目标/周期映射。
+
+新增功能前必须回答：
+
+1. 功能属于数据、特征、训练、预测协议、grid、交易还是绘图？
+2. 该层唯一事实来源是什么？
+3. 是否可以增加公共纯函数或参数，而不是复制脚本？
+4. 是否改变 14:55 数据边界、标签、fold、checkpoint 或交易语义？
+5. 如何验证旧结果不变？
+
+---
+
+## 10. 自动验证
+
+入口：
 
 ```bash
 bash scripts/check_ch17_as1455_refactor.sh
 ```
 
-它检查：
+检查内容：
 
-- Python 和 shell 语法；
-- 关键 CLI 可导入；
-- `TARGET_SPECS`；
-- `TOP_N` 与 signal 数量；
-- 排名缓存与原逐日排序结果一致；
-- grid runner 不包含第二套 `backtest`；
-- 兼容 wrapper 不复制 checkpoint 或交易函数；
-- 唯一绘图器和公共样式。
+- Python 编译；
+- shell 语法；
+- CLI 导入；
+- 目标映射；
+- signal 数量；
+- fold0 默认 `TOP_N=5`；
+- 绘图默认 `RANK_METRIC=sharpe`；
+- 排名缓存等价性；
+- 单一交易引擎；
+- 薄 wrapper；
+- 统一绘图器。
 
-数据级单配置 smoke：
-
-```bash
-FEATURE_PRESETS='rotation_onehot' \
-PARITY_CHECK_ONLY=1 \
-bash scripts/run_as1455_r05_natural_backtest.sh
-```
-
-输出必须包含：
-
-```text
-[PARITY] single v7 trade engine smoke run ...
-[PARITY] PASS
-[PARITY] check-only completed; grid was not executed
-```
-
-`PARITY` 是兼容旧参数名，当前含义是“唯一 v7 引擎单配置 smoke”。
-
-单 run 结果比较：
+固定预测文件的重构前后结果比较：
 
 ```bash
 python3 scripts/compare_as1455_backtest_runs.py \
-  --left-run <重构前单个run目录> \
-  --right-run <重构后单个run目录>
+  --left-run <重构前run目录> \
+  --right-run <重构后run目录>
 ```
 
-默认比较 NAV、订单、拒单、round trip 和 `summary.json`，容差为：
+数值容差：
 
 ```text
 rtol=1e-12
@@ -523,49 +552,8 @@ atol=1e-12
 
 ---
 
-## 11. 剩余技术债务
+## 11. 当前已知限制
 
-### 11.1 训练底层进一步拆分
-
-`run_as1455_sector_rotation_fold0_param_search.py` 仍同时承担 CV、特征、训练和 checkpoint 保存。后续可拆为：
-
-```text
-utils/as1455_features.py
-utils/as1455_cv.py
-utils/as1455_training.py
-```
-
-拆分前必须以现有 fold report、checkpoint 排名和 IC 结果做回归基准。
-
-### 11.2 live 部署契约
-
-旧 live bundle 使用旧 Ch17 `.weights.h5` 和重新拟合 scaler；target-aware A/B 使用 search-time `.keras + scaler.pkl + feature_manifest.json`。两者不能靠路径猜测混用，需要独立 deploy manifest。
-
----
-
-## 12. 开发规则
-
-wrapper 只允许：
-
-- 设置默认参数；
-- 组合已有入口；
-- 确定输出目录；
-- 检查输入；
-- 输出运行上下文。
-
-wrapper 禁止：
-
-- 重新实现特征；
-- monkey-patch 业务函数；
-- 复制 checkpoint 推理；
-- 复制交易循环；
-- 复制 summary/leaderboard；
-- 维护另一份目标或周期映射。
-
-新增功能前必须确认：
-
-1. 属于数据、特征、训练、预测协议、grid、交易还是绘图；
-2. 该层唯一事实来源；
-3. 是否可通过参数或公共函数完成；
-4. 是否改变 14:55 数据边界、标签、fold、checkpoint 或交易语义；
-5. 如何验证结果不变。
+1. r21 当前数据下没有可用 source fold6，所以 one-fold-lag 默认只覆盖 target fold0..4。
+2. forward HDF 最后 1、5、21 个交易日分别没有完整 r1、r5、r21 前向标签。
+3. live 旧基线 checkpoint bundle 与 target-aware A/B `.keras + scaler.pkl + feature_manifest.json` 不是同一产物契约，不能直接混用。
