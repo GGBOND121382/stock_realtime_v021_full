@@ -3,12 +3,17 @@
 """Synthetic checks for shared AS1455 historical model selection."""
 from __future__ import annotations
 
+import sys
 import tempfile
 from pathlib import Path
 
 import pandas as pd
 
-from utils.as1455_model_selection import (
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from utils.as1455_model_selection import (  # noqa: E402
     select_historical_signal,
     signal_spec_from_row,
 )
