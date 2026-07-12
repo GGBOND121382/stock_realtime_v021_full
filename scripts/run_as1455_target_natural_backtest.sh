@@ -83,10 +83,9 @@ for preset in $FEATURE_PRESETS; do
 
   "$PYTHON_BIN" "${args[@]}"
 
-  if [[ "$KEEP_PREDICTION_CSV" != "1" ]]; then
-    rm -f \
-      "$out_root/00_predictions/test_preds.csv" \
-      "$out_root/00_predictions/actual_${TARGET_COL}.csv"
+  if [[ "$KEEP_PREDICTION_CSV" != "1" && "$DRY_RUN" != "1" ]]; then
+    "$PYTHON_BIN" scripts/compact_as1455_prediction_artifacts.py \
+      --prediction-dir "$out_root/00_predictions"
   fi
 
   if [[ "$MATERIALIZE_BEST" == "1" \
