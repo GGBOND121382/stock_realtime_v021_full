@@ -3,9 +3,9 @@
 """Per-signal ranking cache for the unchanged v7 trading engine.
 
 The v7 engine calls ``day_frame.sort_values('score', ascending=False)`` for each
-configuration.  This module pre-sorts each date once with exactly that operation
+configuration. This module pre-sorts each date once with exactly that operation
 and returns an explicit pandas ``DataFrame`` subclass whose identical subsequent
-sort request is a no-op copy.  No trading function is patched or duplicated.
+daily sort request is a no-op copy. No trading function is patched or duplicated.
 """
 from __future__ import annotations
 
@@ -31,9 +31,14 @@ class PreSortedPredictionFrame(pd.DataFrame):
         na_position = kwargs.get("na_position", "last")
         ignore_index = kwargs.get("ignore_index", False)
         key = kwargs.get("key", None)
+        is_single_date = (
+            "date" in self.columns
+            and int(self["date"].nunique(dropna=False)) <= 1
+        )
 
         is_v7_daily_sort = (
             bool(getattr(self, "_as1455_presorted_date_score", False))
+            and is_single_date
             and by == "score"
             and ascending is False
             and axis in (0, "index")
