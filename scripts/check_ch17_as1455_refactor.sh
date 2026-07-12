@@ -38,6 +38,11 @@ for script in \
   bash -n "$script"
 done
 
+echo '===== Default selection policy ====='
+grep -F 'TOP_N="${TOP_N:-5}"' scripts/run_as1455_fold0_forward_backtests.sh >/dev/null
+grep -F 'RANK_METRIC="${RANK_METRIC:-sharpe}"' scripts/plot_as1455_default_ab_nav_curves.sh >/dev/null
+echo '[OK] fold0 candidates=top5+ensembles; plot selection metric=sharpe'
+
 echo '===== Structural and synthetic checks ====='
 "$PYTHON_BIN" scripts/check_ch17_as1455_refactor.py
 
