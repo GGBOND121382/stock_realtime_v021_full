@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 """Shared AS1455 in-process grid runner.
 
-This module owns grid orchestration and reusable input preparation.  Portfolio
-simulation remains exclusively in the v7 ``backtest`` function.  Predictions
-are sorted once per date and signal through ``as1455_rank_cache``.
+Grid orchestration and reusable input preparation live here. Portfolio
+simulation remains exclusively in the v7 ``backtest`` function. Predictions are
+sorted once per date and signal through ``as1455_rank_cache``.
 """
 from __future__ import annotations
 
@@ -25,7 +25,7 @@ from utils.as1455_rank_cache import (
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 BACKTEST_DIR = PROJECT_DIR / "code" / "backtest"
-ENGINE_NAME = "inprocess_shared_rank_v4"
+ENGINE_NAME = "inprocess_shared_rank_v5_exact_offset"
 
 
 def load_module(name: str, path: Path):
@@ -51,8 +51,8 @@ bt = load_module(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "AS1455 in-process grid using one v7 trade engine and "
-            "one daily score sort per signal"
+            "AS1455 in-process grid using one v7 trade engine and one daily "
+            "score sort per signal"
         )
     )
     parser.add_argument("--out-root", required=True)
@@ -121,6 +121,15 @@ def parse_args() -> argparse.Namespace:
         default=legacy.DEFAULT_REBALANCE_EVERY,
     )
     parser.add_argument(
+        "--rebalance-offset-list",
+        type=legacy.parse_int_list,
+        default=None,
+        help=(
+            "Optional exact offset subset. Configs are first constructed using "
+            "--offset-mode and then restricted to these offsets."
+        ),
+    )
+    parser.add_argument(
         "--signal-spec",
         dest="signal_specs",
         action="append",
@@ -133,9 +142,8 @@ def parse_args() -> argparse.Namespace:
         choices=["summary", "compact", "full"],
         default="compact",
         help=(
-            "File-retention level only; it does not change trading logic. "
-            "summary=JSON only, compact=core NAV/summary CSVs, "
-            "full=also write orders/rejections/positions/round trips."
+            "File-retention level only; summary=JSON only, compact=core NAV "
+            "and conclusion CSVs, full=all audit CSVs."
         ),
     )
     parser.add_argument("--smoke", action="store_true")
@@ -162,6 +170,29 @@ def parse_args() -> argparse.Namespace:
             "--parity-check-only cannot be combined with --skip-parity-check"
         )
     return args
+
+
+def build_configs(args: argparse.Namespace) -> list[Any]:
+    configs = legacy.build_configs(args)
+    if args.rebalance_offset_list is None:
+        return configs
+    requested = set(int(value) for value in args.rebalance_offset_list)
+    invalid = sorted(
+        {
+            offset
+            for _spec, _max_pos, _sell_rank, rebalance_every, offset in configs
+            if offset in requested and not 0 <= offset < rebalance_every
+        }
+    )
+    if invalid:
+        raise SystemExit(f"invalid rebalance offsets for requested periods: {invalid}")
+    filtered = [config for config in configs if int(config[4]) in requested]
+    if not filtered:
+        raise SystemExit(
+            "--rebalance-offset-list removed every generated config; "
+            f"requested={sorted(requested)} offset_mode={args.offset_mode}"
+        )
+    return filtered
 
 
 def load_shared_inputs(args: argparse.Namespace) -> tuple[
@@ -199,14 +230,10 @@ def load_shared_inputs(args: argparse.Namespace) -> tuple[
         )
         if predictions.empty:
             raise SystemExit(f"empty predictions for {spec['signal_name']}")
-
-        ranked_predictions = prepare_presorted_predictions(predictions)
-        validate_presorted_predictions(ranked_predictions)
-        signals[spec["signal_name"]] = {
-            "preds": ranked_predictions,
-            "meta": metadata,
-        }
-        all_symbols.update(ranked_predictions["symbol"].unique())
+        ranked = prepare_presorted_predictions(predictions)
+        validate_presorted_predictions(ranked)
+        signals[spec["signal_name"]] = {"preds": ranked, "meta": metadata}
+        all_symbols.update(ranked["symbol"].unique())
 
     universe = bt.read_universe(Path(args.universe) if args.universe else None)
     st_symbols = bt.load_st_symbols(
@@ -259,7 +286,6 @@ def load_shared_inputs(args: argparse.Namespace) -> tuple[
                     precheck["policy_action"] = "reject_on_missing_capacity"
         payload["capacity_mode"] = effective
         payload["capacity_precheck"] = precheck
-
     return signals, execution_panel, execution_report, corporate_actions
 
 
@@ -275,6 +301,7 @@ def engine_manifest(
         "engine": ENGINE_NAME,
         "configs": len(configs),
         "signals": [spec["signal_name"] for spec in args.signal_specs],
+        "requested_rebalance_offsets": args.rebalance_offset_list,
         "single_trade_engine": True,
         "trade_engine_source": (
             "code/backtest/"
@@ -284,10 +311,6 @@ def engine_manifest(
         "predictions_loaded_once_per_signal": True,
         "daily_rankings_built_once_per_signal": True,
         "rank_cache_source": "utils/as1455_rank_cache.py",
-        "rank_cache_strategy": (
-            "pre-sort each date once with the same pandas call used by v7; "
-            "subsequent identical sort requests return a copy without sorting"
-        ),
         "dynamic_source_rewrite": False,
         "prediction_file_sha256": prediction_sha,
         "output_mode": args.run_output_mode,
@@ -309,7 +332,7 @@ def main() -> None:
     for path in (runs_root, logs_root, summary_root):
         path.mkdir(parents=True, exist_ok=True)
 
-    configs = legacy.build_configs(args)
+    configs = build_configs(args)
     legacy.write_grid_config(out_root / "00_grid_config.csv", configs)
     if args.dry_run:
         print(f"[DRY RUN] configs={len(configs)} engine={ENGINE_NAME}")
@@ -396,7 +419,6 @@ def main() -> None:
         )
         run_dir = runs_root / run_name
         log_path = logs_root / f"{run_name}.log"
-
         if (run_dir / "summary.json").exists() and not args.force:
             print(f"[{index}/{len(configs)}] SKIP existing {run_name}")
             rows.append(
@@ -468,7 +490,6 @@ def main() -> None:
         out_root / "grid_summary.csv", index=False, encoding="utf-8-sig"
     )
     legacy.write_leaderboards(summary_csv, out_root)
-
     manifest_path.write_text(
         json.dumps(
             engine_manifest(
