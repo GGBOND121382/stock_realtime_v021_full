@@ -14,11 +14,28 @@ SKIP_HISTORY_UPDATE="${SKIP_HISTORY_UPDATE:-0}"
 REBUILD_AS1455_DAILY_CACHE="${REBUILD_AS1455_DAILY_CACHE:-0}"
 QFQ5M_AUDIT_SAMPLES="${QFQ5M_AUDIT_SAMPLES:-0}"
 PROFILE_MEMORY="${PROFILE_MEMORY:-1}"
+MIN_FREE_GB="${MIN_FREE_GB:-5}"
+FORWARD_ARTIFACT_MODE="${FORWARD_ARTIFACT_MODE:-model_only}"
+FORWARD_REPORT_MODE="${FORWARD_REPORT_MODE:-compact}"
 
 RAW_5M_CACHE_DIR="${RAW_5M_CACHE_DIR:-$SOURCE_DIR/baostock_5m_cache}"
 RAW_DAILY_CACHE_DIR="${RAW_DAILY_CACHE_DIR:-$SOURCE_DIR/baostock_raw_daily_cache}"
 AS1455_DAILY_CACHE_DIR="${AS1455_DAILY_CACHE_DIR:-$SOURCE_DIR/as1455_daily_cache}"
 LIVE_OUT_ROOT="${LIVE_OUT_ROOT:-saved_data/ashare_ml4t/live_as1455}"
+
+"$PYTHON_BIN" scripts/check_as1455_disk_space.py \
+  --path "$FORWARD_MODEL_DIR" \
+  --min-free-gb "$MIN_FREE_GB" \
+  --label forward-model-refresh
+
+case "$FORWARD_ARTIFACT_MODE" in
+  model_only|full) ;;
+  *) echo "[ERROR] FORWARD_ARTIFACT_MODE must be model_only or full" >&2; exit 2 ;;
+esac
+case "$FORWARD_REPORT_MODE" in
+  compact|full) ;;
+  *) echo "[ERROR] FORWARD_REPORT_MODE must be compact or full" >&2; exit 2 ;;
+esac
 
 if [[ "$SKIP_HISTORY_UPDATE" != "1" ]]; then
   echo "===== 1/2 update AS1455 historical caches to latest completed trading day ====="
@@ -71,7 +88,7 @@ fi
 
 mkdir -p "$FORWARD_MODEL_DIR"
 
-echo "===== 2/2 rebuild extended AS1455 model_data from refreshed caches ====="
+echo "===== 2/2 rebuild extended AS1455 model_data from shared caches ====="
 args=(
   scripts/build_ashare_ch12_as1455_model_data.py
   --universe "$UNIVERSE"
@@ -108,6 +125,8 @@ import pandas as pd
 path = sys.argv[1]
 df = pd.read_hdf(path, "model_data")
 dates = pd.DatetimeIndex(df.index.get_level_values("date"))
+assert list(df.index.names) == ["symbol", "date"]
+assert df.shape[1] == 34
 print(f"[MODEL DATA] path={path}")
 print(f"[MODEL DATA] rows={len(df)} symbols={df.index.get_level_values('symbol').nunique()}")
 print(f"[MODEL DATA] date_min={dates.min():%Y-%m-%d} date_max={dates.max():%Y-%m-%d}")
@@ -119,5 +138,23 @@ for col in ["r01_fwd", "r05_fwd", "r21_fwd"]:
     else:
         print(f"[MODEL DATA] {col}_valid_end=<none> rows=0")
 PY
+
+if [[ "$FORWARD_ARTIFACT_MODE" == "model_only" ]]; then
+  echo "[CLEAN] remove duplicate forward-only intermediate HDF artifacts"
+  rm -f \
+    "$FORWARD_MODEL_DIR/as1455_ohlcv_raw.h5" \
+    "$FORWARD_MODEL_DIR/as1455_ohlcv_adj.h5" \
+    "$FORWARD_MODEL_DIR/as1455_execution_metadata.h5"
+fi
+
+if [[ "$FORWARD_REPORT_MODE" == "compact" && -d "$FORWARD_MODEL_DIR/reports" ]]; then
+  echo "[CLEAN] gzip large forward audit CSV files"
+  find "$FORWARD_MODEL_DIR/reports" -type f -name '*.csv' -size +20M -print -exec gzip -9 -f {} \;
+fi
+
+"$PYTHON_BIN" scripts/check_as1455_disk_space.py \
+  --path "$FORWARD_MODEL_DIR" \
+  --min-free-gb "$MIN_FREE_GB" \
+  --label forward-model-refresh-complete
 
 echo "[DONE] refreshed forward model data: $model_data"
