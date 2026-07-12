@@ -18,7 +18,7 @@ LEADERBOARD_SPECS = {
     "leaderboard_by_annual_return.csv": ("annual_return", False),
     "leaderboard_by_sharpe.csv": ("sharpe", False),
     "leaderboard_by_calmar.csv": ("calmar", False),
-    "leaderboard_by_max_drawdown.csv": ("max_drawdown", True),
+    "leaderboard_by_max_drawdown.csv": ("max_drawdown", False),
     "leaderboard_by_trade_win_rate.csv": ("trade_win_rate", False),
     "leaderboard_by_low_turnover.csv": ("avg_turnover", True),
     "leaderboard_by_fee_efficiency.csv": ("fee_to_initial_cash", True),
@@ -41,7 +41,6 @@ def historical_trading_config(
             "strict_oos requires complete historical trading parameters; "
             f"missing={missing} run={selection.run_name}"
         )
-
     config = {name: int(value) for name, value in fields.items()}
     if config["rebalance_every"] != int(target_rebalance_every):
         raise RuntimeError(
@@ -60,15 +59,13 @@ def apply_strict_oos_args(
     args: Any,
     selection: HistoricalSignalSelection,
 ) -> dict[str, int]:
-    """Restrict the forward grid to the historical trading configuration."""
+    """Restrict the shared grid to exactly one historical configuration."""
     config = historical_trading_config(selection, int(args.rebalance_every))
     args.max_positions_list = str(config["max_positions"])
     args.sell_rank_list = str(config["sell_rank"])
     args.rebalance_every = int(config["rebalance_every"])
-    # The shared grid currently supports zero or all offsets.  When the frozen
-    # offset is non-zero, run the small offset set and prune it immediately after
-    # the exact historical offset has been materialized.
     args.offset_mode = "zero" if config["rebalance_offset"] == 0 else "full"
+    args.rebalance_offset_list = str(config["rebalance_offset"])
     args.strict_oos_expected_offset = int(config["rebalance_offset"])
     return config
 
@@ -128,7 +125,11 @@ def _match_strict_row(
     return selected
 
 
-def _write_strict_summaries(summary_dir: Path, grid_root: Path, selected: pd.DataFrame) -> None:
+def _write_strict_summaries(
+    summary_dir: Path,
+    grid_root: Path,
+    selected: pd.DataFrame,
+) -> None:
     selected.to_csv(summary_dir / "grid_summary.csv", index=False, encoding="utf-8-sig")
     selected.to_csv(
         summary_dir / "grid_summary_compact.csv",
@@ -152,7 +153,7 @@ def _write_strict_summaries(summary_dir: Path, grid_root: Path, selected: pd.Dat
             ("sharpe", False),
             ("total_return", False),
             ("calmar", False),
-            ("max_drawdown", True),
+            ("max_drawdown", False),
         ):
             path = summary_dir / f"best_by_signal_{metric}.csv"
             if metric not in selected.columns:
@@ -168,7 +169,7 @@ def finalize_strict_oos_grid(
     out_root: Path,
     selection: HistoricalSignalSelection,
 ) -> dict[str, Any]:
-    """Retain only the exact historical configuration in a forward result root."""
+    """Audit that the forward result contains only the historical configuration."""
     out_root = out_root.expanduser().resolve()
     grid_root = out_root / "01_close_auction_grid"
     summary_dir = grid_root / "02_summary"
@@ -204,7 +205,6 @@ def finalize_strict_oos_grid(
                 path.unlink(missing_ok=True)
 
     _write_strict_summaries(summary_dir, grid_root, selected)
-
     payload = {
         "evaluation_mode": "strict_oos",
         "historical_trading_parameters_reused": True,
