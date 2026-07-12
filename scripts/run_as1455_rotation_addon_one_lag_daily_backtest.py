@@ -2,30 +2,25 @@
 # -*- coding: utf-8 -*-
 """Compatibility entry point for r1 add-on one-fold-lag backtests.
 
-The implementation lives in ``run_as1455_target_one_lag_backtest.py``.  This
-file only supplies the historical r1/B defaults.
+The implementation lives in ``run_as1455_target_one_lag_backtest.py``. This
+file only supplies historical r1/B defaults.
 """
 from __future__ import annotations
 
 import sys
-from datetime import datetime
 from pathlib import Path
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
-DEFAULT_ADDON_FOLD_DIR_TEMPLATE = str(
-    PROJECT_DIR
-    / "saved_data"
-    / "ashare_ml4t"
-    / "ch17_as1455_full_rotation_plus_first_batch_compact_fold{fold}_search"
+from utils import as1455_ch17_common as common  # noqa: E402
+
+DEFAULT_ADDON_FOLD_DIR_TEMPLATE = common.default_fold_dir_template(
+    "rotation_addon_onehot", "r01_fwd"
 )
-DEFAULT_ADDON_OUT_ROOT = (
-    PROJECT_DIR
-    / "saved_data"
-    / "ashare_ml4t"
-    / f"ch17_as1455_rotation_addon_one_lag_daily_backtest_{datetime.now():%Y%m%d}"
+DEFAULT_ADDON_OUT_ROOT = common.default_one_lag_out_root(
+    "rotation_addon_onehot", "r01_fwd", 1
 )
 
 
