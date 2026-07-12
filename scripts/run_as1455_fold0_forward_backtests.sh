@@ -18,8 +18,10 @@ OUTPUT_MODE="${OUTPUT_MODE:-full}"
 CAPACITY_MODE="${CAPACITY_MODE:-none}"
 MAX_POSITIONS_LIST="${MAX_POSITIONS_LIST:-5,10,15,20,25}"
 SELL_RANK_LIST="${SELL_RANK_LIST:-75,100,150,200,250,300}"
-# Fold0-forward is a single-best-model protocol by default.
-TOP_N="${TOP_N:-1}"
+# Keep the default candidate pool consistent with plotting: run the top five
+# fold0 checkpoints plus first3/all5 ensembles, then let the plotter select the
+# best complete run by RANK_METRIC (default: sharpe).
+TOP_N="${TOP_N:-5}"
 OUT_BASE="${OUT_BASE:-saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest}"
 START_DATE="${START_DATE:-}"
 END_DATE="${END_DATE:-}"
