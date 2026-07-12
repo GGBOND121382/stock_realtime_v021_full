@@ -52,6 +52,11 @@ def add_prediction_grid_arguments(
     )
     parser.add_argument("--max-positions-list", default="5,10,15,20,25")
     parser.add_argument("--sell-rank-list", default="75,100,150,200,250,300")
+    parser.add_argument(
+        "--rebalance-offset-list",
+        default=None,
+        help="Optional exact offset subset passed to the shared grid.",
+    )
     parser.add_argument("--python-bin", default=sys.executable or "python3")
     parser.add_argument("--force-grid", action="store_true")
     parser.add_argument("--smoke", action="store_true")
@@ -101,6 +106,10 @@ def run_prediction_grid(
         smoke=args.smoke,
         parity_check_only=args.parity_check_only,
     )
+    if args.rebalance_offset_list:
+        command.extend(
+            ["--rebalance-offset-list", str(args.rebalance_offset_list)]
+        )
     if signal_specs is None:
         command = append_signal_specs(command, args.top_n)
     else:
