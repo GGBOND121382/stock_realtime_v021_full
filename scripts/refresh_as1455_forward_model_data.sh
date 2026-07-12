@@ -40,7 +40,19 @@ if [[ "$SKIP_HISTORY_UPDATE" != "1" ]]; then
 fi
 
 resolved_end=""
-live_date=$(TZ="$TIMEZONE" date +%Y%m%d)
+live_date=$(
+  TZ="$TIMEZONE" "$PYTHON_BIN" - "$TRADE_DATE" <<'PY'
+import sys
+from datetime import datetime
+s = sys.argv[1]
+if s.lower() == "today":
+    print(datetime.now().strftime("%Y%m%d"))
+else:
+    s = s.replace("-", "")
+    datetime.strptime(s, "%Y%m%d")
+    print(s)
+PY
+)
 history_report="$LIVE_OUT_ROOT/$live_date/00_history_update_report.json"
 if [[ -s "$history_report" ]]; then
   resolved_end=$(
