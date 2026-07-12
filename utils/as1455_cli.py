@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from typing import Sequence
 
 from utils import as1455_ch17_common as common
 from utils import as1455_paths
@@ -73,7 +74,9 @@ def run_prediction_grid(
     prediction_file: Path,
     model_family: str,
     model_run: str,
+    signal_specs: Sequence[str] | None = None,
 ) -> None:
+    """Run the shared grid with either explicit or top-N-derived signals."""
     grid_out = (
         Path(args.grid_out_root)
         if args.grid_out_root
@@ -98,7 +101,13 @@ def run_prediction_grid(
         smoke=args.smoke,
         parity_check_only=args.parity_check_only,
     )
-    command = append_signal_specs(command, args.top_n)
+    if signal_specs is None:
+        command = append_signal_specs(command, args.top_n)
+    else:
+        if not signal_specs:
+            raise ValueError("signal_specs must not be empty")
+        for spec in signal_specs:
+            command.extend(["--signal-spec", str(spec)])
     common.run_command(command, dry_run=args.dry_run)
 
 
