@@ -8,7 +8,14 @@ label filtering, and fold construction.
 """
 from __future__ import annotations
 
-from utils.as1455_ch17_common import (  # noqa: F401
+import sys
+from pathlib import Path
+
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from utils.as1455_ch17_common import (  # noqa: E402,F401
     TARGET_SPECS,
     get_fold_target,
     load_xy_target,
