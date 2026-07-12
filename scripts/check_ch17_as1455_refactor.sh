@@ -28,6 +28,7 @@ echo '===== Python syntax ====='
   scripts/check_ch17_as1455_refactor.py \
   scripts/check_as1455_historical_model_selection.py \
   scripts/check_as1455_storage_oos_fixes.py \
+  scripts/check_as1455_artifact_retention.py \
   scripts/check_as1455_disk_space.py \
   scripts/cleanup_as1455_storage.py \
   scripts/compact_as1455_prediction_artifacts.py \
@@ -62,6 +63,9 @@ echo '===== Historical model-selection synthetic check ====='
 
 echo '===== Forward-date and strict-OOS synthetic check ====='
 "$PYTHON_BIN" scripts/check_as1455_storage_oos_fixes.py
+
+echo '===== Prediction artifact retention synthetic check ====='
+"$PYTHON_BIN" scripts/check_as1455_artifact_retention.py
 
 echo '===== Structural and synthetic checks ====='
 "$PYTHON_BIN" scripts/check_ch17_as1455_refactor.py
