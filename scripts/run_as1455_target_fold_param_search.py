@@ -18,6 +18,7 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from utils import as1455_ch17_common as common  # noqa: E402
+from utils import as1455_paths  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -25,7 +26,7 @@ def parse_args() -> argparse.Namespace:
         description="Target-aware AS1455 NN parameter search"
     )
     parser.add_argument(
-        "--model-data", default=str(common.base.DEFAULT_MODEL_DATA)
+        "--model-data", default=str(as1455_paths.DEFAULT_MODEL_DATA)
     )
     parser.add_argument(
         "--feature-preset",
@@ -73,8 +74,11 @@ def main() -> None:
     out_dir = (
         Path(args.out_dir)
         if args.out_dir
-        else common.default_search_dir(
-            args.feature_preset, args.target_col, args.fold_index
+        else common.fold_dir_from_template(
+            common.default_fold_dir_template(
+                args.feature_preset, args.target_col
+            ),
+            args.fold_index,
         )
     )
     if out_dir.exists() and any(out_dir.iterdir()) and not args.force:
