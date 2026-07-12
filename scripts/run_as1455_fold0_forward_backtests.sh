@@ -18,7 +18,8 @@ OUTPUT_MODE="${OUTPUT_MODE:-full}"
 CAPACITY_MODE="${CAPACITY_MODE:-none}"
 MAX_POSITIONS_LIST="${MAX_POSITIONS_LIST:-5,10,15,20,25}"
 SELL_RANK_LIST="${SELL_RANK_LIST:-75,100,150,200,250,300}"
-TOP_N="${TOP_N:-5}"
+# Fold0-forward is a single-best-model protocol by default.
+TOP_N="${TOP_N:-1}"
 OUT_BASE="${OUT_BASE:-saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest}"
 START_DATE="${START_DATE:-}"
 END_DATE="${END_DATE:-}"
@@ -39,9 +40,7 @@ if [[ "$REFRESH_DATA" == "1" ]]; then
     "SOURCE_DIR=$SOURCE_DIR"
     "FORWARD_MODEL_DIR=$FORWARD_MODEL_DIR"
   )
-  if [[ -n "$MAX_SYMBOLS" ]]; then
-    refresh_env+=("MAX_SYMBOLS=$MAX_SYMBOLS")
-  fi
+  [[ -n "$MAX_SYMBOLS" ]] && refresh_env+=("MAX_SYMBOLS=$MAX_SYMBOLS")
   env "${refresh_env[@]}" bash scripts/refresh_as1455_forward_model_data.sh
 fi
 
@@ -52,28 +51,17 @@ fi
 }
 
 for target in $TARGETS; do
-  case "$target" in
-    r01_fwd)
-      rebalance_every=1
-      offset_mode=zero
-      ;;
-    r05_fwd)
-      rebalance_every=5
-      offset_mode=full
-      ;;
-    r21_fwd)
-      rebalance_every=21
-      offset_mode=full
-      ;;
-    *)
-      echo "unsupported target: $target" >&2
-      exit 2
-      ;;
-  esac
+  read -r rebalance_every offset_mode <<<"$($PYTHON_BIN - "$target" <<'PY'
+import sys
+from utils.as1455_ch17_common import target_spec
+spec = target_spec(sys.argv[1])
+print(spec.rebalance_every, spec.offset_mode)
+PY
+)"
 
   for preset in $FEATURE_PRESETS; do
     out_root="$OUT_BASE/${preset}_${target}_reb${rebalance_every}_$(date +%Y%m%d)"
-    echo "===== fold0 forward preset=${preset} target=${target} rebalance_every=${rebalance_every} output_mode=${OUTPUT_MODE} model_data=${MODEL_DATA} ====="
+    echo "===== fold0 forward preset=${preset} target=${target} rebalance_every=${rebalance_every} top_n=${TOP_N} output_mode=${OUTPUT_MODE} model_data=${MODEL_DATA} ====="
     args=(
       scripts/run_as1455_fold0_forward_backtest.py
       --feature-preset "$preset"
@@ -91,24 +79,13 @@ for target in $TARGETS; do
       --max-positions-list "$MAX_POSITIONS_LIST"
       --sell-rank-list "$SELL_RANK_LIST"
     )
-    if [[ -n "$START_DATE" ]]; then
-      args+=(--start-date "$START_DATE")
-    fi
-    if [[ -n "$END_DATE" ]]; then
-      args+=(--end-date "$END_DATE")
-    fi
-    if [[ "$FORCE_GRID" == "1" ]]; then
-      args+=(--force-grid)
-    fi
-    if [[ "$PARITY_CHECK_ONLY" == "1" ]]; then
-      args+=(--parity-check-only)
-    fi
-    if [[ "$SMOKE" == "1" ]]; then
-      args+=(--smoke)
-    fi
-    if [[ "$DRY_RUN" == "1" ]]; then
-      args+=(--dry-run)
-    fi
+    [[ -n "$START_DATE" ]] && args+=(--start-date "$START_DATE")
+    [[ -n "$END_DATE" ]] && args+=(--end-date "$END_DATE")
+    [[ "$FORCE_GRID" == "1" ]] && args+=(--force-grid)
+    [[ "$PARITY_CHECK_ONLY" == "1" ]] && args+=(--parity-check-only)
+    [[ "$SMOKE" == "1" ]] && args+=(--smoke)
+    [[ "$DRY_RUN" == "1" ]] && args+=(--dry-run)
+
     "$PYTHON_BIN" "${args[@]}"
     echo "Output root: $out_root"
   done
