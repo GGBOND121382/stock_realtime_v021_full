@@ -3,7 +3,7 @@
 """Plot AS1455 backtest return curves for multiple backtest roots.
 
 For each backtest root, select the best grid run by ``--rank-metric``, load its
-NAV, and draw daily/weekly/monthly cumulative-return curves.  Curves are always
+NAV, and draw daily/weekly/monthly cumulative-return curves. Curves are always
 distinguished by both line style and marker, so the figures do not rely on
 color perception alone.
 """
@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -21,9 +22,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 
-from utils.as1455_plotting import plot_frequency as plot_frequency_shared
-
 PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from utils.as1455_plotting import plot_frequency as plot_frequency_shared  # noqa: E402
 
 DEFAULT_BACKTEST_ROOTS = [
     PROJECT_DIR
