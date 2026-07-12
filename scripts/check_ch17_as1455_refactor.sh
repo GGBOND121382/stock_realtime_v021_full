@@ -10,7 +10,9 @@ echo '===== Python syntax ====='
   utils/as1455_ch17_common.py \
   utils/as1455_cli.py \
   utils/as1455_signal_specs.py \
+  utils/as1455_rank_cache.py \
   utils/as1455_backtest_io.py \
+  utils/as1455_grid_runner.py \
   utils/as1455_plotting.py \
   scripts/as1455_target_label_common.py \
   scripts/run_as1455_target_fold_param_search.py \
@@ -36,7 +38,7 @@ for script in \
   bash -n "$script"
 done
 
-echo '===== Structural checks ====='
+echo '===== Structural and synthetic checks ====='
 "$PYTHON_BIN" scripts/check_ch17_as1455_refactor.py
 
 echo '===== CLI imports ====='
