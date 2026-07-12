@@ -18,9 +18,13 @@ from typing import Any
 
 import pandas as pd
 
-from utils import as1455_ch17_common as common
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
 
-PROJECT_DIR = common.PROJECT_DIR
+from utils import as1455_ch17_common as common  # noqa: E402
+from utils.as1455_signal_specs import append_signal_specs  # noqa: E402
+
 DEFAULT_MODEL_DATA = common.base.DEFAULT_MODEL_DATA
 DEFAULT_RAW_DAILY_CACHE_DIR = (
     PROJECT_DIR
@@ -157,6 +161,7 @@ def run_grid(args: argparse.Namespace, prediction_file: Path) -> None:
         smoke=args.smoke,
         parity_check_only=args.parity_check_only,
     )
+    command = append_signal_specs(command, args.top_n)
     common.run_command(command, dry_run=args.dry_run)
 
 
