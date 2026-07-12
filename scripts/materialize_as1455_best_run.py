@@ -4,7 +4,9 @@
 
 A large historical search should use ``OUTPUT_MODE=summary``.  This script then
 materializes the single best row so plotting and audit retain one NAV curve
-instead of thousands of duplicate per-configuration time series.
+instead of thousands of duplicate per-configuration time series.  By default,
+summary-only run directories and logs for non-selected configurations are
+removed after the complete grid summary has been written.
 """
 from __future__ import annotations
 
@@ -39,6 +41,29 @@ def find_prediction_file(root: Path) -> Path:
     return matches[0]
 
 
+def prune_nonselected_artifacts(grid_dir: Path, run_name: str) -> dict[str, object]:
+    removed_runs: list[str] = []
+    removed_logs: list[str] = []
+    runs_root = grid_dir / "01_runs"
+    if runs_root.exists():
+        for path in runs_root.iterdir():
+            if path.is_dir() and path.name != run_name:
+                shutil.rmtree(path)
+                removed_runs.append(path.name)
+    logs_root = grid_dir / "04_logs"
+    if logs_root.exists():
+        for path in logs_root.glob("*.log"):
+            if path.stem != run_name:
+                path.unlink(missing_ok=True)
+                removed_logs.append(path.name)
+    return {
+        "removed_run_count": len(removed_runs),
+        "removed_log_count": len(removed_logs),
+        "removed_runs": removed_runs,
+        "removed_logs": removed_logs,
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Materialize the best AS1455 historical grid row"
@@ -50,6 +75,11 @@ def main() -> None:
     parser.add_argument("--output-mode", choices=["compact", "full"], default="compact")
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--keep-summary-run-dirs",
+        action="store_true",
+        help="retain non-selected summary-only run directories and logs",
+    )
     args = parser.parse_args()
 
     root = Path(args.backtest_root).expanduser().resolve()
@@ -118,6 +148,15 @@ def main() -> None:
     final_run_dir.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(materialized, final_run_dir)
 
+    pruning = {
+        "removed_run_count": 0,
+        "removed_log_count": 0,
+        "removed_runs": [],
+        "removed_logs": [],
+    }
+    if not args.keep_summary_run_dirs:
+        pruning = prune_nonselected_artifacts(grid_dir, run_name)
+
     payload = {
         "rank_metric": args.rank_metric,
         "source_summary": str(summary_file),
@@ -125,6 +164,8 @@ def main() -> None:
         "prediction_file": str(prediction_file),
         "output_mode": args.output_mode,
         "materialized_run_dir": str(final_run_dir),
+        "summary_run_dirs_retained": bool(args.keep_summary_run_dirs),
+        "pruning": pruning,
         "temporary_strict_manifest": strict_manifest,
     }
     (root / "materialized_best_run.json").write_text(
@@ -133,6 +174,10 @@ def main() -> None:
     )
     shutil.rmtree(temp_out)
     print(f"[OK] materialized selected run: {final_run_dir}")
+    print(
+        "[CLEAN] removed summary-only artifacts: "
+        f"runs={pruning['removed_run_count']} logs={pruning['removed_log_count']}"
+    )
 
 
 if __name__ == "__main__":
