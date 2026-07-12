@@ -8,11 +8,16 @@ Feature construction and fold semantics live in ``utils.as1455_ch17_common``.
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import pandas as pd
 
-from utils import as1455_ch17_common as common
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from utils import as1455_ch17_common as common  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
