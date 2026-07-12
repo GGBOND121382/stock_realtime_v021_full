@@ -4,7 +4,7 @@
 
 The checks deliberately avoid market data and model files. They verify that the
 repository structure does not silently reintroduce duplicated protocol, trading,
-or plotting implementations.
+path, CLI, or plotting implementations.
 """
 from __future__ import annotations
 
@@ -16,7 +16,8 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
-from utils.as1455_ch17_common import TARGET_SPECS  # noqa: E402
+from utils import as1455_ch17_common as common  # noqa: E402
+from utils import as1455_paths  # noqa: E402
 from utils.as1455_signal_specs import signal_specs_for_top_n  # noqa: E402
 
 
@@ -39,7 +40,7 @@ def function_names(relative: str) -> set[str]:
 def assert_target_specs() -> None:
     actual = {
         key: (value.lookahead, value.rebalance_every, value.offset_mode)
-        for key, value in TARGET_SPECS.items()
+        for key, value in common.TARGET_SPECS.items()
     }
     expected = {
         "r01_fwd": (1, 1, "zero"),
@@ -62,6 +63,26 @@ def assert_signal_specs() -> None:
         "ensemble_first3_mean:0,1,2:mean",
         "ensemble_all5_mean:0,1,2,3,4:mean",
     ]
+
+
+def assert_path_contracts() -> None:
+    assert as1455_paths.DEFAULT_MODEL_DATA == (
+        PROJECT_DIR
+        / "saved_data"
+        / "ashare_ml4t"
+        / "ch12_as1455"
+        / "model_data_as1455.h5"
+    )
+    for preset in common.FEATURE_PRESETS:
+        r1_template = common.default_fold_dir_template(preset, "r01_fwd")
+        r1_fold0 = common.fold_dir_from_template(r1_template, 0)
+        assert "fold0_search" in r1_fold0.name
+        assert "r01_fwd" not in r1_fold0.parts
+
+        r5_template = common.default_fold_dir_template(preset, "r05_fwd")
+        r5_fold0 = common.fold_dir_from_template(r5_template, 0)
+        assert "r05_fwd" in r5_fold0.parts
+        assert r5_fold0.name == "fold0_search"
 
 
 def assert_single_trade_engine() -> None:
@@ -112,9 +133,9 @@ def assert_thin_compatibility_wrappers() -> None:
         assert "exec(" not in source
 
 
-def assert_shared_prediction_layer() -> None:
-    common = function_names("utils/as1455_ch17_common.py")
-    required = {
+def assert_shared_prediction_and_cli_layers() -> None:
+    common_functions = function_names("utils/as1455_ch17_common.py")
+    required_common = {
         "build_target_features",
         "get_fold_target",
         "read_top_checkpoints",
@@ -124,13 +145,24 @@ def assert_shared_prediction_layer() -> None:
         "write_prediction_artifacts",
         "build_grid_command",
     }
-    missing = required - common
+    missing = required_common - common_functions
     assert not missing, f"missing shared functions: {sorted(missing)}"
+
+    cli_functions = function_names("utils/as1455_cli.py")
+    required_cli = {
+        "add_prediction_grid_arguments",
+        "normalize_common_prediction_args",
+        "run_prediction_grid",
+        "resolve_existing_prediction",
+    }
+    missing_cli = required_cli - cli_functions
+    assert not missing_cli, f"missing shared CLI functions: {sorted(missing_cli)}"
 
     for relative in (
         "scripts/run_as1455_target_one_lag_backtest.py",
         "scripts/run_as1455_fold0_forward_backtest.py",
     ):
+        source = read(relative)
         names = function_names(relative)
         duplicated = names & {
             "read_top_checkpoints",
@@ -139,8 +171,11 @@ def assert_shared_prediction_layer() -> None:
             "predict_checkpoint_set",
             "write_prediction_artifacts",
             "build_grid_command",
+            "add_prediction_grid_arguments",
         }
         assert not duplicated, f"{relative} duplicates {sorted(duplicated)}"
+        assert "as1455_cli.add_prediction_grid_arguments" in source
+        assert "as1455_cli.run_prediction_grid" in source
 
 
 def assert_unified_plotter() -> None:
@@ -159,9 +194,10 @@ def main() -> None:
     checks = [
         assert_target_specs,
         assert_signal_specs,
+        assert_path_contracts,
         assert_single_trade_engine,
         assert_thin_compatibility_wrappers,
-        assert_shared_prediction_layer,
+        assert_shared_prediction_and_cli_layers,
         assert_unified_plotter,
     ]
     for check in checks:
