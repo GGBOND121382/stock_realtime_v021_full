@@ -102,7 +102,13 @@ def assert_rank_cache_equivalence() -> None:
     predictions = pd.DataFrame(
         {
             "date": pd.to_datetime(
-                ["2026-01-02", "2026-01-02", "2026-01-02", "2026-01-05", "2026-01-05"]
+                [
+                    "2026-01-02",
+                    "2026-01-02",
+                    "2026-01-02",
+                    "2026-01-05",
+                    "2026-01-05",
+                ]
             ),
             "symbol": ["A", "B", "C", "D", "E"],
             "score": [0.2, 0.5, 0.5, -0.1, 0.3],
@@ -122,7 +128,10 @@ def assert_rank_cache_equivalence() -> None:
     }
     assert set(expected) == set(actual)
     for date in expected:
-        pd.testing.assert_frame_equal(expected[date], actual[date])
+        pd.testing.assert_frame_equal(
+            pd.DataFrame(expected[date]),
+            pd.DataFrame(actual[date]),
+        )
 
 
 def assert_single_trade_engine() -> None:
