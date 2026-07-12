@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 """Re-run only the selected historical grid row with compact/full artifacts.
 
-A large historical search should use ``OUTPUT_MODE=summary``.  This script then
+A large historical search should use ``OUTPUT_MODE=summary``. This script then
 materializes the single best row so plotting and audit retain one NAV curve
-instead of thousands of duplicate per-configuration time series.  By default,
+instead of thousands of duplicate per-configuration time series. By default,
 summary-only run directories and logs for non-selected configurations are
 removed after the complete grid summary has been written.
 """
@@ -133,6 +133,7 @@ def main() -> None:
         ),
         force_grid=True,
     )
+    command.extend(["--rebalance-offset-list", str(offset)])
     command.extend(["--signal-spec", selection.signal_spec])
     common.run_command(command, dry_run=args.dry_run)
     if args.dry_run:
