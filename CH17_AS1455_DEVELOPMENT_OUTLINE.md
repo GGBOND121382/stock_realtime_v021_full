@@ -1,25 +1,26 @@
 # Ch17 AS1455 开发大纲
 
-本文档说明 `ch17_as1455` 相关代码的职责边界、唯一事实来源、兼容入口和开发约束。使用命令见：
+本文档规定 `ch17_as1455` 代码的职责边界、唯一事实来源、严格样本外协议和存储约束。运行命令与清理流程见：
 
 ```text
 README_AS1455_R1_R5_R21.md
+AS1455_STORAGE_AND_STRICT_OOS.md
 ```
 
 ---
 
 ## 1. 固定业务口径
 
-### 1.1 数据时点与交易约束
+### 1.1 数据与交易
 
 - 模型特征只能使用当日 14:55 及以前的数据；
 - 历史执行价使用当日 15:00 收盘价近似收盘集合竞价成交价；
 - raw 执行字段只进入执行面板、metadata 和质量报告；
-- 回测为 long-only；
+- long-only；
 - 默认只交易沪深主板；
 - 默认处理 T+1、停牌、涨跌停、100 股整手、手续费、印花税、过户费和公司行为。
 
-### 1.2 目标与自然调仓周期
+### 1.2 目标与自然周期
 
 唯一事实来源：
 
@@ -33,7 +34,7 @@ utils/as1455_ch17_common.py::TARGET_SPECS
 | r5 | `r05_fwd` | 5 | 5 | `0..4` |
 | r21 | `r21_fwd` | 21 | 21 | `0..20` |
 
-禁止在新脚本中复制另一份目标—周期映射。
+禁止在 wrapper 或新脚本中维护第二份目标—周期映射。
 
 ### 1.3 特征方案
 
@@ -49,237 +50,272 @@ utils/as1455_ch17_common.py::TARGET_SPECS
 ```text
 历史/实时行情
     ↓
-5 分钟缓存 + 原始日线缓存 + AS1455 日缓存
+共享 5 分钟缓存 + 原始日线缓存 + AS1455 日缓存
     ↓
 model_data_as1455.h5
     ↓
-公共特征、fold、checkpoint 和预测工具
+训练数据加载：特征完整 + 目标标签已实现
     ↓
 r1 / r5 / r21 参数搜索
     ↓
 one-fold-lag 历史回测
     ↓
-ch17_as1455_target_backtest 中按指标选历史最佳模型信号
+从历史 summary 中选择 status=ok 的最佳完整配置
     ↓
-用相同 checkpoint 排名或 ensemble 定义组合 fold0 checkpoint
+冻结 signal + max/sell/rebalance/offset
     ↓
-fold0.test_end 后从空仓开始 forward 回测
+forward 数据加载：只要求模型特征完整，不要求目标已实现
     ↓
-统一收益曲线绘制
+fold0.test_end 后 strict OOS 回测
+    ↓
+统一绘图与审计
 ```
 
 ---
 
 ## 3. 公共工具层
 
-### 3.1 `utils/as1455_paths.py`
+### 3.1 路径
 
-统一工程路径：
+```text
+utils/as1455_paths.py
+```
 
-- 默认 model data；
-- 默认执行日线缓存；
-- target search 根目录；
-- target backtest 根目录；
-- fold0-forward 根目录；
-- 绘图根目录。
+统一默认 model data、共享执行缓存、target search、target backtest、fold0-forward 和绘图根目录。新入口不得重新硬编码这些路径。
 
-新入口不得重新硬编码这些路径。
+### 3.2 训练与历史预测公共实现
 
-### 3.2 `utils/as1455_ch17_common.py`
-
-训练和预测公共实现：
-
-- `TARGET_SPECS`；
-- 目标标签过滤；
-- A/B 特征构造；
-- fold 构造；
-- checkpoint 目录规则；
-- `search_best_checkpoints.csv` 读取；
-- scaler 和 feature manifest 读取；
-- 模型输入变换；
-- checkpoint 推理；
-- prediction HDF/CSV、actual、checkpoint 清单和 manifest 写出；
-- grid 命令构造。
-
-训练、one-fold-lag 和 fold0-forward 不得重新实现这些逻辑。
-
-### 3.3 `utils/as1455_cli.py`
-
-预测到回测阶段的公共 CLI：
-
-- 模型数据、日期、`TOP_N` 和输出目录；
-- prediction 文件；
-- grid、执行缓存和输出模式；
-- smoke、force、dry-run；
-- 支持 top-N 自动 signal；
-- 支持显式指定一个或多个 signal spec。
-
-fold0-forward 使用显式 signal spec，只运行历史选中的模型信号。
-
-### 3.4 `utils/as1455_signal_specs.py`
-
-根据 checkpoint 数量生成合法信号：
-
-- `TOP_N=1`：`model_0`；
-- `TOP_N=5`：`model_0..model_4`、`ensemble_first3_mean`、`ensemble_all5_mean`；
-- 其他数量只引用真实存在的预测列。
-
-### 3.5 `utils/as1455_model_selection.py`
-
-历史模型选择和绘图的共同事实来源。
+```text
+utils/as1455_ch17_common.py
+```
 
 职责：
 
-1. 在给定 backtest root 下查找 `grid_summary_compact.csv` 或 `grid_summary.csv`；
-2. 只使用有效的 `status=ok` 结果；
-3. 按给定指标选择最佳完整 run；
-4. 提取：
+- `TARGET_SPECS`；
+- 训练/历史回测的目标标签过滤；
+- A/B 特征构造；
+- fold 构造；
+- checkpoint 目录规则；
+- search-time checkpoint、scaler 和 feature manifest 读取；
+- 模型输入变换与 checkpoint 推理；
+- prediction HDF、审计清单和 manifest；
+- grid 命令构造。
+
+标签、特征和模型输入语义不得在其他入口复制。
+
+### 3.3 forward 特征行保留
+
+```text
+utils/as1455_forward_features.py
+```
+
+该模块只改变**行保留条件**，不改变任何特征定义：
+
+```text
+训练/历史：模型特征非空 + 当前 target_col 非空
+forward：   模型特征非空；target_col 可为空
+```
+
+forward manifest 必须记录：
+
+```text
+row_mode = inference_features_only
+model_data_max_date
+feature_valid_max_date
+target_valid_max_date
+unlabeled_prediction_rows
+unlabeled_prediction_dates
+```
+
+### 3.4 公共 CLI
+
+```text
+utils/as1455_cli.py
+```
+
+统一 prediction、grid、执行缓存、输出模式、smoke、force、dry-run 和 signal spec 参数。wrapper 只设置默认值和组合入口。
+
+### 3.5 signal 定义
+
+```text
+utils/as1455_signal_specs.py
+```
+
+仅生成真实存在预测列对应的单模型和 ensemble；禁止手工维护另一份 top-N signal 清单。
+
+### 3.6 历史完整配置选择
+
+```text
+utils/as1455_model_selection.py
+```
+
+职责：
+
+1. 查找 `grid_summary_compact.csv` 或 `grid_summary.csv`；
+2. 存在 `status` 列时严格只保留 `status=ok`；
+3. 没有成功行时直接失败，禁止退回失败行；
+4. 按指标选择最佳完整 run；
+5. 提取：
 
 ```text
 signal_name
 signal_cols
 signal_mode
+max_positions
+sell_rank
+rebalance_every
+rebalance_offset
 ```
 
-5. 生成明确的 signal spec；
-6. 根据最大 signal column 推导 fold0 推理所需的 checkpoint 数量；
-7. 记录历史 run 的交易参数，但不决定是否迁移这些参数。
+6. 推导 fold0 推理所需 checkpoint 数量；
+7. 跳过仅有失败结果的较新目录。
 
-默认指标：
+默认指标是 `sharpe`。绘图和 forward 都必须调用该模块，禁止各自定义“最佳”。
+
+### 3.7 strict OOS
 
 ```text
-sharpe
+utils/as1455_strict_oos.py
 ```
 
-fold0-forward 和绘图必须共同调用此模块，禁止各自复制一套“最佳”定义。
+正式模式完整冻结历史配置。若历史 offset 非零，当前共享 grid 可短暂生成同一周期的全部 offset，但不得按 forward 指标选择；执行结束后必须只保留历史 offset 对应 run，并将活动 summary 改为单行严格配置。
 
-### 3.6 `utils/as1455_rank_cache.py`
+manifest 必须记录：
 
-每个 signal 的每日排名缓存：
+```text
+evaluation_mode = strict_oos
+historical_trading_parameters_reused = true
+retained_config_count = 1
+retained_run_name
+retained_config
+```
 
-- 按日期分组；
-- 每日执行一次与 v7 一致的 score 降序排序；
-- 返回显式预排序 frame；
-- 不修改 pandas 全局状态；
-- 不 monkey-patch v7；
-- 不复制交易循环。
+### 3.8 prediction 保留策略
 
-### 3.7 `utils/as1455_backtest_io.py`
+```text
+utils/as1455_artifact_retention.py
+scripts/compact_as1455_prediction_artifacts.py
+```
 
-回测编排公共函数：
+HDF 是权威预测文件。删除重复 CSV 时必须同步更新 prediction manifest，并写出 `prediction_artifact_retention.json`，禁止留下指向不存在文件的 manifest。
 
-- 构造统一 `TradeConfig`；
-- 选择 `summary/compact/full` 输出；
-- 写 config、summary、run metadata 和 CSV。
+### 3.9 排名、交易输出和 grid
 
-该文件不实现买卖、持仓或 NAV。
+```text
+utils/as1455_rank_cache.py
+utils/as1455_backtest_io.py
+utils/as1455_grid_runner.py
+```
 
-### 3.8 `utils/as1455_grid_runner.py`
-
-in-process grid 编排：
+约束：
 
 - prediction 每个 signal 加载一次；
 - 每个 signal 每日排序一次；
 - execution panel 构造一次；
-- 同一进程遍历所有参数；
-- 每个组合调用唯一 v7 `backtest()`；
-- 调用公共 output helper 写结果。
+- 每个组合只调用唯一 v7 `backtest()`；
+- 不 monkey-patch；
+- 不实现第二套交易循环。
 
-### 3.9 `utils/as1455_plotting.py`
+### 3.10 绘图
 
-统一绘图样式：
+```text
+utils/as1455_plotting.py
+scripts/plot_as1455_backtest_return_curves.py
+scripts/plot_as1455_default_ab_nav_curves.sh
+```
 
-- 颜色、线型和 marker 同时区分；
-- marker 稀疏显示；
-- curve CSV 记录 `line_style` 和 `marker`。
+绘图只读取已存在 NAV，不改变日期或交易参数。strict OOS 根目录活动 summary 只有一个冻结 run，因此绘图不会再次在 forward 窗口调参。
 
 ---
 
-## 4. 数据层
+## 4. 数据层与存储边界
 
-### 4.1 历史缓存更新
+### 4.1 共享历史缓存
 
 入口：
 
 ```text
 scripts/run_as1455_live_data_feature_pipeline.sh history
-```
-
-核心：
-
-```text
 pipelines/as1455_update_history_to_prevday_fast_v4.py
 ```
 
-职责：增量更新 5 分钟行情、原始日线和 AS1455 日缓存，并记录状态与错误。
+共享权威缓存位于：
 
-### 4.2 历史 model_data 构建
+```text
+ch12_as1455/baostock_5m_cache/
+ch12_as1455/baostock_raw_daily_cache/
+ch12_as1455/as1455_daily_cache/
+```
+
+不得为 forward 单独复制这些缓存。
+
+### 4.2 model data 构建
 
 ```text
 scripts/build_ashare_ch12_as1455_model_data.py
 ```
 
-职责：
+构造复权 OHLCV、31 个模型特征和三个 forward 标签。训练母版继续保留 contract 校验所需 adjusted artifact。
 
-- 构造 AS1455 OHLCV 和复权因子；
-- 构造 Ch12 31 个模型特征；
-- 构造 `r01_fwd/r05_fwd/r21_fwd`；
-- 输出 34 列 `model_data_as1455.h5`；
-- 输出覆盖率、标签对齐、复权和泄漏检查报告。
-
-### 4.3 fold0-forward 数据刷新
+### 4.3 forward 刷新
 
 ```text
 scripts/refresh_as1455_forward_model_data.sh
 ```
 
-只组合已有历史更新和 model data 构建器，不重新实现抓取、复权或特征。
+默认：
+
+```text
+FORWARD_ARTIFACT_MODE=model_only
+FORWARD_REPORT_MODE=compact
+MIN_FREE_GB=5
+```
+
+构建和 schema 验证完成后，删除 forward 目录中可由共享缓存重建的：
+
+```text
+as1455_ohlcv_raw.h5
+as1455_ohlcv_adj.h5
+as1455_execution_metadata.h5
+```
+
+长期保留 `model_data_as1455.h5` 和 compact 报告。
+
+### 4.4 live 保留
+
+默认只保留最近 3 个日期。最近日期可保留完整审计；更早保留日期删除可重建的 raw/qfq history tail 和 feature panel tail。
 
 ---
 
 ## 5. 训练层
 
-### 5.1 底层训练核心
+底层训练核心：
 
 ```text
 scripts/run_as1455_sector_rotation_fold0_param_search.py
 scripts/run_as1455_first_batch_features_fold0_param_search.py
 ```
 
-提供：
-
-- 基础输入契约；
-- `MultipleTimeSeriesCV`；
-- sector rotation、one-hot 和 compact add-on；
-- TensorFlow 参数搜索；
-- checkpoint、scaler 和 manifest 保存。
-
-### 5.2 统一单 fold 入口
+统一入口：
 
 ```text
 scripts/run_as1455_target_fold_param_search.py
-```
-
-支持 A/B、r1/r5/r21、指定 fold 和 search-time top-N checkpoint。
-
-### 5.3 批量训练入口
-
-```text
 scripts/run_as1455_target_search_all.sh
 ```
 
-兼容入口：
+r5/r21 wrapper 只设置目标，不复制训练循环。正式 checkpoint 仅来自：
 
 ```text
-scripts/run_as1455_r05_target_search_all.sh
-scripts/run_as1455_r21_target_search_all.sh
+search_best_checkpoints.csv
+search_checkpoints/*.keras
+preprocess/scaler.pkl
+preprocess/feature_manifest.json
+fold_report.json
 ```
-
-兼容入口只设置目标，不复制训练循环。
 
 ---
 
-## 6. 预测协议层
+## 6. 历史回测协议
 
 ### 6.1 one-fold-lag
 
@@ -296,9 +332,31 @@ source fold1 -> target fold0
 scripts/run_as1455_target_one_lag_backtest.py
 ```
 
-r1 兼容入口只设置默认值，不维护独立预测循环。
+### 6.2 summary-first
 
-### 6.2 fold0-forward
+```text
+scripts/run_as1455_target_natural_backtest.sh
+```
+
+默认：
+
+```text
+OUTPUT_MODE=summary
+MATERIALIZE_BEST=1
+MATERIALIZED_OUTPUT_MODE=compact
+```
+
+完整网格只保留所有参数的指标 summary。网格结束后调用：
+
+```text
+scripts/materialize_as1455_best_run.py
+```
+
+仅重跑一个历史最佳配置为 compact/full，并默认删除其余 summary-only run 目录和日志。完整参数指标仍保留在 `02_summary`。
+
+---
+
+## 7. fold0-forward 协议
 
 入口：
 
@@ -307,151 +365,91 @@ scripts/run_as1455_fold0_forward_backtest.py
 scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-默认协议：
+### 7.1 正式默认
 
 ```text
-MODEL_SELECTION_MODE=historical_best
+MODEL_SELECTION_MODE=strict_oos
 SELECTION_RANK_METRIC=sharpe
+OUTPUT_MODE=compact
+MIN_FREE_GB=5
 ```
 
 步骤：
 
-1. 找到：
+1. 找到对应 preset、target、自然调仓周期的最新成功历史目录；
+2. 选择历史最佳完整 run；
+3. 冻结模型信号与完整交易参数；
+4. 使用 fold0 search-time checkpoint；
+5. 用 feature-only 行保留规则选取 `date > fold0.test_end`；
+6. 硬校验 `prediction_end == expected_prediction_end`；
+7. 从初始现金和空仓开始回测；
+8. 只保留冻结配置。
+
+### 7.2 敏感性与兼容模式
 
 ```text
-saved_data/ashare_ml4t/ch17_as1455_target_backtest/
-<preset>_<target>_reb<period>_*
+MODEL_SELECTION_MODE=forward_parameter_sweep
 ```
 
-中最新且包含有效 summary 的目录；
-2. 按与绘图相同的规则选历史最佳完整 run；
-3. 只继承其模型信号：
-
-```text
-signal_name + signal_cols + signal_mode
-```
-
-4. 用同样的 checkpoint 排名或 ensemble 定义组合 fold0 checkpoint；
-5. 仅预测 `date > fold0.test_end`；
-6. 每个 forward 配置从初始现金和空仓开始。
-
-默认不继承历史：
-
-```text
-max_positions
-sell_rank
-rebalance_offset
-```
-
-这些字段只写入 manifest。forward 仍重新遍历交易参数。
-
-保留旧实验模式：
+只冻结历史信号，forward 重新遍历交易参数，仅用于敏感性分析，不得作为 OOS 主结果。
 
 ```text
 MODEL_SELECTION_MODE=all_top_n
 ```
 
-该模式不是默认协议。
+保留旧全信号网格，仅用于兼容实验。
 
-### 6.3 预测文件契约
+### 7.3 输出目录
 
-```text
-HDF key: /predictions
-index:    (symbol, date)
-columns:  0..N-1
-```
-
-fold0-forward manifest 必须记录：
+使用秒级时间戳：
 
 ```text
-historical_model_selection.backtest_root
-historical_model_selection.summary_file
-historical_model_selection.rank_metric
-historical_model_selection.run_name
-historical_model_selection.signal_spec
-historical_model_selection.required_top_n
-historical_trading_parameters_reused
+<feature>_<target>_reb<period>_YYYYMMDD_HHMMSS
 ```
+
+避免同日重复执行误用旧 run。跳过 prediction 或复用 run 时，后续还应继续加强 prediction SHA 和配置指纹校验。
 
 ---
 
-## 7. 回测层
-
-### 7.1 唯一交易语义来源
+## 8. 唯一交易语义来源
 
 ```text
 code/backtest/run_as1455_close_auction_backtest_v7_maxpos_grid.py::backtest
 ```
 
-只有该函数决定：调仓、买卖、T+1、主板/ST/停牌/涨跌停、整手、容量、公司行为、费用、持仓、NAV、换手、回撤和 round trip。
+只有该函数决定调仓、买卖、T+1、主板/ST/停牌/涨跌停、整手、容量、公司行为、费用、持仓、NAV、换手、回撤和 round trip。
 
-### 7.2 grid 入口
+薄 grid 入口：
 
 ```text
 code/backtest/run_as1455_close_auction_grid_inprocess.py
-```
-
-该文件是薄入口，编排位于：
-
-```text
 utils/as1455_grid_runner.py
 ```
 
-禁止在 grid 中实现第二套交易循环。
-
-### 7.3 自然周期 wrapper
-
-```text
-scripts/run_as1455_target_natural_backtest.sh
-scripts/run_as1455_r05_natural_backtest.sh
-scripts/run_as1455_r21_natural_backtest.sh
-```
-
-r5/r21 文件只设置目标。
+禁止在 grid、wrapper、绘图或清理脚本中实现另一套交易语义。
 
 ---
 
-## 8. 绘图层
-
-唯一 Python 入口：
+## 9. 存储治理自动化
 
 ```text
-scripts/plot_as1455_backtest_return_curves.py
+scripts/check_as1455_disk_space.py
+scripts/cleanup_as1455_storage.py
 ```
 
-唯一 shell 入口：
+清理器规则：
 
-```text
-scripts/plot_as1455_default_ab_nav_curves.sh
-```
+- 默认 dry-run；
+- `--apply` 前检测 AS1455 活动进程；
+- 所有删除必须位于指定 base 内；
+- 验证 forward model HDF 后才能删除重复 HDF；
+- prediction HDF 存在时才删除对应 CSV；
+- 可选清理明确列入政策的旧目录；
+- 可选删除未被保留指标/信号选中的 run；
+- 可选 gzip 大型审计 CSV；
+- 每次生成 `cleanup_audit_*.json`。
 
-绘图调用：
-
-```text
-utils/as1455_model_selection.py::select_best_run
-```
-
-因此绘图和 fold0-forward 使用同一个：
-
-- summary 查找顺序；
-- `status=ok` 过滤；
-- 指标方向；
-- 排序稳定性。
-
----
-
-## 9. 已完成的重复开发治理
-
-| 原问题 | 当前处理 |
-|---|---|
-| target/lookahead 多处定义 | 统一到 `TARGET_SPECS` |
-| one-fold-lag 与 fold0-forward 各写 checkpoint 推理 | 统一到 `as1455_ch17_common.py` |
-| wrapper 重复 CLI 和 grid 命令 | 统一到 `as1455_cli.py` |
-| `TOP_N` 与 signal 列不匹配 | 统一到 `as1455_signal_specs.py` |
-| grid 复制完整交易循环 | 删除；统一调用 v7 |
-| 绘图另建 accessible monkey-patch | 删除；样式并入公共绘图层 |
-| 绘图与 forward 各自定义“最佳模型” | 统一到 `as1455_model_selection.py` |
-| r5/r21 训练和回测 shell 重复 | 改为通用入口 + 薄 wrapper |
+共享行情缓存、训练 checkpoint、主训练 model data 和当前 contract 依赖文件不在自动清理清单中。
 
 ---
 
@@ -459,53 +457,40 @@ utils/as1455_model_selection.py::select_best_run
 
 新增功能前必须回答：
 
-1. 功能属于数据、特征、训练、预测协议、模型选择、grid、交易还是绘图？
-2. 该层唯一事实来源是什么？
-3. 是否可以增加参数或公共纯函数，而不是复制脚本？
-4. 是否改变 14:55 数据边界、标签、fold、checkpoint、模型选择或交易语义？
-5. 如何验证旧结果不变？
+1. 功能属于数据、特征、训练、预测协议、模型选择、grid、交易、绘图还是保留策略？
+2. 唯一事实来源是什么？
+3. 是否能增加公共纯函数，而不是复制脚本？
+4. 是否改变 14:55 边界、标签、fold、checkpoint、完整配置选择或交易语义？
+5. 历史训练与 forward 推理是否错误共用了目标标签过滤？
+6. 是否会重复写入大文件？
+7. 如何验证日期、参数、SHA、结果和磁盘占用？
 
-wrapper 只允许：
+wrapper 只允许设置默认参数、组合入口、确定输出目录、检查输入和输出上下文。
 
-- 设置默认参数；
-- 组合已有入口；
-- 确定输出目录；
-- 检查输入存在性；
-- 输出运行上下文。
-
-wrapper 禁止：
-
-- 重新实现特征；
-- monkey-patch 业务函数；
-- 复制 checkpoint 推理；
-- 复制“最佳模型”排序；
-- 复制交易循环；
-- 复制 summary/leaderboard；
-- 维护另一份目标周期映射。
+wrapper 禁止复制特征、checkpoint 推理、最佳配置排序、交易循环、summary/leaderboard 和目标周期映射。
 
 ---
 
-## 11. 最低验证集
-
-结构检查：
+## 11. 最低验证
 
 ```bash
 bash scripts/check_ch17_as1455_refactor.sh
 ```
 
-其中包含：
+覆盖：
 
-- Python 和 shell 语法；
-- CLI 导入；
-- 目标映射；
+- Python/Shell 语法和 CLI 导入；
+- `TARGET_SPECS`；
 - signal spec；
-- 历史模型选择合成测试；
+- failed-only summary 拒绝；
+- forward 最新无标签日期保留；
+- strict OOS 参数冻结；
 - 排名缓存；
 - 唯一交易引擎；
-- 薄 wrapper；
-- 唯一绘图器。
+- 薄 wrapper 和统一绘图器；
+- summary-first、model-only 和 strict OOS 默认值。
 
-真实目录 smoke：
+真实目录 engine smoke：
 
 ```bash
 REFRESH_DATA=0 \
@@ -515,4 +500,4 @@ PARITY_CHECK_ONLY=1 \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-必须先打印 `[MODEL SELECT]`，再完成 v7 单配置 smoke。
+`PARITY_CHECK_ONLY=1` 只验证单个 v7 引擎路径，不代表完整网格或正式 strict OOS 结果。正式结果仍需检查 prediction manifest、strict OOS manifest、NAV 日期范围和冻结配置一致性。
