@@ -1,6 +1,6 @@
 # AS1455 r1 / r5 / r21 训练、回测与绘图指南
 
-代码结构和开发规则见：
+代码结构和开发约束见：
 
 ```text
 CH17_AS1455_DEVELOPMENT_OUTLINE.md
@@ -14,54 +14,22 @@ cd ~/stock_realtime_v021_full
 
 ---
 
-## 1. 当前公共实现
+## 1. 固定实验口径
 
-```text
-utils/as1455_paths.py
-utils/as1455_ch17_common.py
-utils/as1455_cli.py
-utils/as1455_signal_specs.py
-utils/as1455_rank_cache.py
-utils/as1455_backtest_io.py
-utils/as1455_grid_runner.py
-utils/as1455_plotting.py
-```
-
-当前 in-process 引擎：
-
-```text
-inprocess_shared_rank_v4
-```
-
-它会：
-
-- prediction 每个 signal 加载一次；
-- 每个 signal 的每个交易日只实际排序一次；
-- execution panel 只构造一次；
-- 所有 `max_positions × sell_rank × offset` 共用排序结果；
-- 每个参数组合仍调用唯一 v7 交易函数；
-- 不存在第二套买卖、费用或 NAV 实现。
-
----
-
-## 2. 固定实验口径
-
-### 2.1 目标与自然调仓周期
-
-| 简称 | 监督目标 | lookahead | 调仓周期 | offset |
+| 简称 | 标签 | lookahead | 自然调仓周期 | offset |
 |---|---|---:|---:|---|
 | r1 | `r01_fwd` | 1 | 1 | `0` |
 | r5 | `r05_fwd` | 5 | 5 | `0..4` |
 | r21 | `r21_fwd` | 21 | 21 | `0..20` |
 
-### 2.2 特征方案
+特征方案：
 
 | 名称 | `feature_preset` | 内容 |
 |---|---|---|
-| A | `rotation_onehot` | 原始 31 特征 + 完整 sector rotation + sector one-hot |
+| A | `rotation_onehot` | 原始 31 特征 + sector rotation + sector one-hot |
 | B | `rotation_addon_onehot` | A + compact add-on 特征 |
 
-### 2.3 正式训练产物
+正式训练产物：
 
 ```text
 search_best_checkpoints.csv
@@ -75,7 +43,7 @@ fold_report.json
 
 ---
 
-## 3. 拉取代码并检查结构
+## 2. 拉取代码和结构检查
 
 ```bash
 cd ~/stock_realtime_v021_full
@@ -89,23 +57,11 @@ bash scripts/check_ch17_as1455_refactor.sh
 [PASS] Ch17 AS1455 refactor validation passed
 ```
 
-检查内容包括：
-
-- Python 和 shell 语法；
-- 关键 CLI 导入；
-- r1/r5/r21 目标映射；
-- `TOP_N` 与 signal 列；
-- fold0 默认候选模型与绘图默认选择规则一致；
-- 排名缓存与原逐日排序结果一致；
-- grid 不含第二套交易函数；
-- wrapper 不复制 checkpoint 或交易逻辑；
-- 唯一绘图器及线型/marker。
-
 ---
 
-## 4. r1 / r5 / r21 训练
+## 3. r1 / r5 / r21 训练
 
-### 4.1 通用单 fold
+### 3.1 单 fold
 
 A、r1、fold0：
 
@@ -140,29 +96,14 @@ python3 scripts/run_as1455_target_fold_param_search.py \
   --best-n 5
 ```
 
-### 4.2 批量训练 r1
+### 3.2 批量训练 r1
 
 ```bash
 TARGET_COL=r01_fwd \
 bash scripts/run_as1455_target_search_all.sh
 ```
 
-只训练 A：
-
-```bash
-TARGET_COL=r01_fwd \
-FEATURE_PRESETS='rotation_onehot' \
-bash scripts/run_as1455_target_search_all.sh
-```
-
-r1 默认继续写入原有兼容目录：
-
-```text
-saved_data/ashare_ml4t/ch17_as1455_sector_rotation_onehot_foldN_search
-saved_data/ashare_ml4t/ch17_as1455_full_rotation_plus_first_batch_compact_foldN_search
-```
-
-### 4.3 批量训练 r5
+### 3.3 批量训练 r5
 
 ```bash
 bash scripts/run_as1455_r05_target_search_all.sh
@@ -175,22 +116,9 @@ TARGET_COL=r05_fwd \
 bash scripts/run_as1455_target_search_all.sh
 ```
 
-默认训练：
+默认训练 A/B 的 fold0..fold6。
 
-```text
-A/B × fold0..fold6
-```
-
-只补跑 B 的 fold0、fold3、fold6：
-
-```bash
-TARGET_COL=r05_fwd \
-FEATURE_PRESETS='rotation_addon_onehot' \
-FOLDS='0 3 6' \
-bash scripts/run_as1455_target_search_all.sh
-```
-
-### 4.4 批量训练 r21
+### 3.4 批量训练 r21
 
 ```bash
 bash scripts/run_as1455_r21_target_search_all.sh
@@ -203,15 +131,16 @@ TARGET_COL=r21_fwd \
 bash scripts/run_as1455_target_search_all.sh
 ```
 
-当前默认训练：
+当前数据默认训练 A/B 的 fold0..fold5；r21 有效日期不足以生成 fold6。
 
-```text
-A/B × fold0..fold5
+### 3.5 指定特征和 fold
+
+```bash
+TARGET_COL=r05_fwd \
+FEATURE_PRESETS='rotation_addon_onehot' \
+FOLDS='0 3 6' \
+bash scripts/run_as1455_target_search_all.sh
 ```
-
-当前数据下 r21 有效日期不足以生成 fold6，默认已排除。
-
-### 4.5 输入检查与 smoke
 
 输入检查：
 
@@ -233,15 +162,9 @@ SMOKE=1 \
 bash scripts/run_as1455_target_search_all.sh
 ```
 
-确认覆盖旧目录时才使用：
-
-```bash
-FORCE=1
-```
-
 ---
 
-## 5. one-fold-lag 历史回测
+## 4. one-fold-lag 历史回测
 
 协议：
 
@@ -252,7 +175,7 @@ source fold5 -> target fold4
 source fold1 -> target fold0
 ```
 
-### 5.1 r1
+### 4.1 r1
 
 A：
 
@@ -270,15 +193,9 @@ python3 scripts/run_as1455_rotation_addon_one_lag_daily_backtest.py \
   --force-grid
 ```
 
-两个 r1 文件只是兼容 wrapper，实际统一调用：
+### 4.2 r5
 
-```text
-scripts/run_as1455_target_one_lag_backtest.py
-```
-
-### 5.2 r5
-
-先做单配置 smoke：
+单配置 smoke：
 
 ```bash
 FEATURE_PRESETS='rotation_onehot' \
@@ -286,7 +203,7 @@ PARITY_CHECK_ONLY=1 \
 bash scripts/run_as1455_r05_natural_backtest.sh
 ```
 
-正式运行 A/B：
+正式运行：
 
 ```bash
 OUTPUT_MODE=full \
@@ -300,9 +217,9 @@ bash scripts/run_as1455_r05_natural_backtest.sh
 = 1050 runs / feature preset
 ```
 
-### 5.3 r21
+### 4.3 r21
 
-先做单配置 smoke：
+单配置 smoke：
 
 ```bash
 FEATURE_PRESETS='rotation_onehot' \
@@ -317,11 +234,7 @@ OUTPUT_MODE=full \
 bash scripts/run_as1455_r21_natural_backtest.sh
 ```
 
-当前默认 target folds：
-
-```text
-0,1,2,3,4
-```
+当前默认 target folds 为 `0,1,2,3,4`。
 
 默认参数空间：
 
@@ -330,82 +243,91 @@ bash scripts/run_as1455_r21_natural_backtest.sh
 = 4410 runs / feature preset
 ```
 
+历史结果默认写入：
+
+```text
+saved_data/ashare_ml4t/ch17_as1455_target_backtest/
+  rotation_onehot_r05_fwd_reb5_YYYYMMDD/
+  rotation_addon_onehot_r05_fwd_reb5_YYYYMMDD/
+  rotation_onehot_r21_fwd_reb21_YYYYMMDD/
+  rotation_addon_onehot_r21_fwd_reb21_YYYYMMDD/
+```
+
 ---
 
-## 6. fold0 模型用于 fold0 后续日期
+## 5. fold0 模型用于 fold0 后续日期
 
-协议：
+### 5.1 默认模型选择规则
 
-- 使用 fold0 search-time checkpoint、scaler 和 feature manifest；
-- 仅预测 `date > fold0.test_end`；
-- 不重新训练；
-- 每个参数组合从初始资金和空仓开始；
-- 不继承 fold0 测试期持仓。
-
-### 6.1 默认模型候选与绘图选择规则
-
-fold0-forward 默认：
+fold0-forward 不再在后续日期重新比较全部模型信号。默认流程是：
 
 ```text
-TOP_N=5
+从 saved_data/ashare_ml4t/ch17_as1455_target_backtest
+找到与 feature_preset、target_col、rebalance_every 对应的最新完整目录
+→ 读取 grid_summary_compact.csv（找不到时读取 grid_summary.csv）
+→ 只保留 status=ok
+→ 默认按 Sharpe 选出历史最佳完整 run
+→ 提取该 run 的 signal_name、signal_cols、signal_mode
+→ 用相同 checkpoint 排名或 ensemble 定义组合 fold0 checkpoint
+→ 在 date > fold0.test_end 的区间从空仓开始回测
 ```
 
-`search_best_checkpoints.csv` 中按 `daily_ic_median` 排名前五的 checkpoint 会生成：
+例如历史最佳 signal 是：
 
 ```text
-model_0
-model_1
-model_2
-model_3
-model_4
-ensemble_first3_mean
-ensemble_all5_mean
+model_2:2:single
 ```
 
-回测会为这 7 个 signal 遍历持仓数、卖出排名和 offset。绘图默认：
+forward 只加载 fold0 排名前 3 个 checkpoint，并只回测 `model_2`。
+
+若历史最佳 signal 是：
 
 ```text
-RANK_METRIC=sharpe
+ensemble_first3_mean:0,1,2:mean
 ```
 
-因此默认流程是：
+forward 只加载 fold0 前 3 个 checkpoint，并只回测三模型均值。
+
+若历史最佳 signal 是：
 
 ```text
-fold0 top5 checkpoint + 两个 ensemble
-→ 完整参数网格回测
-→ 每个回测根目录中选择 Sharpe 最高的完整 run
-→ 绘制该 run 的 NAV
+ensemble_all5_mean:0,1,2,3,4:mean
 ```
 
-这里的“完整 run”同时包含：
+forward 加载 fold0 前 5 个 checkpoint，并只回测五模型均值。
+
+历史回测选择的是**模型信号**。历史窗口的：
 
 ```text
-signal_name
 max_positions
 sell_rank
-rebalance_every
 rebalance_offset
 ```
 
-需要只测试训练阶段 `daily_ic_median` 第一名的单模型时，显式设置：
+会写入 forward manifest 作为来源记录，但默认不直接套用；forward 窗口仍重新遍历交易参数。这避免把历史窗口的交易参数未经检验直接迁移到后续日期。
 
-```bash
-TOP_N=1 \
-TARGETS='r05_fwd' \
-bash scripts/run_as1455_fold0_forward_backtests.sh
+模型选择和绘图共用：
+
+```text
+utils/as1455_model_selection.py
 ```
 
-此时只有 `model_0`，绘图只在交易参数之间按 Sharpe 选择。
+两者默认指标都是：
 
-### 6.2 更新最新数据
+```text
+sharpe
+```
 
-默认 forward wrapper 会自动执行：
+### 5.2 更新最新数据
+
+默认 wrapper 会自动执行：
 
 ```text
 history 缓存更新
 → 重建 forward model_data
-→ checkpoint 推理
-→ 回测
+→ 历史最佳模型信号选择
+→ fold0 checkpoint 推理
+→ forward 回测
 ```
 
 单独更新：
@@ -420,16 +342,7 @@ bash scripts/refresh_as1455_forward_model_data.sh
 saved_data/ashare_ml4t/ch12_as1455_forward_latest/model_data_as1455.h5
 ```
 
-### 6.3 r1
-
-```bash
-TARGETS='r01_fwd' \
-FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
-OUTPUT_MODE=full \
-bash scripts/run_as1455_fold0_forward_backtests.sh
-```
-
-### 6.4 r5
+### 5.3 r5 fold0-forward
 
 ```bash
 TARGETS='r05_fwd' \
@@ -438,7 +351,13 @@ OUTPUT_MODE=full \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-### 6.5 r21
+运行时会打印类似：
+
+```text
+[MODEL SELECT] root=... metric=sharpe value=... historical_run=... signal=ensemble_first3_mean:0,1,2:mean required_top_n=3
+```
+
+### 5.4 r21 fold0-forward
 
 ```bash
 TARGETS='r21_fwd' \
@@ -447,7 +366,27 @@ OUTPUT_MODE=full \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-### 6.6 已刷新后只重跑回测
+### 5.5 r1 fold0-forward
+
+必须先在 `ch17_as1455_target_backtest` 下存在对应的 r1 历史回测目录：
+
+```text
+rotation_onehot_r01_fwd_reb1_*
+rotation_addon_onehot_r01_fwd_reb1_*
+```
+
+然后运行：
+
+```bash
+TARGETS='r01_fwd' \
+FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
+OUTPUT_MODE=full \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+找不到对应历史目录时会明确失败，不会静默改用其他模型。
+
+### 5.6 不重复刷新数据
 
 ```bash
 REFRESH_DATA=0 \
@@ -455,6 +394,82 @@ TARGETS='r05_fwd' \
 FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
 OUTPUT_MODE=full \
 bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+### 5.7 指定历史回测目录
+
+只运行一个 target 和一个 feature preset 时，可以固定来源目录：
+
+```bash
+REFRESH_DATA=0 \
+TARGETS='r05_fwd' \
+FEATURE_PRESETS='rotation_onehot' \
+SELECTION_BACKTEST_ROOT='saved_data/ashare_ml4t/ch17_as1455_target_backtest/rotation_onehot_r05_fwd_reb5_20260712' \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+### 5.8 改变历史选择指标
+
+```bash
+SELECTION_RANK_METRIC='calmar' \
+TARGETS='r05_fwd' \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+绘图时也应使用相同指标：
+
+```bash
+RANK_METRIC='calmar' \
+bash scripts/plot_as1455_default_ab_nav_curves.sh
+```
+
+### 5.9 保留旧的全信号网格模式
+
+需要让 forward 重新回测 top-N 的全部单模型和 ensemble 时，显式设置：
+
+```bash
+MODEL_SELECTION_MODE='all_top_n' \
+TOP_N=5 \
+TARGETS='r05_fwd' \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+这不是当前默认协议。
+
+---
+
+## 6. fold0-forward 输出与审计
+
+输出根目录：
+
+```text
+saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest/
+```
+
+预测目录：
+
+```text
+00_predictions/fold0_forward_preds.h5
+00_predictions/fold0_forward_preds.csv
+00_predictions/selected_fold0_checkpoints.csv
+00_predictions/fold0_forward_prediction_manifest.json
+```
+
+manifest 中记录：
+
+```text
+model_selection_mode
+historical_model_selection.backtest_root
+historical_model_selection.summary_file
+historical_model_selection.rank_metric
+historical_model_selection.run_name
+historical_model_selection.signal_name
+historical_model_selection.signal_cols
+historical_model_selection.signal_mode
+historical_model_selection.historical_max_positions
+historical_model_selection.historical_sell_rank
+historical_model_selection.historical_rebalance_offset
+historical_trading_parameters_reused = false
 ```
 
 ---
@@ -475,36 +490,6 @@ bash scripts/run_as1455_fold0_forward_backtests.sh
 OUTPUT_MODE=full
 ```
 
-完整 run 通常包括：
-
-```text
-config.json
-summary.json
-close_auction_summary.json
-close_auction_nav.csv
-close_auction_orders.csv
-close_auction_trades.csv
-close_auction_rejections.csv
-close_auction_positions.csv
-close_auction_corporate_actions.csv
-round_trips.csv
-daily_drawdown.csv
-monthly_summary.csv
-yearly_summary.csv
-fee_summary.csv
-turnover_summary.csv
-```
-
-默认资金和费用：
-
-```text
-initial_cash = 200000
-commission_rate = 0.000085
-min_commission = 5
-stamp_tax_rate = 0.0005
-transfer_fee_rate = 0.00001
-```
-
 ---
 
 ## 8. 绘图
@@ -515,62 +500,25 @@ transfer_fee_rate = 0.00001
 scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-默认：
+绘图和 fold0 历史模型选择共用同一个 best-run 选择函数。默认按 Sharpe 选取每个传入根目录的最佳完整 run。
 
-```text
-RANK_METRIC=sharpe
-FREQUENCIES=daily,weekly,monthly
-```
-
-对每一个 `BACKTEST_ROOT`，绘图器独立选择该目录中指标最优的完整 run。曲线同时使用颜色、线型和 marker，并输出实际选中的 signal 和参数。
-
-### 8.1 r1 A/B
-
-```bash
-R1_A=$(find saved_data/ashare_ml4t -maxdepth 1 -type d \
-  -name 'ch17_as1455_rotation_one_lag_daily_backtest_*' | sort | tail -n 1)
-R1_B=$(find saved_data/ashare_ml4t -maxdepth 1 -type d \
-  -name 'ch17_as1455_rotation_addon_one_lag_daily_backtest_*' | sort | tail -n 1)
-
-BACKTEST_ROOTS="$R1_A,$R1_B" \
-LABELS='r1-A,r1-B' \
-OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r1_ab_$(date +%Y%m%d_%H%M%S)" \
-bash scripts/plot_as1455_default_ab_nav_curves.sh
-```
-
-### 8.2 r5 A/B
+### 8.1 r5 历史 A/B
 
 ```bash
 BASE='saved_data/ashare_ml4t/ch17_as1455_target_backtest'
-R5_A=$(find "$BASE" -maxdepth 1 -type d \
+A=$(find "$BASE" -maxdepth 1 -type d \
   -name 'rotation_onehot_r05_fwd_reb5_*' | sort | tail -n 1)
-R5_B=$(find "$BASE" -maxdepth 1 -type d \
+B=$(find "$BASE" -maxdepth 1 -type d \
   -name 'rotation_addon_onehot_r05_fwd_reb5_*' | sort | tail -n 1)
 
-BACKTEST_ROOTS="$R5_A,$R5_B" \
+BACKTEST_ROOTS="$A,$B" \
 LABELS='r5-A,r5-B' \
+RANK_METRIC='sharpe' \
 OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r5_ab_$(date +%Y%m%d_%H%M%S)" \
 bash scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-### 8.3 r21 A/B
-
-```bash
-BASE='saved_data/ashare_ml4t/ch17_as1455_target_backtest'
-R21_A=$(find "$BASE" -maxdepth 1 -type d \
-  -name 'rotation_onehot_r21_fwd_reb21_*' | sort | tail -n 1)
-R21_B=$(find "$BASE" -maxdepth 1 -type d \
-  -name 'rotation_addon_onehot_r21_fwd_reb21_*' | sort | tail -n 1)
-
-BACKTEST_ROOTS="$R21_A,$R21_B" \
-LABELS='r21-A,r21-B' \
-OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r21_ab_$(date +%Y%m%d_%H%M%S)" \
-bash scripts/plot_as1455_default_ab_nav_curves.sh
-```
-
-### 8.4 fold0-forward A/B
-
-以 r5 为例：
+### 8.2 r5 fold0-forward A/B
 
 ```bash
 BASE='saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest'
@@ -581,18 +529,12 @@ B=$(find "$BASE" -maxdepth 1 -type d \
 
 BACKTEST_ROOTS="$A,$B" \
 LABELS='r5-A-fold0-forward,r5-B-fold0-forward' \
+RANK_METRIC='sharpe' \
 OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r5_fold0_forward_$(date +%Y%m%d_%H%M%S)" \
 bash scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-切换最优指标：
-
-```bash
-RANK_METRIC=total_return bash scripts/plot_as1455_default_ab_nav_curves.sh
-RANK_METRIC=calmar bash scripts/plot_as1455_default_ab_nav_curves.sh
-```
-
-绘图输出：
+输出：
 
 ```text
 return_curve_daily.png
@@ -605,45 +547,24 @@ selected_best_grids.csv
 selected_best_grids.json
 ```
 
-`selected_best_grids.csv` 是实际模型和参数选择的最终依据。
+曲线同时使用颜色、线型和 marker。
 
 ---
 
-## 9. 重构前后单 run 对比
+## 9. 最低验证
 
 ```bash
-python3 scripts/compare_as1455_backtest_runs.py \
-  --left-run <重构前单个run目录> \
-  --right-run <重构后单个run目录>
+bash scripts/check_ch17_as1455_refactor.sh
 ```
 
-默认比较：
+真实历史目录选择检查：
 
-```text
-close_auction_nav.csv
-close_auction_orders.csv
-close_auction_rejections.csv
-round_trips.csv
-summary.json
+```bash
+REFRESH_DATA=0 \
+TARGETS='r05_fwd' \
+FEATURE_PRESETS='rotation_onehot' \
+PARITY_CHECK_ONLY=1 \
+bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-数值容差：
-
-```text
-rtol=1e-12
-atol=1e-12
-```
-
-正确结束标志：
-
-```text
-[PASS] AS1455 run outputs are equivalent
-```
-
----
-
-## 10. 当前已知限制
-
-1. r21 当前数据下没有可用 source fold6，所以 one-fold-lag 默认只覆盖 target fold0..4。
-2. forward HDF 最后 1、5、21 个交易日分别没有完整 r1、r5、r21 前向标签。
-3. live 旧基线 checkpoint bundle 与 target-aware A/B `.keras + scaler.pkl + feature_manifest.json` 不是同一产物契约，不能直接混用。
+必须先打印 `[MODEL SELECT]`，然后完成单配置 v7 smoke。
