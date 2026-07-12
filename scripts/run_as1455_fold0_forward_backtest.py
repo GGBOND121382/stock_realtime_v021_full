@@ -257,6 +257,11 @@ def parse_args() -> argparse.Namespace:
         )
     resolve_model_selection(args)
     as1455_cli.normalize_common_prediction_args(args)
+    if args.model_selection_mode == "strict_oos" and args.smoke:
+        raise SystemExit(
+            "--smoke uses fixed legacy configs and is incompatible with strict_oos; "
+            "use --parity-check-only for a strict-path smoke check"
+        )
     return args
 
 
@@ -296,6 +301,8 @@ def main() -> None:
         if (
             args.model_selection_mode == "strict_oos"
             and isinstance(selection, HistoricalSignalSelection)
+            and not args.parity_check_only
+            and not args.dry_run
         ):
             strict_manifest = finalize_strict_oos_grid(out_root, selection)
             print(
