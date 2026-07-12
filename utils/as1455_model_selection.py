@@ -84,12 +84,22 @@ def find_summary_file(root: Path) -> tuple[Path, Path]:
     raise FileNotFoundError(f"cannot find grid summary under {root}")
 
 
-def select_best_run(summary: pd.DataFrame, metric: str) -> pd.Series:
+def successful_rows(summary: pd.DataFrame) -> pd.DataFrame:
+    """Return only explicitly successful rows; never fail open to failed runs."""
     frame = summary.copy()
+    if frame.empty:
+        raise RuntimeError("grid summary is empty")
     if "status" in frame.columns:
-        ok = frame["status"].astype(str).str.lower().eq("ok")
-        if ok.any():
-            frame = frame.loc[ok].copy()
+        frame = frame.loc[
+            frame["status"].astype(str).str.lower().eq("ok")
+        ].copy()
+        if frame.empty:
+            raise RuntimeError("grid summary contains no status=ok rows")
+    return frame
+
+
+def select_best_run(summary: pd.DataFrame, metric: str) -> pd.Series:
+    frame = successful_rows(summary)
     if metric not in frame.columns:
         raise RuntimeError(
             f"rank metric {metric!r} not found in summary columns: "
@@ -100,7 +110,7 @@ def select_best_run(summary: pd.DataFrame, metric: str) -> pd.Series:
     frame[metric] = pd.to_numeric(frame[metric], errors="coerce")
     frame = frame.dropna(subset=[metric])
     if frame.empty:
-        raise RuntimeError(f"no valid rows for metric {metric!r}")
+        raise RuntimeError(f"no valid successful rows for metric {metric!r}")
     ascending = metric in LOWER_IS_BETTER and metric not in HIGHER_IS_BETTER
     return frame.sort_values(metric, ascending=ascending, kind="mergesort").iloc[0]
 
@@ -119,13 +129,14 @@ def find_latest_target_backtest_root(
     valid: list[Path] = []
     for path in candidates:
         try:
-            find_summary_file(path)
-        except FileNotFoundError:
+            summary_file, _grid_dir = find_summary_file(path)
+            successful_rows(read_csv_auto(summary_file))
+        except (FileNotFoundError, RuntimeError, pd.errors.EmptyDataError):
             continue
         valid.append(path)
     if not valid:
         raise FileNotFoundError(
-            "cannot find a completed historical target backtest; "
+            "cannot find a completed historical target backtest with status=ok; "
             f"base_root={base_root} pattern={pattern}"
         )
     return valid[-1]
