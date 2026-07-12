@@ -1,6 +1,6 @@
 # AS1455 r1 / r5 / r21 训练、回测与绘图指南
 
-本文档给出当前推荐命令。代码分层、唯一事实来源和开发规则见：
+代码结构和开发规则见：
 
 ```text
 CH17_AS1455_DEVELOPMENT_OUTLINE.md
@@ -14,40 +14,33 @@ cd ~/stock_realtime_v021_full
 
 ---
 
-## 1. 当前结构
-
-公共逻辑已统一放入：
+## 1. 当前公共实现
 
 ```text
+utils/as1455_paths.py
 utils/as1455_ch17_common.py
+utils/as1455_cli.py
 utils/as1455_signal_specs.py
+utils/as1455_rank_cache.py
 utils/as1455_backtest_io.py
+utils/as1455_grid_runner.py
 utils/as1455_plotting.py
 ```
 
-职责如下：
-
-| 文件 | 职责 |
-|---|---|
-| `as1455_ch17_common.py` | 目标定义、A/B 特征、fold、checkpoint/scaler/manifest、推理、预测产物和 grid 命令 |
-| `as1455_signal_specs.py` | 根据 `TOP_N` 生成合法的模型与 ensemble 信号 |
-| `as1455_backtest_io.py` | 统一 TradeConfig 和回测结果写出 |
-| `as1455_plotting.py` | 统一线型、marker 和绘图样式 |
-
-核心入口：
+当前 in-process 引擎：
 
 ```text
-训练：scripts/run_as1455_target_fold_param_search.py
-批量训练：scripts/run_as1455_target_search_all.sh
-one-fold-lag：scripts/run_as1455_target_one_lag_backtest.py
-自然周期回测：scripts/run_as1455_target_natural_backtest.sh
-fold0-forward：scripts/run_as1455_fold0_forward_backtest.py
-回测引擎：code/backtest/run_as1455_close_auction_backtest_v7_maxpos_grid.py
-网格编排：code/backtest/run_as1455_close_auction_grid_inprocess.py
-绘图：scripts/plot_as1455_backtest_return_curves.py
+inprocess_shared_rank_v4
 ```
 
-r1、r5、r21 的旧命令入口仍保留，但已经改成薄 wrapper。
+它会：
+
+- prediction 每个 signal 加载一次；
+- 每个 signal 的每个交易日只实际排序一次；
+- execution panel 只构造一次；
+- 所有 `max_positions × sell_rank × offset` 共用排序结果；
+- 每个参数组合仍调用唯一 v7 交易函数；
+- 不存在第二套买卖、费用或 NAV 实现。
 
 ---
 
@@ -61,12 +54,6 @@ r1、r5、r21 的旧命令入口仍保留，但已经改成薄 wrapper。
 | r5 | `r05_fwd` | 5 | 5 | `0..4` |
 | r21 | `r21_fwd` | 21 | 21 | `0..20` |
 
-该映射只维护在：
-
-```text
-utils/as1455_ch17_common.py::TARGET_SPECS
-```
-
 ### 2.2 特征方案
 
 | 名称 | `feature_preset` | 内容 |
@@ -74,15 +61,7 @@ utils/as1455_ch17_common.py::TARGET_SPECS
 | A | `rotation_onehot` | 原始 31 特征 + 完整 sector rotation + sector one-hot |
 | B | `rotation_addon_onehot` | A + compact add-on 特征 |
 
-### 2.3 训练数据
-
-默认训练数据：
-
-```text
-saved_data/ashare_ml4t/ch12_as1455/model_data_as1455.h5
-```
-
-正式搜索产物契约：
+### 2.3 正式训练产物
 
 ```text
 search_best_checkpoints.csv
@@ -96,47 +75,38 @@ fold_report.json
 
 ---
 
-## 3. 代码拉取和静态检查
+## 3. 拉取代码并检查结构
 
 ```bash
 cd ~/stock_realtime_v021_full
 git pull origin master
+bash scripts/check_ch17_as1455_refactor.sh
 ```
 
-语法检查：
+正确结束标志：
 
-```bash
-python3 -m compileall -q \
-  utils/as1455_ch17_common.py \
-  utils/as1455_signal_specs.py \
-  utils/as1455_backtest_io.py \
-  utils/as1455_plotting.py \
-  scripts/run_as1455_target_fold_param_search.py \
-  scripts/run_as1455_target_one_lag_backtest.py \
-  scripts/run_as1455_fold0_forward_backtest.py \
-  scripts/plot_as1455_backtest_return_curves.py \
-  code/backtest/run_as1455_close_auction_grid_inprocess.py
+```text
+[PASS] Ch17 AS1455 refactor validation passed
 ```
 
-CLI 检查：
+检查内容包括：
 
-```bash
-python3 scripts/run_as1455_target_fold_param_search.py --help >/dev/null
-python3 scripts/run_as1455_target_one_lag_backtest.py --help >/dev/null
-python3 scripts/run_as1455_fold0_forward_backtest.py --help >/dev/null
-python3 scripts/plot_as1455_backtest_return_curves.py --help >/dev/null
-python3 code/backtest/run_as1455_close_auction_grid_inprocess.py --help >/dev/null
-
-echo '[OK] AS1455 CLI imports passed'
-```
+- Python 和 shell 语法；
+- 关键 CLI 导入；
+- r1/r5/r21 目标映射；
+- `TOP_N` 与 signal 列；
+- 排名缓存与原逐日排序结果一致；
+- grid 不含第二套交易函数；
+- wrapper 不复制 checkpoint 或交易逻辑；
+- 唯一绘图器及线型/marker。
 
 ---
 
 ## 4. r1 / r5 / r21 训练
 
-### 4.1 通用单 fold 命令
+### 4.1 通用单 fold
 
-A 组、r1、fold0：
+A、r1、fold0：
 
 ```bash
 python3 scripts/run_as1455_target_fold_param_search.py \
@@ -147,7 +117,7 @@ python3 scripts/run_as1455_target_fold_param_search.py \
   --best-n 5
 ```
 
-B 组、r5、fold3：
+B、r5、fold3：
 
 ```bash
 python3 scripts/run_as1455_target_fold_param_search.py \
@@ -158,7 +128,7 @@ python3 scripts/run_as1455_target_fold_param_search.py \
   --best-n 5
 ```
 
-A 组、r21、fold0：
+A、r21、fold0：
 
 ```bash
 python3 scripts/run_as1455_target_fold_param_search.py \
@@ -184,15 +154,20 @@ FEATURE_PRESETS='rotation_onehot' \
 bash scripts/run_as1455_target_search_all.sh
 ```
 
-### 4.3 批量训练 r5
+r1 默认继续写入原有兼容目录：
 
-兼容命令：
+```text
+saved_data/ashare_ml4t/ch17_as1455_sector_rotation_onehot_foldN_search
+saved_data/ashare_ml4t/ch17_as1455_full_rotation_plus_first_batch_compact_foldN_search
+```
+
+### 4.3 批量训练 r5
 
 ```bash
 bash scripts/run_as1455_r05_target_search_all.sh
 ```
 
-等价通用命令：
+等价：
 
 ```bash
 TARGET_COL=r05_fwd \
@@ -216,13 +191,11 @@ bash scripts/run_as1455_target_search_all.sh
 
 ### 4.4 批量训练 r21
 
-兼容命令：
-
 ```bash
 bash scripts/run_as1455_r21_target_search_all.sh
 ```
 
-等价通用命令：
+等价：
 
 ```bash
 TARGET_COL=r21_fwd \
@@ -235,9 +208,9 @@ bash scripts/run_as1455_target_search_all.sh
 A/B × fold0..fold5
 ```
 
-当前数据下 r21 的有效日期不足以生成 fold6，通用 wrapper 已默认排除 fold6。
+当前数据下 r21 有效日期不足以生成 fold6，默认已排除。
 
-### 4.5 输入检查和 smoke
+### 4.5 输入检查与 smoke
 
 输入检查：
 
@@ -269,7 +242,7 @@ FORCE=1
 
 ## 5. one-fold-lag 历史回测
 
-one-fold-lag 协议：
+协议：
 
 ```text
 source fold6 -> target fold5
@@ -277,8 +250,6 @@ source fold5 -> target fold4
 ...
 source fold1 -> target fold0
 ```
-
-每个 target fold 只使用更早一个 fold 的 search-time checkpoint，不在 target fold 上重新训练或选模型。
 
 ### 5.1 r1
 
@@ -298,7 +269,7 @@ python3 scripts/run_as1455_rotation_addon_one_lag_daily_backtest.py \
   --force-grid
 ```
 
-这两个入口目前只是 r1 A/B 的兼容 wrapper，实际实现统一调用：
+两个 r1 文件只是兼容 wrapper，实际统一调用：
 
 ```text
 scripts/run_as1455_target_one_lag_backtest.py
@@ -306,7 +277,7 @@ scripts/run_as1455_target_one_lag_backtest.py
 
 ### 5.2 r5
 
-先做单配置引擎 smoke，不执行完整网格：
+先做单配置 smoke：
 
 ```bash
 FEATURE_PRESETS='rotation_onehot' \
@@ -337,15 +308,7 @@ OUTPUT_MODE=full \
 bash scripts/run_as1455_r05_natural_backtest.sh
 ```
 
-默认 `TOP_N=5`，因此每个特征方案包含：
-
-```text
-model_0..model_4
-ensemble_first3_mean
-ensemble_all5_mean
-```
-
-参数空间：
+默认参数空间：
 
 ```text
 7 signals × 5 max_positions × 6 sell_rank × 5 offsets
@@ -354,7 +317,7 @@ ensemble_all5_mean
 
 ### 5.3 r21
 
-先做引擎 smoke：
+先做单配置 smoke：
 
 ```bash
 FEATURE_PRESETS='rotation_onehot' \
@@ -375,14 +338,6 @@ bash scripts/run_as1455_r21_natural_backtest.sh
 0,1,2,3,4
 ```
 
-即：
-
-```text
-source fold5 -> target fold4
-...
-source fold1 -> target fold0
-```
-
 参数空间：
 
 ```text
@@ -390,37 +345,19 @@ source fold1 -> target fold0
 = 4410 runs / feature preset
 ```
 
-### 5.4 当前网格优化边界
-
-当前 `inprocess_shared_data_v3` 已做到：
-
-- prediction 每个 signal 只加载一次；
-- execution panel 只构造一次；
-- universe、ST、公司行为和容量数据只加载一次；
-- 所有配置在同一个 Python 进程中执行；
-- 每个配置调用同一个 v7 `backtest()`，不存在第二套交易循环。
-
-当前尚未做到：
-
-```text
-每个 signal 的每日排序只计算一次并由所有配置共享
-```
-
-原因是排序仍位于唯一 v7 回测核心内部。下一步优化必须改造 v7 公共接口，不能在 grid 文件中复制买卖、费用和 NAV 逻辑。
-
 ---
 
 ## 6. fold0 最优模型用于 fold0 后续日期
 
-该协议与 one-fold-lag 不同：
+协议：
 
 - 使用 fold0 search-time checkpoint、scaler 和 feature manifest；
 - 仅预测 `date > fold0.test_end`；
 - 不重新训练；
-- 每个回测配置从初始资金和空仓开始；
-- 不继承 fold0 测试窗口的持仓。
+- 每个参数组合从初始资金和空仓开始；
+- 不继承 fold0 测试期持仓。
 
-### 6.1 更新最新历史数据并重建 forward HDF
+### 6.1 更新最新数据
 
 默认 forward wrapper 会自动执行：
 
@@ -431,7 +368,7 @@ history 缓存更新
 → 回测
 ```
 
-单独更新数据：
+单独更新：
 
 ```bash
 bash scripts/refresh_as1455_forward_model_data.sh
@@ -443,7 +380,7 @@ bash scripts/refresh_as1455_forward_model_data.sh
 saved_data/ashare_ml4t/ch12_as1455_forward_latest/model_data_as1455.h5
 ```
 
-### 6.2 r1 fold0-forward
+### 6.2 r1
 
 ```bash
 TARGETS='r01_fwd' \
@@ -452,7 +389,7 @@ OUTPUT_MODE=full \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-### 6.3 r5 fold0-forward
+### 6.3 r5
 
 ```bash
 TARGETS='r05_fwd' \
@@ -461,7 +398,7 @@ OUTPUT_MODE=full \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-### 6.4 r21 fold0-forward
+### 6.4 r21
 
 ```bash
 TARGETS='r21_fwd' \
@@ -478,15 +415,9 @@ fold0-forward 默认：
 TOP_N=1
 ```
 
-因此只生成和回测：
+因此只回测 `model_0`，与“fold0 最优模型”定义一致。
 
-```text
-model_0
-```
-
-这与“fold0 的最优模型”这一实验定义一致。
-
-需要 top5 和 ensemble 实验时显式运行：
+需要 top5 和 ensemble：
 
 ```bash
 TOP_N=5 \
@@ -494,9 +425,7 @@ TARGETS='r05_fwd' \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-`utils/as1455_signal_specs.py` 会根据实际 `TOP_N` 生成合法 signal，不会在 `TOP_N=1` 时错误读取不存在的 `model_1..model_4`。
-
-### 6.6 已刷新数据后只重跑回测
+### 6.6 已刷新后只重跑回测
 
 ```bash
 REFRESH_DATA=0 \
@@ -564,14 +493,7 @@ transfer_fee_rate = 0.00001
 scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-绘图会：
-
-- 从每个根目录的 grid summary 中按 `RANK_METRIC` 选择最优 run；
-- 读取对应 `close_auction_nav.csv`；
-- 生成 daily、weekly、monthly 曲线；
-- 同时使用颜色、线型和 marker；
-- 在 CSV 中记录 `line_style` 和 `marker`；
-- 输出实际选中的 signal 和参数。
+曲线同时使用颜色、线型和 marker，并输出实际选中的 signal 和参数。
 
 ### 8.1 r1 A/B
 
@@ -634,7 +556,7 @@ OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r5_fold0_forward_$(da
 bash scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-切换最优参数指标：
+切换最优指标：
 
 ```bash
 RANK_METRIC=total_return bash scripts/plot_as1455_default_ab_nav_curves.sh
@@ -656,22 +578,15 @@ selected_best_grids.json
 
 ---
 
-## 9. 最低回归验证
-
-### 9.1 signal 数量
+## 9. 重构前后单 run 对比
 
 ```bash
-python3 - <<'PY'
-from utils.as1455_signal_specs import signal_specs_for_top_n
-assert signal_specs_for_top_n(1) == ['model_0:0:single']
-assert len(signal_specs_for_top_n(5)) == 7
-print('[OK] signal specs')
-PY
+python3 scripts/compare_as1455_backtest_runs.py \
+  --left-run <重构前单个run目录> \
+  --right-run <重构后单个run目录>
 ```
 
-### 9.2 固定预测文件对比
-
-对重构前后相同预测文件、signal 和参数，至少比较：
+默认比较：
 
 ```text
 close_auction_nav.csv
@@ -681,38 +596,23 @@ round_trips.csv
 summary.json
 ```
 
-数值字段要求：
+数值容差：
 
 ```text
-rtol = 1e-12
-atol = 1e-12
+rtol=1e-12
+atol=1e-12
 ```
 
-允许不同：
+正确结束标志：
 
 ```text
-输出目录名
-grid_engine metadata
-创建时间
-```
-
-不允许不同：
-
-```text
-交易日期
-买卖方向
-成交数量
-费用
-持仓
-NAV
-收益和风险指标
+[PASS] AS1455 run outputs are equivalent
 ```
 
 ---
 
 ## 10. 当前已知限制
 
-1. r21 当前数据下没有可用 source fold6，因此 one-fold-lag 默认只覆盖 target fold0..4。
-2. forward HDF 的最后 1、5、21 个交易日分别无法得到完整的 r1、r5、r21 前向标签。
-3. 当前 in-process v3 已消除第二套交易循环，但尚未在所有 grid 配置之间共享每日排名缓存。
-4. live 旧基线 checkpoint bundle 与 target-aware A/B `.keras + scaler.pkl + feature_manifest.json` 不是同一产物契约，不能直接混用。
+1. r21 当前数据下没有可用 source fold6，所以 one-fold-lag 默认只覆盖 target fold0..4。
+2. forward HDF 最后 1、5、21 个交易日分别没有完整 r1、r5、r21 前向标签。
+3. live 旧基线 checkpoint bundle 与 target-aware A/B `.keras + scaler.pkl + feature_manifest.json` 不是同一产物契约，不能直接混用。
