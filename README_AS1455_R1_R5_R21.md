@@ -1,12 +1,10 @@
 # AS1455 r1 / r5 / r21 训练、回测与绘图指南
 
-本文档说明 AS1455 三个预测周期的标准操作：
+本文档给出当前推荐命令。代码分层、唯一事实来源和开发规则见：
 
-| 简称 | 监督目标 | 自然调仓周期 | 完整 offset |
-|---|---|---:|---|
-| `r1` | `r01_fwd` | 1 个交易日 | `0` |
-| `r5` | `r05_fwd` | 5 个交易日 | `0,1,2,3,4` |
-| `r21` | `r21_fwd` | 21 个交易日 | `0..20` |
+```text
+CH17_AS1455_DEVELOPMENT_OUTLINE.md
+```
 
 以下命令均在工程根目录执行：
 
@@ -14,22 +12,77 @@
 cd ~/stock_realtime_v021_full
 ```
 
-## 1. 数据与特征口径
+---
 
-默认模型数据：
+## 1. 当前结构
+
+公共逻辑已统一放入：
+
+```text
+utils/as1455_ch17_common.py
+utils/as1455_signal_specs.py
+utils/as1455_backtest_io.py
+utils/as1455_plotting.py
+```
+
+职责如下：
+
+| 文件 | 职责 |
+|---|---|
+| `as1455_ch17_common.py` | 目标定义、A/B 特征、fold、checkpoint/scaler/manifest、推理、预测产物和 grid 命令 |
+| `as1455_signal_specs.py` | 根据 `TOP_N` 生成合法的模型与 ensemble 信号 |
+| `as1455_backtest_io.py` | 统一 TradeConfig 和回测结果写出 |
+| `as1455_plotting.py` | 统一线型、marker 和绘图样式 |
+
+核心入口：
+
+```text
+训练：scripts/run_as1455_target_fold_param_search.py
+批量训练：scripts/run_as1455_target_search_all.sh
+one-fold-lag：scripts/run_as1455_target_one_lag_backtest.py
+自然周期回测：scripts/run_as1455_target_natural_backtest.sh
+fold0-forward：scripts/run_as1455_fold0_forward_backtest.py
+回测引擎：code/backtest/run_as1455_close_auction_backtest_v7_maxpos_grid.py
+网格编排：code/backtest/run_as1455_close_auction_grid_inprocess.py
+绘图：scripts/plot_as1455_backtest_return_curves.py
+```
+
+r1、r5、r21 的旧命令入口仍保留，但已经改成薄 wrapper。
+
+---
+
+## 2. 固定实验口径
+
+### 2.1 目标与自然调仓周期
+
+| 简称 | 监督目标 | lookahead | 调仓周期 | offset |
+|---|---|---:|---:|---|
+| r1 | `r01_fwd` | 1 | 1 | `0` |
+| r5 | `r05_fwd` | 5 | 5 | `0..4` |
+| r21 | `r21_fwd` | 21 | 21 | `0..20` |
+
+该映射只维护在：
+
+```text
+utils/as1455_ch17_common.py::TARGET_SPECS
+```
+
+### 2.2 特征方案
+
+| 名称 | `feature_preset` | 内容 |
+|---|---|---|
+| A | `rotation_onehot` | 原始 31 特征 + 完整 sector rotation + sector one-hot |
+| B | `rotation_addon_onehot` | A + compact add-on 特征 |
+
+### 2.3 训练数据
+
+默认训练数据：
 
 ```text
 saved_data/ashare_ml4t/ch12_as1455/model_data_as1455.h5
 ```
 
-两组特征方案：
-
-| 名称 | `feature_preset` | 含义 |
-|---|---|---|
-| A | `rotation_onehot` | 原始 31 特征 + 完整 sector rotation + sector one-hot |
-| B | `rotation_addon_onehot` | A + compact add-on 特征 |
-
-训练与正式回测必须使用搜索阶段保存的以下产物：
+正式搜索产物契约：
 
 ```text
 search_best_checkpoints.csv
@@ -39,324 +92,237 @@ preprocess/feature_manifest.json
 fold_report.json
 ```
 
-正式 one-fold-lag 回测不要把 `models/best_*.keras` 或诊断性 retrain 产物作为搜索最优模型依据。
+正式回测使用 search-time checkpoint，不使用诊断性 retrain 的 `models/best_*.keras`。
 
-## 2. r1 训练
+---
 
-### 2.1 A：rotation + one-hot
-
-完整训练 7 个 fold：
+## 3. 代码拉取和静态检查
 
 ```bash
-mkdir -p logs/as1455_folds
-
-for FOLD in 0 1 2 3 4 5 6; do
-  python3 scripts/run_as1455_sector_rotation_fold0_param_search.py \
-    --model-data saved_data/ashare_ml4t/ch12_as1455/model_data_as1455.h5 \
-    --fold-index "$FOLD" \
-    --sector-encoding onehot \
-    --dropna-mode r01_only \
-    --epochs 20 \
-    --best-n 5 \
-    --out-dir "saved_data/ashare_ml4t/ch17_as1455_sector_rotation_onehot_fold${FOLD}_search" \
-    2>&1 | tee "logs/as1455_folds/sector_rotation_onehot_fold${FOLD}.log"
-done
+cd ~/stock_realtime_v021_full
+git pull origin master
 ```
 
-输出目录：
-
-```text
-saved_data/ashare_ml4t/ch17_as1455_sector_rotation_onehot_fold0_search
-...
-saved_data/ashare_ml4t/ch17_as1455_sector_rotation_onehot_fold6_search
-```
-
-### 2.2 B：rotation + compact add-on + one-hot
+语法检查：
 
 ```bash
-mkdir -p logs/as1455_folds
-
-for FOLD in 0 1 2 3 4 5 6; do
-  python3 scripts/run_as1455_first_batch_features_fold0_param_search.py \
-    --model-data saved_data/ashare_ml4t/ch12_as1455/model_data_as1455.h5 \
-    --fold-index "$FOLD" \
-    --sector-encoding onehot \
-    --dropna-mode r01_only \
-    --epochs 20 \
-    --best-n 5 \
-    --out-dir "saved_data/ashare_ml4t/ch17_as1455_full_rotation_plus_first_batch_compact_fold${FOLD}_search" \
-    2>&1 | tee "logs/as1455_folds/full_rotation_plus_addon_fold${FOLD}.log"
-done
+python3 -m compileall -q \
+  utils/as1455_ch17_common.py \
+  utils/as1455_signal_specs.py \
+  utils/as1455_backtest_io.py \
+  utils/as1455_plotting.py \
+  scripts/run_as1455_target_fold_param_search.py \
+  scripts/run_as1455_target_one_lag_backtest.py \
+  scripts/run_as1455_fold0_forward_backtest.py \
+  scripts/plot_as1455_backtest_return_curves.py \
+  code/backtest/run_as1455_close_auction_grid_inprocess.py
 ```
 
-输出目录：
-
-```text
-saved_data/ashare_ml4t/ch17_as1455_full_rotation_plus_first_batch_compact_fold0_search
-...
-saved_data/ashare_ml4t/ch17_as1455_full_rotation_plus_first_batch_compact_fold6_search
-```
-
-### 2.3 只检查输入或做 smoke test
-
-A 组 fold0 输入检查：
+CLI 检查：
 
 ```bash
-python3 scripts/run_as1455_sector_rotation_fold0_param_search.py \
+python3 scripts/run_as1455_target_fold_param_search.py --help >/dev/null
+python3 scripts/run_as1455_target_one_lag_backtest.py --help >/dev/null
+python3 scripts/run_as1455_fold0_forward_backtest.py --help >/dev/null
+python3 scripts/plot_as1455_backtest_return_curves.py --help >/dev/null
+python3 code/backtest/run_as1455_close_auction_grid_inprocess.py --help >/dev/null
+
+echo '[OK] AS1455 CLI imports passed'
+```
+
+---
+
+## 4. r1 / r5 / r21 训练
+
+### 4.1 通用单 fold 命令
+
+A 组、r1、fold0：
+
+```bash
+python3 scripts/run_as1455_target_fold_param_search.py \
+  --feature-preset rotation_onehot \
+  --target-col r01_fwd \
   --fold-index 0 \
-  --sector-encoding onehot \
-  --dropna-mode r01_only \
-  --out-dir saved_data/ashare_ml4t/ch17_as1455_sector_rotation_onehot_fold0_input_check \
-  --input-check-only
+  --epochs 20 \
+  --best-n 5
 ```
 
-B 组 fold0 smoke test：
+B 组、r5、fold3：
 
 ```bash
-python3 scripts/run_as1455_first_batch_features_fold0_param_search.py \
+python3 scripts/run_as1455_target_fold_param_search.py \
+  --feature-preset rotation_addon_onehot \
+  --target-col r05_fwd \
+  --fold-index 3 \
+  --epochs 20 \
+  --best-n 5
+```
+
+A 组、r21、fold0：
+
+```bash
+python3 scripts/run_as1455_target_fold_param_search.py \
+  --feature-preset rotation_onehot \
+  --target-col r21_fwd \
   --fold-index 0 \
-  --sector-encoding onehot \
-  --dropna-mode r01_only \
-  --epochs 2 \
-  --best-n 1 \
-  --out-dir saved_data/ashare_ml4t/ch17_as1455_full_rotation_plus_first_batch_compact_fold0_smoke \
-  --smoke
+  --epochs 20 \
+  --best-n 5
 ```
 
-已有非空输出目录默认拒绝覆盖。确认需要重跑时再加 `--force`。
-
-## 3. r5 训练
-
-两个特征方案、7 个 fold 全部运行：
+### 4.2 批量训练 r1
 
 ```bash
-bash scripts/run_as1455_r05_target_search_all.sh
-```
-
-默认参数：
-
-```text
-TARGET_COL=r05_fwd
-FEATURE_PRESETS="rotation_onehot rotation_addon_onehot"
-FOLDS="0 1 2 3 4 5 6"
-EPOCHS=20
-BEST_N=5
-SEED=42
+TARGET_COL=r01_fwd \
+bash scripts/run_as1455_target_search_all.sh
 ```
 
 只训练 A：
 
 ```bash
-FEATURE_PRESETS="rotation_onehot" \
-bash scripts/run_as1455_r05_target_search_all.sh
+TARGET_COL=r01_fwd \
+FEATURE_PRESETS='rotation_onehot' \
+bash scripts/run_as1455_target_search_all.sh
 ```
 
-只训练 B：
+### 4.3 批量训练 r5
+
+兼容命令：
 
 ```bash
-FEATURE_PRESETS="rotation_addon_onehot" \
 bash scripts/run_as1455_r05_target_search_all.sh
 ```
 
-只补跑指定 fold：
+等价通用命令：
 
 ```bash
-FEATURE_PRESETS="rotation_addon_onehot" \
-FOLDS="0 3 6" \
-bash scripts/run_as1455_r05_target_search_all.sh
+TARGET_COL=r05_fwd \
+bash scripts/run_as1455_target_search_all.sh
 ```
+
+默认训练：
+
+```text
+A/B × fold0..fold6
+```
+
+只补跑 B 的 fold0、fold3、fold6：
+
+```bash
+TARGET_COL=r05_fwd \
+FEATURE_PRESETS='rotation_addon_onehot' \
+FOLDS='0 3 6' \
+bash scripts/run_as1455_target_search_all.sh
+```
+
+### 4.4 批量训练 r21
+
+兼容命令：
+
+```bash
+bash scripts/run_as1455_r21_target_search_all.sh
+```
+
+等价通用命令：
+
+```bash
+TARGET_COL=r21_fwd \
+bash scripts/run_as1455_target_search_all.sh
+```
+
+当前默认训练：
+
+```text
+A/B × fold0..fold5
+```
+
+当前数据下 r21 的有效日期不足以生成 fold6，通用 wrapper 已默认排除 fold6。
+
+### 4.5 输入检查和 smoke
 
 输入检查：
 
 ```bash
-FEATURE_PRESETS="rotation_onehot" \
-FOLDS="0" \
+TARGET_COL=r05_fwd \
+FEATURE_PRESETS='rotation_onehot' \
+FOLDS='0' \
 INPUT_CHECK_ONLY=1 \
-bash scripts/run_as1455_r05_target_search_all.sh
+bash scripts/run_as1455_target_search_all.sh
 ```
 
-smoke test：
+smoke：
 
 ```bash
-FEATURE_PRESETS="rotation_onehot" \
-FOLDS="0" \
+TARGET_COL=r05_fwd \
+FEATURE_PRESETS='rotation_onehot' \
+FOLDS='0' \
 SMOKE=1 \
-bash scripts/run_as1455_r05_target_search_all.sh
+bash scripts/run_as1455_target_search_all.sh
 ```
 
-重跑已有 fold：
+确认覆盖旧目录时才使用：
 
 ```bash
-FEATURE_PRESETS="rotation_addon_onehot" \
-FOLDS="0" \
-FORCE=1 \
-bash scripts/run_as1455_r05_target_search_all.sh
+FORCE=1
 ```
 
-输出结构：
+---
+
+## 5. one-fold-lag 历史回测
+
+one-fold-lag 协议：
 
 ```text
-saved_data/ashare_ml4t/ch17_as1455_target_search/
-  rotation_onehot/r05_fwd/fold0_search ... fold6_search
-  rotation_addon_onehot/r05_fwd/fold0_search ... fold6_search
+source fold6 -> target fold5
+source fold5 -> target fold4
+...
+source fold1 -> target fold0
 ```
 
-## 4. r21 训练
+每个 target fold 只使用更早一个 fold 的 search-time checkpoint，不在 target fold 上重新训练或选模型。
 
-当前 AS1455 数据下，`r21_fwd` 的有效日期不足以构造 source fold6。当前推荐训练 fold0..5：
-
-```bash
-FOLDS="0 1 2 3 4 5" \
-bash scripts/run_as1455_r21_target_search_all.sh
-```
-
-只训练 A：
-
-```bash
-FEATURE_PRESETS="rotation_onehot" \
-FOLDS="0 1 2 3 4 5" \
-bash scripts/run_as1455_r21_target_search_all.sh
-```
-
-只训练 B：
-
-```bash
-FEATURE_PRESETS="rotation_addon_onehot" \
-FOLDS="0 1 2 3 4 5" \
-bash scripts/run_as1455_r21_target_search_all.sh
-```
-
-只补跑一个 fold：
-
-```bash
-FEATURE_PRESETS="rotation_addon_onehot" \
-FOLDS="0" \
-bash scripts/run_as1455_r21_target_search_all.sh
-```
-
-输入检查、smoke 和强制重跑与 r5 相同：
-
-```bash
-FEATURE_PRESETS="rotation_onehot" FOLDS="0" INPUT_CHECK_ONLY=1 \
-  bash scripts/run_as1455_r21_target_search_all.sh
-
-FEATURE_PRESETS="rotation_onehot" FOLDS="0" SMOKE=1 \
-  bash scripts/run_as1455_r21_target_search_all.sh
-
-FEATURE_PRESETS="rotation_onehot" FOLDS="0" FORCE=1 \
-  bash scripts/run_as1455_r21_target_search_all.sh
-```
-
-输出结构：
-
-```text
-saved_data/ashare_ml4t/ch17_as1455_target_search/
-  rotation_onehot/r21_fwd/fold0_search ... fold5_search
-  rotation_addon_onehot/r21_fwd/fold0_search ... fold5_search
-```
-
-## 5. 训练产物检查
-
-检查一个 fold 是否具备正式 one-fold-lag 回测需要的产物：
-
-```bash
-DIR="saved_data/ashare_ml4t/ch17_as1455_target_search/rotation_onehot/r05_fwd/fold1_search"
-
-for f in \
-  "$DIR/search_best_checkpoints.csv" \
-  "$DIR/preprocess/scaler.pkl" \
-  "$DIR/preprocess/feature_manifest.json" \
-  "$DIR/fold_report.json"; do
-  [[ -s "$f" ]] || { echo "[MISSING] $f"; exit 1; }
-done
-
-find "$DIR/search_checkpoints" -maxdepth 1 -type f -name '*.keras' -print
-```
-
-## 6. r1 回测
-
-r1 使用 one-fold-lag：source fold6 预测 target fold5，依次到 source fold1 预测 target fold0。回测不重新训练模型。
-
-### 6.1 A 组
-
-正式回测并保留完整审计文件：
-
-```bash
-python3 scripts/run_as1455_rotation_one_lag_daily_backtest.py \
-  --grid-script code/backtest/run_as1455_close_auction_grid_inprocess.py \
-  --output-mode full \
-  --force-grid
-```
-
-默认输出：
-
-```text
-saved_data/ashare_ml4t/ch17_as1455_rotation_one_lag_daily_backtest_YYYYMMDD/
-```
-
-### 6.2 B 组
-
-```bash
-python3 scripts/run_as1455_rotation_addon_one_lag_daily_backtest.py \
-  --grid-script code/backtest/run_as1455_close_auction_grid_inprocess.py \
-  --output-mode full \
-  --force-grid
-```
-
-默认输出：
-
-```text
-saved_data/ashare_ml4t/ch17_as1455_rotation_addon_one_lag_daily_backtest_YYYYMMDD/
-```
-
-### 6.3 先生成预测、不跑 grid
+### 5.1 r1
 
 A：
 
 ```bash
-python3 scripts/run_as1455_rotation_one_lag_daily_backtest.py --skip-grid
+python3 scripts/run_as1455_rotation_one_lag_daily_backtest.py \
+  --output-mode full \
+  --force-grid
 ```
 
 B：
 
 ```bash
-python3 scripts/run_as1455_rotation_addon_one_lag_daily_backtest.py --skip-grid
+python3 scripts/run_as1455_rotation_addon_one_lag_daily_backtest.py \
+  --output-mode full \
+  --force-grid
 ```
 
-预测文件位于对应输出根目录的：
+这两个入口目前只是 r1 A/B 的兼容 wrapper，实际实现统一调用：
 
 ```text
-00_predictions/test_preds.h5
-00_predictions/test_preds.csv
-00_predictions/selected_checkpoints.csv
-00_predictions/one_lag_prediction_manifest.json
+scripts/run_as1455_target_one_lag_backtest.py
 ```
 
-## 7. r5 回测
+### 5.2 r5
 
-优化后的回测引擎会：
-
-- 每个特征组合只构造一次 execution panel；
-- 每个 signal 每个交易日只排序一次；
-- 所有 `max_positions × sell_rank × offset` 复用相同排名；
-- 正式运行前默认做一组新旧引擎一致性检查。
-
-先只做一致性检查，不执行完整 grid：
+先做单配置引擎 smoke，不执行完整网格：
 
 ```bash
-FEATURE_PRESETS="rotation_onehot" \
+FEATURE_PRESETS='rotation_onehot' \
 PARITY_CHECK_ONLY=1 \
 bash scripts/run_as1455_r05_natural_backtest.sh
 ```
 
-必须看到：
+正确输出：
 
 ```text
+[PARITY] single v7 trade engine smoke run ...
 [PARITY] PASS
 [PARITY] check-only completed; grid was not executed
 ```
 
-正式回测两个特征组合，并保留完整审计文件：
+正式运行 A/B：
 
 ```bash
 OUTPUT_MODE=full \
@@ -366,116 +332,199 @@ bash scripts/run_as1455_r05_natural_backtest.sh
 只跑 A：
 
 ```bash
-FEATURE_PRESETS="rotation_onehot" \
+FEATURE_PRESETS='rotation_onehot' \
 OUTPUT_MODE=full \
 bash scripts/run_as1455_r05_natural_backtest.sh
 ```
 
-只跑 B：
-
-```bash
-FEATURE_PRESETS="rotation_addon_onehot" \
-OUTPUT_MODE=full \
-bash scripts/run_as1455_r05_natural_backtest.sh
-```
-
-默认参数空间：
+默认 `TOP_N=5`，因此每个特征方案包含：
 
 ```text
-7 signals
-× 5 max_positions
-× 6 sell_rank
-× 5 offsets
+model_0..model_4
+ensemble_first3_mean
+ensemble_all5_mean
+```
+
+参数空间：
+
+```text
+7 signals × 5 max_positions × 6 sell_rank × 5 offsets
 = 1050 runs / feature preset
 ```
 
-输出目录：
+### 5.3 r21
 
-```text
-saved_data/ashare_ml4t/ch17_as1455_target_backtest/
-  rotation_onehot_r05_fwd_reb5_YYYYMMDD/
-  rotation_addon_onehot_r05_fwd_reb5_YYYYMMDD/
-```
-
-## 8. r21 回测
-
-当前数据没有可用的 source fold6，所以默认只回测 target folds 0..4：
-
-```text
-source fold5 -> target fold4
-source fold4 -> target fold3
-source fold3 -> target fold2
-source fold2 -> target fold1
-source fold1 -> target fold0
-```
-
-先做一致性检查：
+先做引擎 smoke：
 
 ```bash
-FEATURE_PRESETS="rotation_onehot" \
+FEATURE_PRESETS='rotation_onehot' \
 PARITY_CHECK_ONLY=1 \
 bash scripts/run_as1455_r21_natural_backtest.sh
 ```
 
-正式回测两个特征组合，并保留完整审计文件：
+正式运行：
 
 ```bash
 OUTPUT_MODE=full \
 bash scripts/run_as1455_r21_natural_backtest.sh
 ```
 
-只跑一个特征组合：
-
-```bash
-FEATURE_PRESETS="rotation_onehot" OUTPUT_MODE=full \
-  bash scripts/run_as1455_r21_natural_backtest.sh
-
-FEATURE_PRESETS="rotation_addon_onehot" OUTPUT_MODE=full \
-  bash scripts/run_as1455_r21_natural_backtest.sh
-```
-
-默认参数空间：
+当前默认 target folds：
 
 ```text
-7 signals
-× 5 max_positions
-× 6 sell_rank
-× 21 offsets
+0,1,2,3,4
+```
+
+即：
+
+```text
+source fold5 -> target fold4
+...
+source fold1 -> target fold0
+```
+
+参数空间：
+
+```text
+7 signals × 5 max_positions × 6 sell_rank × 21 offsets
 = 4410 runs / feature preset
 ```
 
-输出目录：
+### 5.4 当前网格优化边界
+
+当前 `inprocess_shared_data_v3` 已做到：
+
+- prediction 每个 signal 只加载一次；
+- execution panel 只构造一次；
+- universe、ST、公司行为和容量数据只加载一次；
+- 所有配置在同一个 Python 进程中执行；
+- 每个配置调用同一个 v7 `backtest()`，不存在第二套交易循环。
+
+当前尚未做到：
 
 ```text
-saved_data/ashare_ml4t/ch17_as1455_target_backtest/
-  rotation_onehot_r21_fwd_reb21_YYYYMMDD/
-  rotation_addon_onehot_r21_fwd_reb21_YYYYMMDD/
+每个 signal 的每日排序只计算一次并由所有配置共享
 ```
 
-未来数据能够生成 source fold6 后，可显式加入 target fold5：
+原因是排序仍位于唯一 v7 回测核心内部。下一步优化必须改造 v7 公共接口，不能在 grid 文件中复制买卖、费用和 NAV 逻辑。
+
+---
+
+## 6. fold0 最优模型用于 fold0 后续日期
+
+该协议与 one-fold-lag 不同：
+
+- 使用 fold0 search-time checkpoint、scaler 和 feature manifest；
+- 仅预测 `date > fold0.test_end`；
+- 不重新训练；
+- 每个回测配置从初始资金和空仓开始；
+- 不继承 fold0 测试窗口的持仓。
+
+### 6.1 更新最新历史数据并重建 forward HDF
+
+默认 forward wrapper 会自动执行：
+
+```text
+history 缓存更新
+→ 重建 forward model_data
+→ checkpoint 推理
+→ 回测
+```
+
+单独更新数据：
 
 ```bash
-TARGET_FOLDS="0,1,2,3,4,5" OUTPUT_MODE=full \
-  bash scripts/run_as1455_r21_natural_backtest.sh
+bash scripts/refresh_as1455_forward_model_data.sh
 ```
 
-## 9. 回测输出模式
+输出：
 
-`OUTPUT_MODE` 只控制文件保留范围，不改变交易、费用、持仓或收益逻辑。
+```text
+saved_data/ashare_ml4t/ch12_as1455_forward_latest/model_data_as1455.h5
+```
 
-| 模式 | 输出内容 |
+### 6.2 r1 fold0-forward
+
+```bash
+TARGETS='r01_fwd' \
+FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
+OUTPUT_MODE=full \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+### 6.3 r5 fold0-forward
+
+```bash
+TARGETS='r05_fwd' \
+FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
+OUTPUT_MODE=full \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+### 6.4 r21 fold0-forward
+
+```bash
+TARGETS='r21_fwd' \
+FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
+OUTPUT_MODE=full \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+### 6.5 单模型与 top5
+
+fold0-forward 默认：
+
+```text
+TOP_N=1
+```
+
+因此只生成和回测：
+
+```text
+model_0
+```
+
+这与“fold0 的最优模型”这一实验定义一致。
+
+需要 top5 和 ensemble 实验时显式运行：
+
+```bash
+TOP_N=5 \
+TARGETS='r05_fwd' \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+`utils/as1455_signal_specs.py` 会根据实际 `TOP_N` 生成合法 signal，不会在 `TOP_N=1` 时错误读取不存在的 `model_1..model_4`。
+
+### 6.6 已刷新数据后只重跑回测
+
+```bash
+REFRESH_DATA=0 \
+TARGETS='r05_fwd' \
+FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
+OUTPUT_MODE=full \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+---
+
+## 7. 回测输出模式
+
+`OUTPUT_MODE` 只控制文件保留范围，不改变交易逻辑。
+
+| 模式 | 文件 |
 |---|---|
-| `summary` | 只保留 JSON 汇总 |
-| `compact` | JSON + NAV、回撤、月度、年度、费用、换手等核心 CSV |
-| `full` | 在 compact 基础上增加订单、成交、拒单、每日持仓、公司行为和 round trip 明细 |
+| `summary` | JSON 汇总 |
+| `compact` | JSON + NAV、回撤、月度、年度、费用和换手 |
+| `full` | compact + 订单、成交、拒单、每日持仓、公司行为和 round trip |
 
-正式审计建议显式使用：
+正式审计建议：
 
 ```bash
 OUTPUT_MODE=full
 ```
 
-单个 run 的完整输出通常包括：
+完整 run 通常包括：
 
 ```text
 config.json
@@ -495,7 +544,7 @@ fee_summary.csv
 turnover_summary.csv
 ```
 
-默认交易资金和费用口径由回测引擎配置：
+默认资金和费用：
 
 ```text
 initial_cash = 200000
@@ -505,17 +554,26 @@ stamp_tax_rate = 0.0005
 transfer_fee_rate = 0.00001
 ```
 
-## 10. 绘图
+---
 
-绘图入口：
+## 8. 绘图
+
+统一入口：
 
 ```text
 scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-Python 主程序会从每个回测根目录的 grid summary 中，按 `RANK_METRIC` 选择最优 run，再读取该 run 的 `close_auction_nav.csv`。默认按 Sharpe 选择，并生成 daily、weekly、monthly 三套累计收益曲线。
+绘图会：
 
-### 10.1 r1 A/B
+- 从每个根目录的 grid summary 中按 `RANK_METRIC` 选择最优 run；
+- 读取对应 `close_auction_nav.csv`；
+- 生成 daily、weekly、monthly 曲线；
+- 同时使用颜色、线型和 marker；
+- 在 CSV 中记录 `line_style` 和 `marker`；
+- 输出实际选中的 signal 和参数。
+
+### 8.1 r1 A/B
 
 ```bash
 R1_A=$(find saved_data/ashare_ml4t -maxdepth 1 -type d \
@@ -524,70 +582,66 @@ R1_B=$(find saved_data/ashare_ml4t -maxdepth 1 -type d \
   -name 'ch17_as1455_rotation_addon_one_lag_daily_backtest_*' | sort | tail -n 1)
 
 BACKTEST_ROOTS="$R1_A,$R1_B" \
-LABELS="r1-A-rotation-onehot,r1-B-rotation-addon-onehot" \
+LABELS='r1-A,r1-B' \
 OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r1_ab_$(date +%Y%m%d_%H%M%S)" \
 bash scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-### 10.2 r5 A/B
+### 8.2 r5 A/B
 
 ```bash
-BASE="saved_data/ashare_ml4t/ch17_as1455_target_backtest"
+BASE='saved_data/ashare_ml4t/ch17_as1455_target_backtest'
 R5_A=$(find "$BASE" -maxdepth 1 -type d \
   -name 'rotation_onehot_r05_fwd_reb5_*' | sort | tail -n 1)
 R5_B=$(find "$BASE" -maxdepth 1 -type d \
   -name 'rotation_addon_onehot_r05_fwd_reb5_*' | sort | tail -n 1)
 
 BACKTEST_ROOTS="$R5_A,$R5_B" \
-LABELS="r5-A-rotation-onehot,r5-B-rotation-addon-onehot" \
+LABELS='r5-A,r5-B' \
 OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r5_ab_$(date +%Y%m%d_%H%M%S)" \
 bash scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-### 10.3 r21 A/B
+### 8.3 r21 A/B
 
 ```bash
-BASE="saved_data/ashare_ml4t/ch17_as1455_target_backtest"
+BASE='saved_data/ashare_ml4t/ch17_as1455_target_backtest'
 R21_A=$(find "$BASE" -maxdepth 1 -type d \
   -name 'rotation_onehot_r21_fwd_reb21_*' | sort | tail -n 1)
 R21_B=$(find "$BASE" -maxdepth 1 -type d \
   -name 'rotation_addon_onehot_r21_fwd_reb21_*' | sort | tail -n 1)
 
 BACKTEST_ROOTS="$R21_A,$R21_B" \
-LABELS="r21-A-rotation-onehot,r21-B-rotation-addon-onehot" \
+LABELS='r21-A,r21-B' \
 OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r21_ab_$(date +%Y%m%d_%H%M%S)" \
 bash scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-### 10.4 r1、r5、r21 六条曲线总览
+### 8.4 fold0-forward A/B
+
+以 r5 为例：
 
 ```bash
-R1_A=$(find saved_data/ashare_ml4t -maxdepth 1 -type d -name 'ch17_as1455_rotation_one_lag_daily_backtest_*' | sort | tail -n 1)
-R1_B=$(find saved_data/ashare_ml4t -maxdepth 1 -type d -name 'ch17_as1455_rotation_addon_one_lag_daily_backtest_*' | sort | tail -n 1)
-BASE="saved_data/ashare_ml4t/ch17_as1455_target_backtest"
-R5_A=$(find "$BASE" -maxdepth 1 -type d -name 'rotation_onehot_r05_fwd_reb5_*' | sort | tail -n 1)
-R5_B=$(find "$BASE" -maxdepth 1 -type d -name 'rotation_addon_onehot_r05_fwd_reb5_*' | sort | tail -n 1)
-R21_A=$(find "$BASE" -maxdepth 1 -type d -name 'rotation_onehot_r21_fwd_reb21_*' | sort | tail -n 1)
-R21_B=$(find "$BASE" -maxdepth 1 -type d -name 'rotation_addon_onehot_r21_fwd_reb21_*' | sort | tail -n 1)
+BASE='saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest'
+A=$(find "$BASE" -maxdepth 1 -type d \
+  -name 'rotation_onehot_r05_fwd_reb5_*' | sort | tail -n 1)
+B=$(find "$BASE" -maxdepth 1 -type d \
+  -name 'rotation_addon_onehot_r05_fwd_reb5_*' | sort | tail -n 1)
 
-for d in "$R1_A" "$R1_B" "$R5_A" "$R5_B" "$R21_A" "$R21_B"; do
-  [[ -d "$d" ]] || { echo "[MISSING] $d"; exit 1; }
-done
-
-BACKTEST_ROOTS="$R1_A,$R1_B,$R5_A,$R5_B,$R21_A,$R21_B" \
-LABELS="r1-A,r1-B,r5-A,r5-B,r21-A,r21-B" \
-OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r1_r5_r21_ab_$(date +%Y%m%d_%H%M%S)" \
+BACKTEST_ROOTS="$A,$B" \
+LABELS='r5-A-fold0-forward,r5-B-fold0-forward' \
+OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r5_fold0_forward_$(date +%Y%m%d_%H%M%S)" \
 bash scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-切换最优参数选择指标：
+切换最优参数指标：
 
 ```bash
 RANK_METRIC=total_return bash scripts/plot_as1455_default_ab_nav_curves.sh
 RANK_METRIC=calmar bash scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-绘图输出：
+输出：
 
 ```text
 return_curve_daily.png
@@ -600,49 +654,65 @@ selected_best_grids.csv
 selected_best_grids.json
 ```
 
-`selected_best_grids.csv` 记录每条曲线实际选中的 signal、持仓数、卖出排名、调仓周期、offset 和绩效指标。
+---
 
-## 11. 常见问题
+## 9. 最低回归验证
 
-### 11.1 `Killed`
-
-`Killed` 只表示 Python 进程收到外部 SIGKILL，不能仅凭这一行判定 OOM。检查：
+### 9.1 signal 数量
 
 ```bash
-dmesg -T | egrep -i 'killed process|out of memory|oom|oom-killer' | tail -80
-journalctl -k --since '2 hours ago' | egrep -i 'killed process|out of memory|oom|oom-killer' | tail -80
-ps -eo pid,ppid,stat,%mem,rss,etime,cmd --sort=-rss | head -40
+python3 - <<'PY'
+from utils.as1455_signal_specs import signal_specs_for_top_n
+assert signal_specs_for_top_n(1) == ['model_0:0:single']
+assert len(signal_specs_for_top_n(5)) == 7
+print('[OK] signal specs')
+PY
 ```
 
-### 11.2 r21 fold6
+### 9.2 固定预测文件对比
 
-当前数据下 r21 source fold6 不可用，不要默认训练或回测它。训练显式使用：
-
-```bash
-FOLDS="0 1 2 3 4 5"
-```
-
-回测 wrapper 已默认使用：
+对重构前后相同预测文件、signal 和参数，至少比较：
 
 ```text
-TARGET_FOLDS=0,1,2,3,4
+close_auction_nav.csv
+close_auction_orders.csv
+close_auction_rejections.csv
+round_trips.csv
+summary.json
 ```
 
-### 11.3 已有输出目录
+数值字段要求：
 
-训练脚本发现非空目录时会拒绝覆盖。确认旧结果不再使用后，才设置：
-
-```bash
-FORCE=1
+```text
+rtol = 1e-12
+atol = 1e-12
 ```
 
-回测 wrapper 当前默认 `FORCE_GRID=1`，会重跑 grid。需要保留已有 `summary.json` 并跳过已完成 run 时：
+允许不同：
 
-```bash
-FORCE_GRID=0 bash scripts/run_as1455_r05_natural_backtest.sh
-FORCE_GRID=0 bash scripts/run_as1455_r21_natural_backtest.sh
+```text
+输出目录名
+grid_engine metadata
+创建时间
 ```
 
-### 11.4 不同周期曲线日期不完全一致
+不允许不同：
 
-r1、r5、r21 的有效标签日期和 target folds 不同，曲线起止日期可能不同。六曲线图适合总览；正式横向比较时应同时检查 `selected_best_grids.csv` 和每条曲线实际覆盖日期。
+```text
+交易日期
+买卖方向
+成交数量
+费用
+持仓
+NAV
+收益和风险指标
+```
+
+---
+
+## 10. 当前已知限制
+
+1. r21 当前数据下没有可用 source fold6，因此 one-fold-lag 默认只覆盖 target fold0..4。
+2. forward HDF 的最后 1、5、21 个交易日分别无法得到完整的 r1、r5、r21 前向标签。
+3. 当前 in-process v3 已消除第二套交易循环，但尚未在所有 grid 配置之间共享每日排名缓存。
+4. live 旧基线 checkpoint bundle 与 target-aware A/B `.keras + scaler.pkl + feature_manifest.json` 不是同一产物契约，不能直接混用。
