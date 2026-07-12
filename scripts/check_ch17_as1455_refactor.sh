@@ -10,6 +10,7 @@ echo '===== Python syntax ====='
   utils/as1455_ch17_common.py \
   utils/as1455_forward_features.py \
   utils/as1455_strict_oos.py \
+  utils/as1455_artifact_retention.py \
   utils/as1455_cli.py \
   utils/as1455_signal_specs.py \
   utils/as1455_model_selection.py \
@@ -29,6 +30,7 @@ echo '===== Python syntax ====='
   scripts/check_as1455_storage_oos_fixes.py \
   scripts/check_as1455_disk_space.py \
   scripts/cleanup_as1455_storage.py \
+  scripts/compact_as1455_prediction_artifacts.py \
   scripts/materialize_as1455_best_run.py \
   scripts/compare_as1455_backtest_runs.py \
   code/backtest/run_as1455_close_auction_grid_inprocess.py
@@ -74,6 +76,7 @@ echo '===== CLI imports ====='
 "$PYTHON_BIN" scripts/compare_as1455_backtest_runs.py --help >/dev/null
 "$PYTHON_BIN" scripts/check_as1455_disk_space.py --help >/dev/null
 "$PYTHON_BIN" scripts/cleanup_as1455_storage.py --help >/dev/null
+"$PYTHON_BIN" scripts/compact_as1455_prediction_artifacts.py --help >/dev/null
 "$PYTHON_BIN" scripts/materialize_as1455_best_run.py --help >/dev/null
 "$PYTHON_BIN" code/backtest/run_as1455_close_auction_grid_inprocess.py --help >/dev/null
 
