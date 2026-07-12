@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Static structural checks for the Ch17 AS1455 refactor.
+"""Static and synthetic checks for the Ch17 AS1455 refactor.
 
-The checks deliberately avoid market data and model files. They verify that the
-repository structure does not silently reintroduce duplicated protocol, trading,
-path, CLI, or plotting implementations.
+The checks avoid market data and model files. They verify that the repository
+does not silently reintroduce duplicated protocol, trading, path, CLI, ranking,
+or plotting implementations.
 """
 from __future__ import annotations
 
@@ -12,12 +12,19 @@ import ast
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from utils import as1455_ch17_common as common  # noqa: E402
 from utils import as1455_paths  # noqa: E402
+from utils.as1455_rank_cache import (  # noqa: E402
+    PreSortedPredictionFrame,
+    prepare_presorted_predictions,
+    validate_presorted_predictions,
+)
 from utils.as1455_signal_specs import signal_specs_for_top_n  # noqa: E402
 
 
@@ -57,6 +64,12 @@ def assert_signal_specs() -> None:
         "model_1:1:single",
         "ensemble_all2_mean:0,1:mean",
     ]
+    assert signal_specs_for_top_n(3) == [
+        "model_0:0:single",
+        "model_1:1:single",
+        "model_2:2:single",
+        "ensemble_first3_mean:0,1,2:mean",
+    ]
     top5 = signal_specs_for_top_n(5)
     assert len(top5) == 7
     assert top5[-2:] == [
@@ -85,26 +98,57 @@ def assert_path_contracts() -> None:
         assert r5_fold0.name == "fold0_search"
 
 
+def assert_rank_cache_equivalence() -> None:
+    predictions = pd.DataFrame(
+        {
+            "date": pd.to_datetime(
+                ["2026-01-02", "2026-01-02", "2026-01-02", "2026-01-05", "2026-01-05"]
+            ),
+            "symbol": ["A", "B", "C", "D", "E"],
+            "score": [0.2, 0.5, 0.5, -0.1, 0.3],
+        },
+        index=[10, 11, 12, 20, 21],
+    )
+    expected = {
+        date: group.copy().sort_values("score", ascending=False).copy()
+        for date, group in predictions.groupby("date", sort=True)
+    }
+    cached = prepare_presorted_predictions(predictions)
+    assert isinstance(cached, PreSortedPredictionFrame)
+    validate_presorted_predictions(cached)
+    actual = {
+        date: group.copy().sort_values("score", ascending=False).copy()
+        for date, group in cached.groupby("date", sort=True)
+    }
+    assert set(expected) == set(actual)
+    for date in expected:
+        pd.testing.assert_frame_equal(expected[date], actual[date])
+
+
 def assert_single_trade_engine() -> None:
-    grid = read("code/backtest/run_as1455_close_auction_grid_inprocess.py")
-    assert "bt.backtest(" in grid
+    entry = read("code/backtest/run_as1455_close_auction_grid_inprocess.py")
+    assert "utils.as1455_grid_runner" in entry
+    assert "def backtest(" not in entry
+
+    runner = read("utils/as1455_grid_runner.py")
+    assert "bt.backtest(" in runner
+    assert "prepare_presorted_predictions" in runner
     for forbidden in (
         "def backtest_prepared(",
+        "def backtest(",
         "inspect.getsource",
         "exec(",
         "base.plot_frequency =",
     ):
-        assert forbidden not in grid, f"forbidden duplicate mechanism: {forbidden}"
+        assert forbidden not in runner, f"forbidden duplicate mechanism: {forbidden}"
 
     v7_functions = function_names(
         "code/backtest/run_as1455_close_auction_backtest_v7_maxpos_grid.py"
     )
     assert "backtest" in v7_functions
-    grid_functions = function_names(
-        "code/backtest/run_as1455_close_auction_grid_inprocess.py"
-    )
-    assert "backtest" not in grid_functions
-    assert "backtest_prepared" not in grid_functions
+    runner_functions = function_names("utils/as1455_grid_runner.py")
+    assert "backtest" not in runner_functions
+    assert "backtest_prepared" not in runner_functions
 
 
 def assert_thin_compatibility_wrappers() -> None:
@@ -195,6 +239,7 @@ def main() -> None:
         assert_target_specs,
         assert_signal_specs,
         assert_path_contracts,
+        assert_rank_cache_equivalence,
         assert_single_trade_engine,
         assert_thin_compatibility_wrappers,
         assert_shared_prediction_and_cli_layers,
