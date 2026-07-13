@@ -55,18 +55,55 @@ def historical_trading_config(
     return config
 
 
+def historical_phase_window(selection: HistoricalSignalSelection) -> dict[str, Any]:
+    fields = {
+        "historical_first_date": selection.historical_date_min,
+        "historical_last_date": selection.historical_date_max,
+        "historical_n_days": selection.historical_n_days,
+    }
+    missing = [name for name, value in fields.items() if value is None]
+    if missing:
+        raise RuntimeError(
+            "strict_oos phase alignment requires the selected historical run's "
+            "date_min/date_max/n_days or a materialized close_auction_nav.csv; "
+            f"missing={missing} run={selection.run_name}"
+        )
+    n_days = int(fields["historical_n_days"])
+    if n_days <= 0:
+        raise RuntimeError(f"historical_n_days must be positive: {n_days}")
+    first = pd.Timestamp(fields["historical_first_date"]).normalize()
+    last = pd.Timestamp(fields["historical_last_date"]).normalize()
+    if first > last:
+        raise RuntimeError(f"historical window is reversed: {first} > {last}")
+    return {
+        "historical_first_date": first.strftime("%Y-%m-%d"),
+        "historical_last_date": last.strftime("%Y-%m-%d"),
+        "historical_n_days": n_days,
+    }
+
+
 def apply_strict_oos_args(
     args: Any,
     selection: HistoricalSignalSelection,
 ) -> dict[str, int]:
-    """Restrict the shared grid to exactly one historical configuration."""
+    """Freeze non-phase parameters and defer offset translation to the grid.
+
+    ``rebalance_offset`` is local to each v7 backtest window.  The historical
+    integer therefore cannot be copied directly into fold0-forward.  We pass the
+    historical phase window to the shared grid, which derives the forward-local
+    effective offset from the full execution calendar before configs are built.
+    """
     config = historical_trading_config(selection, int(args.rebalance_every))
+    phase = historical_phase_window(selection)
     args.max_positions_list = str(config["max_positions"])
     args.sell_rank_list = str(config["sell_rank"])
     args.rebalance_every = int(config["rebalance_every"])
-    args.offset_mode = "zero" if config["rebalance_offset"] == 0 else "full"
-    args.rebalance_offset_list = str(config["rebalance_offset"])
-    args.strict_oos_expected_offset = int(config["rebalance_offset"])
+    args.offset_mode = "zero" if config["rebalance_every"] == 1 else "full"
+    args.rebalance_offset_list = None
+    args.rebalance_phase_history_offset = int(config["rebalance_offset"])
+    args.rebalance_phase_history_first_date = phase["historical_first_date"]
+    args.rebalance_phase_history_last_date = phase["historical_last_date"]
+    args.rebalance_phase_history_n_days = int(phase["historical_n_days"])
     return config
 
 
@@ -119,7 +156,7 @@ def _match_strict_row(
     selected = frame.loc[mask].copy()
     if len(selected) != 1:
         raise RuntimeError(
-            "strict_oos expected exactly one successful frozen run, "
+            "strict_oos expected exactly one successful phase-aligned run, "
             f"got={len(selected)} config={config} signal={selection.signal_spec}"
         )
     return selected
@@ -165,11 +202,49 @@ def _write_strict_summaries(
             ranked.to_csv(path, index=False, encoding="utf-8-sig")
 
 
+def _phase_aligned_configs(
+    grid_root: Path,
+    selection: HistoricalSignalSelection,
+) -> tuple[dict[str, int], dict[str, int], dict[str, Any]]:
+    engine_path = grid_root / "grid_engine_manifest.json"
+    if not engine_path.exists():
+        raise FileNotFoundError(engine_path)
+    engine = json.loads(engine_path.read_text(encoding="utf-8"))
+    alignment = engine.get("rebalance_phase_alignment")
+    if not isinstance(alignment, dict):
+        raise RuntimeError(
+            "strict_oos grid manifest is missing rebalance_phase_alignment"
+        )
+
+    historical = historical_trading_config(
+        selection,
+        int(selection.historical_rebalance_every or -1),
+    )
+    effective_offset = alignment.get("effective_forward_offset")
+    if effective_offset is None:
+        raise RuntimeError(
+            "rebalance_phase_alignment is missing effective_forward_offset"
+        )
+    forward = dict(historical)
+    forward["rebalance_offset"] = int(effective_offset)
+    if int(alignment.get("historical_offset", -1)) != historical["rebalance_offset"]:
+        raise RuntimeError(
+            "phase manifest historical_offset does not match selected history: "
+            f"alignment={alignment} historical={historical}"
+        )
+    if int(alignment.get("rebalance_every", -1)) != historical["rebalance_every"]:
+        raise RuntimeError(
+            "phase manifest rebalance_every does not match selected history: "
+            f"alignment={alignment} historical={historical}"
+        )
+    return historical, forward, alignment
+
+
 def finalize_strict_oos_grid(
     out_root: Path,
     selection: HistoricalSignalSelection,
 ) -> dict[str, Any]:
-    """Audit that the forward result contains only the historical configuration."""
+    """Audit that forward contains one phase-aligned historical configuration."""
     out_root = out_root.expanduser().resolve()
     grid_root = out_root / "01_close_auction_grid"
     summary_dir = grid_root / "02_summary"
@@ -177,9 +252,8 @@ def finalize_strict_oos_grid(
     if not summary_path.exists():
         raise FileNotFoundError(summary_path)
 
-    config = historical_trading_config(
-        selection,
-        int(selection.historical_rebalance_every or -1),
+    historical_config, forward_config, alignment = _phase_aligned_configs(
+        grid_root, selection
     )
     generated = _read_summary(summary_path)
     generated.to_csv(
@@ -187,7 +261,7 @@ def finalize_strict_oos_grid(
         index=False,
         encoding="utf-8-sig",
     )
-    selected = _match_strict_row(generated, selection, config)
+    selected = _match_strict_row(generated, selection, forward_config)
     run_name = str(selected.iloc[0]["run_name"])
 
     runs_root = grid_root / "01_runs"
@@ -208,9 +282,16 @@ def finalize_strict_oos_grid(
     payload = {
         "evaluation_mode": "strict_oos",
         "historical_trading_parameters_reused": True,
+        "historical_rebalance_phase_reused": True,
+        "historical_offset_numeric_reused": bool(
+            historical_config["rebalance_offset"]
+            == forward_config["rebalance_offset"]
+        ),
         "historical_selection": selection.to_dict(),
+        "historical_config": historical_config,
+        "rebalance_phase_alignment": alignment,
         "retained_run_name": run_name,
-        "retained_config": config,
+        "retained_config": forward_config,
         "generated_config_count": int(len(generated)),
         "retained_config_count": 1,
         "removed_run_count": int(len(removed_runs)),
