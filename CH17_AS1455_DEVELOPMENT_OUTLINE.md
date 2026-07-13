@@ -20,11 +20,13 @@ AS1455_STORAGE_AND_STRICT_OOS.md
 utils/as1455_ch17_common.py::TARGET_SPECS
 ```
 
-| 目标 | lookahead | 调仓周期 | offset |
+| 目标 | lookahead | 调仓周期 | offset 搜索范围 |
 |---|---:|---:|---|
 | `r01_fwd` | 1 | 1 | `0` |
 | `r05_fwd` | 5 | 5 | `0..4` |
 | `r21_fwd` | 21 | 21 | `0..20` |
+
+这里的 offset 是 v7 当前窗口内的本地序号，不是固定日历锚点。跨历史与 forward 窗口时必须继承相位并换算 forward 本地 offset，禁止直接复制整数。
 
 特征方案：
 
@@ -41,10 +43,11 @@ rotation_addon_onehot
 → 训练/历史：特征完整且当前目标已实现
 → 参数搜索
 → one-fold-lag 历史回测
-→ 从 status=ok 中选择历史最佳完整配置
-→ 冻结 signal/max/sell/rebalance/offset
+→ 从 status=ok 中选择历史最佳完整配置和真实历史窗口
+→ 冻结 signal/max/sell/rebalance 与历史调仓相位
 → forward：只要求模型特征完整，不要求目标已实现
-→ fold0.test_end 后 strict OOS
+→ 用完整执行日历将历史相位换算为 forward effective offset
+→ fold0.test_end 后 strict OOS 单配置回测
 → 统一绘图与审计
 ```
 
@@ -88,7 +91,7 @@ prediction_end
 prediction_end == expected_prediction_end
 ```
 
-### 3.3 历史配置选择
+### 3.3 历史配置与窗口选择
 
 ```text
 utils/as1455_model_selection.py
@@ -97,11 +100,37 @@ utils/as1455_model_selection.py
 - 严格只允许 `status=ok`；
 - 没有成功行时直接失败；
 - 选择完整 run，而不只选择 signal；
-- 提取 signal、max、sell、rebalance 和 offset；
+- 提取 signal、max、sell、rebalance 和历史 offset；
+- 提取选中 run 的 `date_min/date_max/n_days`；
+- 旧 summary 缺少窗口字段时，从 materialized `close_auction_nav.csv` 回填；
 - 跳过仅有失败结果的较新目录；
 - 绘图和 forward 共用同一选择函数。
 
-### 3.4 strict OOS
+### 3.4 调仓相位对齐
+
+```text
+utils/as1455_rebalance_phase.py
+```
+
+v7 本地调仓条件：
+
+```text
+(day_index - local_offset) mod rebalance_every = 0
+```
+
+历史窗口与 forward 窗口都会从 `day_index=0` 重新编号，因此 strict OOS 使用：
+
+```text
+forward_global_index
+  = historical_n_days + bridge_execution_days
+
+effective_forward_offset
+  = (historical_offset - forward_global_index) mod rebalance_every
+```
+
+`bridge_execution_days` 由共享 grid 的完整 raw daily execution calendar 计算，不使用自然日，也不简单假定 fold 长度。
+
+### 3.5 strict OOS
 
 ```text
 utils/as1455_strict_oos.py
@@ -116,27 +145,35 @@ signal_mode
 max_positions
 sell_rank
 rebalance_every
-rebalance_offset
+historical rebalance phase
 ```
 
 共享 grid 支持：
 
 ```text
+--rebalance-phase-history-offset
+--rebalance-phase-history-first-date
+--rebalance-phase-history-last-date
+--rebalance-phase-history-n-days
 --rebalance-offset-list
 ```
 
-strict OOS 从配置生成阶段就只产生历史 offset 对应的一个配置，不运行其他 offset，也不按 forward 指标重新选择参数。
+相位换算在配置生成前完成，最终只生成 forward effective offset 对应的一个配置，不运行其他 offset，也不按 forward 指标重新选择参数。
 
 manifest 必须满足：
 
 ```text
 evaluation_mode = strict_oos
 historical_trading_parameters_reused = true
+historical_rebalance_phase_reused = true
+rebalance_phase_alignment.effective_forward_offset 已记录
 generated_config_count = 1
 retained_config_count = 1
 ```
 
-### 3.5 prediction 保留
+`historical_offset_numeric_reused` 仅表示两个窗口的本地 offset 整数是否恰好相同，不代表相位是否继承。
+
+### 3.6 prediction 保留
 
 ```text
 utils/as1455_artifact_retention.py
@@ -145,7 +182,7 @@ scripts/compact_as1455_prediction_artifacts.py
 
 HDF 是预测权威文件。只删除与同名 HDF 重复的 prediction CSV，并同步更新 manifest。`actual_<target>.csv` 保存真实标签，必须保留。
 
-### 3.6 grid 与交易
+### 3.7 grid 与交易
 
 ```text
 utils/as1455_grid_runner.py
@@ -156,7 +193,8 @@ utils/as1455_backtest_io.py
 - prediction 每个 signal 加载一次；
 - 每个 signal 每日排序一次；
 - execution panel 构造一次；
-- exact offset 在配置生成阶段过滤；
+- 相位对齐使用未裁剪的完整 execution calendar；
+- effective offset 在配置生成阶段过滤；
 - 每个配置只调用唯一 v7 `backtest()`；
 - 不允许第二套交易循环。
 
@@ -214,7 +252,7 @@ MATERIALIZE_BEST=1
 MATERIALIZED_OUTPUT_MODE=compact
 ```
 
-完整网格只保留 summary。`scripts/materialize_as1455_best_run.py` 使用精确历史 offset 只重跑一个最佳配置，并删除其他 summary-only run 目录和日志。
+完整网格只保留 summary。`scripts/materialize_as1455_best_run.py` 使用历史窗口本地精确 offset 只重跑一个最佳配置，并删除其他 summary-only run 目录和日志。历史 materialization 与 forward 相位换算是两个不同流程，不得调用 forward strict finalizer。
 
 ## 6. fold0-forward
 
@@ -274,8 +312,10 @@ bash scripts/check_ch17_as1455_refactor.sh
 
 - Python/Shell 语法和 CLI；
 - failed-only summary 拒绝；
+- 历史窗口 metadata 提取；
 - forward 最新无标签日期保留；
-- strict OOS 完整配置冻结；
+- r5 历史 `off3`、378 日窗口换算为 forward `off0` 的相位测试；
+- strict OOS 完整配置与历史相位冻结；
 - exact-offset 配置生成；
 - prediction CSV 清理且 actual 标签保留；
 - 唯一 v7 引擎；
@@ -291,4 +331,10 @@ PARITY_CHECK_ONLY=1 \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-`PARITY_CHECK_ONLY=1` 只验证单个 v7 引擎路径，不代表完整正式结果。
+日志必须出现：
+
+```text
+[PHASE ALIGN] historical_offset=... history_days=... bridge_days=... forward_global_index=... effective_forward_offset=...
+```
+
+`PARITY_CHECK_ONLY=1` 只验证相位对齐后的单个 v7 引擎路径，不代表完整正式结果。
