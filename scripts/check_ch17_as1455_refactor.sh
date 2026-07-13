@@ -33,6 +33,7 @@ echo '===== Python syntax ====='
   scripts/check_as1455_exact_offset_filter.py \
   scripts/check_as1455_disk_space.py \
   scripts/cleanup_as1455_storage.py \
+  scripts/export_as1455_storage_diagnostics.py \
   scripts/compact_as1455_prediction_artifacts.py \
   scripts/materialize_as1455_best_run.py \
   scripts/compare_as1455_backtest_runs.py \
@@ -48,7 +49,8 @@ for script in \
   scripts/run_as1455_r21_natural_backtest.sh \
   scripts/run_as1455_fold0_forward_backtests.sh \
   scripts/refresh_as1455_forward_model_data.sh \
-  scripts/plot_as1455_default_ab_nav_curves.sh; do
+  scripts/plot_as1455_default_ab_nav_curves.sh \
+  scripts/run_as1455_storage_maintenance.sh; do
   bash -n "$script"
 done
 
@@ -58,7 +60,9 @@ grep -F 'SELECTION_RANK_METRIC="${SELECTION_RANK_METRIC:-sharpe}"' scripts/run_a
 grep -F 'OUTPUT_MODE="${OUTPUT_MODE:-summary}"' scripts/run_as1455_target_natural_backtest.sh >/dev/null
 grep -F 'FORWARD_ARTIFACT_MODE="${FORWARD_ARTIFACT_MODE:-model_only}"' scripts/refresh_as1455_forward_model_data.sh >/dev/null
 grep -F 'RANK_METRIC="${RANK_METRIC:-sharpe}"' scripts/plot_as1455_default_ab_nav_curves.sh >/dev/null
-echo '[OK] strict OOS, summary-first grid, model-only forward artifacts and Sharpe selection are defaults'
+grep -F 'APPLY="${APPLY:-0}"' scripts/run_as1455_storage_maintenance.sh >/dev/null
+grep -F 'SHARE_FILE="$OUT_DIR/share_me.txt"' scripts/run_as1455_storage_maintenance.sh >/dev/null
+echo '[OK] strict OOS, summary-first grid, model-only artifacts, safe storage audit and Sharpe selection are defaults'
 
 echo '===== Historical model-selection synthetic check ====='
 "$PYTHON_BIN" scripts/check_as1455_historical_model_selection.py
@@ -85,6 +89,7 @@ echo '===== CLI imports ====='
 "$PYTHON_BIN" scripts/compare_as1455_backtest_runs.py --help >/dev/null
 "$PYTHON_BIN" scripts/check_as1455_disk_space.py --help >/dev/null
 "$PYTHON_BIN" scripts/cleanup_as1455_storage.py --help >/dev/null
+"$PYTHON_BIN" scripts/export_as1455_storage_diagnostics.py --help >/dev/null
 "$PYTHON_BIN" scripts/compact_as1455_prediction_artifacts.py --help >/dev/null
 "$PYTHON_BIN" scripts/materialize_as1455_best_run.py --help >/dev/null
 "$PYTHON_BIN" code/backtest/run_as1455_close_auction_grid_inprocess.py --help >/dev/null
