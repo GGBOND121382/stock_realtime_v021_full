@@ -9,6 +9,7 @@ echo '===== Python syntax ====='
   utils/as1455_paths.py \
   utils/as1455_ch17_common.py \
   utils/as1455_forward_features.py \
+  utils/as1455_rebalance_phase.py \
   utils/as1455_strict_oos.py \
   utils/as1455_artifact_retention.py \
   utils/as1455_cli.py \
@@ -62,7 +63,7 @@ echo '[OK] strict OOS, summary-first grid, model-only forward artifacts and Shar
 echo '===== Historical model-selection synthetic check ====='
 "$PYTHON_BIN" scripts/check_as1455_historical_model_selection.py
 
-echo '===== Forward-date and strict-OOS synthetic check ====='
+echo '===== Forward-date and strict-OOS phase-alignment synthetic check ====='
 "$PYTHON_BIN" scripts/check_as1455_storage_oos_fixes.py
 
 echo '===== Exact-offset grid synthetic check ====='
