@@ -58,6 +58,9 @@ class HistoricalSignalSelection:
     historical_sell_rank: int | None
     historical_rebalance_every: int | None
     historical_rebalance_offset: int | None
+    historical_date_min: str | None = None
+    historical_date_max: str | None = None
+    historical_n_days: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -189,15 +192,59 @@ def _optional_int(row: pd.Series, name: str) -> int | None:
     return int(row[name])
 
 
+def _optional_date(row: pd.Series, name: str) -> str | None:
+    if name not in row.index or pd.isna(row[name]):
+        return None
+    return pd.Timestamp(row[name]).normalize().strftime("%Y-%m-%d")
+
+
+def _historical_window_metadata(
+    *,
+    grid_dir: Path,
+    best: pd.Series,
+) -> tuple[str | None, str | None, int | None]:
+    """Resolve the exact historical window used by the selected v7 run.
+
+    New summaries already carry date_min/date_max/n_days.  Older runs are
+    supported by reading the materialized NAV for the selected run.  Strict OOS
+    later refuses to align a rebalance phase if neither source is available.
+    """
+    date_min = _optional_date(best, "date_min")
+    date_max = _optional_date(best, "date_max")
+    n_days = _optional_int(best, "n_days")
+    if date_min and date_max and n_days and n_days > 0:
+        return date_min, date_max, n_days
+
+    nav_path = grid_dir / "01_runs" / str(best["run_name"]) / "close_auction_nav.csv"
+    if not nav_path.exists() or nav_path.stat().st_size == 0:
+        return date_min, date_max, n_days
+    nav = read_csv_auto(nav_path)
+    if "date" not in nav.columns:
+        return date_min, date_max, n_days
+    dates = pd.to_datetime(nav["date"], errors="coerce").dropna().dt.normalize()
+    dates = dates.drop_duplicates().sort_values()
+    if dates.empty:
+        return date_min, date_max, n_days
+    return (
+        pd.Timestamp(dates.iloc[0]).strftime("%Y-%m-%d"),
+        pd.Timestamp(dates.iloc[-1]).strftime("%Y-%m-%d"),
+        int(len(dates)),
+    )
+
+
 def select_historical_signal(
     *,
     backtest_root: Path,
     rank_metric: str = "sharpe",
 ) -> HistoricalSignalSelection:
     root = backtest_root.expanduser().resolve()
-    summary_file, _grid_dir = find_summary_file(root)
+    summary_file, grid_dir = find_summary_file(root)
     best = select_best_run(read_csv_auto(summary_file), rank_metric)
     signal_spec, required_top_n = signal_spec_from_row(best)
+    date_min, date_max, n_days = _historical_window_metadata(
+        grid_dir=grid_dir,
+        best=best,
+    )
     return HistoricalSignalSelection(
         backtest_root=str(root),
         summary_file=str(summary_file),
@@ -213,6 +260,9 @@ def select_historical_signal(
         historical_sell_rank=_optional_int(best, "sell_rank"),
         historical_rebalance_every=_optional_int(best, "rebalance_every"),
         historical_rebalance_offset=_optional_int(best, "rebalance_offset"),
+        historical_date_min=date_min,
+        historical_date_max=date_max,
+        historical_n_days=n_days,
     )
 
 
