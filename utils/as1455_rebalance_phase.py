@@ -14,6 +14,10 @@ def _normalize_dates(values: Iterable[Any]) -> pd.DatetimeIndex:
     return dates
 
 
+def _format_dates(values: pd.DatetimeIndex, limit: int = 10) -> list[str]:
+    return [pd.Timestamp(value).strftime("%Y-%m-%d") for value in values[:limit]]
+
+
 def align_forward_rebalance_phase(
     *,
     rebalance_every: int,
@@ -32,6 +36,10 @@ def align_forward_rebalance_phase(
     by preserving the historical number of effective backtest dates and then
     counting executable market dates in any bridge between the historical end
     and the first forward overlap date.
+
+    Strict phase alignment also requires complete prediction/execution date
+    coverage inside the forward window.  Otherwise v7 would skip a date and its
+    local day index would drift again after the aligned start.
     """
     every = int(rebalance_every)
     offset = int(historical_offset)
@@ -54,15 +62,38 @@ def align_forward_rebalance_phase(
 
     prediction_dates = _normalize_dates(forward_prediction_dates)
     calendar_dates = _normalize_dates(execution_calendar_dates)
-    overlap = prediction_dates.intersection(calendar_dates).sort_values()
-    if overlap.empty:
-        raise ValueError("forward predictions and execution calendar do not overlap")
-    forward_first = pd.Timestamp(overlap[0]).normalize()
+    if prediction_dates.empty:
+        raise ValueError("forward prediction dates are empty")
+    if calendar_dates.empty:
+        raise ValueError("execution calendar dates are empty")
+
+    prediction_without_execution = prediction_dates.difference(calendar_dates)
+    if len(prediction_without_execution):
+        raise ValueError(
+            "forward predictions contain dates missing from the execution calendar: "
+            f"count={len(prediction_without_execution)} "
+            f"sample={_format_dates(prediction_without_execution)}"
+        )
+
+    forward_first = pd.Timestamp(prediction_dates[0]).normalize()
+    forward_last = pd.Timestamp(prediction_dates[-1]).normalize()
     if forward_first <= history_last:
         raise ValueError(
             "forward window must begin after the historical window: "
             f"historical_last={history_last:%Y-%m-%d} "
             f"forward_first={forward_first:%Y-%m-%d}"
+        )
+
+    forward_calendar = calendar_dates[
+        (calendar_dates >= forward_first) & (calendar_dates <= forward_last)
+    ]
+    missing_prediction_dates = forward_calendar.difference(prediction_dates)
+    if len(missing_prediction_dates):
+        raise ValueError(
+            "execution calendar contains dates missing from forward predictions; "
+            "v7 day_index would drift inside the forward window: "
+            f"count={len(missing_prediction_dates)} "
+            f"sample={_format_dates(missing_prediction_dates)}"
         )
 
     bridge = calendar_dates[
@@ -93,10 +124,11 @@ def align_forward_rebalance_phase(
         "bridge_last_date": (
             pd.Timestamp(bridge[-1]).strftime("%Y-%m-%d") if len(bridge) else None
         ),
-        "forward_first_prediction_date": pd.Timestamp(
-            prediction_dates[0]
-        ).strftime("%Y-%m-%d"),
-        "forward_first_overlap_date": forward_first.strftime("%Y-%m-%d"),
+        "forward_first_prediction_date": forward_first.strftime("%Y-%m-%d"),
+        "forward_last_prediction_date": forward_last.strftime("%Y-%m-%d"),
+        "forward_prediction_days": int(len(prediction_dates)),
+        "forward_execution_calendar_days": int(len(forward_calendar)),
+        "forward_date_coverage_complete": True,
         "forward_global_index": int(forward_global_index),
         "effective_forward_offset": int(effective_offset),
         "historical_offset_numeric_reused": bool(effective_offset == offset),
