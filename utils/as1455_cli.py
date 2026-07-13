@@ -52,6 +52,11 @@ def add_prediction_grid_arguments(
     )
     parser.add_argument("--max-positions-list", default="5,10,15,20,25")
     parser.add_argument("--sell-rank-list", default="75,100,150,200,250,300")
+    parser.add_argument(
+        "--rebalance-offset-list",
+        default=None,
+        help="Optional exact local offset subset passed to the shared grid.",
+    )
     parser.add_argument("--python-bin", default=sys.executable or "python3")
     parser.add_argument("--force-grid", action="store_true")
     parser.add_argument("--smoke", action="store_true")
@@ -66,6 +71,11 @@ def normalize_common_prediction_args(args: argparse.Namespace) -> None:
         args.dropna_mode = "target_only"
     if args.top_n < 1:
         raise SystemExit("--top-n must be positive")
+
+
+def _append_optional(command: list[str], flag: str, value: object | None) -> None:
+    if value is not None:
+        command.extend([flag, str(value)])
 
 
 def run_prediction_grid(
@@ -101,6 +111,25 @@ def run_prediction_grid(
         smoke=args.smoke,
         parity_check_only=args.parity_check_only,
     )
+    _append_optional(
+        command,
+        "--rebalance-offset-list",
+        getattr(args, "rebalance_offset_list", None),
+    )
+    for attr, flag in (
+        ("rebalance_phase_history_offset", "--rebalance-phase-history-offset"),
+        (
+            "rebalance_phase_history_first_date",
+            "--rebalance-phase-history-first-date",
+        ),
+        (
+            "rebalance_phase_history_last_date",
+            "--rebalance-phase-history-last-date",
+        ),
+        ("rebalance_phase_history_n_days", "--rebalance-phase-history-n-days"),
+    ):
+        _append_optional(command, flag, getattr(args, attr, None))
+
     if signal_specs is None:
         command = append_signal_specs(command, args.top_n)
     else:

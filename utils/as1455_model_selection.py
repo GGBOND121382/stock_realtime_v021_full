@@ -58,6 +58,9 @@ class HistoricalSignalSelection:
     historical_sell_rank: int | None
     historical_rebalance_every: int | None
     historical_rebalance_offset: int | None
+    historical_date_min: str | None = None
+    historical_date_max: str | None = None
+    historical_n_days: int | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -84,12 +87,22 @@ def find_summary_file(root: Path) -> tuple[Path, Path]:
     raise FileNotFoundError(f"cannot find grid summary under {root}")
 
 
-def select_best_run(summary: pd.DataFrame, metric: str) -> pd.Series:
+def successful_rows(summary: pd.DataFrame) -> pd.DataFrame:
+    """Return only explicitly successful rows; never fail open to failed runs."""
     frame = summary.copy()
+    if frame.empty:
+        raise RuntimeError("grid summary is empty")
     if "status" in frame.columns:
-        ok = frame["status"].astype(str).str.lower().eq("ok")
-        if ok.any():
-            frame = frame.loc[ok].copy()
+        frame = frame.loc[
+            frame["status"].astype(str).str.lower().eq("ok")
+        ].copy()
+        if frame.empty:
+            raise RuntimeError("grid summary contains no status=ok rows")
+    return frame
+
+
+def select_best_run(summary: pd.DataFrame, metric: str) -> pd.Series:
+    frame = successful_rows(summary)
     if metric not in frame.columns:
         raise RuntimeError(
             f"rank metric {metric!r} not found in summary columns: "
@@ -100,7 +113,7 @@ def select_best_run(summary: pd.DataFrame, metric: str) -> pd.Series:
     frame[metric] = pd.to_numeric(frame[metric], errors="coerce")
     frame = frame.dropna(subset=[metric])
     if frame.empty:
-        raise RuntimeError(f"no valid rows for metric {metric!r}")
+        raise RuntimeError(f"no valid successful rows for metric {metric!r}")
     ascending = metric in LOWER_IS_BETTER and metric not in HIGHER_IS_BETTER
     return frame.sort_values(metric, ascending=ascending, kind="mergesort").iloc[0]
 
@@ -119,13 +132,14 @@ def find_latest_target_backtest_root(
     valid: list[Path] = []
     for path in candidates:
         try:
-            find_summary_file(path)
-        except FileNotFoundError:
+            summary_file, _grid_dir = find_summary_file(path)
+            successful_rows(read_csv_auto(summary_file))
+        except (FileNotFoundError, RuntimeError, pd.errors.EmptyDataError):
             continue
         valid.append(path)
     if not valid:
         raise FileNotFoundError(
-            "cannot find a completed historical target backtest; "
+            "cannot find a completed historical target backtest with status=ok; "
             f"base_root={base_root} pattern={pattern}"
         )
     return valid[-1]
@@ -178,15 +192,59 @@ def _optional_int(row: pd.Series, name: str) -> int | None:
     return int(row[name])
 
 
+def _optional_date(row: pd.Series, name: str) -> str | None:
+    if name not in row.index or pd.isna(row[name]):
+        return None
+    return pd.Timestamp(row[name]).normalize().strftime("%Y-%m-%d")
+
+
+def _historical_window_metadata(
+    *,
+    grid_dir: Path,
+    best: pd.Series,
+) -> tuple[str | None, str | None, int | None]:
+    """Resolve the exact historical window used by the selected v7 run.
+
+    New summaries already carry date_min/date_max/n_days.  Older runs are
+    supported by reading the materialized NAV for the selected run.  Strict OOS
+    later refuses to align a rebalance phase if neither source is available.
+    """
+    date_min = _optional_date(best, "date_min")
+    date_max = _optional_date(best, "date_max")
+    n_days = _optional_int(best, "n_days")
+    if date_min and date_max and n_days and n_days > 0:
+        return date_min, date_max, n_days
+
+    nav_path = grid_dir / "01_runs" / str(best["run_name"]) / "close_auction_nav.csv"
+    if not nav_path.exists() or nav_path.stat().st_size == 0:
+        return date_min, date_max, n_days
+    nav = read_csv_auto(nav_path)
+    if "date" not in nav.columns:
+        return date_min, date_max, n_days
+    dates = pd.to_datetime(nav["date"], errors="coerce").dropna().dt.normalize()
+    dates = dates.drop_duplicates().sort_values()
+    if dates.empty:
+        return date_min, date_max, n_days
+    return (
+        pd.Timestamp(dates.iloc[0]).strftime("%Y-%m-%d"),
+        pd.Timestamp(dates.iloc[-1]).strftime("%Y-%m-%d"),
+        int(len(dates)),
+    )
+
+
 def select_historical_signal(
     *,
     backtest_root: Path,
     rank_metric: str = "sharpe",
 ) -> HistoricalSignalSelection:
     root = backtest_root.expanduser().resolve()
-    summary_file, _grid_dir = find_summary_file(root)
+    summary_file, grid_dir = find_summary_file(root)
     best = select_best_run(read_csv_auto(summary_file), rank_metric)
     signal_spec, required_top_n = signal_spec_from_row(best)
+    date_min, date_max, n_days = _historical_window_metadata(
+        grid_dir=grid_dir,
+        best=best,
+    )
     return HistoricalSignalSelection(
         backtest_root=str(root),
         summary_file=str(summary_file),
@@ -202,6 +260,9 @@ def select_historical_signal(
         historical_sell_rank=_optional_int(best, "sell_rank"),
         historical_rebalance_every=_optional_int(best, "rebalance_every"),
         historical_rebalance_offset=_optional_int(best, "rebalance_offset"),
+        historical_date_min=date_min,
+        historical_date_max=date_max,
+        historical_n_days=n_days,
     )
 
 

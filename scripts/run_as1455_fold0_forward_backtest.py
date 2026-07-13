@@ -2,16 +2,15 @@
 # -*- coding: utf-8 -*-
 """Use fold0 checkpoints after the fold0 test window.
 
-By default, this protocol first reads the corresponding historical target
-backtest under ``ch17_as1455_target_backtest`` and selects its best signal by
-``--selection-rank-metric`` (default: Sharpe).  The selected signal may be one
-checkpoint rank or an ensemble.  Only that signal is then evaluated on dates
-strictly later than fold0 ``test_end``.
+The default ``strict_oos`` protocol reads the corresponding historical target
+backtest, freezes the selected model signal, non-phase trading parameters and
+historical rebalance phase, and evaluates one phase-aligned configuration on
+dates strictly later than fold0 ``test_end``.  The newest feature-complete rows
+remain eligible even when the future target has not yet been realized.
 
-The historical run chooses the model signal.  Forward-window trading parameters
-(max positions, sell rank and offset) are still re-evaluated from an empty
-portfolio; historical trading parameters are recorded in the manifest but are
-not silently imposed on the forward period.
+``forward_parameter_sweep`` is retained only for sensitivity analysis.  It
+selects the historical signal but re-evaluates trading parameters in the
+forward window and must not be reported as a strict out-of-sample result.
 """
 from __future__ import annotations
 
@@ -28,16 +27,22 @@ if str(PROJECT_DIR) not in sys.path:
 
 from utils import as1455_ch17_common as common  # noqa: E402
 from utils import as1455_cli, as1455_paths  # noqa: E402
+from utils.as1455_forward_features import build_inference_features  # noqa: E402
 from utils.as1455_model_selection import (  # noqa: E402
     HistoricalSignalSelection,
     select_corresponding_historical_signal,
 )
+from utils.as1455_strict_oos import (  # noqa: E402
+    apply_strict_oos_args,
+    finalize_strict_oos_grid,
+)
 
 
 def resolve_model_selection(args: argparse.Namespace) -> None:
-    """Resolve the model signal before prediction and grid construction."""
+    """Resolve the historical signal and strict-OOS historical phase inputs."""
     args.historical_selection = None
     args.forward_signal_specs = None
+    args.strict_oos_config = None
 
     if args.model_selection_mode == "all_top_n":
         print(
@@ -62,14 +67,20 @@ def resolve_model_selection(args: argparse.Namespace) -> None:
     args.historical_selection = selection
     args.forward_signal_specs = [selection.signal_spec]
     args.top_n = selection.required_top_n
+
+    if args.model_selection_mode == "strict_oos":
+        args.strict_oos_config = apply_strict_oos_args(args, selection)
+
     print(
         "[MODEL SELECT] "
+        f"mode={args.model_selection_mode} "
         f"root={selection.backtest_root} "
         f"metric={selection.rank_metric} "
         f"value={selection.rank_metric_value:.12g} "
         f"historical_run={selection.run_name} "
         f"signal={selection.signal_spec} "
-        f"required_top_n={selection.required_top_n}"
+        f"required_top_n={selection.required_top_n} "
+        f"strict_historical_config={args.strict_oos_config}"
     )
 
 
@@ -78,10 +89,9 @@ def build_forward_predictions(args: argparse.Namespace) -> Path:
     if not fold0_dir.exists():
         raise FileNotFoundError(fold0_dir)
 
-    features = common.build_target_features(
+    features = build_inference_features(
         Path(args.model_data),
         args.train_end,
-        args.dropna_mode,
         args.target_col,
         args.feature_preset,
         args.sector_encoding,
@@ -103,6 +113,7 @@ def build_forward_predictions(args: argparse.Namespace) -> Path:
             f"start_date={args.start_date} end_date={args.end_date}"
         )
 
+    expected_prediction_end = pd.Timestamp(dates[mask].max()).normalize()
     predictions, checkpoint_rows, _source_manifest = (
         common.predict_checkpoint_set(
             features.X,
@@ -115,11 +126,21 @@ def build_forward_predictions(args: argparse.Namespace) -> Path:
     selected_dates = pd.DatetimeIndex(
         predictions.index.get_level_values("date")
     )
+    actual_prediction_end = pd.Timestamp(selected_dates.max()).normalize()
+    if actual_prediction_end != expected_prediction_end:
+        raise RuntimeError(
+            "forward prediction end-date contract failed: "
+            f"expected={expected_prediction_end:%Y-%m-%d} "
+            f"actual={actual_prediction_end:%Y-%m-%d}"
+        )
+
     print(
         f"[PRED] fold0 test_end={fold0_test_end:%Y-%m-%d} "
         f"forward={selected_dates.min():%Y-%m-%d}.."
         f"{selected_dates.max():%Y-%m-%d} "
-        f"dates={selected_dates.nunique()} rows={len(predictions)}"
+        f"dates={selected_dates.nunique()} rows={len(predictions)} "
+        f"target_valid_max={features.report.get('target_valid_max_date')} "
+        f"feature_valid_max={features.report.get('feature_valid_max_date')}"
     )
 
     selection_payload = (
@@ -127,6 +148,7 @@ def build_forward_predictions(args: argparse.Namespace) -> Path:
         if isinstance(args.historical_selection, HistoricalSignalSelection)
         else None
     )
+    strict_oos = args.model_selection_mode == "strict_oos"
     return common.write_prediction_artifacts(
         out_root=Path(args.out_root),
         predictions=predictions,
@@ -137,17 +159,36 @@ def build_forward_predictions(args: argparse.Namespace) -> Path:
         checkpoint_filename="selected_fold0_checkpoints.csv",
         manifest={
             "protocol": "fold0_checkpoint_forward_test",
+            "evaluation_mode": args.model_selection_mode,
             "model_selection_mode": args.model_selection_mode,
             "historical_model_selection": selection_payload,
             "forward_signal_specs": args.forward_signal_specs,
+            # Backward-compatible alias.  This is the historical-window local
+            # config; the final phase-aligned forward config is written only
+            # after the shared grid loads the execution calendar.
+            "strict_oos_config": args.strict_oos_config,
+            "strict_oos_historical_config": args.strict_oos_config,
+            "strict_oos_config_semantics": (
+                "historical_window_local_config_before_phase_alignment"
+                if strict_oos
+                else None
+            ),
+            "rebalance_phase_alignment_stage": (
+                "deferred_to_shared_grid_execution_calendar"
+                if strict_oos
+                else None
+            ),
             "feature_preset": args.feature_preset,
+            "feature_row_mode": "inference_features_only",
             "fold0_dir": str(fold0_dir),
             "fold0_test_end": fold0_test_end.strftime("%Y-%m-%d"),
             "requested_start_date": args.start_date,
             "requested_end_date": args.end_date,
+            "expected_prediction_end": expected_prediction_end.strftime("%Y-%m-%d"),
             "checkpoint_count_loaded": int(args.top_n),
             "portfolio_initial_state": "empty_positions_and_initial_cash",
-            "historical_trading_parameters_reused": False,
+            "historical_trading_parameters_reused": strict_oos,
+            "historical_rebalance_phase_reused_pending_grid": strict_oos,
             "feature_meta": features.report,
         },
         checkpoint_rows=checkpoint_rows,
@@ -160,8 +201,9 @@ def build_forward_predictions(args: argparse.Namespace) -> Path:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Backtest the historically selected model signal using fold0 "
-            "checkpoints after fold0 test_end"
+            "Backtest fold0 checkpoints after fold0 test_end.  The default "
+            "strict_oos mode freezes the historical decision and aligns its "
+            "rebalance phase to the forward execution calendar."
         )
     )
     parser.add_argument(
@@ -181,11 +223,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--end-date", default=None)
     parser.add_argument(
         "--model-selection-mode",
-        choices=["historical_best", "all_top_n"],
-        default="historical_best",
+        choices=["strict_oos", "forward_parameter_sweep", "all_top_n"],
+        default="strict_oos",
         help=(
-            "historical_best selects one signal from the corresponding prior "
-            "target backtest; all_top_n preserves the exhaustive signal grid"
+            "strict_oos freezes the historical signal, non-phase parameters and "
+            "rebalance phase; forward_parameter_sweep freezes only the signal; "
+            "all_top_n preserves the exhaustive legacy signal grid"
         ),
     )
     parser.add_argument(
@@ -204,10 +247,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--selection-rank-metric",
         default="sharpe",
-        help="Metric used to select the historical best model signal",
+        help="Metric used to select the historical best complete configuration",
     )
     as1455_cli.add_prediction_grid_arguments(
-        parser, default_output_mode="full"
+        parser, default_output_mode="compact"
     )
     args = parser.parse_args()
 
@@ -230,6 +273,11 @@ def parse_args() -> argparse.Namespace:
         )
     resolve_model_selection(args)
     as1455_cli.normalize_common_prediction_args(args)
+    if args.model_selection_mode == "strict_oos" and args.smoke:
+        raise SystemExit(
+            "--smoke uses fixed legacy configs and is incompatible with strict_oos; "
+            "use --parity-check-only for a strict-path smoke check"
+        )
     return args
 
 
@@ -260,11 +308,24 @@ def main() -> None:
             ),
             model_run=(
                 "fold0 checkpoints; dates after fold0 test_end; "
+                f"evaluation_mode={args.model_selection_mode}; "
                 f"{selected_text}; rebalance_every={args.rebalance_every}; "
                 "empty start"
             ),
             signal_specs=args.forward_signal_specs,
         )
+        if (
+            args.model_selection_mode == "strict_oos"
+            and isinstance(selection, HistoricalSignalSelection)
+            and not args.parity_check_only
+            and not args.dry_run
+        ):
+            strict_manifest = finalize_strict_oos_grid(out_root, selection)
+            print(
+                "[STRICT OOS] retained "
+                f"run={strict_manifest['retained_run_name']} "
+                f"config={strict_manifest['retained_config']}"
+            )
     print(f"[DONE] out_root={out_root}")
 
 

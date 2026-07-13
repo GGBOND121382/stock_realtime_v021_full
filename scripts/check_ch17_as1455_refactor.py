@@ -243,6 +243,23 @@ def assert_unified_plotter() -> None:
     assert "utils.as1455_plotting" in plotter
 
 
+def assert_storage_maintenance_entrypoint() -> None:
+    shell = read("scripts/run_as1455_storage_maintenance.sh")
+    exporter = read("scripts/export_as1455_storage_diagnostics.py")
+    guide = read("AS1455_STORAGE_MAINTENANCE.md")
+
+    assert 'APPLY="${APPLY:-0}"' in shell
+    assert 'SHARE_FILE="$OUT_DIR/share_me.txt"' in shell
+    assert "cleanup_dry_run.json" in shell
+    assert "cleanup_apply.json" in shell
+    assert "scripts/export_as1455_storage_diagnostics.py" in shell
+    assert "scripts/cleanup_as1455_storage.py" in shell
+    assert "def active_as1455_processes(" in exporter
+    assert "def scan_files(" in exporter
+    assert "def important_paths(" in exporter
+    assert "share_me.txt" in guide
+
+
 def main() -> None:
     checks = [
         assert_target_specs,
@@ -253,6 +270,7 @@ def main() -> None:
         assert_thin_compatibility_wrappers,
         assert_shared_prediction_and_cli_layers,
         assert_unified_plotter,
+        assert_storage_maintenance_entrypoint,
     ]
     for check in checks:
         check()
