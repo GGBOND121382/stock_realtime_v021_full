@@ -177,7 +177,7 @@ n_days
 feature_row_mode = inference_features_only
 ```
 
-因此 forward model data 更新到最新交易日时，r5/r21 prediction end 也应到最新特征有效日期，而不是分别停在 5/21 个交易日前。
+因此 forward model data 更新到最新交易日时，r1/r5/r21 prediction end 都应到最新特征有效日期，而不是因目标尚未实现而提前截止。
 
 manifest 记录并硬校验：
 
@@ -221,22 +221,53 @@ effective_forward_offset
 
 forward 使用 fold0 checkpoint，在 `date > fold0.test_end` 区间从空仓和初始现金开始回测。forward 数据只用于评价，不再用于调参。
 
-#### r5/r21 A/B 一次性正式运行（推荐）
+#### r1/r5/r21 A/B 一次性正式运行
 
 ```bash
 REFRESH_DATA=0 \
-TARGETS='r05_fwd r21_fwd' \
+TARGETS='r01_fwd r05_fwd r21_fwd' \
 FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-该命令会生成 4 组 strict OOS 结果：
+该命令会生成 6 组 strict OOS 结果：
 
 ```text
+r1-A   rotation_onehot + r01_fwd
+r1-B   rotation_addon_onehot + r01_fwd
 r5-A   rotation_onehot + r05_fwd
 r5-B   rotation_addon_onehot + r05_fwd
 r21-A  rotation_onehot + r21_fwd
 r21-B  rotation_addon_onehot + r21_fwd
+```
+
+建议在内存和运行时间受限时按单组顺序运行，不要并行执行。
+
+#### 仅运行 r1 A/B
+
+```bash
+REFRESH_DATA=0 \
+TARGETS='r01_fwd' \
+FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+单独补跑 r1-A：
+
+```bash
+REFRESH_DATA=0 \
+TARGETS='r01_fwd' \
+FEATURE_PRESETS='rotation_onehot' \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+单独补跑 r1-B：
+
+```bash
+REFRESH_DATA=0 \
+TARGETS='r01_fwd' \
+FEATURE_PRESETS='rotation_addon_onehot' \
+bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
 #### 仅运行 r5 A/B
@@ -273,11 +304,11 @@ SELECTION_RANK_METRIC=sharpe
 
 ### 5.3 自动更新数据后运行
 
-先刷新最新 forward model data，再运行 r5/r21 A/B：
+先刷新最新 forward model data，再运行 r1/r5/r21 A/B：
 
 ```bash
 REFRESH_DATA=1 \
-TARGETS='r05_fwd r21_fwd' \
+TARGETS='r01_fwd r05_fwd r21_fwd' \
 FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
@@ -416,7 +447,45 @@ scripts/plot_as1455_default_ab_nav_curves.sh
 
 这样可以避免误选 parity-only、dry-run 或未完成目录。
 
-### 7.1 strict r5 forward A/B
+### 7.1 strict r1 forward A/B
+
+```bash
+BASE='saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest'
+
+A=$(
+  find "$BASE" -maxdepth 1 -type d \
+    -name 'rotation_onehot_r01_fwd_reb1_*' \
+    -exec test -f '{}/01_close_auction_grid/strict_oos_manifest.json' \; \
+    -print | sort | tail -n 1
+)
+
+B=$(
+  find "$BASE" -maxdepth 1 -type d \
+    -name 'rotation_addon_onehot_r01_fwd_reb1_*' \
+    -exec test -f '{}/01_close_auction_grid/strict_oos_manifest.json' \; \
+    -print | sort | tail -n 1
+)
+
+printf 'r1-A=%s\nr1-B=%s\n' "$A" "$B"
+
+test -n "$A" && test -n "$B" || {
+  echo '[ERROR] 未找到完整的 r1 strict OOS A/B 结果' >&2
+  exit 1
+}
+
+OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r1_fold0_forward_$(date +%Y%m%d_%H%M%S)"
+
+BACKTEST_ROOTS="$A,$B" \
+LABELS='r1-A-fold0-forward,r1-B-fold0-forward' \
+RANK_METRIC='sharpe' \
+OUT_DIR="$OUT_DIR" \
+bash scripts/plot_as1455_default_ab_nav_curves.sh
+
+echo "绘图输出目录：$OUT_DIR"
+find "$OUT_DIR" -maxdepth 1 -type f -printf '%f\n' | sort
+```
+
+### 7.2 strict r5 forward A/B
 
 ```bash
 BASE='saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest'
@@ -449,7 +518,7 @@ OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r5_fold0_forward_$(da
 bash scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-### 7.2 strict r21 forward A/B
+### 7.3 strict r21 forward A/B
 
 ```bash
 BASE='saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest'
@@ -537,7 +606,7 @@ bash scripts/run_as1455_storage_maintenance.sh
 
 ## 9. 结果核对
 
-### 9.1 r5/r21 forward 日期
+### 9.1 r1/r5/r21 forward 日期
 
 ```bash
 python3 - <<'PY'
@@ -546,6 +615,7 @@ from pathlib import Path
 
 base = Path('saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest')
 patterns = (
+    'rotation_*_r01_fwd_reb1_*/00_predictions/fold0_forward_preds.h5',
     'rotation_*_r05_fwd_reb5_*/00_predictions/fold0_forward_preds.h5',
     'rotation_*_r21_fwd_reb21_*/00_predictions/fold0_forward_preds.h5',
 )
