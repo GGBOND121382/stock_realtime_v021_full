@@ -33,6 +33,7 @@ echo '===== Python syntax ====='
   scripts/check_as1455_exact_offset_filter.py \
   scripts/check_as1455_disk_space.py \
   scripts/cleanup_as1455_storage.py \
+  scripts/run_as1455_cleanup_safe.py \
   scripts/export_as1455_storage_diagnostics.py \
   scripts/compact_as1455_prediction_artifacts.py \
   scripts/materialize_as1455_best_run.py \
@@ -61,8 +62,11 @@ grep -F 'OUTPUT_MODE="${OUTPUT_MODE:-summary}"' scripts/run_as1455_target_natura
 grep -F 'FORWARD_ARTIFACT_MODE="${FORWARD_ARTIFACT_MODE:-model_only}"' scripts/refresh_as1455_forward_model_data.sh >/dev/null
 grep -F 'RANK_METRIC="${RANK_METRIC:-sharpe}"' scripts/plot_as1455_default_ab_nav_curves.sh >/dev/null
 grep -F 'APPLY="${APPLY:-0}"' scripts/run_as1455_storage_maintenance.sh >/dev/null
+grep -F 'INCLUDE_OBSOLETE="${INCLUDE_OBSOLETE:-0}"' scripts/run_as1455_storage_maintenance.sh >/dev/null
+grep -F 'PRUNE_GRID_RUNS="${PRUNE_GRID_RUNS:-0}"' scripts/run_as1455_storage_maintenance.sh >/dev/null
 grep -F 'SHARE_FILE="$OUT_DIR/share_me.txt"' scripts/run_as1455_storage_maintenance.sh >/dev/null
-echo '[OK] strict OOS, summary-first grid, model-only artifacts, safe storage audit and Sharpe selection are defaults'
+grep -F 'scripts/run_as1455_cleanup_safe.py' scripts/run_as1455_storage_maintenance.sh >/dev/null
+echo '[OK] strict OOS, summary-first grid, model-only artifacts, conservative storage maintenance and Sharpe selection are defaults'
 
 echo '===== Historical model-selection synthetic check ====='
 "$PYTHON_BIN" scripts/check_as1455_historical_model_selection.py
@@ -89,6 +93,7 @@ echo '===== CLI imports ====='
 "$PYTHON_BIN" scripts/compare_as1455_backtest_runs.py --help >/dev/null
 "$PYTHON_BIN" scripts/check_as1455_disk_space.py --help >/dev/null
 "$PYTHON_BIN" scripts/cleanup_as1455_storage.py --help >/dev/null
+"$PYTHON_BIN" scripts/run_as1455_cleanup_safe.py --help >/dev/null
 "$PYTHON_BIN" scripts/export_as1455_storage_diagnostics.py --help >/dev/null
 "$PYTHON_BIN" scripts/compact_as1455_prediction_artifacts.py --help >/dev/null
 "$PYTHON_BIN" scripts/materialize_as1455_best_run.py --help >/dev/null
