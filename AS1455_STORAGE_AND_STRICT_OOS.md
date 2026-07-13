@@ -2,6 +2,12 @@
 
 本文档定义 AS1455 r1/r5/r21 流程的存储边界、保留策略、forward 日期口径和严格样本外参数选择规则。若其他旧文档与本文冲突，以本文和 `README_AS1455_R1_R5_R21.md` 为准。
 
+一键检查、诊断导出和清理命令见：
+
+```text
+AS1455_STORAGE_MAINTENANCE.md
+```
+
 ## 1. 四个问题与根因
 
 ### 1.1 forward 数据重复
@@ -233,7 +239,37 @@ materialized_best_run.json
 
 ## 4. 自动化入口
 
-### 4.1 空间门禁
+### 4.1 一键检查和诊断导出
+
+默认只检查和模拟清理，不删除：
+
+```bash
+bash scripts/run_as1455_storage_maintenance.sh
+```
+
+输出目录：
+
+```text
+saved_data/ashare_ml4t/storage_maintenance_YYYYMMDD_HHMMSS/
+```
+
+需要进一步分析时，只复制：
+
+```text
+share_me.txt
+```
+
+该文件包含运行参数、磁盘和 inode、最大目录和文件、活动进程、关键路径、完整 dry-run manifest 以及控制台日志尾部。
+
+正式执行：
+
+```bash
+APPLY=1 bash scripts/run_as1455_storage_maintenance.sh
+```
+
+正式模式会同时生成清理前诊断、dry-run manifest、apply manifest、清理后诊断和最终 `share_me.txt`。详细参数见 `AS1455_STORAGE_MAINTENANCE.md`。
+
+### 4.2 空间门禁
 
 ```bash
 python3 scripts/check_as1455_disk_space.py \
@@ -244,7 +280,7 @@ python3 scripts/check_as1455_disk_space.py \
 
 forward 刷新、历史大网格和 fold0-forward wrapper 已默认调用该门禁。
 
-### 4.2 dry-run 清理
+### 4.3 手动 dry-run 清理
 
 ```bash
 python3 scripts/cleanup_as1455_storage.py \
@@ -254,7 +290,7 @@ python3 scripts/cleanup_as1455_storage.py \
   --compress-reports
 ```
 
-### 4.3 正式清理
+### 4.4 手动正式清理
 
 审核生成的 `cleanup_audit_*.json` 后：
 
@@ -274,10 +310,10 @@ python3 scripts/cleanup_as1455_storage.py \
 1. 停止历史更新、训练、回测和 live 任务；
 2. `git pull` 并运行 `bash scripts/check_ch17_as1455_refactor.sh`；
 3. 确认历史最佳行具有 `date_min/date_max/n_days`，或存在 materialized NAV；
-4. 运行清理器 dry-run；
-5. 检查 manifest 中的删除目录、预计释放空间和 active process 列表；
-6. 使用 `--apply`；
-7. 检查 `df -h`、`du -h --max-depth=1 saved_data/ashare_ml4t`；
+4. 运行 `bash scripts/run_as1455_storage_maintenance.sh`；
+5. 检查 `cleanup_dry_run.json` 和 `share_me.txt`；
+6. 使用 `APPLY=1 bash scripts/run_as1455_storage_maintenance.sh`；
+7. 检查最终 `share_me.txt` 中的清理前后磁盘状态；
 8. 重新运行 r5 strict forward；
 9. 检查 prediction end、historical config、phase alignment 和 retained config；
 10. 重新绘图。
