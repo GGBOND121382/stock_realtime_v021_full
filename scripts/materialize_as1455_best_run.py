@@ -16,6 +16,8 @@ import shutil
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
@@ -25,7 +27,6 @@ from utils.as1455_model_selection import (  # noqa: E402
     find_summary_file,
     select_historical_signal,
 )
-from utils.as1455_strict_oos import finalize_strict_oos_grid  # noqa: E402
 
 
 def find_prediction_file(root: Path) -> Path:
@@ -61,6 +62,47 @@ def prune_nonselected_artifacts(grid_dir: Path, run_name: str) -> dict[str, obje
         "removed_log_count": len(removed_logs),
         "removed_runs": removed_runs,
         "removed_logs": removed_logs,
+    }
+
+
+def audit_materialized_grid(
+    temp_grid: Path,
+    expected_run_name: str,
+    expected_offset: int,
+) -> dict[str, object]:
+    summary_path = temp_grid / "02_summary" / "grid_summary.csv"
+    if not summary_path.exists():
+        raise FileNotFoundError(summary_path)
+    summary = pd.read_csv(summary_path)
+    if len(summary) != 1:
+        raise RuntimeError(
+            f"historical materialization expected one grid row, got={len(summary)}"
+        )
+    row = summary.iloc[0]
+    if str(row.get("status", "")).lower() != "ok":
+        raise RuntimeError(f"historical materialization failed: {row.to_dict()}")
+    if str(row.get("run_name")) != expected_run_name:
+        raise RuntimeError(
+            "historical materialization run mismatch: "
+            f"expected={expected_run_name} actual={row.get('run_name')}"
+        )
+    if int(row.get("rebalance_offset")) != int(expected_offset):
+        raise RuntimeError(
+            "historical materialization offset mismatch: "
+            f"expected={expected_offset} actual={row.get('rebalance_offset')}"
+        )
+    engine_path = temp_grid / "grid_engine_manifest.json"
+    engine = (
+        json.loads(engine_path.read_text(encoding="utf-8"))
+        if engine_path.exists()
+        else None
+    )
+    return {
+        "generated_config_count": int(len(summary)),
+        "run_name": expected_run_name,
+        "rebalance_offset": int(expected_offset),
+        "grid_summary": str(summary_path),
+        "grid_engine_manifest": engine,
     }
 
 
@@ -139,7 +181,11 @@ def main() -> None:
     if args.dry_run:
         return
 
-    strict_manifest = finalize_strict_oos_grid(temp_out, selection)
+    materialization_audit = audit_materialized_grid(
+        temp_grid,
+        expected_run_name=run_name,
+        expected_offset=offset,
+    )
     materialized = temp_grid / "01_runs" / run_name
     if not (materialized / "close_auction_nav.csv").exists():
         raise RuntimeError(f"materialized selected run is missing NAV: {materialized}")
@@ -167,7 +213,7 @@ def main() -> None:
         "materialized_run_dir": str(final_run_dir),
         "summary_run_dirs_retained": bool(args.keep_summary_run_dirs),
         "pruning": pruning,
-        "temporary_strict_manifest": strict_manifest,
+        "temporary_materialization_audit": materialization_audit,
     }
     (root / "materialized_best_run.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2),
