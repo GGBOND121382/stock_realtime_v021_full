@@ -47,6 +47,9 @@ def main() -> None:
                     "sell_rank": 100,
                     "rebalance_every": 5,
                     "rebalance_offset": 0,
+                    "date_min": "2025-01-02",
+                    "date_max": "2026-06-30",
+                    "n_days": 378,
                     "sharpe": 1.2,
                 },
                 {
@@ -59,6 +62,9 @@ def main() -> None:
                     "sell_rank": 150,
                     "rebalance_every": 5,
                     "rebalance_offset": 3,
+                    "date_min": "2025-01-02",
+                    "date_max": "2026-06-30",
+                    "n_days": 378,
                     "sharpe": 1.5,
                 },
                 {
@@ -81,6 +87,9 @@ def main() -> None:
         assert selected.historical_max_positions == 20
         assert selected.historical_sell_rank == 150
         assert selected.historical_rebalance_offset == 3
+        assert selected.historical_date_min == "2025-01-02"
+        assert selected.historical_date_max == "2026-06-30"
+        assert selected.historical_n_days == 378
 
         failed_root = base / "rotation_onehot_r05_fwd_reb5_20260713"
         write_summary(
