@@ -5,6 +5,7 @@
 ```text
 README_AS1455_R1_R5_R21.md
 AS1455_STORAGE_AND_STRICT_OOS.md
+AS1455_STORAGE_MAINTENANCE.md
 ```
 
 ## 1. 固定口径
@@ -286,21 +287,33 @@ all_top_n                 # 兼容旧实验
 ```text
 scripts/check_as1455_disk_space.py
 scripts/cleanup_as1455_storage.py
+scripts/run_as1455_cleanup_safe.py
+scripts/run_as1455_storage_maintenance.sh
 ```
 
-清理器默认 dry-run，并具备：
+一键入口默认 dry-run，并具备：
 
 - 活动进程门禁；
 - 路径边界保护；
 - forward HDF 验证；
 - live 日期保留；
 - prediction manifest 同步；
-- 可选旧目录清理；
-- 可选 grid run 裁剪；
 - 大型报告 gzip；
-- JSON 审计 manifest。
+- JSON 审计 manifest；
+- 单一 `share_me.txt` 诊断交接文件。
 
-共享行情缓存、训练 checkpoint、训练 model data 和当前 contract 依赖文件不在自动删除清单中。
+默认正式清理采用保守参数：
+
+```text
+INCLUDE_OBSOLETE=0
+PRUNE_GRID_RUNS=0
+```
+
+因此 hard-coded obsolete 目录和非选中 grid run 不会默认删除。它们只能在单独 dry-run、审核 `share_me.txt` 后显式启用。
+
+安全启动器只排除本次维护脚本自身及其 Bash 日志重定向进程；其他 AS1455 任务仍会阻止正式清理。
+
+共享行情缓存、训练 checkpoint、训练 model data 和当前 contract 依赖文件不在默认自动删除清单中。
 
 ## 8. 最低验证
 
@@ -318,6 +331,8 @@ bash scripts/check_ch17_as1455_refactor.sh
 - strict OOS 完整配置与历史相位冻结；
 - exact-offset 配置生成；
 - prediction CSV 清理且 actual 标签保留；
+- 一键入口 `APPLY=0`；
+- 一键入口默认 `INCLUDE_OBSOLETE=0` 和 `PRUNE_GRID_RUNS=0`；
 - 唯一 v7 引擎；
 - summary-first、model-only 和 strict OOS 默认值。
 
