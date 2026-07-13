@@ -5,6 +5,7 @@
 ```text
 CH17_AS1455_DEVELOPMENT_OUTLINE.md
 AS1455_STORAGE_AND_STRICT_OOS.md
+AS1455_STORAGE_MAINTENANCE.md
 ```
 
 以下命令均在工程根目录执行：
@@ -42,17 +43,6 @@ fold_report.json
 
 ## 2. 拉取代码与验证
 
-修复分支验证阶段：
-
-```bash
-git fetch origin
-git switch agent/as1455-storage-oos-fixes
-git pull --ff-only origin agent/as1455-storage-oos-fixes
-bash scripts/check_ch17_as1455_refactor.sh
-```
-
-合并后改为：
-
 ```bash
 git switch master
 git pull --ff-only origin master
@@ -73,7 +63,6 @@ bash scripts/check_ch17_as1455_refactor.sh
 - 历史窗口 `date_min/date_max/n_days` 提取；
 - forward 最新无标签日期保留；
 - strict OOS 参数和调仓相位冻结；
-- r5 历史 `off3`、378 个有效交易日换算为 forward `off0` 的合成测试；
 - exact-offset 单配置生成；
 - prediction CSV 清理时保留真实标签文件；
 - 唯一 v7 交易引擎；
@@ -232,28 +221,48 @@ effective_forward_offset
 
 forward 使用 fold0 checkpoint，在 `date > fold0.test_end` 区间从空仓和初始现金开始回测。forward 数据只用于评价，不再用于调参。
 
-r5 A/B：
+#### r5/r21 A/B 一次性正式运行（推荐）
 
 ```bash
-TARGETS='r05_fwd' \
-FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
 REFRESH_DATA=0 \
+TARGETS='r05_fwd r21_fwd' \
+FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
-默认值：
+该命令会生成 4 组 strict OOS 结果：
+
+```text
+r5-A   rotation_onehot + r05_fwd
+r5-B   rotation_addon_onehot + r05_fwd
+r21-A  rotation_onehot + r21_fwd
+r21-B  rotation_addon_onehot + r21_fwd
+```
+
+#### 仅运行 r5 A/B
+
+```bash
+REFRESH_DATA=0 \
+TARGETS='r05_fwd' \
+FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+#### 仅运行 r21 A/B
+
+```bash
+REFRESH_DATA=0 \
+TARGETS='r21_fwd' \
+FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
+bash scripts/run_as1455_fold0_forward_backtests.sh
+```
+
+正式默认值：
 
 ```text
 MODEL_SELECTION_MODE=strict_oos
 OUTPUT_MODE=compact
 SELECTION_RANK_METRIC=sharpe
-```
-
-r21：
-
-```bash
-TARGETS='r21_fwd' REFRESH_DATA=0 \
-  bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
 运行日志必须出现：
@@ -264,15 +273,20 @@ TARGETS='r21_fwd' REFRESH_DATA=0 \
 
 ### 5.3 自动更新数据后运行
 
+先刷新最新 forward model data，再运行 r5/r21 A/B：
+
 ```bash
-TARGETS='r05_fwd' \
 REFRESH_DATA=1 \
+TARGETS='r05_fwd r21_fwd' \
+FEATURE_PRESETS='rotation_onehot rotation_addon_onehot' \
 bash scripts/run_as1455_fold0_forward_backtests.sh
 ```
 
 服务器空间紧张时，应先清理，再执行 `REFRESH_DATA=1`。
 
 ### 5.4 固定历史来源
+
+`SELECTION_BACKTEST_ROOT` 只能与单个目标和单个特征方案一起使用：
 
 ```bash
 REFRESH_DATA=0 \
@@ -386,30 +400,47 @@ as1455_execution_metadata.h5
 
 ## 7. 绘图
 
-历史 r5 A/B：
+绘图脚本：
 
-```bash
-BASE='saved_data/ashare_ml4t/ch17_as1455_target_backtest'
-A=$(find "$BASE" -maxdepth 1 -type d \
-  -name 'rotation_onehot_r05_fwd_reb5_*' | sort | tail -n 1)
-B=$(find "$BASE" -maxdepth 1 -type d \
-  -name 'rotation_addon_onehot_r05_fwd_reb5_*' | sort | tail -n 1)
-
-BACKTEST_ROOTS="$A,$B" \
-LABELS='r5-A,r5-B' \
-RANK_METRIC='sharpe' \
-OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r5_ab_$(date +%Y%m%d_%H%M%S)" \
-bash scripts/plot_as1455_default_ab_nav_curves.sh
+```text
+scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
-strict r5 forward A/B：
+它支持用逗号分隔的 `BACKTEST_ROOTS` 和 `LABELS`，并输出 PNG、CSV 和 JSON。
+
+选择 forward 根目录时，必须要求存在：
+
+```text
+01_close_auction_grid/strict_oos_manifest.json
+```
+
+这样可以避免误选 parity-only、dry-run 或未完成目录。
+
+### 7.1 strict r5 forward A/B
 
 ```bash
 BASE='saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest'
-A=$(find "$BASE" -maxdepth 1 -type d \
-  -name 'rotation_onehot_r05_fwd_reb5_*' | sort | tail -n 1)
-B=$(find "$BASE" -maxdepth 1 -type d \
-  -name 'rotation_addon_onehot_r05_fwd_reb5_*' | sort | tail -n 1)
+
+A=$(
+  find "$BASE" -maxdepth 1 -type d \
+    -name 'rotation_onehot_r05_fwd_reb5_*' \
+    -exec test -f '{}/01_close_auction_grid/strict_oos_manifest.json' \; \
+    -print | sort | tail -n 1
+)
+
+B=$(
+  find "$BASE" -maxdepth 1 -type d \
+    -name 'rotation_addon_onehot_r05_fwd_reb5_*' \
+    -exec test -f '{}/01_close_auction_grid/strict_oos_manifest.json' \; \
+    -print | sort | tail -n 1
+)
+
+printf 'r5-A=%s\nr5-B=%s\n' "$A" "$B"
+
+test -n "$A" && test -n "$B" || {
+  echo '[ERROR] 未找到完整的 r5 strict OOS A/B 结果' >&2
+  exit 1
+}
 
 BACKTEST_ROOTS="$A,$B" \
 LABELS='r5-A-fold0-forward,r5-B-fold0-forward' \
@@ -418,42 +449,95 @@ OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r5_fold0_forward_$(da
 bash scripts/plot_as1455_default_ab_nav_curves.sh
 ```
 
+### 7.2 strict r21 forward A/B
+
+```bash
+BASE='saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest'
+
+A=$(
+  find "$BASE" -maxdepth 1 -type d \
+    -name 'rotation_onehot_r21_fwd_reb21_*' \
+    -exec test -f '{}/01_close_auction_grid/strict_oos_manifest.json' \; \
+    -print | sort | tail -n 1
+)
+
+B=$(
+  find "$BASE" -maxdepth 1 -type d \
+    -name 'rotation_addon_onehot_r21_fwd_reb21_*' \
+    -exec test -f '{}/01_close_auction_grid/strict_oos_manifest.json' \; \
+    -print | sort | tail -n 1
+)
+
+printf 'r21-A=%s\nr21-B=%s\n' "$A" "$B"
+
+test -n "$A" && test -n "$B" || {
+  echo '[ERROR] 未找到完整的 r21 strict OOS A/B 结果' >&2
+  exit 1
+}
+
+BACKTEST_ROOTS="$A,$B" \
+LABELS='r21-A-fold0-forward,r21-B-fold0-forward' \
+RANK_METRIC='sharpe' \
+OUT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/r21_fold0_forward_$(date +%Y%m%d_%H%M%S)" \
+bash scripts/plot_as1455_default_ab_nav_curves.sh
+```
+
 strict 根目录活动 summary 只有一个相位对齐配置，因此绘图不会在 forward 区间重新选择 `sell/max/off`。
 
-## 8. 存储清理
+## 8. 存储维护
 
-先检查进程：
-
-```bash
-pgrep -af 'as1455|build_ashare_ch12|run_as1455'
-```
-
-dry-run：
+默认保守 dry-run：
 
 ```bash
-python3 scripts/cleanup_as1455_storage.py \
-  --keep-live-dates 3 \
-  --include-obsolete \
-  --prune-grid-runs \
-  --compress-reports
+bash scripts/run_as1455_storage_maintenance.sh
 ```
 
-审核 `cleanup_audit_YYYYMMDD_HHMMSS.json` 后执行：
+默认保守正式清理：
 
 ```bash
-python3 scripts/cleanup_as1455_storage.py \
-  --apply \
-  --keep-live-dates 3 \
-  --include-obsolete \
-  --prune-grid-runs \
-  --compress-reports
+APPLY=1 bash scripts/run_as1455_storage_maintenance.sh
 ```
 
-清理器会验证 forward HDF、保留最近 live 日期、删除重复 prediction CSV、保留 actual 标签、裁剪非代表性 run、压缩大型报告，并在活动任务存在时阻止误删。
+默认参数：
+
+```text
+INCLUDE_OBSOLETE=0
+PRUNE_GRID_RUNS=0
+COMPRESS_REPORTS=1
+```
+
+因此默认不会删除显式 obsolete 目录，也不会裁剪历史大网格明细。
+
+显式清理 obsolete 目录时，必须先独立 dry-run：
+
+```bash
+INCLUDE_OBSOLETE=1 \
+PRUNE_GRID_RUNS=0 \
+COMPRESS_REPORTS=0 \
+SKIP_FORWARD_ARTIFACTS=1 \
+SKIP_LIVE=1 \
+SKIP_PREDICTION_CSV=1 \
+bash scripts/run_as1455_storage_maintenance.sh
+```
+
+审核 `share_me.txt` 和 `cleanup_dry_run.json` 后，再执行：
+
+```bash
+APPLY=1 \
+INCLUDE_OBSOLETE=1 \
+PRUNE_GRID_RUNS=0 \
+COMPRESS_REPORTS=0 \
+SKIP_FORWARD_ARTIFACTS=1 \
+SKIP_LIVE=1 \
+SKIP_PREDICTION_CSV=1 \
+bash scripts/run_as1455_storage_maintenance.sh
+```
+
+`baostock_5m_cache` 和历史大网格明细不会在保守清理中删除。是否裁剪必须单独评估。
 
 ## 9. 结果核对
 
-### 9.1 日期
+### 9.1 r5/r21 forward 日期
 
 ```bash
 python3 - <<'PY'
@@ -461,10 +545,19 @@ import pandas as pd
 from pathlib import Path
 
 base = Path('saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest')
-for path in sorted(base.glob('rotation_*_r05_fwd_reb5_*/00_predictions/fold0_forward_preds.h5')):
-    df = pd.read_hdf(path, 'predictions')
-    dates = pd.DatetimeIndex(df.index.get_level_values('date'))
-    print(path, dates.min().date(), dates.max().date(), dates.nunique())
+patterns = (
+    'rotation_*_r05_fwd_reb5_*/00_predictions/fold0_forward_preds.h5',
+    'rotation_*_r21_fwd_reb21_*/00_predictions/fold0_forward_preds.h5',
+)
+
+for pattern in patterns:
+    for path in sorted(base.glob(pattern)):
+        manifest = path.parents[1] / '01_close_auction_grid' / 'strict_oos_manifest.json'
+        if not manifest.is_file():
+            continue
+        df = pd.read_hdf(path, 'predictions')
+        dates = pd.DatetimeIndex(df.index.get_level_values('date'))
+        print(path, dates.min().date(), dates.max().date(), dates.nunique())
 PY
 ```
 
@@ -490,6 +583,8 @@ for path in sorted(base.glob('*/01_close_auction_grid/strict_oos_manifest.json')
     })
     print('retained_config:', obj['retained_config'])
 
+    assert obj['evaluation_mode'] == 'strict_oos'
+    assert obj['historical_trading_parameters_reused'] is True
     assert obj['historical_rebalance_phase_reused'] is True
     assert obj['generated_config_count'] == 1
     assert obj['retained_config_count'] == 1
