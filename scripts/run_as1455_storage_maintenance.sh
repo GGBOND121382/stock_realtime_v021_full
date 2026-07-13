@@ -6,8 +6,10 @@ PYTHON_BIN="${PYTHON_BIN:-python3}"
 BASE="${BASE:-saved_data/ashare_ml4t}"
 APPLY="${APPLY:-0}"
 KEEP_LIVE_DATES="${KEEP_LIVE_DATES:-3}"
-INCLUDE_OBSOLETE="${INCLUDE_OBSOLETE:-1}"
-PRUNE_GRID_RUNS="${PRUNE_GRID_RUNS:-1}"
+# Destructive historical cleanup is opt-in.  The default profile only removes
+# validated duplicates/transients and compresses large audit reports.
+INCLUDE_OBSOLETE="${INCLUDE_OBSOLETE:-0}"
+PRUNE_GRID_RUNS="${PRUNE_GRID_RUNS:-0}"
 COMPRESS_REPORTS="${COMPRESS_REPORTS:-1}"
 COMPRESS_MIN_MB="${COMPRESS_MIN_MB:-20}"
 SKIP_FORWARD_ARTIFACTS="${SKIP_FORWARD_ARTIFACTS:-0}"
@@ -66,6 +68,7 @@ EOF
 
 echo "===== AS1455 storage maintenance ====="
 echo "mode=$([[ "$APPLY" == "1" ]] && echo apply || echo audit-only)"
+echo "profile=$([[ "$INCLUDE_OBSOLETE" == "0" && "$PRUNE_GRID_RUNS" == "0" ]] && echo conservative || echo custom-aggressive)"
 echo "base=$BASE"
 echo "out_dir=$OUT_DIR"
 echo "config=$CONFIG_FILE"
@@ -74,6 +77,7 @@ echo "===== Preflight syntax and retention checks ====="
 "$PYTHON_BIN" -m compileall -q \
   scripts/check_as1455_disk_space.py \
   scripts/cleanup_as1455_storage.py \
+  scripts/run_as1455_cleanup_safe.py \
   scripts/export_as1455_storage_diagnostics.py \
   scripts/check_as1455_artifact_retention.py \
   utils/as1455_artifact_retention.py
@@ -94,7 +98,7 @@ echo "===== Diagnostics before cleanup ====="
   --du-lines "$DU_LINES"
 
 cleanup_common=(
-  scripts/cleanup_as1455_storage.py
+  scripts/run_as1455_cleanup_safe.py
   --base "$BASE"
   --keep-live-dates "$KEEP_LIVE_DATES"
   --compress-min-mb "$COMPRESS_MIN_MB"
@@ -123,8 +127,9 @@ if [[ "$APPLY" == "1" ]]; then
     --du-lines "$DU_LINES"
 else
   echo "[SAFE] audit-only completed; no files were deleted"
-  echo "[NEXT] review $DRY_MANIFEST, then run:"
+  echo "[NEXT] review $DRY_MANIFEST, then run the conservative apply profile:"
   echo "       APPLY=1 bash scripts/run_as1455_storage_maintenance.sh"
+  echo "[OPTIONAL] obsolete directories and grid-run pruning remain disabled unless explicitly enabled"
 fi
 
 {
