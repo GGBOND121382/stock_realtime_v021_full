@@ -4,11 +4,14 @@
 
 ```text
 scripts/run_as1455_storage_maintenance.sh
+scripts/run_as1455_cleanup_safe.py
 scripts/export_as1455_storage_diagnostics.py
 scripts/cleanup_as1455_storage.py
 ```
 
-一键入口默认只检查和模拟清理，不删除任何文件。只有显式设置 `APPLY=1` 才会执行删除、压缩和目录裁剪。
+一键入口默认只检查和模拟清理，不删除任何文件。只有显式设置 `APPLY=1` 才会执行删除和压缩。
+
+默认正式模式采用保守策略：不删除 hard-coded obsolete 目录，不裁剪历史大网格 run。两类高破坏性操作必须分别显式设置 `INCLUDE_OBSOLETE=1` 和 `PRUNE_GRID_RUNS=1`。
 
 ## 1. 一键检查，不删除
 
@@ -27,7 +30,7 @@ bash scripts/run_as1455_storage_maintenance.sh
 5. 两层目录占用统计；
 6. 最大文件和文件类型统计；
 7. 关键 AS1455 路径存在性检查；
-8. 完整清理 dry-run；
+8. 保守清理 dry-run；
 9. 生成一个可以直接复制用于分析的 `share_me.txt`。
 
 输出目录：
@@ -62,6 +65,16 @@ share_file=/.../storage_maintenance_YYYYMMDD_HHMMSS/share_me.txt
 APPLY=1 bash scripts/run_as1455_storage_maintenance.sh
 ```
 
+默认正式模式只处理低风险、可验证或可重建内容：
+
+- 验证 forward `model_data_as1455.h5` 后删除三份重复构建中间 HDF；
+- live 只保留最近 3 个日期目录，并删除较旧保留日期中的可重建 history tail；
+- 仅在同目录存在权威 prediction HDF 时删除重复 prediction CSV；
+- 保留 `actual_<target>.csv`；
+- gzip 大于 20 MiB 的 audit/report CSV；
+- 不删除 obsolete 目录；
+- 不裁剪 grid run 目录。
+
 正式模式会在同一流程中再次生成 dry-run，然后执行 apply，并补充清理后诊断：
 
 ```text
@@ -72,14 +85,12 @@ share_me.txt
 
 `share_me.txt` 会同时包含清理前后磁盘状态和实际执行 manifest。
 
-## 3. 默认清理范围
-
-默认值：
+## 3. 默认参数
 
 ```text
 KEEP_LIVE_DATES=3
-INCLUDE_OBSOLETE=1
-PRUNE_GRID_RUNS=1
+INCLUDE_OBSOLETE=0
+PRUNE_GRID_RUNS=0
 COMPRESS_REPORTS=1
 COMPRESS_MIN_MB=20
 SKIP_FORWARD_ARTIFACTS=0
@@ -88,18 +99,6 @@ SKIP_PREDICTION_CSV=0
 ALLOW_ACTIVE_PROCESSES=0
 RUN_FULL_CHECKS=0
 ```
-
-对应行为：
-
-- 验证 forward model HDF 后删除可重建的 forward 中间 HDF；
-- live 只保留最近 3 个日期目录；
-- 删除旧保留日期中可重建的 history tail；
-- 删除与 prediction HDF 重复的 prediction CSV；
-- 保留 `actual_<target>.csv`；
-- 删除明确列入 obsolete 清单的旧 smoke/legacy 目录；
-- 保留代表性 grid run，裁剪其他重复 run 目录；
-- gzip 大于 20 MiB 的报告 CSV；
-- 检测到活动 AS1455 任务时拒绝正式清理。
 
 不会自动删除：
 
@@ -112,20 +111,48 @@ ch12_as1455/model_data_contract.json
 ch12_as1455/as1455_ohlcv_adj.h5
 训练 checkpoint
 actual_<target>.csv
+obsolete 清单目录（默认）
+非选中 grid run（默认）
 ```
 
-## 4. 更保守的检查方式
+## 4. 激进清理必须显式开启
 
-只审计，不把 obsolete 和 grid 裁剪纳入候选：
+只把 obsolete 目录加入候选：
 
 ```bash
-INCLUDE_OBSOLETE=0 \
-PRUNE_GRID_RUNS=0 \
-COMPRESS_REPORTS=0 \
+INCLUDE_OBSOLETE=1 \
 bash scripts/run_as1455_storage_maintenance.sh
 ```
 
-正式清理时跳过 forward 中间文件、live 和 prediction CSV：
+只把历史/forward grid run 裁剪加入候选：
+
+```bash
+PRUNE_GRID_RUNS=1 \
+bash scripts/run_as1455_storage_maintenance.sh
+```
+
+两者同时加入 dry-run：
+
+```bash
+INCLUDE_OBSOLETE=1 \
+PRUNE_GRID_RUNS=1 \
+bash scripts/run_as1455_storage_maintenance.sh
+```
+
+必须先审核新的 `share_me.txt`，再显式执行：
+
+```bash
+APPLY=1 \
+INCLUDE_OBSOLETE=1 \
+PRUNE_GRID_RUNS=1 \
+bash scripts/run_as1455_storage_maintenance.sh
+```
+
+不得把激进模式作为日常默认命令。
+
+## 5. 跳过某类保守清理
+
+正式清理时跳过 forward 中间文件、live 或 prediction CSV：
 
 ```bash
 APPLY=1 \
@@ -135,7 +162,14 @@ SKIP_PREDICTION_CSV=1 \
 bash scripts/run_as1455_storage_maintenance.sh
 ```
 
-## 5. 同时运行完整 AS1455 检查
+关闭大报告压缩：
+
+```bash
+COMPRESS_REPORTS=0 \
+bash scripts/run_as1455_storage_maintenance.sh
+```
+
+## 6. 同时运行完整 AS1455 检查
 
 默认一键存储入口只运行与存储直接相关的轻量检查。需要同时运行完整重构检查时：
 
@@ -151,7 +185,7 @@ APPLY=1 RUN_FULL_CHECKS=1 \
 bash scripts/run_as1455_storage_maintenance.sh
 ```
 
-## 6. 只导出诊断文件
+## 7. 只导出诊断文件
 
 不运行 cleanup dry-run，只输出服务器存储信息：
 
@@ -174,7 +208,7 @@ python3 scripts/export_as1455_storage_diagnostics.py \
 
 诊断器不会读取大型模型内容到内存，只扫描文件元数据并调用受限深度的 `du`。
 
-## 7. 自定义输出目录
+## 8. 自定义输出目录
 
 ```bash
 OUT_DIR=saved_data/ashare_ml4t/manual_storage_audit \
@@ -183,9 +217,11 @@ bash scripts/run_as1455_storage_maintenance.sh
 
 重复使用同一个 `OUT_DIR` 会覆盖 manifest 和诊断文件，因此日常应保留默认时间戳目录。
 
-## 8. 活动进程保护
+## 9. 活动进程保护
 
-正式模式检测到包含 `as1455` 的活动进程时会失败，不执行清理。先检查并停止相关任务：
+正式模式仍会检测 AS1455 活动任务。`run_as1455_cleanup_safe.py` 只忽略本次维护脚本自身及其 Bash 日志重定向子进程；其他训练、回测、数据刷新、live 或另一份维护脚本仍会阻止 `--apply`。
+
+人工检查：
 
 ```bash
 pgrep -af 'as1455|build_ashare_ch12|run_as1455'
@@ -197,22 +233,25 @@ pgrep -af 'as1455|build_ashare_ch12|run_as1455'
 ALLOW_ACTIVE_PROCESSES=1
 ```
 
-它只用于已经人工确认进程不会写入清理目录的特殊场景，常规清理必须保持 `0`。
+它会跳过外部活动进程门禁，只用于已经人工确认进程不会写入清理目录的特殊场景，常规清理必须保持 `0`。
 
-## 9. 推荐操作顺序
+## 10. 推荐操作顺序
 
 ```bash
-# 1. 更新分支并验证代码
-git pull --ff-only
+# 1. 更新修复分支
+# 当前位于 agent/as1455-storage-oos-fixes 时：
+git pull --ff-only origin agent/as1455-storage-oos-fixes
+
+# 2. 完整静态/合成验证
 bash scripts/check_ch17_as1455_refactor.sh
 
-# 2. 一键审计，不删除
+# 3. 一键保守审计，不删除
 bash scripts/run_as1455_storage_maintenance.sh
 
-# 3. 审核终端打印的 cleanup_dry_run.json 和 share_me.txt
+# 4. 审核终端打印的 cleanup_dry_run.json 和 share_me.txt
 
-# 4. 正式执行
+# 5. 正式执行保守清理
 APPLY=1 bash scripts/run_as1455_storage_maintenance.sh
 
-# 5. 保存最终 share_me.txt 作为本次清理审计记录
+# 6. 保存最终 share_me.txt 作为本次清理审计记录
 ```
