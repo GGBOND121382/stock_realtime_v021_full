@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 """Shared AS1455 in-process grid runner.
 
-Grid orchestration and reusable input preparation live here. Portfolio
-simulation remains exclusively in the v7 ``backtest`` function. Predictions are
-sorted once per date and signal through ``as1455_rank_cache``.
+This module owns grid orchestration and reusable input preparation.  Portfolio
+simulation remains exclusively in the v7 ``backtest`` function.  Predictions
+are sorted once per date and signal through ``as1455_rank_cache``.
 """
 from __future__ import annotations
 
@@ -22,10 +22,11 @@ from utils.as1455_rank_cache import (
     prepare_presorted_predictions,
     validate_presorted_predictions,
 )
+from utils.as1455_rebalance_phase import align_forward_rebalance_phase
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
 BACKTEST_DIR = PROJECT_DIR / "code" / "backtest"
-ENGINE_NAME = "inprocess_shared_rank_v5_exact_offset"
+ENGINE_NAME = "inprocess_shared_rank_v5_phase_aligned"
 
 
 def load_module(name: str, path: Path):
@@ -51,8 +52,8 @@ bt = load_module(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "AS1455 in-process grid using one v7 trade engine and one daily "
-            "score sort per signal"
+            "AS1455 in-process grid using one v7 trade engine and "
+            "one daily score sort per signal"
         )
     )
     parser.add_argument("--out-root", required=True)
@@ -125,10 +126,14 @@ def parse_args() -> argparse.Namespace:
         type=legacy.parse_int_list,
         default=None,
         help=(
-            "Optional exact offset subset. Configs are first constructed using "
-            "--offset-mode and then restricted to these offsets."
+            "Optional exact local offset subset. Configs are first constructed "
+            "using --offset-mode and then restricted to these offsets."
         ),
     )
+    parser.add_argument("--rebalance-phase-history-offset", type=int, default=None)
+    parser.add_argument("--rebalance-phase-history-first-date", default=None)
+    parser.add_argument("--rebalance-phase-history-last-date", default=None)
+    parser.add_argument("--rebalance-phase-history-n-days", type=int, default=None)
     parser.add_argument(
         "--signal-spec",
         dest="signal_specs",
@@ -169,7 +174,36 @@ def parse_args() -> argparse.Namespace:
         raise SystemExit(
             "--parity-check-only cannot be combined with --skip-parity-check"
         )
+    _validate_phase_args(args)
     return args
+
+
+def _phase_values(args: argparse.Namespace) -> dict[str, Any]:
+    return {
+        "historical_offset": args.rebalance_phase_history_offset,
+        "historical_first_date": args.rebalance_phase_history_first_date,
+        "historical_last_date": args.rebalance_phase_history_last_date,
+        "historical_n_days": args.rebalance_phase_history_n_days,
+    }
+
+
+def _validate_phase_args(args: argparse.Namespace) -> None:
+    values = _phase_values(args)
+    supplied = [name for name, value in values.items() if value is not None]
+    if supplied and len(supplied) != len(values):
+        missing = [name for name, value in values.items() if value is None]
+        raise SystemExit(
+            "rebalance phase alignment requires all historical fields; "
+            f"supplied={supplied} missing={missing}"
+        )
+    if supplied and args.rebalance_offset_list is not None:
+        raise SystemExit(
+            "--rebalance-offset-list cannot be combined with historical phase alignment"
+        )
+
+
+def phase_alignment_requested(args: argparse.Namespace) -> bool:
+    return args.rebalance_phase_history_offset is not None
 
 
 def build_configs(args: argparse.Namespace) -> list[Any]:
@@ -189,8 +223,8 @@ def build_configs(args: argparse.Namespace) -> list[Any]:
     filtered = [config for config in configs if int(config[4]) in requested]
     if not filtered:
         raise SystemExit(
-            "--rebalance-offset-list removed every generated config; "
-            f"requested={sorted(requested)} offset_mode={args.offset_mode}"
+            "--rebalance-offset-list removed every grid config; "
+            f"requested={sorted(requested)}"
         )
     return filtered
 
@@ -200,6 +234,7 @@ def load_shared_inputs(args: argparse.Namespace) -> tuple[
     pd.DataFrame,
     pd.DataFrame,
     pd.DataFrame,
+    pd.DatetimeIndex,
 ]:
     prediction_path = Path(args.predictions)
     prediction_sha = (
@@ -230,10 +265,14 @@ def load_shared_inputs(args: argparse.Namespace) -> tuple[
         )
         if predictions.empty:
             raise SystemExit(f"empty predictions for {spec['signal_name']}")
-        ranked = prepare_presorted_predictions(predictions)
-        validate_presorted_predictions(ranked)
-        signals[spec["signal_name"]] = {"preds": ranked, "meta": metadata}
-        all_symbols.update(ranked["symbol"].unique())
+
+        ranked_predictions = prepare_presorted_predictions(predictions)
+        validate_presorted_predictions(ranked_predictions)
+        signals[spec["signal_name"]] = {
+            "preds": ranked_predictions,
+            "meta": metadata,
+        }
+        all_symbols.update(ranked_predictions["symbol"].unique())
 
     universe = bt.read_universe(Path(args.universe) if args.universe else None)
     st_symbols = bt.load_st_symbols(
@@ -248,7 +287,7 @@ def load_shared_inputs(args: argparse.Namespace) -> tuple[
     corporate_actions = bt.load_corporate_actions(
         Path(args.corporate_actions) if args.corporate_actions else None
     )
-    execution_panel, execution_report = bt.build_execution_panel(
+    full_execution_panel, execution_report = bt.build_execution_panel(
         all_symbols,
         Path(args.raw_daily_cache_dir),
         universe,
@@ -259,11 +298,16 @@ def load_shared_inputs(args: argparse.Namespace) -> tuple[
             Path(args.raw_5m_cache_dir) if args.raw_5m_cache_dir else None
         ),
     )
+    if full_execution_panel.empty:
+        raise SystemExit("empty execution panel")
+    execution_calendar = pd.DatetimeIndex(
+        pd.to_datetime(full_execution_panel["date"], errors="coerce").dropna().unique()
+    ).normalize().sort_values()
     execution_panel = bt.apply_date_filters(
-        execution_panel, args.start_date, args.end_date
+        full_execution_panel, args.start_date, args.end_date
     )
     if execution_panel.empty:
-        raise SystemExit("empty execution panel")
+        raise SystemExit("empty execution panel after date filters")
 
     for name, payload in signals.items():
         effective = args.capacity_mode
@@ -286,7 +330,56 @@ def load_shared_inputs(args: argparse.Namespace) -> tuple[
                     precheck["policy_action"] = "reject_on_missing_capacity"
         payload["capacity_mode"] = effective
         payload["capacity_precheck"] = precheck
-    return signals, execution_panel, execution_report, corporate_actions
+
+    return (
+        signals,
+        execution_panel,
+        execution_report,
+        corporate_actions,
+        execution_calendar,
+    )
+
+
+def resolve_rebalance_phase(
+    args: argparse.Namespace,
+    signals: dict[str, dict[str, Any]],
+    execution_calendar: pd.DatetimeIndex,
+) -> dict[str, Any] | None:
+    if not phase_alignment_requested(args):
+        return None
+    if len(args.rebalance_every_list) != 1:
+        raise SystemExit(
+            "historical phase alignment requires exactly one rebalance period"
+        )
+    if len(signals) != 1:
+        raise SystemExit(
+            "historical phase alignment requires exactly one frozen signal"
+        )
+    payload = next(iter(signals.values()))
+    prediction_dates = pd.DatetimeIndex(
+        pd.to_datetime(payload["preds"]["date"], errors="coerce")
+        .dropna()
+        .unique()
+    ).normalize().sort_values()
+    alignment = align_forward_rebalance_phase(
+        rebalance_every=int(args.rebalance_every_list[0]),
+        historical_offset=int(args.rebalance_phase_history_offset),
+        historical_n_days=int(args.rebalance_phase_history_n_days),
+        historical_first_date=str(args.rebalance_phase_history_first_date),
+        historical_last_date=str(args.rebalance_phase_history_last_date),
+        forward_prediction_dates=prediction_dates,
+        execution_calendar_dates=execution_calendar,
+    )
+    args.rebalance_offset_list = [int(alignment["effective_forward_offset"])]
+    print(
+        "[PHASE ALIGN] "
+        f"historical_offset={alignment['historical_offset']} "
+        f"history_days={alignment['historical_n_days']} "
+        f"bridge_days={alignment['bridge_execution_days']} "
+        f"forward_global_index={alignment['forward_global_index']} "
+        f"effective_forward_offset={alignment['effective_forward_offset']}"
+    )
+    return alignment
 
 
 def engine_manifest(
@@ -296,12 +389,12 @@ def engine_manifest(
     prediction_sha: str,
     smoke_check: dict[str, Any] | None,
     parity_check_only: bool,
+    phase_alignment: dict[str, Any] | None,
 ) -> dict[str, Any]:
     return {
         "engine": ENGINE_NAME,
         "configs": len(configs),
         "signals": [spec["signal_name"] for spec in args.signal_specs],
-        "requested_rebalance_offsets": args.rebalance_offset_list,
         "single_trade_engine": True,
         "trade_engine_source": (
             "code/backtest/"
@@ -311,11 +404,16 @@ def engine_manifest(
         "predictions_loaded_once_per_signal": True,
         "daily_rankings_built_once_per_signal": True,
         "rank_cache_source": "utils/as1455_rank_cache.py",
+        "rank_cache_strategy": (
+            "pre-sort each date once with the same pandas call used by v7; "
+            "subsequent identical sort requests return a copy without sorting"
+        ),
         "dynamic_source_rewrite": False,
         "prediction_file_sha256": prediction_sha,
         "output_mode": args.run_output_mode,
         "parity_check_only": parity_check_only,
         "shared_engine_smoke_check": smoke_check,
+        "rebalance_phase_alignment": phase_alignment,
     }
 
 
@@ -332,9 +430,9 @@ def main() -> None:
     for path in (runs_root, logs_root, summary_root):
         path.mkdir(parents=True, exist_ok=True)
 
-    configs = build_configs(args)
-    legacy.write_grid_config(out_root / "00_grid_config.csv", configs)
-    if args.dry_run:
+    if args.dry_run and not phase_alignment_requested(args):
+        configs = build_configs(args)
+        legacy.write_grid_config(out_root / "00_grid_config.csv", configs)
         print(f"[DRY RUN] configs={len(configs)} engine={ENGINE_NAME}")
         return
 
@@ -342,9 +440,24 @@ def main() -> None:
         args.prediction_file_sha256 or legacy.sha256_file(prediction_path)
     )
     model_run = args.model_run or legacy.infer_model_run(args.predictions)
-    signals, execution_panel, execution_report, corporate_actions = (
-        load_shared_inputs(args)
+    (
+        signals,
+        execution_panel,
+        execution_report,
+        corporate_actions,
+        execution_calendar,
+    ) = load_shared_inputs(args)
+    phase_alignment = resolve_rebalance_phase(
+        args, signals, execution_calendar
     )
+    configs = build_configs(args)
+    legacy.write_grid_config(out_root / "00_grid_config.csv", configs)
+    if args.dry_run:
+        print(
+            f"[DRY RUN] configs={len(configs)} engine={ENGINE_NAME} "
+            f"phase_alignment={phase_alignment}"
+        )
+        return
 
     first_result: dict[str, Any] | None = None
     first_run_name: str | None = None
@@ -397,6 +510,7 @@ def main() -> None:
                     prediction_sha=prediction_sha,
                     smoke_check=smoke_check,
                     parity_check_only=True,
+                    phase_alignment=phase_alignment,
                 ),
                 ensure_ascii=False,
                 indent=2,
@@ -419,6 +533,7 @@ def main() -> None:
         )
         run_dir = runs_root / run_name
         log_path = logs_root / f"{run_name}.log"
+
         if (run_dir / "summary.json").exists() and not args.force:
             print(f"[{index}/{len(configs)}] SKIP existing {run_name}")
             rows.append(
@@ -490,6 +605,7 @@ def main() -> None:
         out_root / "grid_summary.csv", index=False, encoding="utf-8-sig"
     )
     legacy.write_leaderboards(summary_csv, out_root)
+
     manifest_path.write_text(
         json.dumps(
             engine_manifest(
@@ -498,6 +614,7 @@ def main() -> None:
                 prediction_sha=prediction_sha,
                 smoke_check=smoke_check,
                 parity_check_only=False,
+                phase_alignment=phase_alignment,
             ),
             ensure_ascii=False,
             indent=2,
