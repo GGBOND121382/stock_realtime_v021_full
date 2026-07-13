@@ -2,7 +2,7 @@
 
 本文档定义 AS1455 r1/r5/r21 流程的存储边界、保留策略、forward 日期口径和严格样本外参数选择规则。若其他旧文档与本文冲突，以本文和 `README_AS1455_R1_R5_R21.md` 为准。
 
-## 1. 三个问题与根因
+## 1. 四个问题与根因
 
 ### 1.1 forward 数据重复
 
@@ -36,6 +36,18 @@ rebalance_offset
 
 绘图再按 forward Sharpe 选择最佳行，相当于在样本外窗口事后调参。该曲线不能作为严格样本外主结果。
 
+### 1.4 相同 offset 数值不等于相同调仓相位
+
+v7 的本地调仓条件是：
+
+```text
+(day_index - rebalance_offset) mod rebalance_every = 0
+```
+
+其中 `day_index=0` 是当前回测窗口的第一个预测—执行重叠交易日。因此历史窗口的 `off3` 和重新从零编号的 forward 窗口 `off3` 通常不对应同一连续调仓序列。
+
+严格 OOS 必须冻结历史调仓相位，而不是机械复制 offset 整数。
+
 ## 2. 修复后的正式协议
 
 ### 2.1 历史训练与历史回测
@@ -44,7 +56,8 @@ rebalance_offset
 - 标签定义、特征定义、fold 定义和 one-fold-lag 映射不变；
 - 历史完整网格用于选择一个完整配置行；
 - 只允许 `status=ok` 行参与选择；
-- 所有失败行都不能成为 best run。
+- 所有失败行都不能成为 best run；
+- 最佳行必须保留 `date_min/date_max/n_days`，旧结果可从 materialized NAV 回填。
 
 ### 2.2 fold0-forward 日期
 
@@ -75,7 +88,7 @@ expected_prediction_end
 prediction_end
 ```
 
-### 2.3 strict OOS 参数
+### 2.3 strict OOS 参数与调仓相位
 
 正式 forward 默认：
 
@@ -92,10 +105,45 @@ signal_mode
 max_positions
 sell_rank
 rebalance_every
-rebalance_offset
+historical rebalance phase
 ```
 
-forward 只运行并保留该配置，不按 forward 指标重新选择参数。
+`rebalance_offset` 是窗口本地参数，因此 forward 使用下式换算本窗口有效 offset：
+
+```text
+forward_global_index
+  = historical_n_days + bridge_execution_days
+
+effective_forward_offset
+  = (historical_offset - forward_global_index) mod rebalance_every
+```
+
+其中：
+
+- `historical_n_days` 是历史选中 run 实际 NAV 交易日数；
+- `bridge_execution_days` 是历史最后一天与 forward 第一个预测—执行重叠日之间的执行日历交易日数，不包含两端；
+- 执行日历来自共享 grid 构造的完整 raw daily execution panel；
+- 相位换算发生在 grid 配置生成之前；
+- strict OOS 最终只生成并运行一个有效配置。
+
+`strict_oos_manifest.json` 和 `grid_engine_manifest.json` 必须同时记录：
+
+```text
+historical_config.rebalance_offset
+rebalance_phase_alignment.historical_n_days
+rebalance_phase_alignment.bridge_execution_days
+rebalance_phase_alignment.forward_global_index
+rebalance_phase_alignment.effective_forward_offset
+rebalance_phase_alignment.historical_offset_numeric_reused
+retained_config.rebalance_offset
+historical_rebalance_phase_reused = true
+generated_config_count = 1
+retained_config_count = 1
+```
+
+`historical_offset_numeric_reused=false` 不表示相位未继承，而表示为了保持连续调仓序列，forward 本地 offset 必须换算成另一个整数。
+
+forward 只运行并保留该相位对齐配置，不按 forward 指标重新选择参数。
 
 敏感性分析显式使用：
 
@@ -167,7 +215,7 @@ materialized_best_run.json
 00_predictions/fold0_forward_preds.h5
 00_predictions/selected_fold0_checkpoints.csv
 00_predictions/fold0_forward_prediction_manifest.json
-01_close_auction_grid/01_runs/<frozen_run>/
+01_close_auction_grid/01_runs/<phase-aligned-run>/
 01_close_auction_grid/02_summary/
 01_close_auction_grid/strict_oos_manifest.json
 01_close_auction_grid/grid_engine_manifest.json
@@ -225,20 +273,22 @@ python3 scripts/cleanup_as1455_storage.py \
 
 1. 停止历史更新、训练、回测和 live 任务；
 2. `git pull` 并运行 `bash scripts/check_ch17_as1455_refactor.sh`；
-3. 运行清理器 dry-run；
-4. 检查 manifest 中的删除目录、预计释放空间和 active process 列表；
-5. 使用 `--apply`；
-6. 检查 `df -h`、`du -h --max-depth=1 saved_data/ashare_ml4t`；
-7. 重新运行 r5 strict forward；
-8. 检查 prediction end 和 strict config；
-9. 重新绘图。
+3. 确认历史最佳行具有 `date_min/date_max/n_days`，或存在 materialized NAV；
+4. 运行清理器 dry-run；
+5. 检查 manifest 中的删除目录、预计释放空间和 active process 列表；
+6. 使用 `--apply`；
+7. 检查 `df -h`、`du -h --max-depth=1 saved_data/ashare_ml4t`；
+8. 重新运行 r5 strict forward；
+9. 检查 prediction end、historical config、phase alignment 和 retained config；
+10. 重新绘图。
 
 ## 6. 修复后禁止的做法
 
 - 不得为正式 forward 使用 `forward_parameter_sweep` 结果作为 OOS 主结果；
+- 不得把历史 `rebalance_offset` 整数直接复制到重新从零编号的 forward 窗口；
 - 不得让 r5/r21 forward 因目标标签为空而停在最新数据前 5/21 个交易日；
 - 不得默认对数千个参数组合使用 `OUTPUT_MODE=full`；
 - 不得在 forward 目录永久复制完整 raw/adjusted/execution HDF；
 - 不得在剩余空间低于门禁时启动高占用任务；
 - 不得直接删除训练 checkpoint、共享原始缓存或当前 contract 依赖的主 adjusted HDF；
-- 不得仅按目录日期认定结果有效，必须检查 summary、manifest、prediction SHA 和状态。
+- 不得仅按目录日期认定结果有效，必须检查 summary、manifest、prediction SHA、相位换算和状态。
