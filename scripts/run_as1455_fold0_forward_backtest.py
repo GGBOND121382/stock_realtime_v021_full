@@ -3,10 +3,10 @@
 """Use fold0 checkpoints after the fold0 test window.
 
 The default ``strict_oos`` protocol reads the corresponding historical target
-backtest, freezes both the selected model signal and its complete trading
-configuration, and evaluates that single configuration on dates strictly later
-than fold0 ``test_end``.  The newest feature-complete rows remain eligible even
-when the future target has not yet been realized.
+backtest, freezes the selected model signal, non-phase trading parameters and
+historical rebalance phase, and evaluates one phase-aligned configuration on
+dates strictly later than fold0 ``test_end``.  The newest feature-complete rows
+remain eligible even when the future target has not yet been realized.
 
 ``forward_parameter_sweep`` is retained only for sensitivity analysis.  It
 selects the historical signal but re-evaluates trading parameters in the
@@ -39,7 +39,7 @@ from utils.as1455_strict_oos import (  # noqa: E402
 
 
 def resolve_model_selection(args: argparse.Namespace) -> None:
-    """Resolve the historical signal and, for strict OOS, trading parameters."""
+    """Resolve the historical signal and strict-OOS historical phase inputs."""
     args.historical_selection = None
     args.forward_signal_specs = None
     args.strict_oos_config = None
@@ -80,7 +80,7 @@ def resolve_model_selection(args: argparse.Namespace) -> None:
         f"historical_run={selection.run_name} "
         f"signal={selection.signal_spec} "
         f"required_top_n={selection.required_top_n} "
-        f"strict_config={args.strict_oos_config}"
+        f"strict_historical_config={args.strict_oos_config}"
     )
 
 
@@ -163,7 +163,21 @@ def build_forward_predictions(args: argparse.Namespace) -> Path:
             "model_selection_mode": args.model_selection_mode,
             "historical_model_selection": selection_payload,
             "forward_signal_specs": args.forward_signal_specs,
+            # Backward-compatible alias.  This is the historical-window local
+            # config; the final phase-aligned forward config is written only
+            # after the shared grid loads the execution calendar.
             "strict_oos_config": args.strict_oos_config,
+            "strict_oos_historical_config": args.strict_oos_config,
+            "strict_oos_config_semantics": (
+                "historical_window_local_config_before_phase_alignment"
+                if strict_oos
+                else None
+            ),
+            "rebalance_phase_alignment_stage": (
+                "deferred_to_shared_grid_execution_calendar"
+                if strict_oos
+                else None
+            ),
             "feature_preset": args.feature_preset,
             "feature_row_mode": "inference_features_only",
             "fold0_dir": str(fold0_dir),
@@ -174,6 +188,7 @@ def build_forward_predictions(args: argparse.Namespace) -> Path:
             "checkpoint_count_loaded": int(args.top_n),
             "portfolio_initial_state": "empty_positions_and_initial_cash",
             "historical_trading_parameters_reused": strict_oos,
+            "historical_rebalance_phase_reused_pending_grid": strict_oos,
             "feature_meta": features.report,
         },
         checkpoint_rows=checkpoint_rows,
@@ -187,7 +202,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Backtest fold0 checkpoints after fold0 test_end.  The default "
-            "strict_oos mode freezes the complete historical configuration."
+            "strict_oos mode freezes the historical decision and aligns its "
+            "rebalance phase to the forward execution calendar."
         )
     )
     parser.add_argument(
@@ -210,9 +226,9 @@ def parse_args() -> argparse.Namespace:
         choices=["strict_oos", "forward_parameter_sweep", "all_top_n"],
         default="strict_oos",
         help=(
-            "strict_oos freezes historical signal and trading parameters; "
-            "forward_parameter_sweep freezes only the signal; all_top_n "
-            "preserves the exhaustive legacy signal grid"
+            "strict_oos freezes the historical signal, non-phase parameters and "
+            "rebalance phase; forward_parameter_sweep freezes only the signal; "
+            "all_top_n preserves the exhaustive legacy signal grid"
         ),
     )
     parser.add_argument(
