@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Structural checks for the AS1455 Ch17 refactor."""
+"""Static and synthetic checks for the Ch17 AS1455 refactor.
+
+The checks avoid market data and model files. They verify that the repository
+does not silently reintroduce duplicated protocol, trading, path, CLI, ranking,
+or plotting implementations.
+"""
 from __future__ import annotations
 
 import ast
-import json
 import sys
-import tempfile
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 PROJECT_DIR = Path(__file__).resolve().parents[1]
@@ -17,11 +19,20 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from utils import as1455_ch17_common as common  # noqa: E402
-from utils import as1455_rank_cache as rank_cache  # noqa: E402
+from utils import as1455_paths  # noqa: E402
+from utils.as1455_rank_cache import (  # noqa: E402
+    PreSortedPredictionFrame,
+    prepare_presorted_predictions,
+    validate_presorted_predictions,
+)
+from utils.as1455_signal_specs import signal_specs_for_top_n  # noqa: E402
 
 
 def read(relative: str) -> str:
-    return (PROJECT_DIR / relative).read_text(encoding="utf-8")
+    path = PROJECT_DIR / relative
+    if not path.exists():
+        raise AssertionError(f"missing file: {relative}")
+    return path.read_text(encoding="utf-8")
 
 
 def function_names(relative: str) -> set[str]:
@@ -34,64 +45,88 @@ def function_names(relative: str) -> set[str]:
 
 
 def assert_target_specs() -> None:
+    actual = {
+        key: (value.lookahead, value.rebalance_every, value.offset_mode)
+        for key, value in common.TARGET_SPECS.items()
+    }
     expected = {
         "r01_fwd": (1, 1, "zero"),
         "r05_fwd": (5, 5, "full"),
         "r21_fwd": (21, 21, "full"),
     }
-    actual = {
-        name: (spec.lookahead, spec.rebalance_every, spec.offset_mode)
-        for name, spec in common.TARGET_SPECS.items()
-    }
     assert actual == expected, (actual, expected)
 
 
 def assert_signal_specs() -> None:
-    for value in common.default_signal_specs(5):
-        parts = value.split(":")
-        assert len(parts) == 3, value
-        name, columns, mode = parts
-        assert name
-        assert mode in {"single", "mean"}
-        assert all(token.isdigit() for token in columns.split(","))
+    assert signal_specs_for_top_n(1) == ["model_0:0:single"]
+    assert signal_specs_for_top_n(2) == [
+        "model_0:0:single",
+        "model_1:1:single",
+        "ensemble_all2_mean:0,1:mean",
+    ]
+    assert signal_specs_for_top_n(3) == [
+        "model_0:0:single",
+        "model_1:1:single",
+        "model_2:2:single",
+        "ensemble_first3_mean:0,1,2:mean",
+    ]
+    top5 = signal_specs_for_top_n(5)
+    assert len(top5) == 7
+    assert top5[-2:] == [
+        "ensemble_first3_mean:0,1,2:mean",
+        "ensemble_all5_mean:0,1,2,3,4:mean",
+    ]
 
 
 def assert_path_contracts() -> None:
-    from utils import as1455_paths
-
-    assert as1455_paths.DEFAULT_MODEL_DATA.name == "model_data_as1455.h5"
-    assert as1455_paths.TARGET_BACKTEST_ROOT.name == "ch17_as1455_target_backtest"
-    assert (
-        as1455_paths.FOLD0_FORWARD_BACKTEST_ROOT.name
-        == "ch17_as1455_fold0_forward_backtest"
+    assert as1455_paths.DEFAULT_MODEL_DATA == (
+        PROJECT_DIR
+        / "saved_data"
+        / "ashare_ml4t"
+        / "ch12_as1455"
+        / "model_data_as1455.h5"
     )
+    for preset in common.FEATURE_PRESETS:
+        r1_template = common.default_fold_dir_template(preset, "r01_fwd")
+        r1_fold0 = common.fold_dir_from_template(r1_template, 0)
+        assert "fold0_search" in r1_fold0.name
+        assert "r01_fwd" not in r1_fold0.parts
 
-
-def _make_prediction_frame() -> pd.DataFrame:
-    rows = []
-    for date in pd.date_range("2026-01-01", periods=4, freq="B"):
-        for symbol, score in (
-            ("000001.SZ", 0.2),
-            ("000002.SZ", 0.5),
-            ("600000.SH", -0.1),
-        ):
-            rows.append({"date": date, "symbol": symbol, "score": score})
-    return pd.DataFrame(rows)
+        r5_template = common.default_fold_dir_template(preset, "r05_fwd")
+        r5_fold0 = common.fold_dir_from_template(r5_template, 0)
+        assert "r05_fwd" in r5_fold0.parts
+        assert r5_fold0.name == "fold0_search"
 
 
 def assert_rank_cache_equivalence() -> None:
-    source = _make_prediction_frame()
+    predictions = pd.DataFrame(
+        {
+            "date": pd.to_datetime(
+                [
+                    "2026-01-02",
+                    "2026-01-02",
+                    "2026-01-02",
+                    "2026-01-05",
+                    "2026-01-05",
+                ]
+            ),
+            "symbol": ["A", "B", "C", "D", "E"],
+            "score": [0.2, 0.5, 0.5, -0.1, 0.3],
+        },
+        index=[10, 11, 12, 20, 21],
+    )
     expected = {
-        date: group.sort_values("score", ascending=False).reset_index(drop=True)
-        for date, group in source.groupby("date", sort=True)
+        date: group.copy().sort_values("score", ascending=False).copy()
+        for date, group in predictions.groupby("date", sort=True)
     }
-    prepared = rank_cache.prepare_presorted_predictions(source)
-    rank_cache.validate_presorted_predictions(prepared)
+    cached = prepare_presorted_predictions(predictions)
+    assert isinstance(cached, PreSortedPredictionFrame)
+    validate_presorted_predictions(cached)
     actual = {
-        date: group.sort_values("score", ascending=False).reset_index(drop=True)
-        for date, group in prepared.groupby("date", sort=True)
+        date: group.copy().sort_values("score", ascending=False).copy()
+        for date, group in cached.groupby("date", sort=True)
     }
-    assert expected.keys() == actual.keys()
+    assert set(expected) == set(actual)
     for date in expected:
         pd.testing.assert_frame_equal(
             pd.DataFrame(expected[date]),
@@ -209,29 +244,20 @@ def assert_unified_plotter() -> None:
 
 
 def assert_storage_maintenance_entrypoint() -> None:
-    shell_path = PROJECT_DIR / "scripts" / "run_as1455_storage_maintenance.sh"
-    exporter_path = PROJECT_DIR / "scripts" / "export_as1455_storage_diagnostics.py"
-    guide_path = PROJECT_DIR / "AS1455_STORAGE_MAINTENANCE.md"
-    assert shell_path.exists()
-    assert exporter_path.exists()
-    assert guide_path.exists()
+    shell = read("scripts/run_as1455_storage_maintenance.sh")
+    exporter = read("scripts/export_as1455_storage_diagnostics.py")
+    guide = read("AS1455_STORAGE_MAINTENANCE.md")
 
-    shell = shell_path.read_text(encoding="utf-8")
     assert 'APPLY="${APPLY:-0}"' in shell
     assert 'SHARE_FILE="$OUT_DIR/share_me.txt"' in shell
     assert "cleanup_dry_run.json" in shell
     assert "cleanup_apply.json" in shell
     assert "scripts/export_as1455_storage_diagnostics.py" in shell
     assert "scripts/cleanup_as1455_storage.py" in shell
-
-    exporter_functions = function_names("scripts/export_as1455_storage_diagnostics.py")
-    for required in {
-        "active_as1455_processes",
-        "scan_files",
-        "important_paths",
-        "main",
-    }:
-        assert required in exporter_functions
+    assert "def active_as1455_processes(" in exporter
+    assert "def scan_files(" in exporter
+    assert "def important_paths(" in exporter
+    assert "share_me.txt" in guide
 
 
 def main() -> None:
