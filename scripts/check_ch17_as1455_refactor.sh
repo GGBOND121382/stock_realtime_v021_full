@@ -67,7 +67,7 @@ for script in \
   bash -n "$script"
 done
 
-bash scripts/run_as1455_live_data_feature_pipeline.sh check
+PYTHON="$PYTHON_BIN" bash scripts/run_as1455_live_data_feature_pipeline.sh check
 
 echo '===== Default protocol policy ====='
 grep -F 'MODEL_SELECTION_MODE="${MODEL_SELECTION_MODE:-strict_oos}"' scripts/run_as1455_fold0_forward_backtests.sh >/dev/null
