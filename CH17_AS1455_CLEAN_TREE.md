@@ -13,19 +13,33 @@ A file is retained only when it is one of the following:
 5. a validation, disk guard, artifact-retention, or conservative storage-maintenance component;
 6. the static 1000-symbol universe or the minimal dependency/configuration files.
 
+The clean tree currently contains 67 tracked files.
+
 ## Data path
 
 ```text
 scripts/run_as1455_live_data_feature_pipeline.sh history
-├─ pipelines/as1455_update_history_to_prevday_fast_v4.py
-├─ pipelines/as1455_update_history_to_prevday.py
-└─ features/as1455_live_common.py
+└─ pipelines/as1455_history_parallel_dispatch.py
+   ├─ pipelines/as1455_update_history_to_prevday_fast_v4.py
+   ├─ pipelines/as1455_update_history_to_prevday.py
+   └─ features/as1455_live_common.py
 
 scripts/build_ashare_ch12_as1455_lowmem.sh
 └─ scripts/build_ashare_ch12_as1455_model_data.py
 ```
 
-Only `fast_v4` remains as the active history updater. `fast_v2` and `fast_v3` are removed. The non-fast updater remains only because `fast_v4` imports its BaoStock query, calendar, merge, and schema helpers.
+`fast_v4` remains the sole history-update business implementation. The parallel dispatcher is deliberately thin: it gives each worker an independent BaoStock session, assigns each symbol to exactly one worker, calls `fast_v4.update_one_symbol_v4`, and merges only the reports. It does not redefine cache schemas, dates, adjustment semantics, or AS1455 aggregation.
+
+The history pipeline defaults to three workers on the 4-core/8GB server:
+
+```bash
+HISTORY_WORKERS=3 SYMBOL_RETRIES=2 \
+  bash scripts/run_as1455_live_data_feature_pipeline.sh history
+```
+
+The dispatcher also replaces normal full-column last-date scans with tail-first reads and reads recent AS1455 aggregation ranges from the 5m CSV tail, while falling back to the canonical full reader whenever coverage cannot be proven.
+
+Only `fast_v4` remains as the active updater. `fast_v2` and `fast_v3` are removed. The non-fast updater remains only because `fast_v4` imports its BaoStock query, calendar, merge, and schema helpers.
 
 The history controller supports only `history`, `check`, and `status`; live prepare, quote collection, live feature generation, and live inference are outside this repository.
 
