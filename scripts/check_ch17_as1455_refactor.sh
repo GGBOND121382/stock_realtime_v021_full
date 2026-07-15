@@ -6,6 +6,9 @@ PYTHON_BIN="${PYTHON_BIN:-python3}"
 
 echo '===== Python syntax ====='
 "$PYTHON_BIN" -m compileall -q \
+  features/as1455_live_common.py \
+  pipelines/as1455_update_history_to_prevday.py \
+  pipelines/as1455_update_history_to_prevday_fast_v4.py \
   utils/as1455_paths.py \
   utils/as1455_ch17_common.py \
   utils/as1455_forward_features.py \
@@ -19,7 +22,10 @@ echo '===== Python syntax ====='
   utils/as1455_backtest_io.py \
   utils/as1455_grid_runner.py \
   utils/as1455_plotting.py \
+  scripts/build_ashare_ch12_as1455_model_data.py \
   scripts/as1455_target_label_common.py \
+  scripts/run_as1455_sector_rotation_fold0_param_search.py \
+  scripts/run_as1455_first_batch_features_fold0_param_search.py \
   scripts/run_as1455_target_fold_param_search.py \
   scripts/run_as1455_target_one_lag_backtest.py \
   scripts/run_as1455_fold0_forward_backtest.py \
@@ -38,10 +44,16 @@ echo '===== Python syntax ====='
   scripts/compact_as1455_prediction_artifacts.py \
   scripts/materialize_as1455_best_run.py \
   scripts/compare_as1455_backtest_runs.py \
-  code/backtest/run_as1455_close_auction_grid_inprocess.py
+  code/backtest/run_as1455_close_auction_grid_v1.py \
+  code/backtest/run_as1455_close_auction_grid_inprocess.py \
+  code/backtest/run_as1455_close_auction_backtest_v7_maxpos_grid.py
 
 echo '===== Shell syntax ====='
 for script in \
+  scripts/run_as1455_live_data_feature_pipeline.sh \
+  scripts/build_ashare_ch12_as1455_lowmem.sh \
+  scripts/run_ch17_as1455_full_rebuild.sh \
+  scripts/as1455_python_memory_guard.sh \
   scripts/run_as1455_target_search_all.sh \
   scripts/run_as1455_r05_target_search_all.sh \
   scripts/run_as1455_r21_target_search_all.sh \
@@ -54,6 +66,8 @@ for script in \
   scripts/run_as1455_storage_maintenance.sh; do
   bash -n "$script"
 done
+
+bash scripts/run_as1455_live_data_feature_pipeline.sh check
 
 echo '===== Default protocol policy ====='
 grep -F 'MODEL_SELECTION_MODE="${MODEL_SELECTION_MODE:-strict_oos}"' scripts/run_as1455_fold0_forward_backtests.sh >/dev/null
@@ -84,6 +98,7 @@ echo '===== Structural and synthetic checks ====='
 "$PYTHON_BIN" scripts/check_ch17_as1455_refactor.py
 
 echo '===== CLI imports ====='
+"$PYTHON_BIN" scripts/build_ashare_ch12_as1455_model_data.py --help >/dev/null
 "$PYTHON_BIN" scripts/run_as1455_target_fold_param_search.py --help >/dev/null
 "$PYTHON_BIN" scripts/run_as1455_target_one_lag_backtest.py --help >/dev/null
 "$PYTHON_BIN" scripts/run_as1455_fold0_forward_backtest.py --help >/dev/null
@@ -99,4 +114,4 @@ echo '===== CLI imports ====='
 "$PYTHON_BIN" scripts/materialize_as1455_best_run.py --help >/dev/null
 "$PYTHON_BIN" code/backtest/run_as1455_close_auction_grid_inprocess.py --help >/dev/null
 
-echo '[PASS] Ch17 AS1455 refactor validation passed'
+echo '[PASS] Ch17 AS1455 clean runtime validation passed'

@@ -1,7 +1,11 @@
-tomli; python_version < "3.11"
+numpy
+pandas
+scipy
 scikit-learn
 joblib
 baostock
 tables
 TA-Lib
 tensorflow
+matplotlib
+psutil
