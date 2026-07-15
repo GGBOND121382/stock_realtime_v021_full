@@ -9,7 +9,6 @@ FORWARD_DIR="${FORWARD_DIR:-saved_data/ashare_ml4t/ch12_as1455_forward_latest}";
 REBUILD_ROOT="${REBUILD_ROOT:-saved_data/ashare_ml4t/rebuild_ch17_as1455}"; STATE_DIR="$REBUILD_ROOT/state_v2"; LOG_DIR="$REBUILD_ROOT/logs_v2"; SEARCH_LOG_DIR="$REBUILD_ROOT/search_logs_v2"
 FEATURE_PRESETS="${FEATURE_PRESETS:-rotation_onehot rotation_addon_onehot}"; TARGETS="${TARGETS:-r01_fwd r05_fwd r21_fwd}"
 EPOCHS="${EPOCHS:-20}"; BEST_N="${BEST_N:-5}"; SEED="${SEED:-42}"; MIN_FREE_GB="${MIN_FREE_GB:-5}"; MIN_INITIAL_FREE_GB="${MIN_INITIAL_FREE_GB:-20}"
-BOOTSTRAP_BATCH_SIZE="${BOOTSTRAP_BATCH_SIZE:-250}"; MAX_BOOTSTRAP_PASSES="${MAX_BOOTSTRAP_PASSES:-8}"; BAOSTOCK_FETCH_SLEEP="${BAOSTOCK_FETCH_SLEEP:-0.05}"
 CPU_THREADS="${CPU_THREADS:-2}"; export OMP_NUM_THREADS="$CPU_THREADS" OPENBLAS_NUM_THREADS="$CPU_THREADS" MKL_NUM_THREADS="$CPU_THREADS" NUMEXPR_NUM_THREADS="$CPU_THREADS" TF_NUM_INTRAOP_THREADS="$CPU_THREADS" TF_NUM_INTEROP_THREADS=1 TF_CPP_MIN_LOG_LEVEL=2 CUDA_VISIBLE_DEVICES="" MALLOC_ARENA_MAX=2
 mkdir -p "$STATE_DIR" "$LOG_DIR" "$SEARCH_LOG_DIR"; [[ -s "$STATE_DIR/run_stamp.txt" ]] || date +%Y%m%d_%H%M%S > "$STATE_DIR/run_stamp.txt"; RUN_STAMP="$(tr -d '\r\n' < "$STATE_DIR/run_stamp.txt")"; PLOT_DIR="saved_data/ashare_ml4t/ch17_as1455_backtest_plots/full_rebuild_$RUN_STAMP"
 CURRENT_STAGE=startup; trap 'rc=$?; echo "[ERROR] stage=$CURRENT_STAGE rc=$rc line=$LINENO command=$BASH_COMMAND" >&2; exit $rc' ERR
@@ -49,13 +48,10 @@ PY
 
 data(){
   CURRENT_STAGE=data; disk "$MIN_FREE_GB" data; mkdir -p "$RAW_5M_DIR" "$RAW_DAILY_DIR" "$AS1455_DAILY_DIR"
-  local p n5 na
-  for p in $(seq 1 "$MAX_BOOTSTRAP_PASSES"); do n5="$(count "$RAW_5M_DIR" '*_5m_raw.csv')"; na="$(count "$AS1455_DAILY_DIR" '*_as1455_daily.csv')"; info "bootstrap $p/$MAX_BOOTSTRAP_PASSES raw5=$n5 as1455=$na"; [[ "$n5" == 1000 && "$na" == 1000 ]] && break
-    run "bootstrap_$p" "$PY" scripts/build_ashare_ch12_as1455_model_data.py --universe "$UNIVERSE" --out-dir "$CH12_DIR" --bar-root "$RAW_5M_DIR" --bar-glob '*_5m_raw.csv' --baostock-5m-cache-dir "$RAW_5M_DIR" --as1455-daily-cache-dir "$AS1455_DAILY_DIR" --raw-daily-cache-dir "$RAW_DAILY_DIR" --daily-cache-only --allow-partial-coverage --baostock-fetch-limit "$BOOTSTRAP_BATCH_SIZE" --baostock-fetch-retries 3 --baostock-fetch-sleep "$BAOSTOCK_FETCH_SLEEP" --baostock-query-timeout 180 --qfq5m-audit-samples 0 --profile-memory || true
-  done
-  [[ "$(count "$RAW_5M_DIR" '*_5m_raw.csv')" == 1000 ]] || fail "5m cache incomplete"
   run history env PYTHON="$PY" UNIVERSE="$UNIVERSE" RAW_5M_CACHE_DIR="$RAW_5M_DIR" RAW_DAILY_CACHE_DIR="$RAW_DAILY_DIR" AS1455_DAILY_CACHE_DIR="$AS1455_DAILY_DIR" bash scripts/run_as1455_live_data_feature_pipeline.sh history
-  [[ "$(count "$RAW_DAILY_DIR" '*_daily_raw.csv')" == 1000 && "$(count "$AS1455_DAILY_DIR" '*_as1455_daily.csv')" == 1000 ]] || fail "daily cache incomplete"
+  [[ "$(count "$RAW_5M_DIR" '*_5m_raw.csv')" == 1000 ]] || fail "5m cache incomplete"
+  [[ "$(count "$RAW_DAILY_DIR" '*_daily_raw.csv')" == 1000 ]] || fail "raw daily cache incomplete"
+  [[ "$(count "$AS1455_DAILY_DIR" '*_as1455_daily.csv')" == 1000 ]] || fail "AS1455 daily cache incomplete"
   run model_data env PYTHON="$PY" OUT_DIR="$CH12_DIR" BAR_CACHE_DIR="$RAW_5M_DIR" DAILY_CACHE_DIR="$AS1455_DAILY_DIR" bash scripts/build_ashare_ch12_as1455_lowmem.sh --universe "$UNIVERSE" --raw-daily-cache-dir "$RAW_DAILY_DIR" --no-fetch-missing-raw-daily --qfq5m-audit-samples 0
   validate_model "$MODEL_DATA"
 }
