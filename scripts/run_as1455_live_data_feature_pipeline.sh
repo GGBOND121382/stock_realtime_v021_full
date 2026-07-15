@@ -14,6 +14,8 @@ RAW_DAILY_CACHE_DIR="${RAW_DAILY_CACHE_DIR:-saved_data/ashare_ml4t/ch12_as1455/b
 AS1455_DAILY_CACHE_DIR="${AS1455_DAILY_CACHE_DIR:-saved_data/ashare_ml4t/ch12_as1455/as1455_daily_cache}"
 MAX_SYMBOLS="${MAX_SYMBOLS:-}"
 SLEEP_SECONDS="${SLEEP_SECONDS:-0.05}"
+HISTORY_WORKERS="${HISTORY_WORKERS:-3}"
+SYMBOL_RETRIES="${SYMBOL_RETRIES:-2}"
 DRY_RUN="${DRY_RUN:-0}"
 NO_BAOSTOCK_CALENDAR="${NO_BAOSTOCK_CALENDAR:-0}"
 SKIP_AS1455_AGGREGATE="${SKIP_AS1455_AGGREGATE:-0}"
@@ -21,6 +23,7 @@ LOG_ROOT="${LOG_ROOT:-logs}"
 SCRIPT_COMMON="features/as1455_live_common.py"
 SCRIPT_BASE="pipelines/as1455_update_history_to_prevday.py"
 SCRIPT_HISTORY="pipelines/as1455_update_history_to_prevday_fast_v4.py"
+SCRIPT_DISPATCH="pipelines/as1455_history_parallel_dispatch.py"
 
 mkdir -p "$LOG_ROOT"
 
@@ -45,8 +48,9 @@ check_files() {
   require_file "$SCRIPT_COMMON"
   require_file "$SCRIPT_BASE"
   require_file "$SCRIPT_HISTORY"
+  require_file "$SCRIPT_DISPATCH"
   require_file "$UNIVERSE"
-  "$PYTHON" -m py_compile "$SCRIPT_COMMON" "$SCRIPT_BASE" "$SCRIPT_HISTORY"
+  "$PYTHON" -m py_compile "$SCRIPT_COMMON" "$SCRIPT_BASE" "$SCRIPT_HISTORY" "$SCRIPT_DISPATCH"
 }
 
 print_context() {
@@ -62,13 +66,17 @@ print_context() {
   RAW_DAILY_CACHE_DIR=$RAW_DAILY_CACHE_DIR
   AS1455_DAILY_CACHE_DIR=$AS1455_DAILY_CACHE_DIR
   MAX_SYMBOLS=${MAX_SYMBOLS:-<none>}
+  HISTORY_WORKERS=$HISTORY_WORKERS
+  SYMBOL_RETRIES=$SYMBOL_RETRIES
 EOF
 }
 
 run_history() {
   check_files
+  [[ "$HISTORY_WORKERS" =~ ^[1-8]$ ]] || fail "HISTORY_WORKERS must be an integer from 1 to 8"
+  [[ "$SYMBOL_RETRIES" =~ ^[0-9]+$ ]] || fail "SYMBOL_RETRIES must be a non-negative integer"
   local args=(
-    "$SCRIPT_HISTORY"
+    "$SCRIPT_DISPATCH"
     --trade-date "$TRADE_DATE"
     --history-end-date "$HISTORY_END_DATE"
     --history-start-date "$HISTORY_START_DATE"
@@ -78,6 +86,8 @@ run_history() {
     --as1455-daily-cache-dir "$AS1455_DAILY_CACHE_DIR"
     --out-root "$OUT_ROOT"
     --sleep-seconds "$SLEEP_SECONDS"
+    --workers "$HISTORY_WORKERS"
+    --symbol-retries "$SYMBOL_RETRIES"
   )
   [[ -n "$MAX_SYMBOLS" ]] && args+=(--max-symbols "$MAX_SYMBOLS")
   [[ "$DRY_RUN" == "1" ]] && args+=(--dry-run)
@@ -100,7 +110,10 @@ obj = json.load(open(path, encoding="utf-8"))
 errors = int(obj.get("errors", -1))
 if errors != 0:
     raise SystemExit(f"history update has errors={errors}; see {path}")
-print(f"[PASS] history caches updated through {obj.get('history_end_date')} for {obj.get('n_symbols')} symbols")
+print(
+    f"[PASS] history caches updated through {obj.get('history_end_date')} "
+    f"for {obj.get('n_symbols')} symbols with workers={obj.get('workers', 1)}"
+)
 PY
   fi
 }
@@ -125,6 +138,9 @@ Usage:
   bash scripts/run_as1455_live_data_feature_pipeline.sh history
   bash scripts/run_as1455_live_data_feature_pipeline.sh check
   bash scripts/run_as1455_live_data_feature_pipeline.sh status
+
+Parallel defaults:
+  HISTORY_WORKERS=3 SYMBOL_RETRIES=2 bash scripts/run_as1455_live_data_feature_pipeline.sh history
 EOF
     ;;
   *) fail "unknown mode: $MODE" ;;
