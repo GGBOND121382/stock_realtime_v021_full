@@ -117,11 +117,19 @@ import json, sys
 path = sys.argv[1]
 obj = json.load(open(path, encoding="utf-8"))
 errors = int(obj.get("errors", -1))
-if errors != 0:
-    raise SystemExit(f"history update has errors={errors}; see {path}")
+unresolved = [str(x) for x in obj.get("unresolved_symbols", [])]
+missing = [str(x) for x in obj.get("missing_as1455_symbols", [])]
+if errors != 0 or unresolved or missing:
+    raise SystemExit(
+        f"history update incomplete: errors={errors} "
+        f"unresolved={','.join(unresolved) or '<none>'} "
+        f"missing_as1455={','.join(missing) or '<none>'}; see {path}"
+    )
 print(
     f"[PASS] history caches updated through {obj.get('history_end_date')} "
-    f"for {obj.get('n_symbols')} symbols with workers={obj.get('workers', 1)}"
+    f"for {obj.get('n_symbols')} symbols with workers={obj.get('workers', 1)}; "
+    f"AS1455 full-scan repair={obj.get('as1455_full_scan_recovered', 0)}/"
+    f"{obj.get('as1455_full_scan_repair_candidates', 0)}"
 )
 PY
   fi
