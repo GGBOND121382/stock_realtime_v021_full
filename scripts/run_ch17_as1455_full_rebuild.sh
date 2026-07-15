@@ -22,6 +22,9 @@ export TF_NUM_INTEROP_THREADS="${TF_NUM_INTEROP_THREADS:-1}"
 export TF_FORCE_GPU_ALLOW_GROWTH="${TF_FORCE_GPU_ALLOW_GROWTH:-true}"
 export MALLOC_ARENA_MAX="${MALLOC_ARENA_MAX:-2}"
 
+bash -n scripts/as1455_python_memory_guard.sh
+bash -n scripts/rebuild_ch17_as1455_from_scratch.sh
+
 mkdir -p "$STATE_DIR"
 if [[ -s "$STATE_DIR/run_stamp.txt" ]]; then
   RUN_STAMP="$(tr -d '\r\n' < "$STATE_DIR/run_stamp.txt")"
