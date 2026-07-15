@@ -1,14 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Thin bounded-process dispatcher for the canonical AS1455 fast_v4 updater.
-
-The business logic remains in ``as1455_update_history_to_prevday_fast_v4``.
-This module only:
-- runs symbols with a small number of independent BaoStock processes;
-- keeps one writer per symbol, so cache files never have concurrent writers;
-- accelerates last-date and incremental-range reads with tail-first scans;
-- preserves the existing per-symbol and summary report contracts.
-"""
+"""Thin bounded-process dispatcher for the canonical AS1455 fast_v4 updater."""
 from __future__ import annotations
 
 import argparse
@@ -47,6 +39,7 @@ _WORKER_BS = None
 _WORKER_NEED_BAOSTOCK = False
 _ORIGINAL_LAST_DATE = fast_v4.get_last_cached_date
 _ORIGINAL_READ_RANGE = fast_v4.read_5m_range
+_AS1455_SUCCESS_STATUSES = {"cached", "updated_merge_dedup", "skipped_by_arg"}
 
 
 def _parse_cached_date(value: object, column: str) -> Optional[pd.Timestamp]:
@@ -55,10 +48,7 @@ def _parse_cached_date(value: object, column: str) -> Optional[pd.Timestamp]:
         return None
     if column in {"trade_date", "time"}:
         digits = "".join(ch for ch in text if ch.isdigit())[:8]
-        if len(digits) == 8:
-            ts = pd.to_datetime(digits, format="%Y%m%d", errors="coerce")
-        else:
-            ts = pd.NaT
+        ts = pd.to_datetime(digits, format="%Y%m%d", errors="coerce") if len(digits) == 8 else pd.NaT
     else:
         ts = pd.to_datetime(text, errors="coerce")
     if pd.isna(ts):
@@ -78,12 +68,7 @@ def _read_tail_bytes(path: Path, size: int) -> tuple[int, bytes]:
     return offset, data
 
 
-def get_last_cached_date_tail(
-    path: Path,
-    date_col: str = "date",
-    *,
-    tail_bytes: int = 256 * 1024,
-) -> Optional[pd.Timestamp]:
+def get_last_cached_date_tail(path: Path, date_col: str = "date", *, tail_bytes: int = 256 * 1024) -> Optional[pd.Timestamp]:
     """Read the newest valid date from the CSV tail, with full-scan fallback."""
     path = Path(path)
     if not path.exists() or path.stat().st_size == 0:
@@ -112,19 +97,8 @@ def get_last_cached_date_tail(
     return _ORIGINAL_LAST_DATE(path, date_col=date_col)
 
 
-def read_5m_range_tail(
-    path: Path,
-    symbol: str,
-    start_date: str,
-    end_date: str,
-    chunksize: int = 200_000,
-) -> pd.DataFrame:
-    """Tail-first equivalent of fast_v4.read_5m_range.
-
-    Recent incremental updates usually need only the final days. The read window
-    grows geometrically and falls back to the canonical full reader if parsing
-    cannot prove that the requested start date is covered.
-    """
+def read_5m_range_tail(path: Path, symbol: str, start_date: str, end_date: str, chunksize: int = 200_000) -> pd.DataFrame:
+    """Read recent 5m ranges from the file tail, with canonical fallback."""
     path = Path(path)
     if not path.exists() or path.stat().st_size == 0:
         return pd.DataFrame()
@@ -143,11 +117,7 @@ def read_5m_range_tail(
                 break
             text = data.decode("utf-8", errors="replace")
             csv_text = text if offset == 0 else header_line + "\n" + text
-            frame = pd.read_csv(
-                io.StringIO(csv_text),
-                dtype={"symbol": str, "trade_date": str, "code": str},
-                low_memory=False,
-            )
+            frame = pd.read_csv(io.StringIO(csv_text), dtype={"symbol": str, "trade_date": str, "code": str}, low_memory=False)
             std = fast_v4.standardize_5m_to_old_schema(frame, symbol=symbol)
             std = fast_v4.add_aggregate_date_column(std)
             if not std.empty:
@@ -155,17 +125,17 @@ def read_5m_range_tail(
                 if offset == 0 or earliest <= start_ts:
                     keep = std["date"].ge(start_ts) & std["date"].le(end_ts)
                     out = std.loc[keep].copy()
-                    if out.empty:
-                        return pd.DataFrame()
-                    out.sort_values(["symbol", "datetime"], inplace=True)
-                    out.drop_duplicates(["symbol", "datetime"], keep="last", inplace=True)
-                    return out.reset_index(drop=True)
+                    if not out.empty:
+                        out.sort_values(["symbol", "datetime"], inplace=True)
+                        out.drop_duplicates(["symbol", "datetime"], keep="last", inplace=True)
+                        return out.reset_index(drop=True)
+                    return _ORIGINAL_READ_RANGE(path, symbol, start_date, end_date, chunksize=chunksize)
             if offset == 0:
                 break
             window = min(file_size, window * 2)
-        return _ORIGINAL_READ_RANGE(path, symbol, start_date, end_date, chunksize=chunksize)
     except Exception:
-        return _ORIGINAL_READ_RANGE(path, symbol, start_date, end_date, chunksize=chunksize)
+        pass
+    return _ORIGINAL_READ_RANGE(path, symbol, start_date, end_date, chunksize=chunksize)
 
 
 def _logout_worker() -> None:
@@ -184,10 +154,7 @@ def _login_worker() -> None:
     bs = import_baostock()
     login = bs.login()
     if login is None or getattr(login, "error_code", None) != "0":
-        raise RuntimeError(
-            "baostock worker login failed: "
-            f"{getattr(login, 'error_msg', 'empty login result')}"
-        )
+        raise RuntimeError(f"baostock worker login failed: {getattr(login, 'error_msg', 'empty login result')}")
     _WORKER_BS = bs
 
 
@@ -217,6 +184,14 @@ def _error_row(symbol: str, history_end_dash: str, exc: Exception) -> dict[str, 
     }
 
 
+def _network_retry_reason(row: dict[str, object], args: SimpleNamespace) -> str:
+    if str(row.get("error", "")).strip():
+        return "explicit_error"
+    if not args.skip_raw_5m and str(row.get("raw_5m_status", "")) == "empty":
+        return "raw_5m_empty"
+    return ""
+
+
 def _run_symbol(payload: tuple[int, str, dict[str, Any], str, int]) -> tuple[int, dict[str, object]]:
     index, symbol, args_dict, history_end_dash, retries = payload
     args = SimpleNamespace(**args_dict)
@@ -225,16 +200,13 @@ def _run_symbol(payload: tuple[int, str, dict[str, Any], str, int]) -> tuple[int
         try:
             if _WORKER_NEED_BAOSTOCK and _WORKER_BS is None:
                 _login_worker()
-            last_row = fast_v4.update_one_symbol_v4(
-                symbol,
-                args,
-                history_end_dash,
-                bs=_WORKER_BS,
-            )
+            last_row = fast_v4.update_one_symbol_v4(symbol, args, history_end_dash, bs=_WORKER_BS)
         except Exception as exc:
             last_row = _error_row(symbol, history_end_dash, exc)
         last_row["worker_attempt"] = attempt
-        if not str(last_row.get("error", "")).strip():
+        retry_reason = _network_retry_reason(last_row, args)
+        last_row["worker_retry_reason"] = retry_reason
+        if not retry_reason:
             break
         if attempt <= retries and _WORKER_BS is not None:
             try:
@@ -246,6 +218,64 @@ def _run_symbol(payload: tuple[int, str, dict[str, Any], str, int]) -> tuple[int
     if args.sleep_seconds > 0:
         time.sleep(args.sleep_seconds)
     return index, last_row or _error_row(symbol, history_end_dash, RuntimeError("empty worker result"))
+
+
+def _repair_symbol_from_full_cache(payload: tuple[int, str, dict[str, Any], str]) -> tuple[int, dict[str, object]]:
+    index, symbol, args_dict, history_end_dash = payload
+    args = SimpleNamespace(**args_dict)
+    args.dry_run = False
+    args.skip_raw_5m = True
+    args.skip_raw_daily = True
+    args.skip_as1455_aggregate = False
+    current_reader = fast_v4.read_5m_range
+    try:
+        fast_v4.read_5m_range = _ORIGINAL_READ_RANGE
+        row = fast_v4.update_one_symbol_v4(symbol, args, history_end_dash, bs=None)
+    except Exception as exc:
+        row = _error_row(symbol, history_end_dash, exc)
+    finally:
+        fast_v4.read_5m_range = current_reader
+    row["as1455_full_scan_repair"] = True
+    return index, row
+
+
+def _as1455_output_path(args: argparse.Namespace | SimpleNamespace, symbol: str) -> Path:
+    return fast_v4.as1455_daily_path(Path(args.as1455_daily_cache_dir), normalize_symbol(symbol))
+
+
+def _needs_as1455_repair(row: dict[str, object], args: argparse.Namespace, symbol: str) -> bool:
+    if args.skip_as1455_aggregate or args.dry_run:
+        return False
+    path = _as1455_output_path(args, symbol)
+    status = str(row.get("as1455_status", ""))
+    return status not in _AS1455_SUCCESS_STATUSES or not path.exists() or path.stat().st_size == 0
+
+
+def _merge_repair_row(original: dict[str, object], repaired: dict[str, object]) -> dict[str, object]:
+    merged = dict(original)
+    merged["as1455_initial_status"] = original.get("as1455_status", "")
+    for key, value in repaired.items():
+        if key.startswith("as1455_") or key in {"error"}:
+            merged[key] = value
+    merged["as1455_full_scan_repair"] = True
+    return merged
+
+
+def _finalize_row(row: dict[str, object], args: argparse.Namespace, symbol: str) -> dict[str, object]:
+    out = dict(row)
+    issues: list[str] = []
+    explicit = str(out.get("error", "")).strip()
+    if explicit:
+        issues.append(explicit)
+    if not args.skip_as1455_aggregate and not args.dry_run:
+        path = _as1455_output_path(args, symbol)
+        status = str(out.get("as1455_status", ""))
+        if status not in _AS1455_SUCCESS_STATUSES:
+            issues.append(f"as1455_status={status or '<missing>'}")
+        if not path.exists() or path.stat().st_size == 0:
+            issues.append(f"missing_as1455_output={path}")
+    out["error"] = "; ".join(dict.fromkeys(issue for issue in issues if issue))
+    return out
 
 
 def numeric_sum(report: pd.DataFrame, column: str) -> int:
@@ -261,9 +291,7 @@ def bool_sum(report: pd.DataFrame, column: str) -> int:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Bounded-process dispatcher for the canonical AS1455 fast_v4 updater"
-    )
+    parser = argparse.ArgumentParser(description="Bounded-process dispatcher for the canonical AS1455 fast_v4 updater")
     parser.add_argument("--trade-date", default="today")
     parser.add_argument("--history-end-date", default="auto")
     parser.add_argument("--history-start-date", default="2020-01-01")
@@ -294,11 +322,7 @@ def main() -> None:
         raise SystemExit("--symbol-retries must be non-negative")
 
     trade_date = parse_trade_date(args.trade_date)
-    history_end = resolve_history_end_date(
-        trade_date,
-        args.history_end_date,
-        not args.no_baostock_calendar,
-    )
+    history_end = resolve_history_end_date(trade_date, args.history_end_date, not args.no_baostock_calendar)
     history_end_dash = yyyymmdd_to_dash(history_end)
     live_dir = Path(args.out_root) / trade_date
     ensure_dir(live_dir)
@@ -309,27 +333,14 @@ def main() -> None:
     write_csv(live_dir / "01_universe.csv", universe)
     symbols = universe["symbol"].map(normalize_symbol).tolist()
     workers = min(args.workers, max(1, len(symbols)))
-    need_baostock = (not args.dry_run) and (
-        not args.skip_raw_5m or not args.skip_raw_daily
-    )
+    need_baostock = (not args.dry_run) and (not args.skip_raw_5m or not args.skip_raw_daily)
     args_dict = vars(args).copy()
-    payloads = [
-        (index, symbol, args_dict, history_end_dash, args.symbol_retries)
-        for index, symbol in enumerate(symbols)
-    ]
+    payloads = [(index, symbol, args_dict, history_end_dash, args.symbol_retries) for index, symbol in enumerate(symbols)]
 
     started = time.time()
     indexed_rows: dict[int, dict[str, object]] = {}
-    print(
-        f"[PARALLEL] workers={workers} symbols={len(symbols)} "
-        f"history_end={history_end_dash}",
-        flush=True,
-    )
-    with ProcessPoolExecutor(
-        max_workers=workers,
-        initializer=_worker_init,
-        initargs=(need_baostock,),
-    ) as executor:
+    print(f"[PARALLEL] workers={workers} symbols={len(symbols)} history_end={history_end_dash}", flush=True)
+    with ProcessPoolExecutor(max_workers=workers, initializer=_worker_init, initargs=(need_baostock,)) as executor:
         future_map = {executor.submit(_run_symbol, payload): payload[:2] for payload in payloads}
         completed = 0
         for future in as_completed(future_map):
@@ -341,15 +352,33 @@ def main() -> None:
             indexed_rows[result_index] = row
             completed += 1
             if completed % 10 == 0 or completed == len(symbols):
-                errors = sum(bool(str(item.get("error", "")).strip()) for item in indexed_rows.values())
-                print(
-                    f"[INFO] processed {completed}/{len(symbols)} symbols errors={errors}",
-                    flush=True,
-                )
+                explicit_errors = sum(bool(str(item.get("error", "")).strip()) for item in indexed_rows.values())
+                print(f"[INFO] processed {completed}/{len(symbols)} symbols explicit_errors={explicit_errors}", flush=True)
 
-    rows = [indexed_rows[index] for index in range(len(symbols))]
+    repair_indexes = [index for index, symbol in enumerate(symbols) if _needs_as1455_repair(indexed_rows[index], args, symbol)]
+    repaired_count = 0
+    if repair_indexes:
+        print(f"[REPAIR] full-cache AS1455 repair candidates={len(repair_indexes)}", flush=True)
+        repair_payloads = [(index, symbols[index], args_dict, history_end_dash) for index in repair_indexes]
+        with ProcessPoolExecutor(max_workers=min(workers, len(repair_payloads)), initializer=_worker_init, initargs=(False,)) as executor:
+            future_map = {executor.submit(_repair_symbol_from_full_cache, payload): payload[:2] for payload in repair_payloads}
+            for future in as_completed(future_map):
+                index, symbol = future_map[future]
+                try:
+                    result_index, repaired = future.result()
+                except Exception as exc:
+                    result_index, repaired = index, _error_row(symbol, history_end_dash, exc)
+                merged = _merge_repair_row(indexed_rows[result_index], repaired)
+                indexed_rows[result_index] = merged
+                if not _needs_as1455_repair(merged, args, symbol):
+                    repaired_count += 1
+        print(f"[REPAIR] recovered={repaired_count}/{len(repair_indexes)}", flush=True)
+
+    rows = [_finalize_row(indexed_rows[index], args, symbols[index]) for index in range(len(symbols))]
     report = pd.DataFrame(rows)
     write_csv(live_dir / "00_history_update_by_symbol.csv", report)
+    unresolved_symbols = report.loc[report.get("error", pd.Series(dtype=object)).fillna("").ne(""), "symbol"].astype(str).tolist() if not report.empty else []
+    missing_as1455_symbols = [symbol for symbol in symbols if not _as1455_output_path(args, symbol).exists() or _as1455_output_path(args, symbol).stat().st_size == 0] if not args.skip_as1455_aggregate and not args.dry_run else []
     summary = {
         "trade_date": trade_date,
         "history_end_date": history_end_dash,
@@ -361,11 +390,15 @@ def main() -> None:
         "symbol_retries": int(args.symbol_retries),
         "tail_last_date_scan": True,
         "tail_incremental_range_scan": True,
+        "as1455_full_scan_repair_candidates": int(len(repair_indexes)),
+        "as1455_full_scan_recovered": int(repaired_count),
         "manifest_used": False,
         "skip_raw_5m": bool(args.skip_raw_5m),
         "skip_raw_daily": bool(args.skip_raw_daily),
         "elapsed_seconds": round(time.time() - started, 3),
-        "errors": int(report["error"].fillna("").ne("").sum()) if "error" in report.columns else int(len(report)),
+        "errors": int(len(unresolved_symbols)),
+        "unresolved_symbols": unresolved_symbols,
+        "missing_as1455_symbols": missing_as1455_symbols,
         "raw_5m_status_counts": report.get("raw_5m_status", pd.Series(dtype=object)).value_counts(dropna=False).to_dict(),
         "raw_daily_status_counts": report.get("raw_daily_status", pd.Series(dtype=object)).value_counts(dropna=False).to_dict(),
         "as1455_status_counts": report.get("as1455_status", pd.Series(dtype=object)).value_counts(dropna=False).to_dict(),
