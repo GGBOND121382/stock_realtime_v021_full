@@ -11,9 +11,10 @@ A file is retained only when it is one of the following:
 3. a Python import or shell-call dependency of a retained entry point;
 4. the sole v7 trading engine or a helper required by the in-process grid;
 5. a validation, disk guard, artifact-retention, or conservative storage-maintenance component;
-6. the static 1000-symbol universe or the minimal dependency/configuration files.
+6. the static 1000-symbol universe or the minimal dependency/configuration files;
+7. the repository proxy-control entry point and implementation required for server Git/data access.
 
-The clean tree currently contains 67 tracked files.
+The clean tree currently contains 70 tracked files.
 
 ## Data path
 
@@ -79,6 +80,22 @@ code/backtest/run_as1455_close_auction_grid_inprocess.py
 
 `run_as1455_close_auction_backtest_v7_maxpos_grid.py::backtest` is the only portfolio simulation. `grid_v1.py` is retained solely for its grid configuration, naming, hashing, summary, and leaderboard helper functions imported by the in-process runner; its subprocess grid `main()` is not used by the formal workflow.
 
+## Server proxy path
+
+```text
+proxyctl.sh
+└─ proxy_tools/proxyctl.sh
+   └─ proxy_tools/README_proxyctl.md
+```
+
+The repository-root entry point guarantees that:
+
+```bash
+source ./proxyctl.sh on
+```
+
+uses the tracked implementation. Enabling the proxy updates both shell environment variables and Git global `http.proxy` / `https.proxy`, then reads the values back to verify that Git will use `http://127.0.0.1:17890`.
+
 ## Removed categories
 
 The clean tree excludes:
@@ -98,6 +115,11 @@ Runtime outputs remain under `saved_data/` on the server and are ignored by Git.
 ## Validation
 
 ```bash
+bash -n proxyctl.sh proxy_tools/proxyctl.sh
+source ./proxyctl.sh on
+bash ./proxyctl.sh status
+source ./proxyctl.sh off
+
 bash scripts/check_ch17_as1455_refactor.sh
 bash scripts/run_as1455_live_data_feature_pipeline.sh check
 bash scripts/run_ch17_as1455_full_rebuild.sh preflight
