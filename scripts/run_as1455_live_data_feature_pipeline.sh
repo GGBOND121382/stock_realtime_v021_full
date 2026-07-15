@@ -24,6 +24,7 @@ SCRIPT_COMMON="features/as1455_live_common.py"
 SCRIPT_BASE="pipelines/as1455_update_history_to_prevday.py"
 SCRIPT_HISTORY="pipelines/as1455_update_history_to_prevday_fast_v4.py"
 SCRIPT_DISPATCH="pipelines/as1455_history_parallel_dispatch.py"
+PROJECT_PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
 
 mkdir -p "$LOG_ROOT"
 
@@ -31,7 +32,7 @@ fail() { echo "[ERROR] $*" >&2; exit 1; }
 require_file() { [[ -f "$1" ]] || fail "missing file: $1"; }
 
 live_date() {
-  "$PYTHON" - "$TRADE_DATE" <<'PY'
+  PYTHONPATH="$PROJECT_PYTHONPATH" "$PYTHON" - "$TRADE_DATE" <<'PY'
 import sys
 from datetime import datetime
 s = sys.argv[1]
@@ -50,7 +51,14 @@ check_files() {
   require_file "$SCRIPT_HISTORY"
   require_file "$SCRIPT_DISPATCH"
   require_file "$UNIVERSE"
-  "$PYTHON" -m py_compile "$SCRIPT_COMMON" "$SCRIPT_BASE" "$SCRIPT_HISTORY" "$SCRIPT_DISPATCH"
+  PYTHONPATH="$PROJECT_PYTHONPATH" "$PYTHON" -m py_compile "$SCRIPT_COMMON" "$SCRIPT_BASE" "$SCRIPT_HISTORY" "$SCRIPT_DISPATCH"
+  PYTHONPATH="$PROJECT_PYTHONPATH" "$PYTHON" - <<'PY'
+import features.as1455_live_common
+import pipelines.as1455_update_history_to_prevday
+import pipelines.as1455_update_history_to_prevday_fast_v4
+import pipelines.as1455_history_parallel_dispatch
+print('[PASS] AS1455 Python imports resolved from repository root')
+PY
 }
 
 print_context() {
@@ -58,6 +66,7 @@ print_context() {
 [CONFIG]
   MODE=$MODE
   PYTHON=$PYTHON
+  PYTHONPATH=$PROJECT_PYTHONPATH
   TRADE_DATE=$TRADE_DATE
   HISTORY_END_DATE=$HISTORY_END_DATE
   HISTORY_START_DATE=$HISTORY_START_DATE
@@ -98,12 +107,12 @@ run_history() {
   stamp="$(date +%Y%m%d_%H%M%S)"
   log="$LOG_ROOT/as1455_history_${stamp}.log"
   print_context
-  "$PYTHON" "${args[@]}" 2>&1 | tee "$log"
+  PYTHONPATH="$PROJECT_PYTHONPATH" "$PYTHON" "${args[@]}" 2>&1 | tee "$log"
 
   if [[ "$DRY_RUN" != "1" ]]; then
     report="$OUT_ROOT/$(live_date)/00_history_update_report.json"
     require_file "$report"
-    "$PYTHON" - "$report" <<'PY'
+    PYTHONPATH="$PROJECT_PYTHONPATH" "$PYTHON" - "$report" <<'PY'
 import json, sys
 path = sys.argv[1]
 obj = json.load(open(path, encoding="utf-8"))
