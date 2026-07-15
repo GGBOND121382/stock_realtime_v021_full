@@ -51,7 +51,7 @@ case "$joined" in
     heavy_kind="training"; cooldown_seconds="$TRAIN_COOLDOWN_SECONDS" ;;
   *" scripts/run_as1455_target_one_lag_backtest.py "*|*" scripts/run_as1455_fold0_forward_backtest.py "*|*" scripts/materialize_as1455_best_run.py "*)
     heavy_kind="backtest"; cooldown_seconds="$BACKTEST_COOLDOWN_SECONDS" ;;
-  *" pipelines/as1455_update_history_to_prevday_fast_v4.py "*|*" scripts/build_ashare_ch12_as1455_model_data.py "*)
+  *" pipelines/as1455_update_history_to_prevday_fast_v4.py "*|*" pipelines/as1455_history_parallel_dispatch.py "*|*" scripts/build_ashare_ch12_as1455_model_data.py "*)
     heavy_kind="data"; cooldown_seconds="$DATA_COOLDOWN_SECONDS" ;;
 esac
 
