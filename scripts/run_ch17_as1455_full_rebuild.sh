@@ -3,7 +3,6 @@ set -Eeuo pipefail
 cd "$(dirname "$0")/.."
 
 MODE="${1:-all}"; BASE_PYTHON="${BASE_PYTHON:-python3}"; VENV_DIR="${VENV_DIR:-.venv_as1455}"
-HISTORY_START_DATE="${HISTORY_START_DATE:-2020-01-02}"; HISTORY_END_DATE="${HISTORY_END_DATE:-auto}"; TRADE_DATE="${TRADE_DATE:-today}"; TIMEZONE="${TIMEZONE:-Asia/Shanghai}"
 UNIVERSE="${UNIVERSE:-saved_data/ashare_static_universe/07_universe_allA_top1000_static.csv}"
 CH12_DIR="${CH12_DIR:-saved_data/ashare_ml4t/ch12_as1455}"; RAW_5M_DIR="${RAW_5M_DIR:-$CH12_DIR/baostock_5m_cache}"; RAW_DAILY_DIR="${RAW_DAILY_DIR:-$CH12_DIR/baostock_raw_daily_cache}"; AS1455_DAILY_DIR="${AS1455_DAILY_DIR:-$CH12_DIR/as1455_daily_cache}"; MODEL_DATA="$CH12_DIR/model_data_as1455.h5"
 FORWARD_DIR="${FORWARD_DIR:-saved_data/ashare_ml4t/ch12_as1455_forward_latest}"; FORWARD_DATA="$FORWARD_DIR/model_data_as1455.h5"
@@ -28,15 +27,6 @@ PY
   bash -n scripts/as1455_python_memory_guard.sh; PY="$STATE_DIR/python_with_memory_guard"; install -m 700 scripts/as1455_python_memory_guard.sh "$PY"; export AS1455_REAL_PYTHON="$REAL_PYTHON"
 }
 disk(){ "$PY" scripts/check_as1455_disk_space.py --path saved_data/ashare_ml4t --min-free-gb "$1" --label "$2"; }
-end_date(){
-  [[ -s "$STATE_DIR/history_end.txt" ]] || "$PY" - "$TRADE_DATE" "$HISTORY_END_DATE" <<'PY' > "$STATE_DIR/history_end.txt"
-import sys
-from features.as1455_live_common import parse_trade_date,yyyymmdd_to_dash
-from pipelines.as1455_update_history_to_prevday import resolve_history_end_date
-print(yyyymmdd_to_dash(resolve_history_end_date(parse_trade_date(sys.argv[1]),sys.argv[2],True)))
-PY
-  tr -d '\r\n' < "$STATE_DIR/history_end.txt"
-}
 
 preflight(){
   CURRENT_STAGE=preflight
@@ -46,7 +36,7 @@ import pandas as pd,sys
 d=pd.read_csv(sys.argv[1],dtype={'code':str},encoding='utf-8-sig'); assert len(d)==1000 and d.code.astype(str).str.zfill(6).nunique()==1000
 print('[OK] universe=1000')
 PY
-  disk "$MIN_INITIAL_FREE_GB" from-scratch; info "history_end=$(end_date)"
+  disk "$MIN_INITIAL_FREE_GB" from-scratch
 }
 
 validate_model(){ "$PY" - "$1" <<'PY'
@@ -61,12 +51,12 @@ data(){
   CURRENT_STAGE=data; disk "$MIN_FREE_GB" data; mkdir -p "$RAW_5M_DIR" "$RAW_DAILY_DIR" "$AS1455_DAILY_DIR"
   local p n5 na
   for p in $(seq 1 "$MAX_BOOTSTRAP_PASSES"); do n5="$(count "$RAW_5M_DIR" '*_5m_raw.csv')"; na="$(count "$AS1455_DAILY_DIR" '*_as1455_daily.csv')"; info "bootstrap $p/$MAX_BOOTSTRAP_PASSES raw5=$n5 as1455=$na"; [[ "$n5" == 1000 && "$na" == 1000 ]] && break
-    run "bootstrap_$p" "$PY" scripts/build_ashare_ch12_as1455_model_data.py --universe "$UNIVERSE" --out-dir "$CH12_DIR" --bar-root "$RAW_5M_DIR" --bar-glob '*_5m_raw.csv' --baostock-5m-cache-dir "$RAW_5M_DIR" --as1455-daily-cache-dir "$AS1455_DAILY_DIR" --raw-daily-cache-dir "$RAW_DAILY_DIR" --start-date "$HISTORY_START_DATE" --end-date "$(end_date)" --daily-cache-only --allow-partial-coverage --baostock-fetch-limit "$BOOTSTRAP_BATCH_SIZE" --baostock-fetch-retries 3 --baostock-fetch-sleep "$BAOSTOCK_FETCH_SLEEP" --baostock-query-timeout 180 --qfq5m-audit-samples 0 --profile-memory || true
+    run "bootstrap_$p" "$PY" scripts/build_ashare_ch12_as1455_model_data.py --universe "$UNIVERSE" --out-dir "$CH12_DIR" --bar-root "$RAW_5M_DIR" --bar-glob '*_5m_raw.csv' --baostock-5m-cache-dir "$RAW_5M_DIR" --as1455-daily-cache-dir "$AS1455_DAILY_DIR" --raw-daily-cache-dir "$RAW_DAILY_DIR" --daily-cache-only --allow-partial-coverage --baostock-fetch-limit "$BOOTSTRAP_BATCH_SIZE" --baostock-fetch-retries 3 --baostock-fetch-sleep "$BAOSTOCK_FETCH_SLEEP" --baostock-query-timeout 180 --qfq5m-audit-samples 0 --profile-memory || true
   done
   [[ "$(count "$RAW_5M_DIR" '*_5m_raw.csv')" == 1000 ]] || fail "5m cache incomplete"
-  run history env PYTHON="$PY" TRADE_DATE="$TRADE_DATE" HISTORY_END_DATE="$(end_date)" HISTORY_START_DATE="$HISTORY_START_DATE" UNIVERSE="$UNIVERSE" RAW_5M_CACHE_DIR="$RAW_5M_DIR" RAW_DAILY_CACHE_DIR="$RAW_DAILY_DIR" AS1455_DAILY_CACHE_DIR="$AS1455_DAILY_DIR" bash scripts/run_as1455_live_data_feature_pipeline.sh history
+  run history env PYTHON="$PY" UNIVERSE="$UNIVERSE" RAW_5M_CACHE_DIR="$RAW_5M_DIR" RAW_DAILY_CACHE_DIR="$RAW_DAILY_DIR" AS1455_DAILY_CACHE_DIR="$AS1455_DAILY_DIR" bash scripts/run_as1455_live_data_feature_pipeline.sh history
   [[ "$(count "$RAW_DAILY_DIR" '*_daily_raw.csv')" == 1000 && "$(count "$AS1455_DAILY_DIR" '*_as1455_daily.csv')" == 1000 ]] || fail "daily cache incomplete"
-  run model_data env PYTHON="$PY" OUT_DIR="$CH12_DIR" BAR_CACHE_DIR="$RAW_5M_DIR" DAILY_CACHE_DIR="$AS1455_DAILY_DIR" bash scripts/build_ashare_ch12_as1455_lowmem.sh --universe "$UNIVERSE" --start-date "$HISTORY_START_DATE" --end-date "$(end_date)" --raw-daily-cache-dir "$RAW_DAILY_DIR" --no-fetch-missing-raw-daily --qfq5m-audit-samples 0
+  run model_data env PYTHON="$PY" OUT_DIR="$CH12_DIR" BAR_CACHE_DIR="$RAW_5M_DIR" DAILY_CACHE_DIR="$AS1455_DAILY_DIR" bash scripts/build_ashare_ch12_as1455_lowmem.sh --universe "$UNIVERSE" --raw-daily-cache-dir "$RAW_DAILY_DIR" --no-fetch-missing-raw-daily --qfq5m-audit-samples 0
   validate_model "$MODEL_DATA"
 }
 
@@ -100,7 +90,7 @@ print(target_spec(sys.argv[1]).rebalance_every)
 PY
 }
 forward(){
-  CURRENT_STAGE=forward; run forward_refresh env PYTHON_BIN="$PY" TRADE_DATE="$TRADE_DATE" HISTORY_END_DATE="$(end_date)" TIMEZONE="$TIMEZONE" UNIVERSE="$UNIVERSE" SOURCE_DIR="$CH12_DIR" FORWARD_MODEL_DIR="$FORWARD_DIR" RAW_5M_CACHE_DIR="$RAW_5M_DIR" RAW_DAILY_CACHE_DIR="$RAW_DAILY_DIR" AS1455_DAILY_CACHE_DIR="$AS1455_DAILY_DIR" MIN_FREE_GB="$MIN_FREE_GB" FORWARD_ARTIFACT_MODE=model_only FORWARD_REPORT_MODE=compact bash scripts/refresh_as1455_forward_model_data.sh; validate_model "$FORWARD_DATA"
+  CURRENT_STAGE=forward; run forward_refresh env PYTHON_BIN="$PY" UNIVERSE="$UNIVERSE" SOURCE_DIR="$CH12_DIR" FORWARD_MODEL_DIR="$FORWARD_DIR" RAW_5M_CACHE_DIR="$RAW_5M_DIR" RAW_DAILY_CACHE_DIR="$RAW_DAILY_DIR" AS1455_DAILY_CACHE_DIR="$AS1455_DAILY_DIR" MIN_FREE_GB="$MIN_FREE_GB" FORWARD_ARTIFACT_MODE=model_only FORWARD_REPORT_MODE=compact bash scripts/refresh_as1455_forward_model_data.sh; validate_model "$FORWARD_DATA"
   local t; for t in $TARGETS; do donep "forward_$t" && continue; run "forward_$t" env PYTHON_BIN="$PY" REFRESH_DATA=0 MODEL_DATA="$FORWARD_DATA" SOURCE_DIR="$CH12_DIR" RAW_DAILY_CACHE_DIR="$RAW_DAILY_DIR" TARGETS="$t" FEATURE_PRESETS="$FEATURE_PRESETS" MODEL_SELECTION_MODE=strict_oos SELECTION_RANK_METRIC=sharpe OUTPUT_MODE=compact RUN_STAMP="$RUN_STAMP" MIN_FREE_GB="$MIN_FREE_GB" bash scripts/run_as1455_fold0_forward_backtests.sh; finish "forward_$t"; done
 }
 
@@ -129,4 +119,5 @@ status(){ echo "run_stamp=$RUN_STAMP"; for s in preflight data selfcheck trainin
 case "$MODE" in
  all) run_stage preflight preflight; run_stage data data; run_stage selfcheck selfcheck; run_stage training training; run_stage historical historical; run_stage forward forward; run_stage plots plots; run_stage audit audit;;
  preflight|data|training|historical|forward|plots|audit) run_stage "$MODE" "$MODE";; selfcheck) run_stage selfcheck selfcheck;;
- *) echo 'Usage: ... all|status|preflight|data|selfcheck|training|historical|forward|plots|audit' >&2; exit 2;; esac
+ *) echo 'Usage: ... all|status|preflight|data|selfcheck|training|historical|forward|plots|audit' >&2; exit 2;;
+esac
