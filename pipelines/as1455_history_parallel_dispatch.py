@@ -44,6 +44,7 @@ from pipelines.as1455_update_history_to_prevday import (
 )
 
 _WORKER_BS = None
+_WORKER_NEED_BAOSTOCK = False
 _ORIGINAL_LAST_DATE = fast_v4.get_last_cached_date
 _ORIGINAL_READ_RANGE = fast_v4.read_5m_range
 
@@ -54,7 +55,10 @@ def _parse_cached_date(value: object, column: str) -> Optional[pd.Timestamp]:
         return None
     if column in {"trade_date", "time"}:
         digits = "".join(ch for ch in text if ch.isdigit())[:8]
-        ts = pd.to_datetime(digits, format="%Y%m%d", errors="coerce") if len(digits) == 8 else pd.NaT
+        if len(digits) == 8:
+            ts = pd.to_datetime(digits, format="%Y%m%d", errors="coerce")
+        else:
+            ts = pd.NaT
     else:
         ts = pd.to_datetime(text, errors="coerce")
     if pd.isna(ts):
@@ -115,7 +119,12 @@ def read_5m_range_tail(
     end_date: str,
     chunksize: int = 200_000,
 ) -> pd.DataFrame:
-    """Read recent 5m ranges from the file tail, with canonical fallback."""
+    """Tail-first equivalent of fast_v4.read_5m_range.
+
+    Recent incremental updates usually need only the final days. The read window
+    grows geometrically and falls back to the canonical full reader if parsing
+    cannot prove that the requested start date is covered.
+    """
     path = Path(path)
     if not path.exists() or path.stat().st_size == 0:
         return pd.DataFrame()
@@ -183,11 +192,11 @@ def _login_worker() -> None:
 
 
 def _worker_init(need_baostock: bool) -> None:
+    global _WORKER_NEED_BAOSTOCK
+    _WORKER_NEED_BAOSTOCK = need_baostock
     fast_v4.get_last_cached_date = get_last_cached_date_tail
     fast_v4.read_5m_range = read_5m_range_tail
-    if need_baostock:
-        _login_worker()
-        atexit.register(_logout_worker)
+    atexit.register(_logout_worker)
 
 
 def _error_row(symbol: str, history_end_dash: str, exc: Exception) -> dict[str, object]:
@@ -214,6 +223,8 @@ def _run_symbol(payload: tuple[int, str, dict[str, Any], str, int]) -> tuple[int
     last_row: dict[str, object] | None = None
     for attempt in range(1, retries + 2):
         try:
+            if _WORKER_NEED_BAOSTOCK and _WORKER_BS is None:
+                _login_worker()
             last_row = fast_v4.update_one_symbol_v4(
                 symbol,
                 args,
