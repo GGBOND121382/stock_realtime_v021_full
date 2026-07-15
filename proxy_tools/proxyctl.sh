@@ -81,7 +81,6 @@ proxyctl_git_on() {
         return 0
     }
 
-    # Replace stale or duplicate values left by older/manual configurations.
     git config --global --replace-all http.proxy "$HTTP_PROXY_URL"
     git config --global --replace-all https.proxy "$HTTPS_PROXY_URL"
     git config --global --replace-all http.version "$GIT_HTTP_VERSION"
@@ -103,7 +102,6 @@ proxyctl_git_off() {
     command -v git >/dev/null 2>&1 || return 0
     git config --global --unset-all http.proxy 2>/dev/null || true
     git config --global --unset-all https.proxy 2>/dev/null || true
-    # Keep HTTP/1.1 because it is generally more stable through this reverse tunnel.
 }
 
 proxyctl_port_check() {
