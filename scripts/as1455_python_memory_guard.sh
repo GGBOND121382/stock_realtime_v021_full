@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 REAL_PYTHON="${AS1455_REAL_PYTHON:?AS1455_REAL_PYTHON is required}"
-MIN_AVAILABLE_MEMORY_MB="${MIN_AVAILABLE_MEMORY_MB:-1024}"
+MIN_AVAILABLE_MEMORY_MB="${MIN_AVAILABLE_MEMORY_MB:-2048}"
 MEMORY_WAIT_ATTEMPTS="${MEMORY_WAIT_ATTEMPTS:-30}"
 MEMORY_WAIT_SECONDS="${MEMORY_WAIT_SECONDS:-10}"
 TRAIN_COOLDOWN_SECONDS="${TRAIN_COOLDOWN_SECONDS:-20}"
@@ -19,23 +19,19 @@ mem_available_mb() {
 }
 
 memory_snapshot() {
-  local label="$1"
-  local available swap_free
+  local label="$1" available swap_free
   available="$(mem_available_mb)"
   swap_free="$(awk '/^SwapFree:/ {printf "%d", $2 / 1024}' /proc/meminfo)"
-  printf '[MEMORY] %s MemAvailable=%sMB SwapFree=%sMB\n' \
-    "$label" "$available" "${swap_free:-0}"
+  printf '[MEMORY] %s MemAvailable=%sMB SwapFree=%sMB\n' "$label" "$available" "${swap_free:-0}"
   free -h || true
 }
 
 wait_for_memory() {
-  local label="$1"
-  local attempt available
+  local label="$1" attempt available
   for attempt in $(seq 1 "$MEMORY_WAIT_ATTEMPTS"); do
     available="$(mem_available_mb)"
     if (( available >= MIN_AVAILABLE_MEMORY_MB )); then
-      printf '[MEMORY] %s ready: MemAvailable=%sMB threshold=%sMB\n' \
-        "$label" "$available" "$MIN_AVAILABLE_MEMORY_MB"
+      printf '[MEMORY] %s ready: MemAvailable=%sMB threshold=%sMB\n' "$label" "$available" "$MIN_AVAILABLE_MEMORY_MB"
       return 0
     fi
     printf '[MEMORY] %s waiting: MemAvailable=%sMB threshold=%sMB attempt=%s/%s\n' \
@@ -50,20 +46,13 @@ wait_for_memory() {
 joined=" $* "
 heavy_kind=""
 cooldown_seconds=0
-
 case "$joined" in
   *" scripts/run_as1455_target_fold_param_search.py "*)
-    heavy_kind="training"
-    cooldown_seconds="$TRAIN_COOLDOWN_SECONDS"
-    ;;
+    heavy_kind="training"; cooldown_seconds="$TRAIN_COOLDOWN_SECONDS" ;;
   *" scripts/run_as1455_target_one_lag_backtest.py "*|*" scripts/run_as1455_fold0_forward_backtest.py "*|*" scripts/materialize_as1455_best_run.py "*)
-    heavy_kind="backtest"
-    cooldown_seconds="$BACKTEST_COOLDOWN_SECONDS"
-    ;;
+    heavy_kind="backtest"; cooldown_seconds="$BACKTEST_COOLDOWN_SECONDS" ;;
   *" pipelines/as1455_update_history_to_prevday_fast_v4.py "*|*" scripts/build_ashare_ch12_as1455_model_data.py "*)
-    heavy_kind="data"
-    cooldown_seconds="$DATA_COOLDOWN_SECONDS"
-    ;;
+    heavy_kind="data"; cooldown_seconds="$DATA_COOLDOWN_SECONDS" ;;
 esac
 
 if [[ -n "$heavy_kind" ]]; then
@@ -77,9 +66,6 @@ rc=$?
 set -e
 
 if [[ -n "$heavy_kind" ]]; then
-  # The heavy task ran in a separate process. Its private RSS, TensorFlow
-  # allocator and worker threads are gone at this point; do not drop Linux page
-  # cache. Pause and gate the next task on MemAvailable instead.
   memory_snapshot "$heavy_kind process-exited rc=$rc"
   if (( cooldown_seconds > 0 )); then
     printf '[MEMORY] %s cooldown=%ss\n' "$heavy_kind" "$cooldown_seconds"
