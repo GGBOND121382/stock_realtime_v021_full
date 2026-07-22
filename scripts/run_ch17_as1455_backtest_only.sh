@@ -10,158 +10,56 @@ if [[ -z "${PYTHON_BIN:-}" ]]; then
   fi
 fi
 
-SOURCE_DIR="${SOURCE_DIR:-saved_data/ashare_ml4t/ch12_as1455}"
-MODEL_DATA="${MODEL_DATA:-$SOURCE_DIR/model_data_as1455.h5}"
-FORWARD_MODEL_DIR="${FORWARD_MODEL_DIR:-saved_data/ashare_ml4t/ch12_as1455_forward_latest}"
-FORWARD_MODEL_DATA="${FORWARD_MODEL_DATA:-$FORWARD_MODEL_DIR/model_data_as1455.h5}"
-RAW_DAILY_CACHE_DIR="${RAW_DAILY_CACHE_DIR:-$SOURCE_DIR/baostock_raw_daily_cache}"
 FEATURE_PRESETS="${FEATURE_PRESETS:-rotation_onehot rotation_addon_onehot}"
 TARGETS="${TARGETS:-r01_fwd r05_fwd r21_fwd}"
-MIN_FREE_GB="${MIN_FREE_GB:-1}"
 RUN_STAMP="${RUN_STAMP:-$(date +%Y%m%d_%H%M%S)}"
 HIST_BASE="${HIST_BASE:-saved_data/ashare_ml4t/ch17_as1455_target_backtest}"
 FWD_BASE="${FWD_BASE:-saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest}"
-PLOT_DIR="${PLOT_DIR:-saved_data/ashare_ml4t/ch17_as1455_backtest_plots/backtest_only_$RUN_STAMP}"
-REPORT_DIR="${REPORT_DIR:-saved_data/ashare_ml4t/ch17_as1455_backtest_only/$RUN_STAMP}"
+PLOT_DIR="${PLOT_DIR:-saved_data/ashare_ml4t/ch17_as1455_backtest_plots/existing_results_${RUN_STAMP}}"
+REPORT_DIR="${REPORT_DIR:-saved_data/ashare_ml4t/ch17_as1455_existing_results/${RUN_STAMP}}"
+PAIR_JSON="$REPORT_DIR/existing_result_pairs.json"
+PAIR_TSV="$REPORT_DIR/existing_result_pairs.tsv"
+START_EPOCH="$(date +%s)"
 
-mkdir -p "$HIST_BASE" "$FWD_BASE" "$PLOT_DIR" "$REPORT_DIR"
-[[ -s "$MODEL_DATA" ]] || { echo "[ERROR] missing historical model_data: $MODEL_DATA" >&2; exit 1; }
-[[ -s "$FORWARD_MODEL_DATA" ]] || {
-  echo "[ERROR] missing existing forward model_data: $FORWARD_MODEL_DATA" >&2
-  echo "This backtest-only command will not refresh data or rebuild model_data." >&2
-  exit 1
-}
-[[ -d "$RAW_DAILY_CACHE_DIR" ]] || { echo "[ERROR] missing raw daily cache: $RAW_DAILY_CACHE_DIR" >&2; exit 1; }
+mkdir -p "$PLOT_DIR" "$REPORT_DIR"
 
-"$PYTHON_BIN" scripts/check_as1455_disk_space.py \
-  --path saved_data/ashare_ml4t \
-  --min-free-gb "$MIN_FREE_GB" \
-  --label existing-model-backtest-only
+echo "[MODE] existing results only"
+echo "[MODE] prediction=false backtest=false grid=false training=false data_refresh=false"
 
-"$PYTHON_BIN" - "$FEATURE_PRESETS" "$TARGETS" <<'PY'
-import sys
-from utils.as1455_ch17_common import default_fold_dir_template, fold_dir_from_template
-
-missing = []
-for target in sys.argv[2].split():
-    folds = range(7) if target in {"r01_fwd", "r05_fwd"} else range(6)
-    for preset in sys.argv[1].split():
-        for fold in folds:
-            root = fold_dir_from_template(default_fold_dir_template(preset, target), fold)
-            ok = (
-                (root / "search_best_checkpoints.csv").is_file()
-                and (root / "preprocess" / "scaler.pkl").is_file()
-                and (root / "preprocess" / "feature_manifest.json").is_file()
-                and any((root / "search_checkpoints").glob("*.keras"))
-            )
-            if not ok:
-                missing.append(str(root))
-if missing:
-    raise SystemExit("[ERROR] trained fold artifacts missing:\n" + "\n".join(missing))
-print("[OK] existing models found; training=false; model directories are read-only")
-PY
-
-before="$(du -sb "$HIST_BASE" "$FWD_BASE" "$PLOT_DIR" "$REPORT_DIR" 2>/dev/null | awk '{s+=$1} END{print s+0}')"
-
-echo "[MODE] existing-model backtest only"
-echo "[MODE] data_refresh=false model_data_rebuild=false training=false"
-
-for target in $TARGETS; do
-  case "$target" in
-    r01_fwd)
-      wrapper=scripts/run_as1455_target_natural_backtest.sh
-      target_folds=0,1,2,3,4,5
-      ;;
-    r05_fwd)
-      wrapper=scripts/run_as1455_r05_natural_backtest.sh
-      target_folds=0,1,2,3,4,5
-      ;;
-    r21_fwd)
-      wrapper=scripts/run_as1455_r21_natural_backtest.sh
-      target_folds=0,1,2,3,4
-      ;;
-    *)
-      echo "[ERROR] unsupported target=$target" >&2
-      exit 2
-      ;;
-  esac
-  env \
-    TARGET_FOLDS="$target_folds" \
-    PYTHON_BIN="$PYTHON_BIN" \
-    MODEL_DATA="$MODEL_DATA" \
-    RAW_DAILY_CACHE_DIR="$RAW_DAILY_CACHE_DIR" \
-    FEATURE_PRESETS="$FEATURE_PRESETS" \
-    TARGET_COL="$target" \
-    OUT_BASE="$HIST_BASE" \
-    OUTPUT_MODE=summary \
-    MATERIALIZE_BEST=1 \
-    MATERIALIZED_OUTPUT_MODE=compact \
-    RANK_METRIC=sharpe \
-    MIN_FREE_GB="$MIN_FREE_GB" \
-    RUN_STAMP="$RUN_STAMP" \
-    bash "$wrapper"
-done
-
-COMMON_START="$(
-  "$PYTHON_BIN" scripts/resolve_as1455_common_forward_start.py \
-    --model-data "$FORWARD_MODEL_DATA" \
-    --feature-presets "$FEATURE_PRESETS" \
-    --targets "$TARGETS"
-)"
-echo "[INFO] common forward start=$COMMON_START"
-
-env \
-  PYTHON_BIN="$PYTHON_BIN" \
-  REFRESH_DATA=0 \
-  MODEL_DATA="$FORWARD_MODEL_DATA" \
-  SOURCE_DIR="$SOURCE_DIR" \
-  RAW_DAILY_CACHE_DIR="$RAW_DAILY_CACHE_DIR" \
-  FEATURE_PRESETS="$FEATURE_PRESETS" \
-  TARGETS="$TARGETS" \
-  TARGET_BACKTEST_BASE="$HIST_BASE" \
-  OUT_BASE="$FWD_BASE" \
-  START_DATE="$COMMON_START" \
-  MODEL_SELECTION_MODE=strict_oos \
-  SELECTION_RANK_METRIC=sharpe \
-  OUTPUT_MODE=compact \
-  MIN_FREE_GB="$MIN_FREE_GB" \
-  RUN_STAMP="$RUN_STAMP" \
-  bash scripts/run_as1455_fold0_forward_backtests.sh
+"$PYTHON_BIN" scripts/resolve_as1455_existing_result_pairs.py \
+  --historical-base "$HIST_BASE" \
+  --forward-base "$FWD_BASE" \
+  --feature-presets "$FEATURE_PRESETS" \
+  --targets "$TARGETS" \
+  --json-out "$PAIR_JSON" \
+  --tsv-out "$PAIR_TSV"
 
 roots=""
 labels=""
+pair_count=0
 sequence_args=(
   "$PYTHON_BIN" scripts/plot_as1455_fold_sequence_curves.py
   --rank-metric sharpe
   --out-dir "$PLOT_DIR/fold_sequence"
 )
-for target in $TARGETS; do
-  rebalance_every="$("$PYTHON_BIN" - "$target" <<'PY'
-import sys
-from utils.as1455_ch17_common import target_spec
-print(target_spec(sys.argv[1]).rebalance_every)
-PY
-)"
-  for preset in $FEATURE_PRESETS; do
-    historical_root="$HIST_BASE/${preset}_${target}_reb${rebalance_every}_${RUN_STAMP}"
-    forward_root="$FWD_BASE/${preset}_${target}_reb${rebalance_every}_${RUN_STAMP}"
-    [[ -s "$historical_root/materialized_best_run.json" ]] || {
-      echo "[ERROR] missing historical result: $historical_root" >&2
-      exit 1
-    }
-    [[ -s "$forward_root/01_close_auction_grid/strict_oos_manifest.json" ]] || {
-      echo "[ERROR] missing forward result: $forward_root" >&2
-      exit 1
-    }
-    roots+="${roots:+,}$forward_root"
-    labels+="${labels:+,}${target}_${preset}"
-    sequence_args+=(
-      --historical-root "$historical_root"
-      --forward-root "$forward_root"
-      --label "${target}_${preset}"
-    )
-  done
-done
+
+while IFS=$'\t' read -r label historical_root forward_root; do
+  [[ -n "$label" && -n "$historical_root" && -n "$forward_root" ]] || continue
+  roots+="${roots:+,}$forward_root"
+  labels+="${labels:+,}$label"
+  sequence_args+=(
+    --historical-root "$historical_root"
+    --forward-root "$forward_root"
+    --label "$label"
+  )
+  pair_count=$((pair_count + 1))
+done < "$PAIR_TSV"
+
+expected_pairs=$(( $(wc -w <<<"$FEATURE_PRESETS") * $(wc -w <<<"$TARGETS") ))
+if [[ "$pair_count" -ne "$expected_pairs" ]]; then
+  echo "[ERROR] result pair count mismatch: expected=$expected_pairs actual=$pair_count" >&2
+  exit 1
+fi
 
 env \
   PYTHON_BIN="$PYTHON_BIN" \
@@ -173,39 +71,50 @@ env \
 
 "${sequence_args[@]}"
 
-after="$(du -sb "$HIST_BASE" "$FWD_BASE" "$PLOT_DIR" "$REPORT_DIR" 2>/dev/null | awk '{s+=$1} END{print s+0}')"
-delta=$((after - before))
-"$PYTHON_BIN" - "$RUN_STAMP" "$COMMON_START" "$PLOT_DIR" "$REPORT_DIR" "$delta" <<'PY'
+END_EPOCH="$(date +%s)"
+DURATION_SECONDS=$((END_EPOCH - START_EPOCH))
+"$PYTHON_BIN" - "$RUN_STAMP" "$PLOT_DIR" "$REPORT_DIR" "$PAIR_JSON" "$DURATION_SECONDS" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-stamp, start, plot_text, report_text, delta_text = sys.argv[1:]
+stamp, plot_text, report_text, pair_text, duration_text = sys.argv[1:]
 plot_dir = Path(plot_text)
 report_dir = Path(report_text)
-fold_pngs = list((plot_dir / "fold_sequence").glob("fold*/return_curve_*.png"))
-forward_ok = all(
-    (plot_dir / f"return_curve_{frequency}.png").is_file()
-    for frequency in ("daily", "weekly", "monthly")
-)
+pair_file = Path(pair_text)
+pairs = json.loads(pair_file.read_text(encoding="utf-8"))
+fold_pngs = sorted((plot_dir / "fold_sequence").glob("fold*/return_curve_*.png"))
+forward_pngs = [plot_dir / f"return_curve_{frequency}.png" for frequency in ("daily", "weekly", "monthly")]
 report = {
     "run_stamp": stamp,
-    "mode": "existing_models_backtest_only",
-    "data_refresh": False,
-    "model_data_rebuild": False,
+    "mode": "existing_results_plot_only",
+    "prediction": False,
+    "backtest": False,
+    "grid": False,
     "training": False,
-    "common_forward_start": start,
+    "data_refresh": False,
+    "pair_count": int(pairs.get("pair_count", 0)),
     "fold_plot_expected": 21,
     "fold_plot_ok": len(fold_pngs),
-    "forward_plot_ok": forward_ok,
-    "new_bytes_in_result_roots": max(0, int(delta_text)),
+    "forward_plot_expected": 3,
+    "forward_plot_ok": sum(path.is_file() for path in forward_pngs),
+    "duration_seconds": int(duration_text),
+    "pair_manifest": str(pair_file),
+    "plot_dir": str(plot_dir),
 }
-report["all_ok"] = report["fold_plot_ok"] == 21 and forward_ok
-(report_dir / "backtest_only_report.json").write_text(
+report["all_ok"] = (
+    report["pair_count"] == 6
+    and report["fold_plot_ok"] == report["fold_plot_expected"]
+    and report["forward_plot_ok"] == report["forward_plot_expected"]
+)
+(report_dir / "existing_results_report.json").write_text(
     json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8"
 )
 print(json.dumps(report, ensure_ascii=False, indent=2))
-assert report["all_ok"]
+if not report["all_ok"]:
+    raise SystemExit(1)
 PY
 
-echo "[PASS] backtest-only completed; plots=$PLOT_DIR"
+echo "[PASS] existing results plotted without prediction, backtest, grid, training, or data refresh"
+echo "[PASS] plots=$PLOT_DIR"
+echo "[PASS] report=$REPORT_DIR/existing_results_report.json"
