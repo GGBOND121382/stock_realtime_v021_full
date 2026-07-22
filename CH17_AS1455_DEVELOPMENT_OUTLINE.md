@@ -1648,3 +1648,64 @@ scripts/cleanup_as1455_storage.py
 scripts/run_as1455_cleanup_safe.py
 scripts/run_as1455_storage_maintenance.sh
 ```
+
+---
+
+## 19. 自动盯盘与单日组合计划
+
+clean 分支恢复了旧 `master` 中较成熟的 09:35/14:55 数据采集与快速基础特征闭包，但不恢复旧 `.weights.h5`、多 fold 均值部署、现场重建 scaler、paper state 自动推进或独立买卖循环。
+
+正式入口：
+
+```bash
+bash scripts/run_as1455_live_strict_oos_pipeline.sh check
+bash scripts/run_as1455_live_strict_oos_pipeline.sh pre
+POSITIONS_FILE=/secure/current_positions.csv \
+CASH_FILE=/secure/current_cash.txt \
+TARGET_COL=r05_fwd \
+FEATURE_PRESET=rotation_addon_onehot \
+bash scripts/run_as1455_live_strict_oos_pipeline.sh post
+```
+
+链路：
+
+```text
+T-1 缓存更新
+→ preclose/复权事件准备
+→ 盘前压缩状态与 raw-daily 执行日历
+→ <=14:55 实时快照
+→ 当天 31 个基础特征
+→ clean rotation/addon/one-hot
+→ fold0 .keras + 保存的 scaler
+→ 历史最佳完整 run
+→ 连续调仓相位
+→ 实际现金与持仓
+→ v7 单日模式
+→ planned_not_submitted 订单与目标组合
+```
+
+盯盘与历史回测共同调用：
+
+```text
+code/backtest/run_as1455_close_auction_backtest_v7_maxpos_grid.py::backtest
+```
+
+详细说明见：
+
+```text
+AS1455_LIVE_STRICT_OOS.md
+```
+
+### 盯盘核心文件
+
+```text
+scripts/run_as1455_live_strict_oos_pipeline.sh
+scripts/run_as1455_live_strict_oos_monitor.py
+pipelines/as1455_live_prepare.py
+data_collection/collect_as1455_live_quotes_as1455.py
+features/build_as1455_live_feature_state_fast.py
+features/finalize_as1455_live_features_fast.py
+tools/build_as1455_live_execution_sidecar_v1.py
+utils/as1455_live_inference.py
+tests/test_as1455_live_strict_oos_helpers.py
+```
