@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-
 TARGET_REBALANCE = {
     "r01_fwd": 1,
     "r05_fwd": 5,
@@ -65,6 +64,78 @@ def comparable_selection(payload: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def resolve_recorded_file(
+    *,
+    root: Path,
+    manifest: dict[str, Any],
+    manifest_key: str,
+    standard_names: tuple[str, ...],
+    label: str,
+) -> Path:
+    candidates: list[Path] = []
+    recorded = manifest.get(manifest_key)
+    if recorded:
+        path = Path(str(recorded)).expanduser()
+        candidates.append(path)
+        if not path.is_absolute():
+            candidates.extend((root / path, root / "00_predictions" / path.name))
+        else:
+            candidates.append(root / "00_predictions" / path.name)
+    candidates.extend(root / "00_predictions" / name for name in standard_names)
+
+    for path in candidates:
+        try:
+            resolved = path.resolve()
+        except OSError:
+            continue
+        if is_within(resolved, root) and resolved.is_file() and resolved.stat().st_size > 0:
+            return resolved
+
+    h5_matches = sorted(
+        path.resolve()
+        for pattern in ("*.h5", "*.hdf", "*.hdf5")
+        for path in (root / "00_predictions").glob(pattern)
+        if path.is_file() and path.stat().st_size > 0
+    )
+    if len(h5_matches) == 1:
+        return h5_matches[0]
+    raise RuntimeError(
+        f"cannot resolve {label} under {root}; candidates={candidates} matches={h5_matches}"
+    )
+
+
+def load_config(run_dir: Path, label: str) -> tuple[Path, dict[str, Any]]:
+    path = require_file(run_dir / "config.json", f"{label} config")
+    return path, read_json(path)
+
+
+def assert_config_matches_selection(
+    config: dict[str, Any],
+    selection: dict[str, Any],
+    *,
+    label: str,
+) -> None:
+    expected = comparable_selection(selection)
+    checks = {
+        "signal_name": config.get("signal_name"),
+        "signal_mode": config.get("signal_mode"),
+        "signal_cols": normalize_signal_cols(config.get("signal_cols")),
+        "historical_max_positions": config.get("max_positions"),
+        "historical_sell_rank": config.get("sell_rank"),
+        "historical_rebalance_every": config.get("rebalance_every"),
+        "historical_rebalance_offset": config.get("rebalance_offset"),
+    }
+    normalized = {
+        key: int(value) if key.startswith("historical_") and value is not None else value
+        for key, value in checks.items()
+    }
+    if normalized != expected:
+        raise RuntimeError(
+            f"{label} config does not match frozen selection:\n"
+            f"expected={expected}\nactual={normalized}"
+        )
+
+
 def historical_nav(root: Path, run_name: str) -> Path:
     candidates = (
         root / "01_close_auction_grid" / "01_runs" / run_name / "close_auction_nav.csv",
@@ -110,12 +181,23 @@ def validate_historical_root(
     if not run_name:
         raise RuntimeError(f"historical run_name missing: {materialized_path}")
     nav = historical_nav(root, run_name)
+    run_dir = nav.parent
+    config_path, config = load_config(run_dir, "historical")
+    assert_config_matches_selection(config, selection, label="historical")
 
     mapping_path = require_file(
         root / "00_predictions" / "one_lag_prediction_manifest.json",
         "one-lag prediction manifest",
     )
     mapping_payload = read_json(mapping_path)
+    prediction_file = resolve_recorded_file(
+        root=root,
+        manifest=mapping_payload,
+        manifest_key="prediction_file",
+        standard_names=("test_preds.h5", "one_lag_preds.h5"),
+        label="historical prediction HDF",
+    )
+
     fold_rows = mapping_payload.get("fold_mapping")
     if not isinstance(fold_rows, list):
         raise RuntimeError(f"fold_mapping missing: {mapping_path}")
@@ -130,23 +212,45 @@ def validate_historical_root(
             f"historical fold mapping mismatch: expected={sorted(expected_folds)} "
             f"actual={sorted(found_folds)} path={mapping_path}"
         )
+
+    normalized_rows: list[dict[str, Any]] = []
     for row in fold_rows:
         if not isinstance(row, dict):
             continue
         source_fold = int(row.get("source_fold", -1))
         if source_fold not in expected_folds:
             continue
-        start = row.get("target_fold_start") or row.get("target_validation_start") or row.get("target_test_start")
-        end = row.get("target_fold_end") or row.get("target_validation_end") or row.get("target_test_end")
+        start = (
+            row.get("target_fold_start")
+            or row.get("target_validation_start")
+            or row.get("target_test_start")
+        )
+        end = (
+            row.get("target_fold_end")
+            or row.get("target_validation_end")
+            or row.get("target_test_end")
+        )
         if not start or not end:
             raise RuntimeError(f"fold{source_fold} boundary missing: {mapping_path}")
+        normalized_rows.append(
+            {
+                **row,
+                "source_fold": source_fold,
+                "start": str(start),
+                "end": str(end),
+            }
+        )
 
     return {
         "root": str(root),
         "run_name": run_name,
         "nav_file": str(nav.resolve()),
+        "config_file": str(config_path.resolve()),
+        "config": config,
+        "prediction_file": str(prediction_file),
         "materialized_manifest": str(materialized_path.resolve()),
         "prediction_manifest": str(mapping_path.resolve()),
+        "fold_mapping": sorted(normalized_rows, key=lambda row: int(row["source_fold"])),
         "selection": comparable_selection(selection),
         "source_summary": materialized.get("source_summary"),
     }
@@ -209,19 +313,53 @@ def validate_forward_root(
     retained_run = str(strict.get("retained_run_name", "")).strip()
     if not retained_run:
         raise RuntimeError(f"retained_run_name missing: {strict_path}")
-    forward_nav = require_file(
-        root / "01_close_auction_grid" / "01_runs" / retained_run / "close_auction_nav.csv",
-        "forward NAV",
-    )
+    run_dir = root / "01_close_auction_grid" / "01_runs" / retained_run
+    forward_nav = require_file(run_dir / "close_auction_nav.csv", "forward NAV")
+    config_path, config = load_config(run_dir, "forward")
+
+    retained_config = strict.get("retained_config")
+    if not isinstance(retained_config, dict):
+        raise RuntimeError(f"retained_config missing: {strict_path}")
+    for key in ("max_positions", "sell_rank", "rebalance_every", "rebalance_offset"):
+        if int(config.get(key, -1)) != int(retained_config.get(key, -2)):
+            raise RuntimeError(
+                f"forward config mismatch for {key}: config={config.get(key)} "
+                f"strict={retained_config.get(key)}"
+            )
+    if str(config.get("signal_name")) != str(strict_selection.get("signal_name")):
+        raise RuntimeError("forward signal_name does not match historical selection")
+    if str(config.get("signal_mode")) != str(strict_selection.get("signal_mode")):
+        raise RuntimeError("forward signal_mode does not match historical selection")
+    if normalize_signal_cols(config.get("signal_cols")) != normalize_signal_cols(
+        strict_selection.get("signal_cols")
+    ):
+        raise RuntimeError("forward signal_cols do not match historical selection")
+
     summary = require_file(
         root / "01_close_auction_grid" / "02_summary" / "grid_summary_compact.csv",
         "forward compact summary",
+    )
+    prediction_manifest_path = require_file(
+        root / "00_predictions" / "fold0_forward_prediction_manifest.json",
+        "forward prediction manifest",
+    )
+    prediction_manifest = read_json(prediction_manifest_path)
+    prediction_file = resolve_recorded_file(
+        root=root,
+        manifest=prediction_manifest,
+        manifest_key="prediction_file",
+        standard_names=("fold0_forward_preds.h5",),
+        label="forward prediction HDF",
     )
 
     return {
         "root": str(root),
         "run_name": retained_run,
         "nav_file": str(forward_nav.resolve()),
+        "config_file": str(config_path.resolve()),
+        "config": config,
+        "prediction_file": str(prediction_file),
+        "prediction_manifest": str(prediction_manifest_path.resolve()),
         "strict_oos_manifest": str(strict_path.resolve()),
         "summary_file": str(summary.resolve()),
         "historical": historical,
@@ -317,7 +455,7 @@ def main() -> None:
     json_out.write_text(
         json.dumps(
             {
-                "mode": "existing_results_only",
+                "mode": "paired_frozen_results",
                 "pair_count": len(pairs),
                 "historical_base": str(historical_base),
                 "forward_base": str(forward_base),
