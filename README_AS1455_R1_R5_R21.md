@@ -1,54 +1,70 @@
 # AS1455 r1 / r5 / r21 运行指南
 
-## 本分支当前任务
-
-本分支的公开入口只读取已经完整生成的历史 NAV 与 strict-OOS forward NAV，并按原始 fold 边界重新绘图。
+## 默认任务：独立 Fold 单配置回测
 
 ```bash
-bash scripts/run_ch17_as1455_full_rebuild.sh existing-results
+bash scripts/run_ch17_as1455_full_rebuild.sh independent-folds
 ```
 
-兼容旧命令：
+兼容入口：
 
 ```bash
 bash scripts/run_ch17_as1455_full_rebuild.sh backtest-only
 ```
 
-两条命令执行相同的 existing-results 工作流。
+默认流程不会重新训练、生成预测或搜索交易参数。它读取已经完成的六组历史/strict-OOS 结果配对，取得冻结信号和完整交易配置，然后对每个 fold 从空仓和统一初始资金独立执行一次回测。
 
-## 明确不会执行
-
-该入口不会：
-
-- 生成模型预测；
-- 运行投资组合回测；
-- 运行交易参数 grid；
-- 训练或搜索模型；
-- 更新行情；
-- 重建 model_data；
-- materialize 新的最佳回测结果；
-- 修改 checkpoint、scaler 或训练目录。
-
-启动日志必须包含：
+启动日志：
 
 ```text
-[MODE] prediction=false backtest=false grid=false training=false data_refresh=false
+[MODE] independent folds with frozen configurations
+[MODE] prediction_generation=false grid=false training=false data_refresh=false
+[MODE] backtest=true initial_state=empty_positions_and_initial_cash
+[MODE] expected_backtests=40 initial_cash=200000
 ```
 
-## 输入结果配对
+## 40 次回测
 
-每个 strict-OOS forward 结果必须通过 `strict_oos_manifest.json` 反向指向它实际使用的历史回测目录。解析器同时校验：
+```text
+r01_fwd: fold1..fold6 × 2 preset = 12
+r05_fwd: fold1..fold6 × 2 preset = 12
+r21_fwd: fold1..fold5 × 2 preset = 10
+fold0: 3 target × 2 preset = 6
+总计 = 40
+```
 
-- `evaluation_mode=strict_oos`；
-- 历史交易参数和调仓相位均已冻结复用；
-- forward 只有一个保留配置；
-- 历史 `materialized_best_run.json` 与 forward 记录的选择完全一致；
-- 历史最佳 NAV 和 forward NAV 均存在；
-- one-lag fold mapping 完整且包含真实起止日期。
+每次只运行一组冻结配置，不运行 grid。
 
-更新但残缺的目录会被跳过。六组策略中任一组找不到严格配对时，程序会直接失败，不会自动补跑回测或 grid。
+## 冻结内容
 
-## Fold 范围
+从严格配对的既有结果读取：
+
+- `signal_name`、`signal_cols`、`signal_mode`；
+- `max_positions`、`sell_rank`、`rebalance_every`；
+- 手续费、印花税、过户费、滑点、100 股整数手；
+- 主板/ST/涨跌停/T+1/容量/公司行为配置；
+- 历史或 strict-OOS 已保留的 `rebalance_offset`。
+
+独立 fold 起点改变后，offset 按原连续 OOS 日历换算：
+
+```text
+effective_local_offset
+= (original_offset - skipped_overlap_dates) mod rebalance_every
+```
+
+## 数据配对
+
+解析器从完整 strict-OOS forward 结果反查其实际使用的历史回测，并要求：
+
+- 历史 `materialized_best_run.json` 完整；
+- 历史/forward NAV、预测 HDF 和 `config.json` 存在；
+- 历史最佳信号与 forward strict-OOS 信号一致；
+- forward 仅生成并保留一个冻结配置；
+- one-lag fold mapping 完整。
+
+新建但残缺的错误目录会被跳过；找不到六组完整配对时立即失败，不会补跑 grid。
+
+## Fold 公共日历
 
 ```text
 r01_fwd: fold0..fold6
@@ -56,21 +72,29 @@ r05_fwd: fold0..fold6
 r21_fwd: fold0..fold5
 ```
 
-历史 fold1..fold6 读取对应历史 NAV，并按照 `one_lag_prediction_manifest.json` 中的真实目标窗口切片和重新归一化。fold0 读取现有 strict-OOS forward NAV。每个 fold 使用该 fold 可用策略的公共真实日期区间。
+每个 fold 使用所有可用策略公共的预测/执行交易日。所有曲线在公共首日以 200000 元现金和空仓状态开始。
+
+fold6 只有 r01/r05 的两个 preset，共四条曲线；fold5..fold0 有六条曲线。
 
 ## 输出
 
 ```text
-saved_data/ashare_ml4t/ch17_as1455_backtest_plots/existing_results_<时间戳>/
-saved_data/ashare_ml4t/ch17_as1455_existing_results/<时间戳>/
+saved_data/ashare_ml4t/ch17_as1455_independent_folds/<时间戳>/
 ```
 
-生成：
+输出包含：
 
-- 3 张六策略 strict-OOS forward 对比图；
-- fold6..fold0 的日、周、月图，共 21 张；
+- `runs/fold*/<strategy>/`：40 组 compact 回测结果；
+- `plots/fold*/return_curve_{daily,weekly,monthly}.png`：21 张图；
 - 对应 CSV；
-- `existing_result_pairs.json`，记录每条曲线使用的历史和 forward 根目录、NAV、选择配置与 manifest；
-- `existing_results_report.json`，明确记录 prediction/backtest/grid/training/data_refresh 均为 false，并记录实际运行秒数。
+- 每次运行的 `independent_fold_run.json`；
+- `independent_fold_manifest.json`；
+- `independent_fold_report.json`。
 
-该流程只读取既有 CSV/JSON/NAV 并绘图，正常运行时间取决于结果文件规模，通常应为几分钟量级。
+## 只切旧 NAV 的兼容模式
+
+```bash
+bash scripts/run_ch17_as1455_full_rebuild.sh existing-results
+```
+
+该模式不做回测，只对既有连续 NAV 切片和绘图，与默认的独立 fold 实验口径不同。
