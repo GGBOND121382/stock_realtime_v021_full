@@ -1,119 +1,133 @@
-# Ch17 AS1455 现有模型回测与绘图
+# Ch17 AS1455 独立 Fold 回测与绘图
 
-本分支当前只用于复用服务器上已经完成的模型检索结果，重新运行历史回测、strict-OOS forward 回测，并生成 fold6 至 fold0 的收益曲线。
+本分支默认复用服务器上已经完成的模型预测、历史最优配置和 strict-OOS 结果，对 fold6 至 fold0 分别执行独立投资组合回测。
 
-## 安全边界
+## 默认入口
 
-公开入口不会执行以下操作：
-
-```text
-更新行情缓存
-重建 model_data
-重新训练或重新检索模型
-改名、删除或覆盖训练 fold 目录
+```bash
+bash scripts/run_ch17_as1455_full_rebuild.sh independent-folds
 ```
 
-以下模式已被主动禁止：
-
-```text
-all
-preflight
-data
-selfcheck
-training
-historical
-forward
-plots
-audit
-status
-```
-
-这是为了防止将单纯回测误执行成完整重建。
-
-## 唯一入口
+兼容命令：
 
 ```bash
 bash scripts/run_ch17_as1455_full_rebuild.sh backtest-only
-```
-
-也可以直接调用：
-
-```bash
 bash scripts/run_ch17_as1455_backtest_only.sh
 ```
 
-默认最低磁盘余量为 1 GiB：
+## 回测口径
 
-```bash
-MIN_FREE_GB=1 \
-  bash scripts/run_ch17_as1455_full_rebuild.sh backtest-only
+每个 fold、每个策略均：
+
+```text
+统一初始资金 200000
++ 空仓启动
++ 冻结既有 signal_name / signal_cols / signal_mode
++ 冻结既有 max_positions / sell_rank / rebalance_every
++ 复用既有完整执行配置
++ 按独立 fold 起点换算 rebalance_offset
+```
+
+调仓相位换算为：
+
+```text
+effective_local_offset
+= (original_offset - skipped_overlap_dates) mod rebalance_every
+```
+
+因此每个 fold 虽然重新从空仓开始，但不会把既有调仓相位擅自重置为 0。
+
+## 运行数量
+
+```text
+r01_fwd: 6 个历史 fold × 2 个 preset = 12
+r05_fwd: 6 个历史 fold × 2 个 preset = 12
+r21_fwd: 5 个历史 fold × 2 个 preset = 10
+fold0 strict-OOS: 3 个 target × 2 个 preset = 6
+总计：40 次单配置回测
+```
+
+这些不是 grid。每次只执行已经冻结的一组配置。
+
+## 明确不会执行
+
+```text
+重新训练模型
+重新生成预测
+交易参数 grid
+更新行情缓存
+重建 model_data
+覆盖 checkpoint / scaler / 训练目录
+```
+
+启动日志必须包含：
+
+```text
+prediction_generation=false
+grid=false
+training=false
+data_refresh=false
+backtest=true
+initial_state=empty_positions_and_initial_cash
+expected_backtests=40
 ```
 
 ## 输入
 
-脚本只读以下现有数据和模型：
-
-```text
-saved_data/ashare_ml4t/ch12_as1455/model_data_as1455.h5
-saved_data/ashare_ml4t/ch12_as1455_forward_latest/model_data_as1455.h5
-saved_data/ashare_ml4t/ch12_as1455/baostock_raw_daily_cache/
-现有 fold0..fold6 / fold0..fold5 checkpoint、scaler 和 manifest
-```
-
-其中：
-
-- `r01_fwd`、`r05_fwd` 使用已有 fold0..fold6；
-- `r21_fwd` 使用已有 fold0..fold5；
-- 脚本只检查这些产物是否存在，不修改训练目录；
-- forward model_data 不存在时直接失败，不会自动重建。
-
-## 执行内容
-
-```text
-读取现有 checkpoint
-→ one-fold-lag 历史预测和回测
-→ 从历史回测中选择完整最佳交易配置
-→ 六组 fold0 strict-OOS forward 回测
-→ 将六组 forward 起点统一到共同 fold0 边界后的首个可用交易日
-→ 绘制 fold6、fold5、...、fold0 日/周/月收益曲线
-```
-
-历史映射保持原协议：
-
-```text
-source fold6 -> target fold5   # r1/r5 可用
-source fold5 -> target fold4
-...
-source fold1 -> target fold0
-```
-
-`r21_fwd` 没有 source fold6，因此 fold6 图只包含 r1/r5 的 A/B 四条曲线；fold5 至 fold0 包含所有可用策略。
-
-## 输出
-
-每次运行使用独立时间戳。主要目录：
+主要只读输入：
 
 ```text
 saved_data/ashare_ml4t/ch17_as1455_target_backtest/
 saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest/
-saved_data/ashare_ml4t/ch17_as1455_backtest_plots/backtest_only_<timestamp>/
-saved_data/ashare_ml4t/ch17_as1455_backtest_only/<timestamp>/backtest_only_report.json
+saved_data/ashare_ml4t/ch12_as1455/baostock_raw_daily_cache/
 ```
 
-分 fold 图共 21 张：
+解析器从完整 strict-OOS forward 结果反查其实际使用的历史结果，并校验：
+
+- 历史 `materialized_best_run.json`；
+- 历史和 forward 的 `config.json`；
+- 历史和 forward 预测 HDF；
+- 历史最佳信号和交易配置一致性；
+- one-lag fold mapping 完整性；
+- strict-OOS 仅保留一个配置。
+
+更新但残缺的目录会被跳过；任一策略缺少完整配对时直接失败，不会补跑 grid。
+
+## Fold 范围
 
 ```text
-fold_sequence/fold6/return_curve_{daily,weekly,monthly}.png
-...
-fold_sequence/fold0/return_curve_{daily,weekly,monthly}.png
+r01_fwd: fold0..fold6
+r05_fwd: fold0..fold6
+r21_fwd: fold0..fold5
 ```
 
-报告明确记录：
+fold6 没有 r21，因此包含 r01/r05 两个 preset 的四条曲线；fold5 至 fold0 包含六条可比曲线。
+
+每个 fold 使用所有可用策略的公共可执行交易日集合，并在同一天以相同初始资金和空仓状态启动。
+
+## 输出
 
 ```text
-data_refresh = false
-model_data_rebuild = false
-training = false
-fold_plot_expected = 21
-new_bytes_in_result_roots = 本次结果目录实际新增字节数
+saved_data/ashare_ml4t/ch17_as1455_independent_folds/<timestamp>/
 ```
+
+包括：
+
+- 40 组 compact 单配置回测结果；
+- fold6..fold0 的日、周、月图，共 21 张；
+- 每张图对应 CSV；
+- 每次回测的来源、配置、相位换算和容量检查清单；
+- `independent_fold_manifest.json`；
+- `independent_fold_report.json`。
+
+默认磁盘余量检查为 1 GiB。
+
+## 旧的连续 NAV 切片模式
+
+只读取已有连续 NAV、按 fold 边界裁剪而不重新回测：
+
+```bash
+bash scripts/run_ch17_as1455_full_rebuild.sh existing-results
+```
+
+该模式与默认独立 fold 回测是不同实验口径，不再作为 `backtest-only` 的默认行为。
