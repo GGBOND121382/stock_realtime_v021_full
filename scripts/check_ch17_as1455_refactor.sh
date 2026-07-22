@@ -36,6 +36,7 @@ echo '===== Python syntax ====='
   scripts/resolve_as1455_common_forward_start.py \
   scripts/resolve_as1455_existing_result_pairs.py \
   scripts/run_as1455_independent_fold_backtests.py \
+  scripts/run_as1455_r05_addon_fold_comparison.py \
   scripts/check_ch17_as1455_refactor.py \
   scripts/check_as1455_historical_model_selection.py \
   scripts/check_as1455_storage_oos_fixes.py \
@@ -59,6 +60,7 @@ for script in \
   scripts/run_ch17_as1455_full_rebuild.sh \
   scripts/run_ch17_as1455_backtest_only.sh \
   scripts/run_ch17_as1455_existing_results.sh \
+  scripts/run_as1455_r05_addon_fold_comparison.sh \
   scripts/as1455_python_memory_guard.sh \
   scripts/run_as1455_target_search_all.sh \
   scripts/run_as1455_r05_target_search_all.sh \
@@ -90,6 +92,7 @@ grep -F 'expected_backtests=40' scripts/run_ch17_as1455_backtest_only.sh >/dev/n
 grep -F 'scripts/run_as1455_independent_fold_backtests.py' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
 grep -F 'initial_state=empty_positions_and_initial_cash' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
 grep -F 'independent-folds|backtest|backtest-only' scripts/run_ch17_as1455_full_rebuild.sh >/dev/null
+grep -F 'r05-addon-comparison|r05-addon-folds' scripts/run_ch17_as1455_full_rebuild.sh >/dev/null
 grep -F 'existing-results|plots' scripts/run_ch17_as1455_full_rebuild.sh >/dev/null
 
 if grep -E 'run_as1455_target_natural_backtest|run_as1455_r05_natural_backtest|run_as1455_r21_natural_backtest|run_as1455_fold0_forward_backtests|run_as1455_close_auction_grid|materialize_as1455_best_run|MODEL_DATA=|REFRESH_DATA=' scripts/run_ch17_as1455_backtest_only.sh >/dev/null; then
@@ -105,6 +108,20 @@ grep -F 'for fold in range(6, -1, -1)' scripts/run_as1455_independent_fold_backt
 grep -F 'expected_backtests = 40' scripts/run_as1455_independent_fold_backtests.py >/dev/null
 grep -F 'empty_positions_and_initial_cash' scripts/run_as1455_independent_fold_backtests.py >/dev/null
 grep -F '(original - skipped) % every' scripts/run_as1455_independent_fold_backtests.py >/dev/null
+
+grep -F '[MODE] r05_fwd rotation_addon_onehot fold comparison' scripts/run_as1455_r05_addon_fold_comparison.sh >/dev/null
+grep -F 'independent_backtests=6 continuous_cross_fold=reuse_materialized' scripts/run_as1455_r05_addon_fold_comparison.sh >/dev/null
+grep -F -- '--feature-presets rotation_addon_onehot' scripts/run_as1455_r05_addon_fold_comparison.sh >/dev/null
+grep -F -- '--targets r05_fwd' scripts/run_as1455_r05_addon_fold_comparison.sh >/dev/null
+grep -F 'EXPECTED_TARGET_FOLDS = tuple(range(5, -1, -1))' scripts/run_as1455_r05_addon_fold_comparison.py >/dev/null
+grep -F 'continuous_result_source": "reused_authoritative_materialized_run"' scripts/run_as1455_r05_addon_fold_comparison.py >/dev/null
+grep -F 'trading_gap_days != 0' scripts/run_as1455_r05_addon_fold_comparison.py >/dev/null
+grep -F 'helpers.write_independent_run(' scripts/run_as1455_r05_addon_fold_comparison.py >/dev/null
+grep -F 'result = bt.backtest(' scripts/run_as1455_r05_addon_fold_comparison.py >/dev/null
+if grep -E 'run_as1455_target_natural_backtest|run_as1455_fold0_forward_backtests|run_as1455_close_auction_grid|build_grid_command|grid_runner|force-grid|--force|materialize_as1455_best_run' scripts/run_as1455_r05_addon_fold_comparison.sh scripts/run_as1455_r05_addon_fold_comparison.py >/dev/null; then
+  echo '[ERROR] r05 addon comparison references grid/training/prediction/materialization orchestration' >&2
+  exit 1
+fi
 
 grep -F '[MODE] existing results only' scripts/run_ch17_as1455_existing_results.sh >/dev/null
 grep -F 'prediction=false backtest=false grid=false training=false data_refresh=false' scripts/run_ch17_as1455_existing_results.sh >/dev/null
@@ -125,6 +142,7 @@ grep -F 'PRUNE_GRID_RUNS="${PRUNE_GRID_RUNS:-0}"' scripts/run_as1455_storage_mai
 grep -F 'SHARE_FILE="$OUT_DIR/share_me.txt"' scripts/run_as1455_storage_maintenance.sh >/dev/null
 grep -F 'scripts/run_as1455_cleanup_safe.py' scripts/run_as1455_storage_maintenance.sh >/dev/null
 echo '[OK] independent folds use frozen configurations, empty initial state, translated phase and no parameter grid'
+echo '[OK] r05 addon comparison runs six independent folds and reuses one authoritative continuous result'
 
 echo '===== Historical model-selection synthetic check ====='
 "$PYTHON_BIN" scripts/check_as1455_historical_model_selection.py
@@ -153,6 +171,7 @@ echo '===== CLI imports ====='
 "$PYTHON_BIN" scripts/resolve_as1455_common_forward_start.py --help >/dev/null
 "$PYTHON_BIN" scripts/resolve_as1455_existing_result_pairs.py --help >/dev/null
 "$PYTHON_BIN" scripts/run_as1455_independent_fold_backtests.py --help >/dev/null
+"$PYTHON_BIN" scripts/run_as1455_r05_addon_fold_comparison.py --help >/dev/null
 "$PYTHON_BIN" scripts/compare_as1455_backtest_runs.py --help >/dev/null
 "$PYTHON_BIN" scripts/check_as1455_disk_space.py --help >/dev/null
 "$PYTHON_BIN" scripts/cleanup_as1455_storage.py --help >/dev/null
