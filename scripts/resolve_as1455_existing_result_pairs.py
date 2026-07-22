@@ -60,6 +60,14 @@ def comparable_selection(payload: dict[str, Any]) -> dict[str, Any]:
         "historical_rebalance_offset",
     )
     result = {key: payload.get(key) for key in keys}
+    for key in (
+        "historical_max_positions",
+        "historical_sell_rank",
+        "historical_rebalance_every",
+        "historical_rebalance_offset",
+    ):
+        if result[key] is not None:
+            result[key] = int(result[key])
     result["signal_cols"] = normalize_signal_cols(payload.get("signal_cols"))
     return result
 
@@ -129,10 +137,11 @@ def assert_config_matches_selection(
         key: int(value) if key.startswith("historical_") and value is not None else value
         for key, value in checks.items()
     }
-    if normalized != expected:
+    expected_config = {key: value for key, value in expected.items() if key != "run_name"}
+    if normalized != expected_config:
         raise RuntimeError(
             f"{label} config does not match frozen selection:\n"
-            f"expected={expected}\nactual={normalized}"
+            f"expected={expected_config}\nactual={normalized}"
         )
 
 
