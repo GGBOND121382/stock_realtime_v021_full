@@ -35,6 +35,7 @@ echo '===== Python syntax ====='
   scripts/plot_as1455_fold_sequence_curves.py \
   scripts/resolve_as1455_common_forward_start.py \
   scripts/resolve_as1455_existing_result_pairs.py \
+  scripts/run_as1455_independent_fold_backtests.py \
   scripts/check_ch17_as1455_refactor.py \
   scripts/check_as1455_historical_model_selection.py \
   scripts/check_as1455_storage_oos_fixes.py \
@@ -57,6 +58,7 @@ for script in \
   scripts/build_ashare_ch12_as1455_lowmem.sh \
   scripts/run_ch17_as1455_full_rebuild.sh \
   scripts/run_ch17_as1455_backtest_only.sh \
+  scripts/run_ch17_as1455_existing_results.sh \
   scripts/as1455_python_memory_guard.sh \
   scripts/run_as1455_target_search_all.sh \
   scripts/run_as1455_r05_target_search_all.sh \
@@ -81,26 +83,48 @@ grep -F 'scripts/run_as1455_target_fold_param_search.py' scripts/run_as1455_targ
 grep -F 'scripts/run_as1455_target_one_lag_backtest.py' scripts/run_as1455_target_natural_backtest.sh >/dev/null
 grep -F 'DEFAULT_FOLDS="0 1 2 3 4 5"' scripts/run_as1455_target_search_all.sh >/dev/null
 grep -F 'DEFAULT_TARGET_FOLDS="0,1,2,3,4"' scripts/run_as1455_target_natural_backtest.sh >/dev/null
-grep -F '[MODE] existing results only' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
-grep -F 'prediction=false backtest=false grid=false training=false data_refresh=false' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
-grep -F 'scripts/resolve_as1455_existing_result_pairs.py' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
-grep -F 'existing_results_plot_only' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
-grep -F 'exec bash scripts/run_ch17_as1455_backtest_only.sh' scripts/run_ch17_as1455_full_rebuild.sh >/dev/null
+
+grep -F '[MODE] independent folds with frozen configurations' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
+grep -F 'prediction_generation=false grid=false training=false data_refresh=false' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
+grep -F 'expected_backtests=40' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
+grep -F 'scripts/run_as1455_independent_fold_backtests.py' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
+grep -F 'initial_state=empty_positions_and_initial_cash' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
+grep -F 'independent-folds|backtest|backtest-only' scripts/run_ch17_as1455_full_rebuild.sh >/dev/null
+grep -F 'existing-results|plots' scripts/run_ch17_as1455_full_rebuild.sh >/dev/null
+
 if grep -E 'run_as1455_target_natural_backtest|run_as1455_r05_natural_backtest|run_as1455_r21_natural_backtest|run_as1455_fold0_forward_backtests|run_as1455_close_auction_grid|materialize_as1455_best_run|MODEL_DATA=|REFRESH_DATA=' scripts/run_ch17_as1455_backtest_only.sh >/dev/null; then
-  echo '[ERROR] existing-results entry references prediction/backtest/grid/materialization inputs' >&2
+  echo '[ERROR] independent-fold entry references training/prediction/grid/materialization workflow' >&2
   exit 1
 fi
+if grep -E 'build_grid_command|grid_runner|force-grid|--force' scripts/run_as1455_independent_fold_backtests.py >/dev/null; then
+  echo '[ERROR] independent-fold runner references grid orchestration' >&2
+  exit 1
+fi
+grep -F 'bt.backtest(' scripts/run_as1455_independent_fold_backtests.py >/dev/null
+grep -F 'for fold in range(6, -1, -1)' scripts/run_as1455_independent_fold_backtests.py >/dev/null
+grep -F 'expected_backtests = 40' scripts/run_as1455_independent_fold_backtests.py >/dev/null
+grep -F 'empty_positions_and_initial_cash' scripts/run_as1455_independent_fold_backtests.py >/dev/null
+grep -F '(original - skipped) % every' scripts/run_as1455_independent_fold_backtests.py >/dev/null
+
+grep -F '[MODE] existing results only' scripts/run_ch17_as1455_existing_results.sh >/dev/null
+grep -F 'prediction=false backtest=false grid=false training=false data_refresh=false' scripts/run_ch17_as1455_existing_results.sh >/dev/null
+if grep -E 'run_as1455_independent_fold_backtests|run_as1455_target_natural_backtest|run_as1455_fold0_forward_backtests|run_as1455_close_auction_grid' scripts/run_ch17_as1455_existing_results.sh >/dev/null; then
+  echo '[ERROR] existing-results plot-only entry references a backtest path' >&2
+  exit 1
+fi
+
 if grep -F 'run_ch17_as1455_full_rebuild_aligned.sh' scripts/run_ch17_as1455_full_rebuild.sh >/dev/null; then
   echo '[ERROR] public entry still references aligned rebuild' >&2
   exit 1
 fi
+
 grep -F 'RANK_METRIC="${RANK_METRIC:-sharpe}"' scripts/plot_as1455_default_ab_nav_curves.sh >/dev/null
 grep -F 'APPLY="${APPLY:-0}"' scripts/run_as1455_storage_maintenance.sh >/dev/null
 grep -F 'INCLUDE_OBSOLETE="${INCLUDE_OBSOLETE:-0}"' scripts/run_as1455_storage_maintenance.sh >/dev/null
 grep -F 'PRUNE_GRID_RUNS="${PRUNE_GRID_RUNS:-0}"' scripts/run_as1455_storage_maintenance.sh >/dev/null
 grep -F 'SHARE_FILE="$OUT_DIR/share_me.txt"' scripts/run_as1455_storage_maintenance.sh >/dev/null
 grep -F 'scripts/run_as1455_cleanup_safe.py' scripts/run_as1455_storage_maintenance.sh >/dev/null
-echo '[OK] existing-results plotting is isolated from prediction, backtest, grid, training, data rebuild and materialization'
+echo '[OK] independent folds use frozen configurations, empty initial state, translated phase and no parameter grid'
 
 echo '===== Historical model-selection synthetic check ====='
 "$PYTHON_BIN" scripts/check_as1455_historical_model_selection.py
@@ -128,6 +152,7 @@ echo '===== CLI imports ====='
 "$PYTHON_BIN" scripts/plot_as1455_fold_sequence_curves.py --help >/dev/null
 "$PYTHON_BIN" scripts/resolve_as1455_common_forward_start.py --help >/dev/null
 "$PYTHON_BIN" scripts/resolve_as1455_existing_result_pairs.py --help >/dev/null
+"$PYTHON_BIN" scripts/run_as1455_independent_fold_backtests.py --help >/dev/null
 "$PYTHON_BIN" scripts/compare_as1455_backtest_runs.py --help >/dev/null
 "$PYTHON_BIN" scripts/check_as1455_disk_space.py --help >/dev/null
 "$PYTHON_BIN" scripts/cleanup_as1455_storage.py --help >/dev/null
