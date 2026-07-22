@@ -11,7 +11,6 @@ echo '===== Python syntax ====='
   pipelines/as1455_update_history_to_prevday_fast_v4.py \
   utils/as1455_paths.py \
   utils/as1455_ch17_common.py \
-  utils/as1455_fold_calendar.py \
   utils/as1455_forward_features.py \
   utils/as1455_rebalance_phase.py \
   utils/as1455_strict_oos.py \
@@ -28,15 +27,13 @@ echo '===== Python syntax ====='
   scripts/run_as1455_sector_rotation_fold0_param_search.py \
   scripts/run_as1455_first_batch_features_fold0_param_search.py \
   scripts/run_as1455_target_fold_param_search.py \
-  scripts/run_as1455_target_fold_param_search_aligned.py \
   scripts/run_as1455_target_one_lag_backtest.py \
-  scripts/run_as1455_target_one_lag_backtest_aligned.py \
   scripts/run_as1455_fold0_forward_backtest.py \
   scripts/run_as1455_rotation_one_lag_daily_backtest.py \
   scripts/run_as1455_rotation_addon_one_lag_daily_backtest.py \
   scripts/plot_as1455_backtest_return_curves.py \
   scripts/plot_as1455_fold_sequence_curves.py \
-  scripts/check_as1455_aligned_fold_calendar.py \
+  scripts/resolve_as1455_common_forward_start.py \
   scripts/check_ch17_as1455_refactor.py \
   scripts/check_as1455_historical_model_selection.py \
   scripts/check_as1455_storage_oos_fixes.py \
@@ -58,7 +55,7 @@ for script in \
   scripts/run_as1455_live_data_feature_pipeline.sh \
   scripts/build_ashare_ch12_as1455_lowmem.sh \
   scripts/run_ch17_as1455_full_rebuild.sh \
-  scripts/run_ch17_as1455_full_rebuild_aligned.sh \
+  scripts/run_ch17_as1455_backtest_only.sh \
   scripts/as1455_python_memory_guard.sh \
   scripts/run_as1455_target_search_all.sh \
   scripts/run_as1455_r05_target_search_all.sh \
@@ -79,22 +76,26 @@ echo '===== Default protocol policy ====='
 grep -F 'MODEL_SELECTION_MODE="${MODEL_SELECTION_MODE:-strict_oos}"' scripts/run_as1455_fold0_forward_backtests.sh >/dev/null
 grep -F 'SELECTION_RANK_METRIC="${SELECTION_RANK_METRIC:-sharpe}"' scripts/run_as1455_fold0_forward_backtests.sh >/dev/null
 grep -F 'OUTPUT_MODE="${OUTPUT_MODE:-summary}"' scripts/run_as1455_target_natural_backtest.sh >/dev/null
-grep -F 'scripts/run_as1455_target_fold_param_search_aligned.py' scripts/run_as1455_target_search_all.sh >/dev/null
-grep -F 'scripts/run_as1455_target_one_lag_backtest_aligned.py' scripts/run_as1455_target_natural_backtest.sh >/dev/null
-grep -F 'DEFAULT_FOLDS="0 1 2 3 4 5 6"' scripts/run_as1455_target_search_all.sh >/dev/null
-grep -F 'DEFAULT_TARGET_FOLDS="0,1,2,3,4,5"' scripts/run_as1455_target_natural_backtest.sh >/dev/null
-grep -F 'FORWARD_ARTIFACT_MODE="${FORWARD_ARTIFACT_MODE:-model_only}"' scripts/refresh_as1455_forward_model_data.sh >/dev/null
+grep -F 'scripts/run_as1455_target_fold_param_search.py' scripts/run_as1455_target_search_all.sh >/dev/null
+grep -F 'scripts/run_as1455_target_one_lag_backtest.py' scripts/run_as1455_target_natural_backtest.sh >/dev/null
+grep -F 'DEFAULT_FOLDS="0 1 2 3 4 5"' scripts/run_as1455_target_search_all.sh >/dev/null
+grep -F 'DEFAULT_TARGET_FOLDS="0,1,2,3,4"' scripts/run_as1455_target_natural_backtest.sh >/dev/null
+grep -F 'MIN_FREE_GB="${MIN_FREE_GB:-1}"' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
+grep -F 'REFRESH_DATA=0' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
+grep -F 'training=false' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
+grep -F 'FORWARD_MODEL_DATA=' scripts/run_ch17_as1455_backtest_only.sh >/dev/null
+grep -F 'exec bash scripts/run_ch17_as1455_backtest_only.sh' scripts/run_ch17_as1455_full_rebuild.sh >/dev/null
+if grep -F 'run_ch17_as1455_full_rebuild_aligned.sh' scripts/run_ch17_as1455_full_rebuild.sh >/dev/null; then
+  echo '[ERROR] public entry still references aligned rebuild' >&2
+  exit 1
+fi
 grep -F 'RANK_METRIC="${RANK_METRIC:-sharpe}"' scripts/plot_as1455_default_ab_nav_curves.sh >/dev/null
-grep -F 'plot_as1455_fold_sequence_curves.py' scripts/run_ch17_as1455_full_rebuild_aligned.sh >/dev/null
 grep -F 'APPLY="${APPLY:-0}"' scripts/run_as1455_storage_maintenance.sh >/dev/null
 grep -F 'INCLUDE_OBSOLETE="${INCLUDE_OBSOLETE:-0}"' scripts/run_as1455_storage_maintenance.sh >/dev/null
 grep -F 'PRUNE_GRID_RUNS="${PRUNE_GRID_RUNS:-0}"' scripts/run_as1455_storage_maintenance.sh >/dev/null
 grep -F 'SHARE_FILE="$OUT_DIR/share_me.txt"' scripts/run_as1455_storage_maintenance.sh >/dev/null
 grep -F 'scripts/run_as1455_cleanup_safe.py' scripts/run_as1455_storage_maintenance.sh >/dev/null
-echo '[OK] aligned folds, strict OOS, summary-first grid, model-only artifacts, conservative storage maintenance and Sharpe selection are defaults'
-
-echo '===== Aligned fold-calendar synthetic check ====='
-"$PYTHON_BIN" scripts/check_as1455_aligned_fold_calendar.py
+echo '[OK] existing-model backtest-only, original folds, strict OOS, summary-first grid and conservative storage defaults'
 
 echo '===== Historical model-selection synthetic check ====='
 "$PYTHON_BIN" scripts/check_as1455_historical_model_selection.py
@@ -114,14 +115,13 @@ echo '===== Structural and synthetic checks ====='
 echo '===== CLI imports ====='
 "$PYTHON_BIN" scripts/build_ashare_ch12_as1455_model_data.py --help >/dev/null
 "$PYTHON_BIN" scripts/run_as1455_target_fold_param_search.py --help >/dev/null
-"$PYTHON_BIN" scripts/run_as1455_target_fold_param_search_aligned.py --help >/dev/null
 "$PYTHON_BIN" scripts/run_as1455_target_one_lag_backtest.py --help >/dev/null
-"$PYTHON_BIN" scripts/run_as1455_target_one_lag_backtest_aligned.py --help >/dev/null
 "$PYTHON_BIN" scripts/run_as1455_fold0_forward_backtest.py --help >/dev/null
 "$PYTHON_BIN" scripts/run_as1455_rotation_one_lag_daily_backtest.py --help >/dev/null
 "$PYTHON_BIN" scripts/run_as1455_rotation_addon_one_lag_daily_backtest.py --help >/dev/null
 "$PYTHON_BIN" scripts/plot_as1455_backtest_return_curves.py --help >/dev/null
 "$PYTHON_BIN" scripts/plot_as1455_fold_sequence_curves.py --help >/dev/null
+"$PYTHON_BIN" scripts/resolve_as1455_common_forward_start.py --help >/dev/null
 "$PYTHON_BIN" scripts/compare_as1455_backtest_runs.py --help >/dev/null
 "$PYTHON_BIN" scripts/check_as1455_disk_space.py --help >/dev/null
 "$PYTHON_BIN" scripts/cleanup_as1455_storage.py --help >/dev/null
