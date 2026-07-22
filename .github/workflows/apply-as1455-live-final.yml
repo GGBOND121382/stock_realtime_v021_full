@@ -1,0 +1,42 @@
+name: Apply AS1455 live final tree
+
+on:
+  push:
+    branches:
+      - agent/restore-as1455-live-strict-oos-build
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply validated local delta
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git apply --check .github/build/as1455_v7_outline.patch
+          git apply .github/build/as1455_v7_outline.patch
+          rm -f .github/build/as1455_v7_outline.patch
+          rm -f .github/workflows/apply-as1455-live-final.yml
+          rmdir .github/build 2>/dev/null || true
+          git diff --check
+          bash -n scripts/run_as1455_live_strict_oos_pipeline.sh
+          python3 -m py_compile \
+            data_collection/collect_as1455_live_quotes_as1455.py \
+            features/build_as1455_live_feature_state_fast.py \
+            features/finalize_as1455_live_features_fast.py \
+            pipelines/as1455_live_prepare.py \
+            scripts/run_as1455_live_strict_oos_monitor.py \
+            tools/build_as1455_live_execution_sidecar_v1.py \
+            utils/as1455_live_inference.py \
+            code/backtest/run_as1455_close_auction_backtest_v7_maxpos_grid.py
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m 'feat: restore AS1455 strict-OOS live monitor on v7'
+          git push origin HEAD:refs/heads/agent/restore-as1455-live-strict-oos --force
