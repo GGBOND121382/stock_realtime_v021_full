@@ -8,6 +8,9 @@ RAW_DAILY_CACHE_DIR="${RAW_DAILY_CACHE_DIR:-saved_data/ashare_ml4t/ch12_as1455/b
 FEATURE_PRESETS="${FEATURE_PRESETS:-rotation_onehot rotation_addon_onehot}"
 TARGET_COL="${TARGET_COL:-r05_fwd}"
 CAPACITY_MODE="${CAPACITY_MODE:-none}"
+# Full parameter searches retain only per-run JSON summaries. The best row is
+# then re-run once in compact/full mode so plotting does not require thousands
+# of duplicate NAV and drawdown files.
 OUTPUT_MODE="${OUTPUT_MODE:-summary}"
 MATERIALIZE_BEST="${MATERIALIZE_BEST:-1}"
 MATERIALIZED_OUTPUT_MODE="${MATERIALIZED_OUTPUT_MODE:-compact}"
@@ -38,9 +41,12 @@ PY
 )"
 
 case "$TARGET_COL" in
-  r01_fwd|r05_fwd|r21_fwd)
-    # source fold6 -> target fold5 through source fold1 -> target fold0.
+  r01_fwd|r05_fwd)
     DEFAULT_TARGET_FOLDS="0,1,2,3,4,5"
+    ;;
+  r21_fwd)
+    # Current data has no source fold6, so target fold5 is excluded.
+    DEFAULT_TARGET_FOLDS="0,1,2,3,4"
     ;;
   *)
     echo "[ERROR] unsupported TARGET_COL=$TARGET_COL" >&2
@@ -51,9 +57,9 @@ TARGET_FOLDS="${TARGET_FOLDS:-$DEFAULT_TARGET_FOLDS}"
 
 for preset in $FEATURE_PRESETS; do
   out_root="$OUT_BASE/${preset}_${TARGET_COL}_reb${REBALANCE_EVERY}_${RUN_STAMP}"
-  echo "===== aligned backtest preset=${preset} target=${TARGET_COL} rebalance_every=${REBALANCE_EVERY} target_folds=${TARGET_FOLDS} output_mode=${OUTPUT_MODE} ====="
+  echo "===== backtest preset=${preset} target=${TARGET_COL} rebalance_every=${REBALANCE_EVERY} target_folds=${TARGET_FOLDS} output_mode=${OUTPUT_MODE} ====="
   args=(
-    scripts/run_as1455_target_one_lag_backtest_aligned.py
+    scripts/run_as1455_target_one_lag_backtest.py
     --feature-preset "$preset"
     --target-col "$TARGET_COL"
     --rebalance-every "$REBALANCE_EVERY"
@@ -105,4 +111,4 @@ for preset in $FEATURE_PRESETS; do
   ls -lh "$out_root/01_close_auction_grid/02_summary" || true
 done
 
-echo "[DONE] aligned natural-frequency backtests finished: target=$TARGET_COL"
+echo "[DONE] natural-frequency backtests finished: target=$TARGET_COL"
