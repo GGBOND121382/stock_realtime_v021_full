@@ -14,7 +14,7 @@ A file is retained only when it is one of the following:
 6. the static 1000-symbol universe or the minimal dependency/configuration files;
 7. the repository proxy-control entry point and implementation required for server Git/data access.
 
-The clean tree currently contains 70 tracked files.
+The clean tree currently contains 76 tracked files.
 
 ## Data path
 
@@ -38,36 +38,49 @@ HISTORY_WORKERS=3 SYMBOL_RETRIES=2 \
   bash scripts/run_as1455_live_data_feature_pipeline.sh history
 ```
 
-The dispatcher also replaces normal full-column last-date scans with tail-first reads and reads recent AS1455 aggregation ranges from the 5m CSV tail, while falling back to the canonical full reader whenever coverage cannot be proven.
+The dispatcher replaces normal full-column last-date scans with tail-first reads and reads recent AS1455 aggregation ranges from the 5m CSV tail, while falling back to the canonical full reader whenever coverage cannot be proven.
 
 Only `fast_v4` remains as the active updater. `fast_v2` and `fast_v3` are removed. The non-fast updater remains only because `fast_v4` imports its BaoStock query, calendar, merge, and schema helpers.
 
-The history controller supports only `history`, `check`, and `status`; live prepare, quote collection, live feature generation, and live inference are outside this repository.
-
-## Training path
+## Aligned fold and training path
 
 ```text
+utils/as1455_fold_calendar.py
+└─ shared feature-complete calendar
+   └─ common r1/r5/r21 target-valid cutoff
+      └─ identical fold0..fold6 market-date windows
+
 scripts/run_as1455_target_search_all.sh
 ├─ scripts/run_as1455_r05_target_search_all.sh
 ├─ scripts/run_as1455_r21_target_search_all.sh
-└─ scripts/run_as1455_target_fold_param_search.py
+└─ scripts/run_as1455_target_fold_param_search_aligned.py
+   ├─ utils/as1455_fold_calendar.py
    ├─ utils/as1455_ch17_common.py
    ├─ scripts/run_as1455_sector_rotation_fold0_param_search.py
    └─ scripts/run_as1455_first_batch_features_fold0_param_search.py
 ```
 
-## Historical and forward path
+The target lookahead still controls the training embargo. It no longer moves the fold start/end dates. Every target and feature preset trains fold0..fold6.
+
+## Historical, forward, and plotting path
 
 ```text
 scripts/run_as1455_target_natural_backtest.sh
-└─ scripts/run_as1455_target_one_lag_backtest.py
+└─ scripts/run_as1455_target_one_lag_backtest_aligned.py
+   └─ source fold6→target fold5 ... source fold1→target fold0
 
 scripts/run_as1455_fold0_forward_backtests.sh
 ├─ scripts/refresh_as1455_forward_model_data.sh
 └─ scripts/run_as1455_fold0_forward_backtest.py
+
+scripts/run_ch17_as1455_full_rebuild.sh
+└─ scripts/run_ch17_as1455_full_rebuild_aligned.sh
+   ├─ scripts/plot_as1455_default_ab_nav_curves.sh
+   └─ scripts/plot_as1455_fold_sequence_curves.py
+      └─ fold6..fold0 × daily/weekly/monthly
 ```
 
-These paths use the shared target, forward-feature, model-selection, strict-OOS, rebalance-phase, artifact, CLI, grid, and plotting modules under `utils/`.
+These paths use the shared target, fold-calendar, forward-feature, model-selection, strict-OOS, rebalance-phase, artifact, CLI, grid, and plotting modules under `utils/`.
 
 ## Backtest path
 
@@ -87,14 +100,6 @@ proxyctl.sh
 └─ proxy_tools/proxyctl.sh
    └─ proxy_tools/README_proxyctl.md
 ```
-
-The repository-root entry point guarantees that:
-
-```bash
-source ./proxyctl.sh on
-```
-
-uses the tracked implementation. Enabling the proxy updates both shell environment variables and Git global `http.proxy` / `https.proxy`, then reads the values back to verify that Git will use `http://127.0.0.1:17890`.
 
 ## Removed categories
 
@@ -116,10 +121,6 @@ Runtime outputs remain under `saved_data/` on the server and are ignored by Git.
 
 ```bash
 bash -n proxyctl.sh proxy_tools/proxyctl.sh
-source ./proxyctl.sh on
-bash ./proxyctl.sh status
-source ./proxyctl.sh off
-
 bash scripts/check_ch17_as1455_refactor.sh
 bash scripts/run_as1455_live_data_feature_pipeline.sh check
 bash scripts/run_ch17_as1455_full_rebuild.sh preflight
