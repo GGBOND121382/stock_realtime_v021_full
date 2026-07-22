@@ -1,22 +1,35 @@
 # Ch17 AS1455 Clean Tree
 
-This branch retains the runnable Ch17 AS1455 code and now exposes a guarded existing-model backtest workflow.
+This branch retains the runnable Ch17 AS1455 code and exposes a guarded independent-fold backtest workflow.
 
 ## Current public workflow
 
 ```text
-scripts/run_ch17_as1455_full_rebuild.sh backtest-only
+scripts/run_ch17_as1455_full_rebuild.sh independent-folds
 └─ scripts/run_ch17_as1455_backtest_only.sh
-   ├─ validates existing fold checkpoints without modifying them
-   ├─ runs original one-fold-lag historical backtests
-   ├─ runs strict-OOS fold0 forward with REFRESH_DATA=0
-   ├─ aligns the six forward strategies to one common start date
+   ├─ resolves six complete historical/strict-OOS result pairs
+   ├─ loads the already-selected signal and retained run config
+   ├─ loads existing historical and forward prediction HDF files
+   ├─ builds one shared raw-daily execution panel
+   ├─ runs 40 independent single-configuration fold backtests
+   ├─ starts every fold from equal cash and empty positions
+   ├─ translates the retained rebalance phase to each fold-local calendar
    └─ plots fold6..fold0 daily/weekly/monthly curves
 ```
 
-The public entry blocks data refresh, model-data rebuilding, and model training on this branch. The obsolete aligned-fold training and rebuild files have been removed.
+The workflow explicitly does not train models, generate predictions, rebuild model_data, refresh data, or run a parameter grid.
 
-## Existing model protocol
+## Separate plot-only compatibility workflow
+
+```text
+scripts/run_ch17_as1455_full_rebuild.sh existing-results
+└─ scripts/run_ch17_as1455_existing_results.sh
+   └─ slices and plots already-existing continuous NAV results
+```
+
+The plot-only mode is intentionally separate because it does not reset positions and cash at each fold boundary.
+
+## Existing fold protocol
 
 ```text
 r01_fwd: fold0..fold6
@@ -24,36 +37,48 @@ r05_fwd: fold0..fold6
 r21_fwd: fold0..fold5
 ```
 
-Historical one-fold-lag mapping remains unchanged:
+Independent backtest count:
 
 ```text
-source fold6 -> target fold5   # available for r1/r5
-source fold5 -> target fold4
-...
-source fold1 -> target fold0
+r01 historical = 12
+r05 historical = 12
+r21 historical = 10
+fold0 forward = 6
+Total = 40
 ```
 
-The fold6 plot therefore contains the available r1/r5 A/B strategies. Later folds include all strategies that have that source fold.
+fold6 contains the available r1/r5 A/B strategies. fold5..fold0 contain six strategies.
+
+## Phase semantics
+
+Each stored config contains an offset relative to its original continuous OOS calendar. After cropping to an independent fold, the local offset is translated as:
+
+```text
+(original_offset - skipped_overlap_dates) mod rebalance_every
+```
+
+This preserves the selected rebalance phase while still resetting the portfolio to empty positions and equal initial cash.
 
 ## Data boundaries
 
-Authoritative caches and model inputs remain under:
+Read-only inputs remain under:
 
 ```text
-saved_data/ashare_ml4t/ch12_as1455/baostock_5m_cache/
+saved_data/ashare_ml4t/ch17_as1455_target_backtest/
+saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest/
 saved_data/ashare_ml4t/ch12_as1455/baostock_raw_daily_cache/
-saved_data/ashare_ml4t/ch12_as1455/as1455_daily_cache/
-saved_data/ashare_ml4t/ch12_as1455/model_data_as1455.h5
-saved_data/ashare_ml4t/ch12_as1455_forward_latest/model_data_as1455.h5
+saved_data/ashare_ml4t/ch12_as1455/baostock_5m_cache/   # only if a frozen config uses capacity
 ```
 
-The backtest-only workflow reads these paths. It does not rebuild them. If the existing forward model-data file is absent, the command fails rather than refreshing data.
+Training checkpoint, scaler, feature and model-data directories are not modified.
 
 ## Output policy
 
-Historical grids use summary output and materialize only the selected best run in compact mode. Forward uses compact strict-OOS output. Prediction CSV duplicates are removed after the HDF authority file is written.
+```text
+saved_data/ashare_ml4t/ch17_as1455_independent_folds/<timestamp>/
+```
 
-The default free-space guard for this workflow is 1 GiB, not 20 GiB. The final report records the actual new bytes created in result roots.
+Only compact results for 40 selected configurations are written, plus 21 plots and manifests. No grid run directories are produced. The default free-space guard is 1 GiB.
 
 ## Validation
 
@@ -63,8 +88,9 @@ bash scripts/check_ch17_as1455_refactor.sh
 
 The checks verify that:
 
-- the original target fold training and one-fold-lag code paths are restored;
-- the public entry cannot call an aligned rebuild;
-- the backtest-only script contains `REFRESH_DATA=0` and `training=false`;
-- Python and shell entry points parse successfully;
-- the existing strict-OOS, model selection, artifact retention, and single trading-engine checks remain active.
+- the independent entry expects exactly 40 backtests;
+- each fold starts from empty positions and equal initial cash;
+- the runner calls the v7 portfolio engine directly;
+- the retained phase is translated rather than reset;
+- no grid, training, prediction-generation, materialization or refresh workflow is reachable from the independent entry;
+- the old continuous-NAV plot-only mode remains separate.
