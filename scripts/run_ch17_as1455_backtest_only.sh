@@ -8,7 +8,7 @@ FEATURE_PRESETS="${FEATURE_PRESETS:-rotation_onehot rotation_addon_onehot}"; TAR
 MIN_FREE_GB="${MIN_FREE_GB:-1}"; RUN_STAMP="${RUN_STAMP:-$(date +%Y%m%d_%H%M%S)}"
 HIST_BASE="${HIST_BASE:-saved_data/ashare_ml4t/ch17_as1455_target_backtest}"; FWD_BASE="${FWD_BASE:-saved_data/ashare_ml4t/ch17_as1455_fold0_forward_backtest}"
 PLOT_DIR="${PLOT_DIR:-saved_data/ashare_ml4t/ch17_as1455_backtest_plots/backtest_only_$RUN_STAMP}"; REPORT_DIR="${REPORT_DIR:-saved_data/ashare_ml4t/ch17_as1455_backtest_only/$RUN_STAMP}"
-mkdir -p "$PLOT_DIR" "$REPORT_DIR"
+mkdir -p "$HIST_BASE" "$FWD_BASE" "$PLOT_DIR" "$REPORT_DIR"
 [[ -s "$MODEL_DATA" ]] || { echo "[ERROR] missing model_data: $MODEL_DATA" >&2; exit 1; }; [[ -d "$RAW_DAILY_CACHE_DIR" ]] || { echo "[ERROR] missing raw daily cache" >&2; exit 1; }
 "$PYTHON_BIN" scripts/check_as1455_disk_space.py --path saved_data/ashare_ml4t --min-free-gb "$MIN_FREE_GB" --label existing-model-backtest-only
 "$PYTHON_BIN" - "$FEATURE_PRESETS" "$TARGETS" <<'PY'
