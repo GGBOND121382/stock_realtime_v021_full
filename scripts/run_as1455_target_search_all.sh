@@ -16,12 +16,9 @@ INPUT_CHECK_ONLY="${INPUT_CHECK_ONLY:-0}"
 RETRAIN_BEST="${RETRAIN_BEST:-0}"
 
 case "$TARGET_COL" in
-  r01_fwd|r05_fwd)
+  r01_fwd|r05_fwd|r21_fwd)
+    # All targets use the same canonical fold0..fold6 market-date windows.
     DEFAULT_FOLDS="0 1 2 3 4 5 6"
-    ;;
-  r21_fwd)
-    # Current dataset does not provide enough valid dates for fold6.
-    DEFAULT_FOLDS="0 1 2 3 4 5"
     ;;
   *)
     echo "[ERROR] unsupported TARGET_COL=$TARGET_COL" >&2
@@ -40,8 +37,8 @@ extra_args=()
 for preset in $FEATURE_PRESETS; do
   for fold in $FOLDS; do
     log="$LOG_DIR/${preset}_${TARGET_COL}_fold${fold}_search.log"
-    echo "===== preset=${preset} target=${TARGET_COL} fold=${fold} ====="
-    "$PYTHON_BIN" scripts/run_as1455_target_fold_param_search.py \
+    echo "===== preset=${preset} target=${TARGET_COL} aligned_fold=${fold} ====="
+    "$PYTHON_BIN" scripts/run_as1455_target_fold_param_search_aligned.py \
       --feature-preset "$preset" \
       --target-col "$TARGET_COL" \
       --model-data "$MODEL_DATA" \
@@ -55,4 +52,4 @@ for preset in $FEATURE_PRESETS; do
   done
 done
 
-echo "[DONE] target searches finished: target=$TARGET_COL folds=$FOLDS logs=$LOG_DIR"
+echo "[DONE] aligned target searches finished: target=$TARGET_COL folds=$FOLDS logs=$LOG_DIR"
