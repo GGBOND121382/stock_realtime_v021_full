@@ -94,3 +94,20 @@ The checks verify that:
 - the retained phase is translated rather than reset;
 - no grid, training, prediction-generation, materialization or refresh workflow is reachable from the independent entry;
 - the old continuous-NAV plot-only mode remains separate.
+
+## Restored strict-OOS live workflow
+
+The clean tree now also contains a scoped live/replay workflow:
+
+```text
+scripts/run_as1455_live_strict_oos_pipeline.sh
+├─ T-1 clean history updater
+├─ restored preclose / adjustment / raw-daily execution calendar
+├─ <=14:55 collection and current-day 31-base-feature fast path
+├─ clean rotation/addon/one-hot feature construction
+├─ clean fold0 .keras + saved preprocessing
+├─ historical best full-run selection and phase continuation
+└─ canonical v7 single-day mode with explicit account cash/positions
+```
+
+It produces planned, reviewable orders only. It does not connect to a broker and does not persist planned fills as account truth. See `AS1455_LIVE_STRICT_OOS.md`.

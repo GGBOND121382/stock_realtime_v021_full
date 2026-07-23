@@ -21,7 +21,7 @@ Trading semantics come only from:
 code/backtest/run_as1455_close_auction_backtest_v7_maxpos_grid.py::backtest
 ```
 
-The repository no longer contains unrelated individual-stock pipelines, portfolio decision systems, legacy experiments, Windows notebooks, debug exports, patch payloads, or live intraday inference/collection code.
+The repository excludes unrelated individual-stock pipelines, legacy portfolio systems, experiments, notebooks and debug exports. It now retains one scoped AS1455 live/replay path whose model, selection, phase and trading semantics are shared with the clean Ch17 workflow.
 
 ## Validate
 
@@ -33,12 +33,22 @@ bash scripts/check_ch17_as1455_refactor.sh
 bash scripts/run_as1455_live_data_feature_pipeline.sh check
 ```
 
-## Full rebuild
+## Guarded result workflows
 
 ```bash
-bash scripts/run_ch17_as1455_full_rebuild.sh preflight
-bash scripts/run_ch17_as1455_full_rebuild.sh all
+bash scripts/run_ch17_as1455_full_rebuild.sh independent-folds
+bash scripts/run_ch17_as1455_full_rebuild.sh existing-results
 ```
+
+Model-data rebuild, training, historical Grid and strict-OOS forward each use the dedicated commands in `CH17_AS1455_DEVELOPMENT_OUTLINE.md`.
+
+## Strict-OOS live/replay workflow
+
+```bash
+bash scripts/run_as1455_live_strict_oos_pipeline.sh check
+```
+
+See `AS1455_LIVE_STRICT_OOS.md`.
 
 Detailed protocol and operating instructions:
 
@@ -48,3 +58,4 @@ Detailed protocol and operating instructions:
 - `AS1455_STORAGE_AND_STRICT_OOS.md`
 - `AS1455_STORAGE_MAINTENANCE.md`
 - `CH17_AS1455_CLEAN_TREE.md`
+- `AS1455_LIVE_STRICT_OOS.md`
