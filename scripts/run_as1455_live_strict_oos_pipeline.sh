@@ -33,6 +33,7 @@ CAPACITY_MODE="${CAPACITY_MODE:-none}"
 PARTICIPATION_RATE="${PARTICIPATION_RATE:-0.05}"
 SELECTION_BACKTEST_ROOT="${SELECTION_BACKTEST_ROOT:-}"
 FOLD0_DIR="${FOLD0_DIR:-}"
+KEEP_HISTORY_TAIL="${KEEP_HISTORY_TAIL:-0}"
 
 live_date() {
   "$PYTHON" - <<PY
@@ -87,6 +88,7 @@ check_files() {
     features/build_as1455_live_feature_state_fast.py
     features/finalize_as1455_live_features_fast.py
     tools/build_as1455_live_execution_sidecar_v1.py
+    tools/cleanup_as1455_live_intermediates_v2.py
     utils/as1455_live_inference.py
     code/backtest/run_as1455_close_auction_backtest_v7_maxpos_grid.py
     scripts/run_as1455_live_strict_oos_monitor.py
@@ -114,6 +116,15 @@ run_pre() {
     --trade-date "$LIVE_DATE" --out-root "$OUT_ROOT" \
     --sector-reference "$MODEL_DATA"
   [[ -f "$LIVE_DIR/06_live_feature_state_fast.npz" ]] || fail "prefast state missing"
+  if [[ "$KEEP_HISTORY_TAIL" == "1" ]]; then
+    info "retaining per-day history-tail copies because KEEP_HISTORY_TAIL=1"
+    "$PYTHON" tools/cleanup_as1455_live_intermediates_v2.py \
+      --trade-date "$LIVE_DATE" --out-root "$OUT_ROOT" --keep-history-tail
+  else
+    info "deleting rebuildable per-day history-tail copies after compact state succeeds"
+    "$PYTHON" tools/cleanup_as1455_live_intermediates_v2.py \
+      --trade-date "$LIVE_DATE" --out-root "$OUT_ROOT"
+  fi
 }
 
 require_account_state() {
@@ -167,6 +178,7 @@ status() {
   echo "[STATUS] LIVE_DIR=$LIVE_DIR"
   ls -lh "$LIVE_DIR"/05_prepare_report.json \
          "$LIVE_DIR"/06_live_feature_state_fast.npz \
+         "$LIVE_DIR"/07_intermediate_cleanup_report.json \
          "$LIVE_DIR"/08_collection_report.json \
          "$LIVE_DIR"/11_live_model_features_for_prediction.csv \
          "$LIVE_DIR"/17_live_strict_oos_manifest.json 2>/dev/null || true
@@ -203,6 +215,9 @@ Required for post/plan/auto:
 Strategy defaults (override explicitly when needed):
   TARGET_COL=$TARGET_COL
   FEATURE_PRESET=$FEATURE_PRESET
+
+Intermediate retention:
+  KEEP_HISTORY_TAIL=0  # default: delete per-day 04/05 tail copies after 06 NPZ succeeds
 EOF
     exit 2
     ;;
