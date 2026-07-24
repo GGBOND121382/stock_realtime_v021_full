@@ -37,6 +37,10 @@ mkdir -p "$OUT_ROOT"
   exit 1
 }
 
+"$PYTHON_BIN" -m py_compile \
+  scripts/run_as1455_r05_addon_fold_comparison.py \
+  scripts/run_as1455_r05_addon_fold_comparison_v2.py
+
 printf '%s\n' \
   "[MODE] r05_fwd rotation_addon_onehot complete fold comparison" \
   "[MODE] independent_historical_backtests=6" \
