@@ -37,10 +37,15 @@ mkdir -p "$OUT_ROOT"
   exit 1
 }
 
-echo "[MODE] r05_fwd rotation_addon_onehot fold comparison"
-echo "[MODE] independent_backtests=6 continuous_cross_fold=reuse_materialized"
-echo "[MODE] prediction_generation=false grid=false training=false data_refresh=false"
-echo "[MODE] initial_cash=$INITIAL_CASH output_mode=$OUTPUT_MODE"
+printf '%s\n' \
+  "[MODE] r05_fwd rotation_addon_onehot complete fold comparison" \
+  "[MODE] independent_historical_backtests=6" \
+  "[MODE] forward_strict_oos=reuse_retained_result" \
+  "[MODE] historical_cross_fold=reuse_materialized_result" \
+  "[MODE] historical_plus_forward=continuous_state_rerun" \
+  "[MODE] execution_panel_builds=1 continuous_engine_calls=2" \
+  "[MODE] prediction_generation=false grid=false training=false data_refresh=false" \
+  "[MODE] initial_cash=$INITIAL_CASH output_mode=$OUTPUT_MODE"
 
 "$PYTHON_BIN" scripts/check_as1455_disk_space.py \
   --path "$OUT_ROOT" \
@@ -57,7 +62,7 @@ echo "[MODE] initial_cash=$INITIAL_CASH output_mode=$OUTPUT_MODE"
 
 args=(
   "$PYTHON_BIN"
-  scripts/run_as1455_r05_addon_fold_comparison.py
+  scripts/run_as1455_r05_addon_fold_comparison_v2.py
   --pair-manifest "$PAIR_JSON"
   --out-root "$OUT_ROOT"
   --initial-cash "$INITIAL_CASH"
@@ -65,6 +70,8 @@ args=(
   --raw-daily-cache-dir "$RAW_DAILY_CACHE_DIR"
 )
 
+# The v2 Python runner disables raw-5m scanning automatically when both frozen
+# historical and forward configs use capacity_mode=none.
 [[ -d "$RAW_5M_CACHE_DIR" ]] && args+=(--raw-5m-cache-dir "$RAW_5M_CACHE_DIR")
 [[ -n "${LAST5_PANEL:-}" ]] && args+=(--last5-panel "$LAST5_PANEL")
 [[ -n "${UNIVERSE:-}" ]] && args+=(--universe "$UNIVERSE")
@@ -74,5 +81,5 @@ args=(
 
 "${args[@]}"
 
-echo "[PASS] r05_fwd rotation_addon_onehot comparison completed"
+echo "[PASS] r05_fwd rotation_addon_onehot complete comparison finished"
 echo "[PASS] output=$OUT_ROOT"
