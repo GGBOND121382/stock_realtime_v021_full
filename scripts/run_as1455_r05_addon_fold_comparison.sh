@@ -19,6 +19,7 @@ OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_nested_fold_protocol/ro
 INITIAL_CASH="${INITIAL_CASH:-200000}"
 VALIDATION_OUTPUT_MODE="${VALIDATION_OUTPUT_MODE:-summary}"
 TARGET_OUTPUT_MODE="${TARGET_OUTPUT_MODE:-compact}"
+CAPACITY_MODE="${CAPACITY_MODE:-none}"
 MIN_FREE_GB="${MIN_FREE_GB:-1}"
 
 [[ -f "$MODEL_DATA" ]] || { echo "[ERROR] missing model_data: $MODEL_DATA" >&2; exit 1; }
@@ -42,6 +43,7 @@ printf '%s\n' \
   "[MODE] frozen_target_backtests=7" \
   "[MODE] source_fold6->target_fold5 ... source_fold1->target_fold0" \
   "[MODE] source_fold0->strict_oos_forward" \
+  "[MODE] capacity_mode=$CAPACITY_MODE" \
   "[MODE] training=false data_refresh=false model_data_rebuild=false" \
   "[MODE] out_root=$OUT_ROOT"
 
@@ -53,12 +55,16 @@ args=(
   --target-col r05_fwd
   --out-root "$OUT_ROOT"
   --raw-daily-cache-dir "$RAW_DAILY_CACHE_DIR"
+  --capacity-mode "$CAPACITY_MODE"
   --initial-cash "$INITIAL_CASH"
   --validation-output-mode "$VALIDATION_OUTPUT_MODE"
   --target-output-mode "$TARGET_OUTPUT_MODE"
 )
 
-[[ -d "$RAW_5M_CACHE_DIR" ]] && args+=(--raw-5m-cache-dir "$RAW_5M_CACHE_DIR")
+if [[ "$CAPACITY_MODE" != "none" ]]; then
+  [[ -d "$RAW_5M_CACHE_DIR" ]] || { echo "[ERROR] capacity mode requires raw 5m cache: $RAW_5M_CACHE_DIR" >&2; exit 1; }
+  args+=(--raw-5m-cache-dir "$RAW_5M_CACHE_DIR")
+fi
 [[ -n "${LAST5_PANEL:-}" ]] && args+=(--last5-panel "$LAST5_PANEL")
 [[ -n "${UNIVERSE:-}" ]] && args+=(--universe "$UNIVERSE")
 [[ -n "${ST_SYMBOLS:-}" ]] && args+=(--st-symbols "$ST_SYMBOLS")
