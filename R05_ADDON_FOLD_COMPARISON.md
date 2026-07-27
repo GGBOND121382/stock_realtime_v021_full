@@ -1,102 +1,60 @@
-# r05_fwd + rotation_addon_onehot：逐 fold 嵌套选择协议
+# AS1455 r05_fwd nested fold experiments
 
-## 修正后的实验协议
+## Standard nested signal-and-trading selection
 
-旧流程先生成 `source fold6 -> target fold5` 到 `source fold1 -> target fold0` 的六段预测，再把六段拼接后统一运行 1050 组交易参数 grid。该流程会让 target fold 的交易结果参与最终 signal、持仓数、卖出阈值和调仓相位选择，不符合原定的逐 fold 协议。
-
-现在每个 source fold 独立执行：
-
-```text
-source fold k 的训练产物
-  -> 在 source fold k 自己的 63 日留出段生成候选 checkpoint 预测
-  -> 只在这 63 日上运行完整 signal + trading grid
-  -> 冻结完整配置 C_k
-  -> C_k 仅用于 target fold k-1
-```
-
-fold0 同理：
-
-```text
-fold0 留出段 grid -> 冻结 C_0 -> 仅用于 fold0 test_end 之后的 forward
-```
-
-target fold 和 forward 都不会重新 grid，也不会反向参与配置选择。
-
-## 运行
+For each source fold `k = 6..0`, reuse the existing `rotation_addon_onehot + r05_fwd` checkpoint search artifacts, generate predictions on that source fold's own held-out window, search the complete signal and trading grid there, freeze the winner, and apply it once to target fold `k-1`. Source fold 0 is applied to strict forward dates after the fold-0 held-out end.
 
 ```bash
+OUT_ROOT=saved_data/ashare_ml4t/ch17_as1455_nested_fold_protocol/r05_addon_nested_v1 \
 bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-comparison
 ```
 
-或：
+The standard validation grid contains seven signal specifications, five maximum-position values, six sell-rank values, and five rebalance offsets: 1050 configurations per source fold.
 
-```bash
-bash scripts/run_as1455_r05_addon_fold_comparison.sh
-```
+## Fixed top-three ensemble experiment
 
-默认复用：
+This controlled experiment fixes the signal in every source fold to:
 
 ```text
-saved_data/ashare_ml4t/ch12_as1455/model_data_as1455.h5
-saved_data/ashare_ml4t/ch17_as1455_target_search/rotation_addon_onehot/r05_fwd/fold{0..6}_search
-saved_data/ashare_ml4t/ch12_as1455/baostock_raw_daily_cache
+ensemble_first3_mean:0,1,2:mean
 ```
 
-不会训练模型、刷新行情或重建 `model_data`。但是会执行 7 次独立 validation grid，因此运行时间显著高于旧的结果复制脚本。
+The three inputs are that source fold's top-three checkpoint prediction columns. Their predictions are averaged with equal weights. The signal is not selected by the trading grid.
 
-## 输出
+Only the trading parameters are searched on each source fold's own held-out validation window:
 
-```text
-saved_data/ashare_ml4t/ch17_as1455_nested_fold_protocol/
-  rotation_addon_onehot_r05_fwd_<timestamp>/
-    source_fold6/
-      validation_selection/
-      selected_for_next_window.json
-      target_fold5/
-    ...
-    source_fold1/
-      validation_selection/
-      selected_for_next_window.json
-      target_fold0/
-    source_fold0/
-      validation_selection/
-      selected_for_next_window.json
-      forward/
-    nested_fold_target_results.csv
-    nested_fold_protocol_manifest.json
-    continuous_target_folds_plus_forward/
-```
+- `max_positions`: `5,10,15,20,25`
+- `sell_rank`: `75,100,150,200,250,300`
+- `rebalance_every`: fixed at `5`
+- `rebalance_offset`: `0,1,2,3,4`
 
-每个 `selected_for_next_window.json` 明确记录：
-
-- source fold 的验证日期；
-- 验证段选中的 checkpoint/ensemble signal；
-- `max_positions`、`sell_rank`、`rebalance_every`、验证段 offset；
-- 目标段相位换算后的 effective offset；
-- `target_results_used_for_selection=false`。
-
-连续账户按 `target_fold5 -> ... -> target_fold0 -> forward` 顺序运行，跨段继承现金、持仓、买入日期和成本基础。配置在边界处切换为对应 source fold 预先冻结的配置。
-
-## 续跑与磁盘
-
-验证 grid 默认使用：
-
-```text
-VALIDATION_OUTPUT_MODE=summary
-```
-
-只保留每个候选的 JSON 和汇总，不为全部 1050 个候选保存 NAV。目标段默认使用 `compact`。
-
-同一 `OUT_ROOT` 下再次执行会复用已有预测和已完成 grid；强制覆盖：
+This gives `5 × 6 × 5 = 150` validation configurations per source fold. The highest validation Sharpe is frozen and applied once to the next target fold. Fold 0 is frozen for strict forward evaluation. Target and forward results never participate in grid selection.
 
 ```bash
-FORCE=1 OUT_ROOT=<existing-dir> \
-  bash scripts/run_as1455_r05_addon_fold_comparison.sh
+OUT_ROOT=saved_data/ashare_ml4t/ch17_as1455_nested_fold_protocol/r05_addon_first3_ensemble_nested_v1 \
+bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-ensemble
 ```
 
-只生成独立 target 结果、不生成连续账户：
+The experiment reuses existing checkpoints, scalers, feature metadata, model data, and raw daily data. It does not retrain models, refresh market data, or rebuild `model_data`.
+
+## Outputs
+
+Both experiments write the same auditable result structure:
+
+- one `source_fold*` directory per selection fold
+- source-fold validation predictions and validation grid
+- `selected_for_next_window.json`
+- one frozen target or forward run
+- `nested_fold_target_results.csv`
+- `nested_fold_protocol_manifest.json`
+- `continuous_target_folds_plus_forward/`
+- `plots/`
+
+To regenerate plots only:
 
 ```bash
-SKIP_CONTINUOUS=1 \
-  bash scripts/run_as1455_r05_addon_fold_comparison.sh
+OUT_ROOT=<completed-nested-result-root> \
+bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-plots
 ```
+
+Use a distinct output root for each experiment. Do not point the fixed-ensemble experiment at a result tree created by the seven-signal grid.
