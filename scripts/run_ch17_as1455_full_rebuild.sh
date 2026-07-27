@@ -10,6 +10,9 @@ case "$mode" in
   r05-addon-comparison|r05-addon-folds|r05-addon-nested)
     exec bash scripts/run_as1455_r05_addon_fold_comparison.sh
     ;;
+  r05-addon-first3-ensemble|r05-first3-ensemble|first3-ensemble-nested)
+    exec bash scripts/run_as1455_r05_addon_first3_ensemble_nested.sh
+    ;;
   r05-addon-plots|r05-addon-plot-only)
     exec bash scripts/plot_as1455_nested_fold_results.sh
     ;;
@@ -21,6 +24,8 @@ case "$mode" in
     echo "Use the corrected nested r05_fwd workflow; it reuses existing checkpoints" >&2
     echo "but runs one validation grid per source fold:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-comparison" >&2
+    echo "Run the fixed top-three ensemble experiment (150 trading configs per fold):" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-ensemble" >&2
     echo "Plot an already completed nested result tree without rerunning backtests:" >&2
     echo "  OUT_ROOT=<result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-plots" >&2
     echo "Run all independent frozen-config fold backtests:" >&2
@@ -33,6 +38,7 @@ case "$mode" in
     echo "[ERROR] unsupported mode: $mode" >&2
     echo "Usage:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-comparison" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-ensemble" >&2
     echo "  OUT_ROOT=<result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-plots" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh independent-folds" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh existing-results" >&2
