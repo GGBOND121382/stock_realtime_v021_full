@@ -83,6 +83,7 @@ if [[ "${SKIP_PLOTS:-0}" != "1" ]]; then
   PYTHON_BIN="$PYTHON_BIN" \
   OUT_ROOT="$OUT_ROOT" \
   PLOTS_DIR="${PLOTS_DIR:-$OUT_ROOT/plots}" \
+  SKIP_CONTINUOUS_PLOTS="${SKIP_CONTINUOUS_PLOTS:-${SKIP_CONTINUOUS:-0}}" \
   bash scripts/plot_as1455_nested_fold_results.sh
 fi
 
