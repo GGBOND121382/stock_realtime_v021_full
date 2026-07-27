@@ -27,7 +27,8 @@ MIN_FREE_GB="${MIN_FREE_GB:-1}"
 
 "$PYTHON_BIN" -m py_compile \
   scripts/run_as1455_nested_fold_protocol.py \
-  scripts/check_as1455_nested_fold_protocol.py
+  scripts/check_as1455_nested_fold_protocol.py \
+  scripts/plot_as1455_nested_fold_results.py
 "$PYTHON_BIN" scripts/check_as1455_nested_fold_protocol.py
 
 mkdir -p "$OUT_ROOT"
@@ -44,6 +45,7 @@ printf '%s\n' \
   "[MODE] source_fold6->target_fold5 ... source_fold1->target_fold0" \
   "[MODE] source_fold0->strict_oos_forward" \
   "[MODE] capacity_mode=$CAPACITY_MODE" \
+  "[MODE] plots=$([[ ${SKIP_PLOTS:-0} == 1 ]] && echo false || echo true)" \
   "[MODE] training=false data_refresh=false model_data_rebuild=false" \
   "[MODE] out_root=$OUT_ROOT"
 
@@ -77,5 +79,12 @@ fi
 [[ "${SKIP_CONTINUOUS:-0}" == "1" ]] && args+=(--skip-continuous)
 
 "${args[@]}"
+if [[ "${SKIP_PLOTS:-0}" != "1" ]]; then
+  PYTHON_BIN="$PYTHON_BIN" \
+  OUT_ROOT="$OUT_ROOT" \
+  PLOTS_DIR="${PLOTS_DIR:-$OUT_ROOT/plots}" \
+  bash scripts/plot_as1455_nested_fold_results.sh
+fi
+
 echo "[PASS] nested r05 addon fold protocol finished"
 echo "[PASS] output=$OUT_ROOT"
