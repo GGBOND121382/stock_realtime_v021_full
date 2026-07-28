@@ -36,6 +36,7 @@ MIN_FREE_GB="${MIN_FREE_GB:-1}"
   scripts/run_as1455_close_auction_grid_fixed_first3_ensemble.py \
   scripts/run_as1455_target_one_lag_backtest.py \
   scripts/run_as1455_fold0_forward_backtest.py \
+  scripts/plot_as1455_backtest_return_curves.py \
   scripts/finalize_as1455_global_fold_forward_results.py
 
 "$PYTHON_BIN" - <<'PYTEST'
@@ -131,6 +132,14 @@ if [[ -n "$PREDICTION_SOURCE_ROOT" ]]; then
   fi
 fi
 "${forward_args[@]}"
+
+"$PYTHON_BIN" scripts/plot_as1455_backtest_return_curves.py \
+  --backtest-root "$FORWARD_ROOT" \
+  --label "Strict forward: first3 ensemble selected on folds0-5" \
+  --rank-metric sharpe \
+  --out-dir "$OUT_ROOT/plots" \
+  --title-prefix "AS1455 fixed first3 ensemble strict forward" \
+  --show-selected
 
 finalize_args=(
   "$PYTHON_BIN"
