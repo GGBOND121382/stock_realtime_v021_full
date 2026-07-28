@@ -96,7 +96,7 @@ def annualized_sharpe(returns: pd.Series) -> float:
     if len(values) < 2:
         return float("nan")
     std = float(values.std(ddof=1))
-    if not math.isfinite(std) or std <= 0:
+    if not math.isfinite(std) or std <= 1e-12:
         return float("nan")
     return float(math.sqrt(252.0) * values.mean() / std)
 
