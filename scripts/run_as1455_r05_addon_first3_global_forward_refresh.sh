@@ -31,6 +31,7 @@ REFRESH_STAMP="${REFRESH_STAMP:-$(date +%Y%m%d_%H%M%S)}"
 "$PYTHON_BIN" -m py_compile \
   scripts/run_as1455_fold0_forward_backtest.py \
   scripts/run_as1455_close_auction_grid_fixed_first3_ensemble.py \
+  scripts/plot_as1455_backtest_return_curves.py \
   scripts/finalize_as1455_global_fold_forward_results.py
 
 if [[ "$SKIP_DATA_REFRESH" != "1" ]]; then
@@ -60,9 +61,12 @@ if [[ -d "$FORWARD_ROOT" ]]; then
 fi
 restore_on_error() {
   status=$?
-  if [[ $status -ne 0 && -n "$backup_root" && -d "$backup_root" && ! -d "$FORWARD_ROOT" ]]; then
-    mv "$backup_root" "$FORWARD_ROOT"
-    echo "[RESTORE] previous forward result restored after failure" >&2
+  if [[ $status -ne 0 ]]; then
+    rm -rf "$FORWARD_ROOT"
+    if [[ -n "$backup_root" && -d "$backup_root" ]]; then
+      mv "$backup_root" "$FORWARD_ROOT"
+      echo "[RESTORE] previous forward result restored after failure" >&2
+    fi
   fi
   exit $status
 }
@@ -92,13 +96,14 @@ forward_args=(
 [[ -n "${END_DATE:-}" ]] && forward_args+=(--end-date "$END_DATE")
 "${forward_args[@]}"
 
-trap - ERR
-if [[ -n "$backup_root" && "$KEEP_FORWARD_BACKUP" != "1" ]]; then
-  rm -rf "$backup_root"
-  echo "[CLEAN] removed previous forward backup"
-fi
-
 echo "===== 3/3 rebuild fold-return and latest-forward plots ====="
+"$PYTHON_BIN" scripts/plot_as1455_backtest_return_curves.py \
+  --backtest-root "$FORWARD_ROOT" \
+  --label "Strict forward: first3 ensemble selected on folds0-5" \
+  --rank-metric sharpe \
+  --out-dir "$OUT_ROOT/plots" \
+  --title-prefix "AS1455 fixed first3 ensemble strict forward" \
+  --show-selected
 "$PYTHON_BIN" scripts/finalize_as1455_global_fold_forward_results.py \
   --out-root "$OUT_ROOT" \
   --prediction-source-root "refreshed_fold0_inference:$FORWARD_MODEL_DATA"
@@ -115,6 +120,12 @@ result = pd.read_csv(result_file)
 print(f"[LATEST DATA] model_data_end={model_dates.max():%Y-%m-%d}")
 print(f"[LATEST FORWARD] result_end={result.iloc[0]['forward_end']}")
 PY
+
+trap - ERR
+if [[ -n "$backup_root" && "$KEEP_FORWARD_BACKUP" != "1" ]]; then
+  rm -rf "$backup_root"
+  echo "[CLEAN] removed previous forward backup"
+fi
 
 echo "[PASS] refreshed strict forward and fold-return plots"
 echo "[PASS] output=$OUT_ROOT"
