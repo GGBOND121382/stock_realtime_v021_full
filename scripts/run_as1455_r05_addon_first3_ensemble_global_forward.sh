@@ -23,7 +23,7 @@ if [[ -z "${PREDICTION_SOURCE_ROOT+x}" ]]; then
   [[ -d "$DEFAULT_PREDICTION_SOURCE" ]] && PREDICTION_SOURCE_ROOT="$DEFAULT_PREDICTION_SOURCE" || PREDICTION_SOURCE_ROOT=""
 fi
 CAPACITY_MODE="${CAPACITY_MODE:-none}"
-HISTORICAL_OUTPUT_MODE="${HISTORICAL_OUTPUT_MODE:-summary}"
+HISTORICAL_OUTPUT_MODE="${HISTORICAL_OUTPUT_MODE:-compact}"
 FORWARD_OUTPUT_MODE="${FORWARD_OUTPUT_MODE:-compact}"
 MIN_FREE_GB="${MIN_FREE_GB:-1}"
 
@@ -37,6 +37,19 @@ MIN_FREE_GB="${MIN_FREE_GB:-1}"
   scripts/run_as1455_target_one_lag_backtest.py \
   scripts/run_as1455_fold0_forward_backtest.py \
   scripts/plot_as1455_backtest_return_curves.py
+
+"$PYTHON_BIN" - <<'PYTEST'
+from scripts.run_as1455_close_auction_grid_fixed_first3_ensemble import (
+    FIXED_SIGNAL_SPEC,
+    replace_signal_specs,
+)
+args = replace_signal_specs([
+    "--signal-spec", "model_0:0:single",
+    "--signal-spec=ensemble_all5_mean:0,1,2,3,4:mean",
+])
+assert args == ["--signal-spec", FIXED_SIGNAL_SPEC], args
+print("[PASS] fixed first3 signal adapter")
+PYTEST
 
 mkdir -p "$OUT_ROOT"
 "$PYTHON_BIN" scripts/check_as1455_disk_space.py \
