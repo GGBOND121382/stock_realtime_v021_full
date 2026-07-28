@@ -36,7 +36,7 @@ MIN_FREE_GB="${MIN_FREE_GB:-1}"
   scripts/run_as1455_close_auction_grid_fixed_first3_ensemble.py \
   scripts/run_as1455_target_one_lag_backtest.py \
   scripts/run_as1455_fold0_forward_backtest.py \
-  scripts/plot_as1455_backtest_return_curves.py
+  scripts/finalize_as1455_global_fold_forward_results.py
 
 "$PYTHON_BIN" - <<'PYTEST'
 from scripts.run_as1455_close_auction_grid_fixed_first3_ensemble import (
@@ -132,78 +132,13 @@ if [[ -n "$PREDICTION_SOURCE_ROOT" ]]; then
 fi
 "${forward_args[@]}"
 
-"$PYTHON_BIN" scripts/plot_as1455_backtest_return_curves.py \
-  --backtest-root "$FORWARD_ROOT" \
-  --label "Strict forward: first3 ensemble selected on folds0-5" \
-  --rank-metric sharpe \
-  --out-dir "$OUT_ROOT/plots" \
-  --title-prefix "AS1455 fixed first3 ensemble strict forward" \
-  --show-selected
-
-"$PYTHON_BIN" - "$OUT_ROOT" "$HISTORICAL_ROOT" "$FORWARD_ROOT" "$PREDICTION_SOURCE_ROOT" <<'PY'
-import json
-import sys
-from pathlib import Path
-import pandas as pd
-
-project = Path.cwd()
-sys.path.insert(0, str(project))
-from utils.as1455_model_selection import find_summary_file, read_csv_auto, select_historical_signal, successful_rows
-
-out_root, history_root, forward_root = map(lambda value: Path(value).resolve(), sys.argv[1:4])
-prediction_source = sys.argv[4] or None
-selection = select_historical_signal(backtest_root=history_root, rank_metric="sharpe")
-if selection.signal_spec != "ensemble_first3_mean:0,1,2:mean":
-    raise RuntimeError(f"unexpected selected signal: {selection.signal_spec}")
-summary_file, _ = find_summary_file(history_root)
-grid = successful_rows(read_csv_auto(summary_file))
-grid["sharpe"] = pd.to_numeric(grid["sharpe"], errors="coerce")
-grid.sort_values("sharpe", ascending=False).head(20).to_csv(
-    out_root / "historical_grid_top20.csv", index=False, encoding="utf-8-sig"
+finalize_args=(
+  "$PYTHON_BIN"
+  scripts/finalize_as1455_global_fold_forward_results.py
+  --out-root "$OUT_ROOT"
 )
-strict_file = forward_root / "01_close_auction_grid" / "strict_oos_manifest.json"
-strict = json.loads(strict_file.read_text(encoding="utf-8"))
-run_name = strict["retained_run_name"]
-run_dir = forward_root / "01_close_auction_grid" / "01_runs" / run_name
-summary = json.loads((run_dir / "summary.json").read_text(encoding="utf-8"))
-config = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
-row = {
-    "signal_spec": selection.signal_spec,
-    "historical_rank_metric": selection.rank_metric,
-    "historical_rank_metric_value": selection.rank_metric_value,
-    "max_positions": selection.historical_max_positions,
-    "sell_rank": selection.historical_sell_rank,
-    "historical_offset": selection.historical_rebalance_offset,
-    "effective_forward_offset": config.get("rebalance_offset"),
-    **summary,
-}
-pd.DataFrame([row]).to_csv(out_root / "strict_forward_result.csv", index=False, encoding="utf-8-sig")
-manifest = {
-    "protocol": "global_fold0_to_fold5_fixed_first3_ensemble_then_strict_forward",
-    "fixed_signal_spec": "ensemble_first3_mean:0,1,2:mean",
-    "historical_target_folds": [5, 4, 3, 2, 1, 0],
-    "historical_source_folds": [6, 5, 4, 3, 2, 1],
-    "historical_grid_count": int(len(grid)),
-    "forward_grid_count": 0,
-    "forward_fixed_backtest_count": 1,
-    "historical_folds_used_for_selection": True,
-    "forward_results_used_for_selection": False,
-    "pure_nested_historical_evaluation": False,
-    "forward_account_starts_empty": True,
-    "prediction_source_root": prediction_source,
-    "selection": selection.to_dict(),
-    "strict_oos_manifest": strict,
-    "strict_forward_run_dir": str(run_dir),
-    "strict_forward_summary": summary,
-    "model_training": False,
-    "data_refresh": False,
-    "model_data_rebuild": False,
-}
-(out_root / "global_fold0_to_fold5_forward_manifest.json").write_text(
-    json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
-)
-print(json.dumps({"status": "ok", "selection": selection.to_dict(), "forward_summary": summary}, ensure_ascii=False, indent=2))
-PY
+[[ -n "$PREDICTION_SOURCE_ROOT" ]] && finalize_args+=(--prediction-source-root "$PREDICTION_SOURCE_ROOT")
+"${finalize_args[@]}"
 
 echo "[PASS] fixed first3 ensemble global fold0..5 -> strict forward finished"
 echo "[PASS] output=$OUT_ROOT"
