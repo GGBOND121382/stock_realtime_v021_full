@@ -13,7 +13,6 @@ fi
 FEATURE_PRESET="${FEATURE_PRESET:-rotation_addon_onehot}"
 TARGET_COL="${TARGET_COL:?TARGET_COL is required}"
 SIGNAL_KIND="${SIGNAL_KIND:?SIGNAL_KIND is required: all5, first3, or best}"
-TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4,5}"
 TOP_N="${TOP_N:-5}"
 SOURCE_DIR="${SOURCE_DIR:-saved_data/ashare_ml4t/ch12_as1455}"
 HISTORICAL_MODEL_DATA="${HISTORICAL_MODEL_DATA:-$SOURCE_DIR/model_data_as1455.h5}"
@@ -34,9 +33,21 @@ MIN_FREE_GB="${MIN_FREE_GB:-1}"
 FORCE="${FORCE:-0}"
 
 case "$TARGET_COL" in
-  r01_fwd) REBALANCE_EVERY="${REBALANCE_EVERY:-1}"; OFFSET_MODE="${OFFSET_MODE:-zero}" ;;
-  r05_fwd) REBALANCE_EVERY="${REBALANCE_EVERY:-5}"; OFFSET_MODE="${OFFSET_MODE:-full}" ;;
-  r21_fwd) REBALANCE_EVERY="${REBALANCE_EVERY:-21}"; OFFSET_MODE="${OFFSET_MODE:-full}" ;;
+  r01_fwd)
+    REBALANCE_EVERY="${REBALANCE_EVERY:-1}"
+    OFFSET_MODE="${OFFSET_MODE:-zero}"
+    TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4,5}"
+    ;;
+  r05_fwd)
+    REBALANCE_EVERY="${REBALANCE_EVERY:-5}"
+    OFFSET_MODE="${OFFSET_MODE:-full}"
+    TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4,5}"
+    ;;
+  r21_fwd)
+    REBALANCE_EVERY="${REBALANCE_EVERY:-21}"
+    OFFSET_MODE="${OFFSET_MODE:-full}"
+    TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4}"
+    ;;
   *) echo "[ERROR] unsupported TARGET_COL=$TARGET_COL" >&2; exit 2 ;;
 esac
 
@@ -44,29 +55,30 @@ case "$SIGNAL_KIND" in
   all5)
     FIXED_SIGNAL_SPEC="ensemble_all5_mean:0,1,2,3,4:mean"
     GRID_SCRIPT="$PWD/scripts/run_as1455_close_auction_grid_fixed_all5_ensemble.py"
-    FINALIZER="scripts/finalize_as1455_all5_global_fold_forward_results.py"
     MARKER_SCRIPT="scripts/add_as1455_all5_rebalance_markers_to_global_plots.py"
     SIGNAL_LABEL="top-five mean ensemble"
     ;;
   first3)
     FIXED_SIGNAL_SPEC="ensemble_first3_mean:0,1,2:mean"
     GRID_SCRIPT="$PWD/scripts/run_as1455_close_auction_grid_fixed_first3_ensemble.py"
-    FINALIZER="scripts/finalize_as1455_global_fold_forward_results.py"
     MARKER_SCRIPT="scripts/add_as1455_rebalance_markers_to_global_plots.py"
     SIGNAL_LABEL="top-three mean ensemble"
     ;;
   best)
     FIXED_SIGNAL_SPEC="model_0:0:single"
     GRID_SCRIPT="$PWD/scripts/run_as1455_close_auction_grid_fixed_best_model.py"
-    FINALIZER="scripts/finalize_as1455_best_model_global_fold_forward_results.py"
     MARKER_SCRIPT="scripts/add_as1455_best_model_rebalance_markers_to_global_plots.py"
     SIGNAL_LABEL="best single model"
     ;;
   *) echo "[ERROR] unsupported SIGNAL_KIND=$SIGNAL_KIND" >&2; exit 2 ;;
 esac
+FINALIZER="scripts/finalize_as1455_dynamic_global_fold_forward_results.py"
 
+first_fold="${TARGET_FOLDS%%,*}"
+last_fold="${TARGET_FOLDS##*,}"
+fold_label="fold${first_fold}_${last_fold}"
 RUN_STAMP="${RUN_STAMP:-$(date +%Y%m%d_%H%M%S)}"
-DEFAULT_NAME="${TARGET_COL}_${SIGNAL_KIND}_reb${REBALANCE_EVERY}_fold0_5_forward_${RUN_STAMP}"
+DEFAULT_NAME="${TARGET_COL}_${SIGNAL_KIND}_reb${REBALANCE_EVERY}_${fold_label}_forward_${RUN_STAMP}"
 OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/$DEFAULT_NAME}"
 HISTORICAL_ROOT="$OUT_ROOT/historical_fold0_to_fold5_selection"
 FORWARD_ROOT="$OUT_ROOT/strict_oos_forward"
@@ -147,9 +159,10 @@ esac
 
 printf '%s\n' \
   "[MODE] target=$TARGET_COL" \
+  "[MODE] target_folds=$TARGET_FOLDS" \
   "[MODE] rebalance_every=$REBALANCE_EVERY offset_mode=$OFFSET_MODE" \
   "[MODE] signal=$FIXED_SIGNAL_SPEC ($SIGNAL_LABEL)" \
-  "[MODE] historical development set=target_fold5..target_fold0" \
+  "[MODE] historical development set=concatenated requested target folds" \
   "[MODE] historical trading grid count=$GRID_COUNT" \
   "[MODE] strict forward backtest count=1" \
   "[MODE] historical cache=$historical_cache_pred" \
@@ -212,6 +225,7 @@ forward_args=(
   --show-selected
 
 "$PYTHON_BIN" "$FINALIZER" \
+  --signal-kind "$SIGNAL_KIND" \
   --out-root "$OUT_ROOT" \
   --prediction-source-root "shared_prediction_cache:$CACHE_ROOT"
 "$PYTHON_BIN" "$MARKER_SCRIPT" --out-root "$OUT_ROOT"
