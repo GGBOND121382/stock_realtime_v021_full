@@ -37,7 +37,8 @@ MIN_FREE_GB="${MIN_FREE_GB:-1}"
   scripts/run_as1455_target_one_lag_backtest.py \
   scripts/run_as1455_fold0_forward_backtest.py \
   scripts/plot_as1455_backtest_return_curves.py \
-  scripts/finalize_as1455_global_fold_forward_results.py
+  scripts/finalize_as1455_global_fold_forward_results.py \
+  scripts/add_as1455_rebalance_markers_to_global_plots.py
 
 "$PYTHON_BIN" - <<'PYTEST'
 from scripts.run_as1455_close_auction_grid_fixed_first3_ensemble import (
@@ -148,6 +149,8 @@ finalize_args=(
 )
 [[ -n "$PREDICTION_SOURCE_ROOT" ]] && finalize_args+=(--prediction-source-root "$PREDICTION_SOURCE_ROOT")
 "${finalize_args[@]}"
+"$PYTHON_BIN" scripts/add_as1455_rebalance_markers_to_global_plots.py \
+  --out-root "$OUT_ROOT"
 
 echo "[PASS] fixed first3 ensemble global fold0..5 -> strict forward finished"
 echo "[PASS] output=$OUT_ROOT"
