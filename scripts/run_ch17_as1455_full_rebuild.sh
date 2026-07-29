@@ -22,6 +22,15 @@ case "$mode" in
   r05-addon-first3-global-forward-plots|r05-first3-global-forward-plots|first3-ensemble-global-forward-plots)
     exec bash scripts/plot_as1455_r05_addon_first3_global_forward.sh
     ;;
+  r05-addon-best-global-forward|r05-best-global-forward|best-model-global-forward)
+    exec bash scripts/run_as1455_r05_addon_best_model_global_forward.sh
+    ;;
+  r05-addon-best-global-forward-refresh|r05-best-global-forward-refresh|best-model-global-forward-refresh)
+    exec bash scripts/run_as1455_r05_addon_best_model_global_forward_refresh.sh
+    ;;
+  r05-addon-best-global-forward-plots|r05-best-global-forward-plots|best-model-global-forward-plots)
+    exec bash scripts/plot_as1455_r05_addon_best_model_global_forward.sh
+    ;;
   r05-addon-plots|r05-addon-plot-only)
     exec bash scripts/plot_as1455_nested_fold_results.sh
     ;;
@@ -37,9 +46,15 @@ case "$mode" in
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-ensemble" >&2
     echo "Select one first3-ensemble trading config on folds0..5, then test forward:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward" >&2
-    echo "Refresh data, rebuild fold0 forward to the latest available date, and replot:" >&2
+    echo "Select one best-model trading config on folds0..5, then test forward:" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward" >&2
+    echo "Refresh best-model forward to the latest available date:" >&2
+    echo "  OUT_ROOT=<best-model-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward-refresh" >&2
+    echo "Rebuild best-model plots only:" >&2
+    echo "  OUT_ROOT=<best-model-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward-plots" >&2
+    echo "Refresh first3 data, rebuild fold0 forward to the latest available date, and replot:" >&2
     echo "  OUT_ROOT=<global-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward-refresh" >&2
-    echo "Rebuild fold-return and forward plots only:" >&2
+    echo "Rebuild first3 fold-return and forward plots only:" >&2
     echo "  OUT_ROOT=<global-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward-plots" >&2
     echo "Plot an already completed nested result tree without rerunning backtests:" >&2
     echo "  OUT_ROOT=<result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-plots" >&2
@@ -55,6 +70,9 @@ case "$mode" in
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-comparison" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-ensemble" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward" >&2
+    echo "  OUT_ROOT=<best-model-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward-refresh" >&2
+    echo "  OUT_ROOT=<best-model-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward-plots" >&2
     echo "  OUT_ROOT=<global-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward-refresh" >&2
     echo "  OUT_ROOT=<global-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward-plots" >&2
     echo "  OUT_ROOT=<result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-plots" >&2
