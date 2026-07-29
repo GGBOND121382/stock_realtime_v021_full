@@ -32,7 +32,8 @@ REFRESH_STAMP="${REFRESH_STAMP:-$(date +%Y%m%d_%H%M%S)}"
   scripts/run_as1455_fold0_forward_backtest.py \
   scripts/run_as1455_close_auction_grid_fixed_first3_ensemble.py \
   scripts/plot_as1455_backtest_return_curves.py \
-  scripts/finalize_as1455_global_fold_forward_results.py
+  scripts/finalize_as1455_global_fold_forward_results.py \
+  scripts/add_as1455_rebalance_markers_to_global_plots.py
 
 if [[ "$SKIP_DATA_REFRESH" != "1" ]]; then
   echo "===== 1/3 refresh historical cache and forward model_data ====="
@@ -96,7 +97,7 @@ forward_args=(
 [[ -n "${END_DATE:-}" ]] && forward_args+=(--end-date "$END_DATE")
 "${forward_args[@]}"
 
-echo "===== 3/3 rebuild fold-return and latest-forward plots ====="
+echo "===== 3/3 rebuild fold-return, forward, and rebalance-marker plots ====="
 "$PYTHON_BIN" scripts/plot_as1455_backtest_return_curves.py \
   --backtest-root "$FORWARD_ROOT" \
   --label "Strict forward: first3 ensemble selected on folds0-5" \
@@ -107,6 +108,8 @@ echo "===== 3/3 rebuild fold-return and latest-forward plots ====="
 "$PYTHON_BIN" scripts/finalize_as1455_global_fold_forward_results.py \
   --out-root "$OUT_ROOT" \
   --prediction-source-root "refreshed_fold0_inference:$FORWARD_MODEL_DATA"
+"$PYTHON_BIN" scripts/add_as1455_rebalance_markers_to_global_plots.py \
+  --out-root "$OUT_ROOT"
 
 "$PYTHON_BIN" - "$FORWARD_MODEL_DATA" "$OUT_ROOT/strict_forward_result.csv" <<'PY'
 import sys
@@ -127,5 +130,5 @@ if [[ -n "$backup_root" && "$KEEP_FORWARD_BACKUP" != "1" ]]; then
   echo "[CLEAN] removed previous forward backup"
 fi
 
-echo "[PASS] refreshed strict forward and fold-return plots"
+echo "[PASS] refreshed strict forward and rebalance-marked fold plots"
 echo "[PASS] output=$OUT_ROOT"
