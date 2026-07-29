@@ -14,7 +14,8 @@ OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fold_selection/r
 FORWARD_ROOT="$OUT_ROOT/strict_oos_forward"
 "$PYTHON_BIN" -m py_compile \
   scripts/plot_as1455_backtest_return_curves.py \
-  scripts/finalize_as1455_global_fold_forward_results.py
+  scripts/finalize_as1455_global_fold_forward_results.py \
+  scripts/add_as1455_rebalance_markers_to_global_plots.py
 "$PYTHON_BIN" scripts/plot_as1455_backtest_return_curves.py \
   --backtest-root "$FORWARD_ROOT" \
   --label "Strict forward: first3 ensemble selected on folds0-5" \
@@ -29,3 +30,5 @@ args=(
 )
 [[ -n "${PREDICTION_SOURCE_ROOT:-}" ]] && args+=(--prediction-source-root "$PREDICTION_SOURCE_ROOT")
 "${args[@]}"
+"$PYTHON_BIN" scripts/add_as1455_rebalance_markers_to_global_plots.py \
+  --out-root "$OUT_ROOT"
