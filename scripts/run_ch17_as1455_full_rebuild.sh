@@ -31,6 +31,44 @@ case "$mode" in
   r05-addon-best-global-forward-plots|r05-best-global-forward-plots|best-model-global-forward-plots)
     exec bash scripts/plot_as1455_r05_addon_best_model_global_forward.sh
     ;;
+  fixed-signal-matrix|requested-fixed-signal-matrix|seven-global-experiments)
+    exec bash scripts/run_as1455_requested_global_fixed_signal_matrix.sh
+    ;;
+  r05-all5-global-forward)
+    export TARGET_COL=r05_fwd REBALANCE_EVERY=5 SIGNAL_KIND=all5
+    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r05_all5_reb5_fold0_5_forward}"
+    exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
+    ;;
+  r01-all5-global-forward)
+    export TARGET_COL=r01_fwd REBALANCE_EVERY=1 SIGNAL_KIND=all5
+    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r01_all5_reb1_fold0_5_forward}"
+    exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
+    ;;
+  r01-first3-global-forward)
+    export TARGET_COL=r01_fwd REBALANCE_EVERY=1 SIGNAL_KIND=first3
+    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r01_first3_reb1_fold0_5_forward}"
+    exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
+    ;;
+  r01-best-global-forward)
+    export TARGET_COL=r01_fwd REBALANCE_EVERY=1 SIGNAL_KIND=best
+    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r01_best_reb1_fold0_5_forward}"
+    exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
+    ;;
+  r21-all5-global-forward)
+    export TARGET_COL=r21_fwd REBALANCE_EVERY=21 SIGNAL_KIND=all5
+    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r21_all5_reb21_fold0_5_forward}"
+    exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
+    ;;
+  r21-first3-global-forward)
+    export TARGET_COL=r21_fwd REBALANCE_EVERY=21 SIGNAL_KIND=first3
+    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r21_first3_reb21_fold0_5_forward}"
+    exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
+    ;;
+  r21-best-global-forward)
+    export TARGET_COL=r21_fwd REBALANCE_EVERY=21 SIGNAL_KIND=best
+    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r21_best_reb21_fold0_5_forward}"
+    exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
+    ;;
   r05-addon-plots|r05-addon-plot-only)
     exec bash scripts/plot_as1455_nested_fold_results.sh
     ;;
@@ -39,45 +77,29 @@ case "$mode" in
     ;;
   all|preflight|data|selfcheck|training|historical|forward|audit|status|"")
     echo "[BLOCKED] The unrestricted full-rebuild entry is disabled on this branch." >&2
-    echo "Use the corrected nested r05_fwd workflow; it reuses existing checkpoints" >&2
-    echo "but runs one validation grid per source fold:" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-comparison" >&2
-    echo "Run the fixed top-three ensemble experiment (150 trading configs per fold):" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-ensemble" >&2
-    echo "Select one first3-ensemble trading config on folds0..5, then test forward:" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward" >&2
-    echo "Select one best-model trading config on folds0..5, then test forward:" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward" >&2
-    echo "Refresh best-model forward to the latest available date:" >&2
-    echo "  OUT_ROOT=<best-model-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward-refresh" >&2
-    echo "Rebuild best-model plots only:" >&2
-    echo "  OUT_ROOT=<best-model-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward-plots" >&2
-    echo "Refresh first3 data, rebuild fold0 forward to the latest available date, and replot:" >&2
-    echo "  OUT_ROOT=<global-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward-refresh" >&2
-    echo "Rebuild first3 fold-return and forward plots only:" >&2
-    echo "  OUT_ROOT=<global-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward-plots" >&2
-    echo "Plot an already completed nested result tree without rerunning backtests:" >&2
-    echo "  OUT_ROOT=<result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-plots" >&2
-    echo "Run all independent frozen-config fold backtests:" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh independent-folds" >&2
-    echo "Or only replot old non-nested results:" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh existing-results" >&2
+    echo "Run the requested seven fixed-signal global experiments:" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh fixed-signal-matrix" >&2
+    echo "Individual new experiment aliases:" >&2
+    echo "  r05-all5-global-forward" >&2
+    echo "  r01-all5-global-forward | r01-first3-global-forward | r01-best-global-forward" >&2
+    echo "  r21-all5-global-forward | r21-first3-global-forward | r21-best-global-forward" >&2
+    echo "Existing corrected/nested controls remain available:" >&2
+    echo "  r05-addon-comparison" >&2
+    echo "  r05-addon-first3-ensemble" >&2
+    echo "  r05-addon-first3-global-forward" >&2
+    echo "  r05-addon-best-global-forward" >&2
     exit 2
     ;;
   *)
     echo "[ERROR] unsupported mode: $mode" >&2
     echo "Usage:" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh fixed-signal-matrix" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-all5-global-forward" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r01-{all5,first3,best}-global-forward" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r21-{all5,first3,best}-global-forward" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-comparison" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-ensemble" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward" >&2
-    echo "  OUT_ROOT=<best-model-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward-refresh" >&2
-    echo "  OUT_ROOT=<best-model-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward-plots" >&2
-    echo "  OUT_ROOT=<global-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward-refresh" >&2
-    echo "  OUT_ROOT=<global-result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward-plots" >&2
-    echo "  OUT_ROOT=<result-root> bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-plots" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh independent-folds" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh existing-results" >&2
     exit 2
     ;;
 esac
