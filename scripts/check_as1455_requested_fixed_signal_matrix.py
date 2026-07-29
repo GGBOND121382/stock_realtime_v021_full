@@ -3,11 +3,16 @@
 """Preflight checkpoint coverage for the requested seven global experiments."""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pandas as pd
 
-from utils.as1455_ch17_common import default_fold_dir_template
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from utils.as1455_ch17_common import default_fold_dir_template  # noqa: E402
 
 
 def saved_checkpoint_count(path: Path) -> int:
