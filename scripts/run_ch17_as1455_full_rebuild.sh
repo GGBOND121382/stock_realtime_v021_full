@@ -36,37 +36,44 @@ case "$mode" in
     ;;
   r05-all5-global-forward)
     export TARGET_COL=r05_fwd REBALANCE_EVERY=5 SIGNAL_KIND=all5
+    export TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4,5}"
     export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r05_all5_reb5_fold0_5_forward}"
     exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
     ;;
   r01-all5-global-forward)
     export TARGET_COL=r01_fwd REBALANCE_EVERY=1 SIGNAL_KIND=all5
+    export TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4,5}"
     export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r01_all5_reb1_fold0_5_forward}"
     exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
     ;;
   r01-first3-global-forward)
     export TARGET_COL=r01_fwd REBALANCE_EVERY=1 SIGNAL_KIND=first3
+    export TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4,5}"
     export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r01_first3_reb1_fold0_5_forward}"
     exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
     ;;
   r01-best-global-forward)
     export TARGET_COL=r01_fwd REBALANCE_EVERY=1 SIGNAL_KIND=best
+    export TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4,5}"
     export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r01_best_reb1_fold0_5_forward}"
     exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
     ;;
   r21-all5-global-forward)
     export TARGET_COL=r21_fwd REBALANCE_EVERY=21 SIGNAL_KIND=all5
-    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r21_all5_reb21_fold0_5_forward}"
+    export TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4}"
+    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r21_all5_reb21_fold0_4_forward}"
     exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
     ;;
   r21-first3-global-forward)
     export TARGET_COL=r21_fwd REBALANCE_EVERY=21 SIGNAL_KIND=first3
-    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r21_first3_reb21_fold0_5_forward}"
+    export TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4}"
+    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r21_first3_reb21_fold0_4_forward}"
     exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
     ;;
   r21-best-global-forward)
     export TARGET_COL=r21_fwd REBALANCE_EVERY=21 SIGNAL_KIND=best
-    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r21_best_reb21_fold0_5_forward}"
+    export TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4}"
+    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/requested_v1/r21_best_reb21_fold0_4_forward}"
     exec bash scripts/run_as1455_global_fixed_signal_experiment.sh
     ;;
   r05-addon-plots|r05-addon-plot-only)
@@ -83,6 +90,7 @@ case "$mode" in
     echo "  r05-all5-global-forward" >&2
     echo "  r01-all5-global-forward | r01-first3-global-forward | r01-best-global-forward" >&2
     echo "  r21-all5-global-forward | r21-first3-global-forward | r21-best-global-forward" >&2
+    echo "Note: r21 uses target_fold0..4 because source_fold6 is unavailable." >&2
     echo "Existing corrected/nested controls remain available:" >&2
     echo "  r05-addon-comparison" >&2
     echo "  r05-addon-first3-ensemble" >&2
