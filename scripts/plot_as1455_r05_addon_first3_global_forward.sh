@@ -32,3 +32,5 @@ args=(
 "${args[@]}"
 "$PYTHON_BIN" scripts/add_as1455_rebalance_markers_to_global_plots.py \
   --out-root "$OUT_ROOT"
+echo "[PASS] rebalance-marked plots rebuilt"
+echo "[PASS] audit=$OUT_ROOT/rebalance_dates_audit.csv"
