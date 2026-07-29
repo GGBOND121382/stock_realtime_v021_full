@@ -32,7 +32,7 @@ case "$mode" in
     exec bash scripts/plot_as1455_r05_addon_best_model_global_forward.sh
     ;;
   fixed-signal-matrix|requested-fixed-signal-matrix|seven-global-experiments)
-    exec bash scripts/run_as1455_requested_global_fixed_signal_matrix.sh
+    exec bash scripts/run_as1455_requested_global_fixed_signal_matrix_checked.sh
     ;;
   r05-all5-global-forward)
     export TARGET_COL=r05_fwd REBALANCE_EVERY=5 SIGNAL_KIND=all5
