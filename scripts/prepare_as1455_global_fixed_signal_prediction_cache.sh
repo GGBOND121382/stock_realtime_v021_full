@@ -82,49 +82,79 @@ PY
 }
 
 ensure_prediction_segments() {
-  "$PYTHON_BIN" - "$HISTORICAL_CACHE_ROOT" <<'PY'
+  "$PYTHON_BIN" - "$HISTORICAL_CACHE_ROOT" "$TARGET_FOLDS" <<'PY'
 import json
 import sys
 from pathlib import Path
 import pandas as pd
 
 root = Path(sys.argv[1])
+expected_folds = [
+    int(token.strip())
+    for token in sys.argv[2].split(',')
+    if token.strip()
+]
+if not expected_folds:
+    raise RuntimeError("TARGET_FOLDS is empty")
+if len(expected_folds) != len(set(expected_folds)):
+    raise RuntimeError(f"duplicate TARGET_FOLDS: {expected_folds}")
+
 pred_dir = root / "00_predictions"
 pred_file = pred_dir / "test_preds.h5"
 segments_file = pred_dir / "prediction_segments.csv"
-if segments_file.exists():
-    print(f"[RESUME] prediction segments={segments_file}")
-    raise SystemExit(0)
+manifest_file = pred_dir / "one_lag_prediction_manifest.json"
 if not pred_file.exists():
     raise FileNotFoundError(pred_file)
-manifest_file = pred_dir / "one_lag_prediction_manifest.json"
 if not manifest_file.exists():
-    raise FileNotFoundError(
-        f"missing {segments_file} and cannot derive it without {manifest_file}"
-    )
+    raise FileNotFoundError(manifest_file)
+
 manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
 mapping = manifest.get("fold_mapping") or []
+by_target = {int(item["target_fold"]): item for item in mapping}
+missing = sorted(set(expected_folds) - set(by_target))
+if missing:
+    raise RuntimeError(
+        f"prediction manifest does not cover requested target folds: {missing}"
+    )
+
 df = pd.read_hdf(pred_file, "predictions")
 dates = pd.DatetimeIndex(df.index.get_level_values("date")).normalize()
 rows = []
-for item in mapping:
+for target_fold in expected_folds:
+    item = by_target[target_fold]
+    source_fold = int(item["source_fold"])
+    if source_fold != target_fold + 1:
+        raise RuntimeError(
+            f"bad one-fold-lag mapping: source={source_fold} target={target_fold}"
+        )
     start = pd.Timestamp(item["target_test_start"]).normalize()
     end = pd.Timestamp(item["target_test_end"]).normalize()
     mask = (dates >= start) & (dates <= end)
     selected = dates[mask]
+    if not mask.any():
+        raise RuntimeError(
+            f"no prediction rows for target_fold{target_fold}: "
+            f"{start:%Y-%m-%d}..{end:%Y-%m-%d}"
+        )
     rows.append({
-        "source_fold": int(item["source_fold"]),
-        "target_fold": int(item["target_fold"]),
+        "source_fold": source_fold,
+        "target_fold": target_fold,
         "start": start.strftime("%Y-%m-%d"),
         "end": end.strftime("%Y-%m-%d"),
         "n_days": int(selected.nunique()),
         "n_rows": int(mask.sum()),
     })
 segments = pd.DataFrame(rows).sort_values("start").reset_index(drop=True)
-if len(segments) != 6:
-    raise RuntimeError(f"expected six target-fold segments, got {len(segments)}")
+actual = sorted(segments["target_fold"].astype(int).tolist())
+if actual != sorted(expected_folds):
+    raise RuntimeError(
+        f"segment fold mismatch: expected={sorted(expected_folds)} actual={actual}"
+    )
 segments.to_csv(segments_file, index=False, encoding="utf-8-sig")
-print(f"[OK] prediction segments={segments_file}")
+print(
+    f"[OK] prediction segments={segments_file} "
+    f"target_folds={segments['target_fold'].astype(int).tolist()}"
+)
 PY
 }
 
@@ -142,11 +172,7 @@ if [[ "$FORCE_HISTORICAL_PREDICTIONS" == "1" || ! -s "$historical_pred" ]]; then
   else
     echo "[CACHE] generate historical one-fold-lag predictions: target=$TARGET_COL folds=$TARGET_FOLDS"
     if ! check_source_folds; then
-      if [[ "$TARGET_COL" == "r21_fwd" ]]; then
-        echo "[BLOCKED] r21 fold0..5 requires a source_fold6 checkpoint directory." >&2
-        echo "Try training it explicitly (only if the updated dataset now supports fold6):" >&2
-        echo "  TARGET_COL=r21_fwd FEATURE_PRESETS=rotation_addon_onehot FOLDS=6 bash scripts/run_as1455_target_search_all.sh" >&2
-      fi
+      echo "[BLOCKED] requested folds require unavailable source-fold checkpoints." >&2
       exit 3
     fi
     "$PYTHON_BIN" scripts/run_as1455_target_one_lag_backtest.py \
@@ -190,21 +216,26 @@ else
 fi
 [[ -s "$forward_pred" ]] || { echo "[ERROR] missing forward prediction cache: $forward_pred" >&2; exit 1; }
 
-"$PYTHON_BIN" - "$historical_pred" "$forward_pred" <<'PY'
+"$PYTHON_BIN" - "$historical_pred" "$forward_pred" "$TARGET_FOLDS" <<'PY'
 import sys
 from pathlib import Path
 import pandas as pd
-for label, value in (("historical", sys.argv[1]), ("forward", sys.argv[2])):
+
+historical, forward, target_folds = sys.argv[1:]
+for label, value in (("historical", historical), ("forward", forward)):
     path = Path(value)
     df = pd.read_hdf(path, "predictions")
     cols = [str(c) for c in df.columns]
     if not all(str(i) in cols for i in range(5)):
-        raise RuntimeError(f"{label} cache does not contain model columns 0..4: {cols}")
+        raise RuntimeError(
+            f"{label} cache does not contain model columns 0..4: {cols}"
+        )
     dates = pd.DatetimeIndex(df.index.get_level_values("date"))
     print(
         f"[CACHE OK] {label}: rows={len(df)} dates={dates.nunique()} "
         f"range={dates.min():%Y-%m-%d}..{dates.max():%Y-%m-%d} columns={cols}"
     )
+print(f"[CACHE OK] requested target folds={target_folds}")
 PY
 
 echo "[PASS] prediction cache ready: $CACHE_ROOT"
