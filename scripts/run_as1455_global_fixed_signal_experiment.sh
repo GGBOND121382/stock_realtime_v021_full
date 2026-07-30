@@ -29,6 +29,7 @@ SELL_RANK_LIST="${SELL_RANK_LIST:-75,100,150,200,250,300}"
 MIN_FREE_GB="${MIN_FREE_GB:-1}"
 FORCE_HISTORICAL_GRID="${FORCE_HISTORICAL_GRID:-${FORCE:-0}}"
 RESET_FORWARD_RESULTS="${RESET_FORWARD_RESULTS:-0}"
+REUSE_HISTORICAL_ROOT="${REUSE_HISTORICAL_ROOT:-}"
 
 case "$TARGET_COL" in
   r01_fwd)
@@ -81,8 +82,25 @@ FORWARD_CACHE_ROOT="${FORWARD_CACHE_ROOT:-$CACHE_ROOT/fold0_forward_latest}"
 RUN_STAMP="${RUN_STAMP:-$(date +%Y%m%d_%H%M%S)}"
 DEFAULT_NAME="${TARGET_COL}_${SIGNAL_KIND}_reb${REBALANCE_EVERY}_${fold_label}_forward_${RUN_STAMP}"
 OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/$DEFAULT_NAME}"
-HISTORICAL_ROOT="$OUT_ROOT/historical_fold_selection"
+LOCAL_HISTORICAL_ROOT="$OUT_ROOT/historical_fold_selection"
 FORWARD_ROOT="$OUT_ROOT/strict_oos_forward"
+
+if [[ "$FORCE_HISTORICAL_GRID" == "1" ]]; then
+  REUSE_HISTORICAL_ROOT=""
+fi
+if [[ -n "$REUSE_HISTORICAL_ROOT" ]]; then
+  HISTORICAL_ROOT="$($PYTHON_BIN - "$REUSE_HISTORICAL_ROOT" <<'PY'
+import sys
+from pathlib import Path
+print(Path(sys.argv[1]).expanduser().resolve())
+PY
+)"
+  [[ -d "$HISTORICAL_ROOT" ]] || { echo "[ERROR] missing reused historical root: $HISTORICAL_ROOT" >&2; exit 1; }
+  HISTORICAL_REUSED=1
+else
+  HISTORICAL_ROOT="$LOCAL_HISTORICAL_ROOT"
+  HISTORICAL_REUSED=0
+fi
 
 [[ "$CAPACITY_MODE" == "none" ]] || { echo "[ERROR] this protocol requires CAPACITY_MODE=none" >&2; exit 1; }
 [[ -s "$HISTORICAL_MODEL_DATA" ]] || { echo "[ERROR] missing historical model_data: $HISTORICAL_MODEL_DATA" >&2; exit 1; }
@@ -121,16 +139,38 @@ fi
 historical_cache_pred="$HISTORICAL_CACHE_ROOT/00_predictions/test_preds.h5"
 forward_cache_pred="$FORWARD_CACHE_ROOT/00_predictions/fold0_forward_preds.h5"
 segments_cache="$HISTORICAL_CACHE_ROOT/00_predictions/prediction_segments.csv"
-[[ -s "$historical_cache_pred" ]] || { echo "[ERROR] missing historical cache: $historical_cache_pred" >&2; exit 1; }
 [[ -s "$forward_cache_pred" ]] || { echo "[ERROR] missing forward cache: $forward_cache_pred" >&2; exit 1; }
-[[ -s "$segments_cache" ]] || { echo "[ERROR] missing segment cache: $segments_cache" >&2; exit 1; }
+if [[ "$HISTORICAL_REUSED" != "1" ]]; then
+  [[ -s "$historical_cache_pred" ]] || { echo "[ERROR] missing historical cache: $historical_cache_pred" >&2; exit 1; }
+  [[ -s "$segments_cache" ]] || { echo "[ERROR] missing segment cache: $segments_cache" >&2; exit 1; }
+fi
 
 mkdir -p "$OUT_ROOT"
 "$PYTHON_BIN" scripts/check_as1455_disk_space.py \
   --path "$OUT_ROOT" --min-free-gb "$MIN_FREE_GB" \
   --label "${TARGET_COL}-${SIGNAL_KIND}-reb${REBALANCE_EVERY}-global"
 
-"$PYTHON_BIN" - "$HISTORICAL_CACHE_ROOT/00_predictions" "$HISTORICAL_ROOT/00_predictions" <<'PY'
+case "$OFFSET_MODE" in
+  zero) GRID_COUNT=$((5 * 6)) ;;
+  full) GRID_COUNT=$((5 * 6 * REBALANCE_EVERY)) ;;
+  *) echo "[ERROR] unsupported OFFSET_MODE=$OFFSET_MODE" >&2; exit 2 ;;
+esac
+
+printf '%s\n' \
+  "[MODE] target=$TARGET_COL" \
+  "[MODE] target_folds=$TARGET_FOLDS" \
+  "[MODE] rebalance_every=$REBALANCE_EVERY offset_mode=$OFFSET_MODE" \
+  "[MODE] signal=$FIXED_SIGNAL_SPEC ($SIGNAL_LABEL)" \
+  "[MODE] historical trading grid count=$GRID_COUNT" \
+  "[MODE] historical_reused=$HISTORICAL_REUSED" \
+  "[MODE] historical_root=$HISTORICAL_ROOT" \
+  "[MODE] latest forward cache=$forward_cache_pred" \
+  "[MODE] out_root=$OUT_ROOT"
+
+if [[ "$HISTORICAL_REUSED" == "1" ]]; then
+  echo "[REUSE] validated historical grid: $HISTORICAL_ROOT"
+else
+  "$PYTHON_BIN" - "$HISTORICAL_CACHE_ROOT/00_predictions" "$HISTORICAL_ROOT/00_predictions" <<'PY'
 import os
 import shutil
 import sys
@@ -150,46 +190,30 @@ for source in src.iterdir():
 print(f"[OK] materialized prediction metadata: {src} -> {dst}")
 PY
 
-local_historical_pred="$HISTORICAL_ROOT/00_predictions/test_preds.h5"
-case "$OFFSET_MODE" in
-  zero) GRID_COUNT=$((5 * 6)) ;;
-  full) GRID_COUNT=$((5 * 6 * REBALANCE_EVERY)) ;;
-  *) echo "[ERROR] unsupported OFFSET_MODE=$OFFSET_MODE" >&2; exit 2 ;;
-esac
-
-printf '%s\n' \
-  "[MODE] target=$TARGET_COL" \
-  "[MODE] target_folds=$TARGET_FOLDS" \
-  "[MODE] rebalance_every=$REBALANCE_EVERY offset_mode=$OFFSET_MODE" \
-  "[MODE] signal=$FIXED_SIGNAL_SPEC ($SIGNAL_LABEL)" \
-  "[MODE] historical trading grid count=$GRID_COUNT" \
-  "[MODE] strict forward backtest count=1" \
-  "[MODE] historical cache=$historical_cache_pred" \
-  "[MODE] latest forward cache=$forward_cache_pred" \
-  "[MODE] out_root=$OUT_ROOT"
-
-historical_args=(
-  "$PYTHON_BIN" scripts/run_as1455_target_one_lag_backtest.py
-  --feature-preset "$FEATURE_PRESET"
-  --target-col "$TARGET_COL"
-  --target-folds "$TARGET_FOLDS"
-  --rebalance-every "$REBALANCE_EVERY"
-  --offset-mode "$OFFSET_MODE"
-  --top-n "$TOP_N"
-  --out-root "$HISTORICAL_ROOT"
-  --grid-script "$GRID_SCRIPT"
-  --raw-daily-cache-dir "$RAW_DAILY_CACHE_DIR"
-  --capacity-mode "$CAPACITY_MODE"
-  --output-mode "$HISTORICAL_OUTPUT_MODE"
-  --max-positions-list "$MAX_POSITIONS_LIST"
-  --sell-rank-list "$SELL_RANK_LIST"
-  --python-bin "$PYTHON_BIN"
-  --model-data "$HISTORICAL_MODEL_DATA"
-  --skip-predictions
-  --prediction-file "$local_historical_pred"
-)
-[[ "$FORCE_HISTORICAL_GRID" == "1" ]] && historical_args+=(--force-grid)
-"${historical_args[@]}"
+  local_historical_pred="$HISTORICAL_ROOT/00_predictions/test_preds.h5"
+  historical_args=(
+    "$PYTHON_BIN" scripts/run_as1455_target_one_lag_backtest.py
+    --feature-preset "$FEATURE_PRESET"
+    --target-col "$TARGET_COL"
+    --target-folds "$TARGET_FOLDS"
+    --rebalance-every "$REBALANCE_EVERY"
+    --offset-mode "$OFFSET_MODE"
+    --top-n "$TOP_N"
+    --out-root "$HISTORICAL_ROOT"
+    --grid-script "$GRID_SCRIPT"
+    --raw-daily-cache-dir "$RAW_DAILY_CACHE_DIR"
+    --capacity-mode "$CAPACITY_MODE"
+    --output-mode "$HISTORICAL_OUTPUT_MODE"
+    --max-positions-list "$MAX_POSITIONS_LIST"
+    --sell-rank-list "$SELL_RANK_LIST"
+    --python-bin "$PYTHON_BIN"
+    --model-data "$HISTORICAL_MODEL_DATA"
+    --skip-predictions
+    --prediction-file "$local_historical_pred"
+  )
+  [[ "$FORCE_HISTORICAL_GRID" == "1" ]] && historical_args+=(--force-grid)
+  "${historical_args[@]}"
+fi
 
 if [[ "$RESET_FORWARD_RESULTS" == "1" && -d "$FORWARD_ROOT" ]]; then
   echo "[RESET] remove previous strict-forward result: $FORWARD_ROOT"
@@ -233,16 +257,16 @@ forward_args=(
   --out-root "$OUT_ROOT" \
   --historical-root "$HISTORICAL_ROOT" \
   --prediction-source-root "shared_prediction_cache:$CACHE_ROOT"
-# The finalizer creates the legacy history-path link expected by the marker code.
 "$PYTHON_BIN" "$MARKER_SCRIPT" --out-root "$OUT_ROOT"
 
-"$PYTHON_BIN" - "$OUT_ROOT" "$TARGET_COL" "$SIGNAL_KIND" "$FIXED_SIGNAL_SPEC" "$REBALANCE_EVERY" "$OFFSET_MODE" "$TARGET_FOLDS" "$GRID_COUNT" "$CACHE_ROOT" "$HISTORICAL_CACHE_ROOT" <<'PY'
+"$PYTHON_BIN" - "$OUT_ROOT" "$TARGET_COL" "$SIGNAL_KIND" "$FIXED_SIGNAL_SPEC" "$REBALANCE_EVERY" "$OFFSET_MODE" "$TARGET_FOLDS" "$GRID_COUNT" "$CACHE_ROOT" "$HISTORICAL_CACHE_ROOT" "$HISTORICAL_ROOT" "$HISTORICAL_REUSED" <<'PY'
 import json
 import sys
 from pathlib import Path
 (
     out_root, target_col, signal_kind, signal_spec, rebalance_every,
     offset_mode, target_folds, grid_count, cache_root, historical_cache_root,
+    historical_root, historical_reused,
 ) = sys.argv[1:]
 root = Path(out_root)
 manifest_file = root / 'global_fold0_to_fold5_forward_manifest.json'
@@ -258,6 +282,8 @@ payload.update({
     'expected_historical_grid_count': int(grid_count),
     'prediction_cache_root': cache_root,
     'historical_prediction_cache_root': historical_cache_root,
+    'historical_result_root': historical_root,
+    'historical_result_reused': historical_reused == '1',
     'forward_prediction_cache_is_latest_model_data_inference': True,
     'target_fold5_skipped': 5 not in folds,
 })
