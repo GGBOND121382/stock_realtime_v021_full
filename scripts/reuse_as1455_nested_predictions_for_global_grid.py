@@ -4,7 +4,7 @@
 
 The input mapping is source_fold6->target_fold5 through
 source_fold1->target_fold0. Prediction columns keep their rank-slot semantics,
-so columns 0,1,2 are each source fold's top-three checkpoints.
+so column k is the k-th ranked checkpoint of the corresponding source fold.
 """
 from __future__ import annotations
 
@@ -124,6 +124,28 @@ def main() -> None:
     combined.to_hdf(out_file, key="predictions", mode="w")
     combined.to_csv(out_file.with_suffix(".csv"), encoding="utf-8-sig")
     pd.DataFrame(rows).to_csv(segment_file, index=False, encoding="utf-8-sig")
+
+    # Keep both the legacy segment representation and the canonical fold_mapping
+    # representation used by target-aware cache validators.  The two views are
+    # deliberately generated from the same rows to prevent metadata drift.
+    fold_mapping = [
+        {
+            "source_fold": int(row["source_fold"]),
+            "target_fold": int(row["target_fold"]),
+            "source_dir": str(
+                nested_root / f"source_fold{int(row['source_fold'])}"
+            ),
+            "target_test_start": str(row["start"]),
+            "target_test_end": str(row["end"]),
+            "n_target_rows": int(row["n_rows"]),
+            "n_target_dates": int(row["n_days"]),
+            "n_models": len(
+                [value for value in str(row["prediction_columns"]).split(",") if value]
+            ),
+        }
+        for row in rows
+    ]
+
     manifest = {
         "protocol": "reused_nested_one_fold_lag_predictions_for_global_fold0_to_fold5_grid",
         "nested_root": str(nested_root),
@@ -132,12 +154,11 @@ def main() -> None:
         "segment_file": str(segment_file),
         "source_folds": [row[0] for row in MAPPING],
         "target_folds": [row[1] for row in MAPPING],
+        "fold_mapping": fold_mapping,
         "rank_slot_semantics": {
-            "0": "each source fold's highest-ranked saved checkpoint",
-            "1": "each source fold's second-ranked saved checkpoint",
-            "2": "each source fold's third-ranked saved checkpoint",
+            str(index): f"each source fold's rank-{index + 1} saved checkpoint"
+            for index in sorted(int(column) for column in combined.columns)
         },
-        "fixed_experiment_signal": "ensemble_first3_mean:0,1,2:mean",
         "n_rows": len(combined),
         "n_dates": len(combined_dates),
         "prediction_start": combined_dates[0].strftime("%Y-%m-%d"),
@@ -148,7 +169,17 @@ def main() -> None:
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
     )
     print(f"[OK] combined predictions={out_file}")
-    print(f"[OK] dates={manifest['prediction_start']}..{manifest['prediction_end']} n={manifest['n_dates']}")
+    print(
+        f"[OK] dates={manifest['prediction_start']}.."
+        f"{manifest['prediction_end']} n={manifest['n_dates']}"
+    )
+    print(
+        "[OK] fold_mapping="
+        + ",".join(
+            f"source{item['source_fold']}->target{item['target_fold']}"
+            for item in fold_mapping
+        )
+    )
 
 
 if __name__ == "__main__":
