@@ -31,8 +31,8 @@ case "$mode" in
   r05-addon-best-global-forward-plots|r05-best-global-forward-plots|best-model-global-forward-plots)
     exec bash scripts/plot_as1455_r05_addon_best_model_global_forward.sh
     ;;
-  fixed-signal-matrix|requested-fixed-signal-matrix|seven-global-experiments)
-    exec bash scripts/run_as1455_requested_global_fixed_signal_matrix_checked.sh
+  fixed-signal-matrix|requested-fixed-signal-matrix|seven-global-experiments|refresh-fixed-signal-matrix|nine-global-experiments|refresh-all-fixed-signals)
+    exec bash scripts/run_as1455_refresh_all_fixed_signal_backtests.sh
     ;;
   r05-all5-global-forward)
     export TARGET_COL=r05_fwd REBALANCE_EVERY=5 SIGNAL_KIND=all5
@@ -84,27 +84,19 @@ case "$mode" in
     ;;
   all|preflight|data|selfcheck|training|historical|forward|audit|status|"")
     echo "[BLOCKED] The unrestricted full-rebuild entry is disabled on this branch." >&2
-    echo "Run the requested seven fixed-signal global experiments:" >&2
+    echo "Refresh all nine fixed-signal experiments:" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh refresh-all-fixed-signals" >&2
+    echo "Equivalent legacy alias:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh fixed-signal-matrix" >&2
-    echo "Individual new experiment aliases:" >&2
-    echo "  r05-all5-global-forward" >&2
-    echo "  r01-all5-global-forward | r01-first3-global-forward | r01-best-global-forward" >&2
-    echo "  r21-all5-global-forward | r21-first3-global-forward | r21-best-global-forward" >&2
-    echo "Note: r21 uses target_fold0..4 because source_fold6 is unavailable." >&2
-    echo "Existing corrected/nested controls remain available:" >&2
-    echo "  r05-addon-comparison" >&2
-    echo "  r05-addon-first3-ensemble" >&2
-    echo "  r05-addon-first3-global-forward" >&2
-    echo "  r05-addon-best-global-forward" >&2
+    echo "The batch runs r01/r05/r21 x all5/first3/best and dynamically uses" >&2
+    echo "target_fold0..5 when source_fold6 is valid, otherwise target_fold0..4." >&2
     exit 2
     ;;
   *)
     echo "[ERROR] unsupported mode: $mode" >&2
     echo "Usage:" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh refresh-all-fixed-signals" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh fixed-signal-matrix" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-all5-global-forward" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r01-{all5,first3,best}-global-forward" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r21-{all5,first3,best}-global-forward" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-comparison" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward" >&2
