@@ -84,7 +84,7 @@ OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_mat
 HISTORICAL_ROOT="$OUT_ROOT/historical_fold_selection"
 FORWARD_ROOT="$OUT_ROOT/strict_oos_forward"
 
-[[ "$CAPACITY_MODE" == "none" ]] || { echo "[ERROR] this protocol currently requires CAPACITY_MODE=none" >&2; exit 1; }
+[[ "$CAPACITY_MODE" == "none" ]] || { echo "[ERROR] this protocol requires CAPACITY_MODE=none" >&2; exit 1; }
 [[ -s "$HISTORICAL_MODEL_DATA" ]] || { echo "[ERROR] missing historical model_data: $HISTORICAL_MODEL_DATA" >&2; exit 1; }
 [[ -s "$FORWARD_MODEL_DATA" ]] || { echo "[ERROR] missing forward model_data: $FORWARD_MODEL_DATA" >&2; exit 1; }
 [[ -d "$RAW_DAILY_CACHE_DIR" ]] || { echo "[ERROR] missing raw daily cache: $RAW_DAILY_CACHE_DIR" >&2; exit 1; }
@@ -92,9 +92,7 @@ FORWARD_ROOT="$OUT_ROOT/strict_oos_forward"
 "$PYTHON_BIN" -m py_compile \
   scripts/run_as1455_target_one_lag_backtest.py \
   scripts/run_as1455_fold0_forward_backtest.py \
-  "$GRID_SCRIPT" \
-  "$FINALIZER" \
-  "$MARKER_SCRIPT"
+  "$GRID_SCRIPT" "$FINALIZER" "$MARKER_SCRIPT"
 
 if [[ "$PREPARE_CACHE" == "1" ]]; then
   cache_env=(
@@ -153,7 +151,6 @@ print(f"[OK] materialized prediction metadata: {src} -> {dst}")
 PY
 
 local_historical_pred="$HISTORICAL_ROOT/00_predictions/test_preds.h5"
-
 case "$OFFSET_MODE" in
   zero) GRID_COUNT=$((5 * 6)) ;;
   full) GRID_COUNT=$((5 * 6 * REBALANCE_EVERY)) ;;
@@ -165,7 +162,6 @@ printf '%s\n' \
   "[MODE] target_folds=$TARGET_FOLDS" \
   "[MODE] rebalance_every=$REBALANCE_EVERY offset_mode=$OFFSET_MODE" \
   "[MODE] signal=$FIXED_SIGNAL_SPEC ($SIGNAL_LABEL)" \
-  "[MODE] historical development set=concatenated requested target folds" \
   "[MODE] historical trading grid count=$GRID_COUNT" \
   "[MODE] strict forward backtest count=1" \
   "[MODE] historical cache=$historical_cache_pred" \
@@ -237,25 +233,16 @@ forward_args=(
   --out-root "$OUT_ROOT" \
   --historical-root "$HISTORICAL_ROOT" \
   --prediction-source-root "shared_prediction_cache:$CACHE_ROOT"
-"$PYTHON_BIN" "$MARKER_SCRIPT" \
-  --out-root "$OUT_ROOT" \
-  --historical-root "$HISTORICAL_ROOT"
+# The finalizer creates the legacy history-path link expected by the marker code.
+"$PYTHON_BIN" "$MARKER_SCRIPT" --out-root "$OUT_ROOT"
 
 "$PYTHON_BIN" - "$OUT_ROOT" "$TARGET_COL" "$SIGNAL_KIND" "$FIXED_SIGNAL_SPEC" "$REBALANCE_EVERY" "$OFFSET_MODE" "$TARGET_FOLDS" "$GRID_COUNT" "$CACHE_ROOT" "$HISTORICAL_CACHE_ROOT" <<'PY'
 import json
 import sys
 from pathlib import Path
 (
-    out_root,
-    target_col,
-    signal_kind,
-    signal_spec,
-    rebalance_every,
-    offset_mode,
-    target_folds,
-    grid_count,
-    cache_root,
-    historical_cache_root,
+    out_root, target_col, signal_kind, signal_spec, rebalance_every,
+    offset_mode, target_folds, grid_count, cache_root, historical_cache_root,
 ) = sys.argv[1:]
 root = Path(out_root)
 manifest_file = root / 'global_fold0_to_fold5_forward_manifest.json'
