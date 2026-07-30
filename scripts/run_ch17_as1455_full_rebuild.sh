@@ -34,6 +34,9 @@ case "$mode" in
   fixed-signal-matrix|requested-fixed-signal-matrix|seven-global-experiments|refresh-fixed-signal-matrix|nine-global-experiments|refresh-all-fixed-signals)
     exec bash scripts/run_as1455_refresh_all_fixed_signal_backtests.sh
     ;;
+  migrate-r05-history|r05-history-migrate|r05-history-to-unified)
+    exec bash scripts/migrate_as1455_r05_history_to_unified_matrix.sh
+    ;;
   r05-all5-global-forward)
     export TARGET_COL=r05_fwd REBALANCE_EVERY=5 SIGNAL_KIND=all5
     export TARGET_FOLDS="${TARGET_FOLDS:-0,1,2,3,4,5}"
@@ -86,8 +89,8 @@ case "$mode" in
     echo "[BLOCKED] The unrestricted full-rebuild entry is disabled on this branch." >&2
     echo "Refresh all nine fixed-signal experiments:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh refresh-all-fixed-signals" >&2
-    echo "Equivalent legacy alias:" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh fixed-signal-matrix" >&2
+    echo "Migrate validated legacy r05 histories into the unified directory:" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh migrate-r05-history" >&2
     echo "The batch runs r01/r05/r21 x all5/first3/best and dynamically uses" >&2
     echo "target_fold0..5 when source_fold6 is valid, otherwise target_fold0..4." >&2
     exit 2
@@ -96,7 +99,7 @@ case "$mode" in
     echo "[ERROR] unsupported mode: $mode" >&2
     echo "Usage:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh refresh-all-fixed-signals" >&2
-    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh fixed-signal-matrix" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh migrate-r05-history" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-comparison" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-best-global-forward" >&2
