@@ -19,9 +19,6 @@ HISTORICAL_MODEL_DATA="${HISTORICAL_MODEL_DATA:-$SOURCE_DIR/model_data_as1455.h5
 FORWARD_MODEL_DATA="${FORWARD_MODEL_DATA:-saved_data/ashare_ml4t/ch12_as1455_forward_latest/model_data_as1455.h5}"
 RAW_DAILY_CACHE_DIR="${RAW_DAILY_CACHE_DIR:-$SOURCE_DIR/baostock_raw_daily_cache}"
 CACHE_BASE="${CACHE_BASE:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_prediction_cache}"
-CACHE_ROOT="${CACHE_ROOT:-$CACHE_BASE/${FEATURE_PRESET}_${TARGET_COL}_top${TOP_N}}"
-HISTORICAL_CACHE_ROOT="$CACHE_ROOT/historical_fold0_to_fold5"
-FORWARD_CACHE_ROOT="$CACHE_ROOT/fold0_forward_latest"
 PREPARE_CACHE="${PREPARE_CACHE:-1}"
 REBUILD_FORWARD_PREDICTIONS="${REBUILD_FORWARD_PREDICTIONS:-1}"
 CAPACITY_MODE="${CAPACITY_MODE:-none}"
@@ -30,7 +27,8 @@ FORWARD_OUTPUT_MODE="${FORWARD_OUTPUT_MODE:-compact}"
 MAX_POSITIONS_LIST="${MAX_POSITIONS_LIST:-5,10,15,20,25}"
 SELL_RANK_LIST="${SELL_RANK_LIST:-75,100,150,200,250,300}"
 MIN_FREE_GB="${MIN_FREE_GB:-1}"
-FORCE="${FORCE:-0}"
+FORCE_HISTORICAL_GRID="${FORCE_HISTORICAL_GRID:-${FORCE:-0}}"
+RESET_FORWARD_RESULTS="${RESET_FORWARD_RESULTS:-0}"
 
 case "$TARGET_COL" in
   r01_fwd)
@@ -77,10 +75,13 @@ FINALIZER="scripts/finalize_as1455_dynamic_global_fold_forward_results.py"
 first_fold="${TARGET_FOLDS%%,*}"
 last_fold="${TARGET_FOLDS##*,}"
 fold_label="fold${first_fold}_${last_fold}"
+CACHE_ROOT="${CACHE_ROOT:-$CACHE_BASE/${FEATURE_PRESET}_${TARGET_COL}_top${TOP_N}}"
+HISTORICAL_CACHE_ROOT="${HISTORICAL_CACHE_ROOT:-$CACHE_ROOT/historical_${fold_label}}"
+FORWARD_CACHE_ROOT="${FORWARD_CACHE_ROOT:-$CACHE_ROOT/fold0_forward_latest}"
 RUN_STAMP="${RUN_STAMP:-$(date +%Y%m%d_%H%M%S)}"
 DEFAULT_NAME="${TARGET_COL}_${SIGNAL_KIND}_reb${REBALANCE_EVERY}_${fold_label}_forward_${RUN_STAMP}"
 OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/$DEFAULT_NAME}"
-HISTORICAL_ROOT="$OUT_ROOT/historical_fold0_to_fold5_selection"
+HISTORICAL_ROOT="$OUT_ROOT/historical_fold_selection"
 FORWARD_ROOT="$OUT_ROOT/strict_oos_forward"
 
 [[ "$CAPACITY_MODE" == "none" ]] || { echo "[ERROR] this protocol currently requires CAPACITY_MODE=none" >&2; exit 1; }
@@ -109,6 +110,8 @@ if [[ "$PREPARE_CACHE" == "1" ]]; then
     RAW_DAILY_CACHE_DIR="$RAW_DAILY_CACHE_DIR"
     CACHE_BASE="$CACHE_BASE"
     CACHE_ROOT="$CACHE_ROOT"
+    HISTORICAL_CACHE_ROOT="$HISTORICAL_CACHE_ROOT"
+    FORWARD_CACHE_ROOT="$FORWARD_CACHE_ROOT"
     FORCE_HISTORICAL_PREDICTIONS="${FORCE_HISTORICAL_PREDICTIONS:-0}"
     REBUILD_FORWARD_PREDICTIONS="$REBUILD_FORWARD_PREDICTIONS"
   )
@@ -189,8 +192,13 @@ historical_args=(
   --skip-predictions
   --prediction-file "$local_historical_pred"
 )
-[[ "$FORCE" == "1" ]] && historical_args+=(--force-grid)
+[[ "$FORCE_HISTORICAL_GRID" == "1" ]] && historical_args+=(--force-grid)
 "${historical_args[@]}"
+
+if [[ "$RESET_FORWARD_RESULTS" == "1" && -d "$FORWARD_ROOT" ]]; then
+  echo "[RESET] remove previous strict-forward result: $FORWARD_ROOT"
+  rm -rf "$FORWARD_ROOT"
+fi
 
 forward_args=(
   "$PYTHON_BIN" scripts/run_as1455_fold0_forward_backtest.py
@@ -227,10 +235,13 @@ forward_args=(
 "$PYTHON_BIN" "$FINALIZER" \
   --signal-kind "$SIGNAL_KIND" \
   --out-root "$OUT_ROOT" \
+  --historical-root "$HISTORICAL_ROOT" \
   --prediction-source-root "shared_prediction_cache:$CACHE_ROOT"
-"$PYTHON_BIN" "$MARKER_SCRIPT" --out-root "$OUT_ROOT"
+"$PYTHON_BIN" "$MARKER_SCRIPT" \
+  --out-root "$OUT_ROOT" \
+  --historical-root "$HISTORICAL_ROOT"
 
-"$PYTHON_BIN" - "$OUT_ROOT" "$TARGET_COL" "$SIGNAL_KIND" "$FIXED_SIGNAL_SPEC" "$REBALANCE_EVERY" "$OFFSET_MODE" "$TARGET_FOLDS" "$GRID_COUNT" "$CACHE_ROOT" <<'PY'
+"$PYTHON_BIN" - "$OUT_ROOT" "$TARGET_COL" "$SIGNAL_KIND" "$FIXED_SIGNAL_SPEC" "$REBALANCE_EVERY" "$OFFSET_MODE" "$TARGET_FOLDS" "$GRID_COUNT" "$CACHE_ROOT" "$HISTORICAL_CACHE_ROOT" <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -244,26 +255,30 @@ from pathlib import Path
     target_folds,
     grid_count,
     cache_root,
+    historical_cache_root,
 ) = sys.argv[1:]
 root = Path(out_root)
-manifest_file = root / "global_fold0_to_fold5_forward_manifest.json"
-payload = json.loads(manifest_file.read_text(encoding="utf-8"))
+manifest_file = root / 'global_fold0_to_fold5_forward_manifest.json'
+payload = json.loads(manifest_file.read_text(encoding='utf-8'))
+folds = [int(v) for v in target_folds.split(',') if v.strip()]
 payload.update({
-    "target_col": target_col,
-    "fixed_signal_kind": signal_kind,
-    "fixed_signal_spec": signal_spec,
-    "rebalance_every": int(rebalance_every),
-    "offset_mode": offset_mode,
-    "target_folds": [int(v) for v in target_folds.split(',') if v.strip()],
-    "expected_historical_grid_count": int(grid_count),
-    "prediction_cache_root": cache_root,
-    "forward_prediction_cache_is_latest_model_data_inference": True,
+    'target_col': target_col,
+    'fixed_signal_kind': signal_kind,
+    'fixed_signal_spec': signal_spec,
+    'rebalance_every': int(rebalance_every),
+    'offset_mode': offset_mode,
+    'target_folds': folds,
+    'expected_historical_grid_count': int(grid_count),
+    'prediction_cache_root': cache_root,
+    'historical_prediction_cache_root': historical_cache_root,
+    'forward_prediction_cache_is_latest_model_data_inference': True,
+    'target_fold5_skipped': 5 not in folds,
 })
 manifest_file.write_text(
     json.dumps(payload, ensure_ascii=False, indent=2, default=str),
-    encoding="utf-8",
+    encoding='utf-8',
 )
-print(f"[OK] experiment manifest={manifest_file}")
+print(f'[OK] experiment manifest={manifest_file}')
 PY
 
 echo "[PASS] fixed-signal global experiment finished"
