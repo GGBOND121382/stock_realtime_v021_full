@@ -28,13 +28,14 @@ PLAN_JSON="$MATRIX_ROOT/fold_availability_plan.json"
 
 "$PYTHON_BIN" -m py_compile \
   scripts/resolve_as1455_fixed_signal_matrix_folds.py \
+  scripts/find_as1455_compatible_historical_result.py \
   scripts/run_as1455_close_auction_grid_fixed_all5_ensemble.py \
   scripts/run_as1455_close_auction_grid_fixed_first3_ensemble.py \
   scripts/run_as1455_close_auction_grid_fixed_best_model.py \
   scripts/finalize_as1455_dynamic_global_fold_forward_results.py \
   scripts/reuse_as1455_nested_predictions_for_global_grid.py
 
-# Resolve folds before the long data refresh.  fold0..4 are mandatory; fold5 is
+# Resolve folds before the long data refresh. fold0..4 are mandatory; fold5 is
 # added only when source_fold6 contains at least TOP_N valid saved checkpoints.
 eval "$(
   "$PYTHON_BIN" scripts/resolve_as1455_fixed_signal_matrix_folds.py \
@@ -97,6 +98,25 @@ run_experiment() {
   local fold_label="$4"
   local signal_kind="$5"
   local out_name="${target_col%%_*}_${signal_kind}_reb${rebalance_every}_${fold_label}_forward"
+  local out_root="$MATRIX_ROOT/$out_name"
+  local history_report="$MATRIX_ROOT/history_resolution_${out_name}.json"
+  local reuse_historical_root=""
+
+  if [[ "$FORCE_HISTORICAL_GRID" != "1" ]]; then
+    reuse_historical_root="$(
+      "$PYTHON_BIN" scripts/find_as1455_compatible_historical_result.py \
+        --target-col "$target_col" \
+        --signal-kind "$signal_kind" \
+        --rebalance-every "$rebalance_every" \
+        --target-folds "$target_folds" \
+        --preferred-root "$out_root/historical_fold_selection" \
+        --output-json "$history_report" \
+        --format path
+    )"
+  else
+    printf '%s\n' '{"status":"disabled","reason":"FORCE_HISTORICAL_GRID=1"}' > "$history_report"
+  fi
+
   experiment_names+=("$out_name")
   echo "===== experiment target=$target_col rebalance=$rebalance_every folds=$target_folds signal=$signal_kind ====="
   env \
@@ -113,7 +133,8 @@ run_experiment() {
     SOURCE_DIR="$SOURCE_DIR" \
     RAW_DAILY_CACHE_DIR="$RAW_DAILY_CACHE_DIR" \
     CACHE_BASE="$CACHE_BASE" \
-    OUT_ROOT="$MATRIX_ROOT/$out_name" \
+    OUT_ROOT="$out_root" \
+    REUSE_HISTORICAL_ROOT="$reuse_historical_root" \
     FORCE_HISTORICAL_GRID="$FORCE_HISTORICAL_GRID" \
     RESET_FORWARD_RESULTS="$RESET_FORWARD_RESULTS" \
     bash scripts/run_as1455_global_fixed_signal_experiment.sh
@@ -176,6 +197,8 @@ for experiment in expected:
         'expected_historical_grid_count',
         'historical_target_folds',
         'historical_source_folds',
+        'historical_result_root',
+        'historical_result_reused',
         'target_fold5_skipped',
         'strict_forward_start',
         'strict_forward_end',
@@ -190,7 +213,8 @@ if len(rows) != 9:
 summary = pd.DataFrame(rows)
 preferred = [
     'experiment', 'target_col', 'rebalance_every', 'fixed_signal_kind',
-    'historical_target_folds', 'total_return', 'annual_return', 'sharpe',
+    'historical_target_folds', 'historical_result_reused',
+    'historical_result_root', 'total_return', 'annual_return', 'sharpe',
     'max_drawdown', 'forward_start', 'forward_end', 'result_file',
 ]
 ordered = [column for column in preferred if column in summary.columns]
@@ -210,6 +234,7 @@ manifest = {
         'rebalance_targets': {'r01_fwd': 1, 'r05_fwd': 5, 'r21_fwd': 21},
         'fold_rule': 'use target_fold0..5 when source_fold6 has top-5 checkpoints; otherwise use target_fold0..4',
         'historical_grid_selection_metric': 'sharpe',
+        'historical_result_discovery': 'strict cross-directory compatibility validation',
         'forward_used_for_selection': False,
     },
 }
@@ -220,8 +245,8 @@ manifest = {
 show = [
     column for column in (
         'experiment', 'target_col', 'fixed_signal_kind', 'rebalance_every',
-        'historical_target_folds', 'total_return', 'sharpe', 'max_drawdown',
-        'forward_start', 'forward_end',
+        'historical_target_folds', 'historical_result_reused',
+        'total_return', 'sharpe', 'max_drawdown', 'forward_start', 'forward_end',
     ) if column in summary.columns
 ]
 print(summary[show].to_string(index=False))
