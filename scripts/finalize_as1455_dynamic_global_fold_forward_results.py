@@ -2,14 +2,15 @@
 # -*- coding: utf-8 -*-
 """Finalize a fixed-signal global-fold experiment with a dynamic fold set.
 
-The shared finalizer was originally written for exactly target_fold5..target_fold0.
-This adapter keeps its calculation and plotting logic, but validates the fold set
-from ``prediction_segments.csv`` instead of requiring six segments.  This is
-needed for r21_fwd, where sample length supports target_fold0..target_fold4 only.
+The shared finalizer was originally written for exactly target_fold5..target_fold0
+and a legacy historical directory name.  This adapter validates the actual
+``prediction_segments.csv`` fold set and provides a compatibility link when the
+caller uses a range-neutral historical directory.
 """
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -30,7 +31,7 @@ SIGNALS = {
 }
 
 
-def pop_option(name: str) -> str:
+def pop_option(name: str, *, required: bool = True) -> str | None:
     args = sys.argv[1:]
     for index, token in enumerate(args):
         if token == name:
@@ -46,7 +47,9 @@ def pop_option(name: str) -> str:
             del args[index]
             sys.argv[1:] = args
             return value
-    raise SystemExit(f"{name} is required")
+    if required:
+        raise SystemExit(f"{name} is required")
+    return None
 
 
 def argument_value(name: str) -> str | None:
@@ -114,6 +117,27 @@ def load_segments_dynamic(path: Path) -> pd.DataFrame:
     return segments
 
 
+def ensure_legacy_history_link(out_root: Path, historical_root: Path) -> Path:
+    legacy = out_root / "historical_fold0_to_fold5_selection"
+    historical_root = historical_root.expanduser().resolve()
+    if not historical_root.is_dir():
+        raise FileNotFoundError(historical_root)
+    if legacy.resolve() == historical_root:
+        return legacy
+    if legacy.is_symlink():
+        if legacy.resolve() == historical_root:
+            return legacy
+        legacy.unlink()
+    elif legacy.exists():
+        raise RuntimeError(
+            f"legacy historical path already exists and is not the requested root: {legacy}"
+        )
+    relative = os.path.relpath(historical_root, start=legacy.parent)
+    legacy.symlink_to(relative, target_is_directory=True)
+    print(f"[OK] historical compatibility link: {legacy} -> {relative}")
+    return legacy
+
+
 def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, default=str),
@@ -122,7 +146,8 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
 
 
 def main() -> None:
-    signal_kind = pop_option("--signal-kind")
+    signal_kind = str(pop_option("--signal-kind"))
+    historical_root_value = pop_option("--historical-root", required=False)
     try:
         signal_spec = SIGNALS[signal_kind]
     except KeyError as exc:
@@ -133,12 +158,18 @@ def main() -> None:
     out_root_value = argument_value("--out-root")
     if not out_root_value:
         raise SystemExit("--out-root is required")
+    out_root = Path(out_root_value).expanduser().resolve()
+    historical_root = (
+        Path(historical_root_value).expanduser().resolve()
+        if historical_root_value
+        else out_root / "historical_fold0_to_fold5_selection"
+    )
+    ensure_legacy_history_link(out_root, historical_root)
 
     shared.FIXED_SIGNAL_SPEC = signal_spec
     shared.load_segments = load_segments_dynamic
     shared.main()
 
-    out_root = Path(out_root_value).expanduser().resolve()
     manifest_file = out_root / "global_fold0_to_fold5_forward_manifest.json"
     returns_file = out_root / "historical_fold_segment_returns.csv"
     manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
@@ -164,9 +195,8 @@ def main() -> None:
             "historical_fold_range": (
                 f"target_fold{max(target_folds)}..target_fold{min(target_folds)}"
             ),
-            "target_fold5_skipped_for_sample_shortage": (
-                5 not in target_folds
-            ),
+            "historical_root": str(historical_root),
+            "target_fold5_skipped_for_sample_shortage": 5 not in target_folds,
         }
     )
     write_json(manifest_file, manifest)
