@@ -13,6 +13,9 @@ case "$mode" in
   r05-addon-first3-ensemble|r05-first3-ensemble|first3-ensemble-nested)
     exec bash scripts/run_as1455_r05_addon_first3_ensemble_nested.sh
     ;;
+  r21-fixed-nested|r21-fixed-signal-nested|r21-nested-matrix)
+    exec bash scripts/run_as1455_r21_fixed_signal_nested_matrix.sh
+    ;;
   r05-addon-first3-global-forward|r05-first3-global-forward|first3-ensemble-global-forward)
     exec bash scripts/run_as1455_r05_addon_first3_ensemble_global_forward.sh
     ;;
@@ -89,16 +92,19 @@ case "$mode" in
     echo "[BLOCKED] The unrestricted full-rebuild entry is disabled on this branch." >&2
     echo "Refresh all nine fixed-signal experiments:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh refresh-all-fixed-signals" >&2
+    echo "Run the r21 per-fold nested fixed-signal experiment:" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r21-fixed-nested" >&2
     echo "Migrate validated legacy r05 histories into the unified directory:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh migrate-r05-history" >&2
-    echo "The batch runs r01/r05/r21 x all5/first3/best and dynamically uses" >&2
-    echo "target_fold0..5 when source_fold6 is valid, otherwise target_fold0..4." >&2
+    echo "The global batch dynamically uses target_fold0..5 when source_fold6 is" >&2
+    echo "valid, otherwise target_fold0..4." >&2
     exit 2
     ;;
   *)
     echo "[ERROR] unsupported mode: $mode" >&2
     echo "Usage:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh refresh-all-fixed-signals" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r21-fixed-nested" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh migrate-r05-history" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-comparison" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward" >&2
