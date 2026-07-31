@@ -28,6 +28,7 @@ MIN_FREE_GB="${MIN_FREE_GB:-5}"
 "$PYTHON_BIN" -m py_compile \
   scripts/run_as1455_nested_fold_protocol.py \
   scripts/run_as1455_r21_fixed_signal_nested_matrix.py \
+  scripts/run_as1455_r21_fixed_signal_nested_matrix_entry.py \
   scripts/plot_as1455_nested_fold_results_dynamic.py \
   scripts/run_as1455_close_auction_grid_fixed_all5_ensemble.py \
   scripts/run_as1455_close_auction_grid_fixed_first3_ensemble.py \
@@ -52,7 +53,7 @@ printf '%s\n' \
 
 args=(
   "$PYTHON_BIN"
-  scripts/run_as1455_r21_fixed_signal_nested_matrix.py
+  scripts/run_as1455_r21_fixed_signal_nested_matrix_entry.py
   --historical-model-data "$HISTORICAL_MODEL_DATA"
   --forward-model-data "$FORWARD_MODEL_DATA"
   --feature-preset rotation_addon_onehot
