@@ -10,9 +10,15 @@ before any expensive prediction or grid work begins.
 """
 from __future__ import annotations
 
+import sys
 from argparse import Namespace
+from pathlib import Path
 
-from scripts import run_as1455_r21_fixed_signal_nested_matrix as implementation
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from scripts import run_as1455_r21_fixed_signal_nested_matrix as implementation  # noqa: E402
 
 ORIGINAL_PARSE_ARGS = implementation.parse_args
 TARGET_COL = "r21_fwd"
