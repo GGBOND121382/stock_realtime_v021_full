@@ -3,12 +3,17 @@
 """Run the existing nested-fold plotting pipeline for a dynamic segment count."""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
-from scripts import plot_as1455_nested_fold_results as base
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from scripts import plot_as1455_nested_fold_results as base  # noqa: E402
 
 
 def load_segments_dynamic(root: Path) -> tuple[pd.DataFrame, list[dict[str, Any]]]:
