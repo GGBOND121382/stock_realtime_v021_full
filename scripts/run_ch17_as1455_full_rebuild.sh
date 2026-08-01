@@ -13,6 +13,13 @@ case "$mode" in
   r05-addon-first3-ensemble|r05-first3-ensemble|first3-ensemble-nested)
     exec bash scripts/run_as1455_r05_addon_first3_ensemble_nested.sh
     ;;
+  r05-addon-best-model-nested|r05-best-model-nested|best-model-nested)
+    exec bash scripts/run_as1455_r05_addon_best_model_nested.sh
+    ;;
+  r05-addon-best-model-nested-plots|r05-best-model-nested-plots|best-model-nested-plots)
+    export OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/ch17_as1455_nested_fold_protocol/r05_addon_best_model_nested_v1}"
+    exec bash scripts/plot_as1455_nested_fold_results.sh
+    ;;
   r21-fixed-nested|r21-fixed-signal-nested|r21-nested-matrix)
     exec bash scripts/run_as1455_r21_fixed_signal_nested_matrix.sh
     ;;
@@ -95,6 +102,8 @@ case "$mode" in
     echo "[BLOCKED] The unrestricted full-rebuild entry is disabled on this branch." >&2
     echo "Refresh all nine fixed-signal experiments with complete forward rebalance holdings:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh refresh-all-fixed-signals" >&2
+    echo "Run the r05 per-fold fixed-best-model nested experiment:" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-best-model-nested" >&2
     echo "Run the r21 per-fold nested fixed-signal experiment:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r21-fixed-nested" >&2
     echo "Regenerate only the r21 nested plots:" >&2
@@ -109,6 +118,8 @@ case "$mode" in
     echo "[ERROR] unsupported mode: $mode" >&2
     echo "Usage:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh refresh-all-fixed-signals" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-best-model-nested" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-best-model-nested-plots" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r21-fixed-nested" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r21-fixed-nested-plots" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh migrate-r05-history" >&2
