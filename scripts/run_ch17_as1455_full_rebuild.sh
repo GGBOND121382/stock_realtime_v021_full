@@ -16,6 +16,9 @@ case "$mode" in
   r21-fixed-nested|r21-fixed-signal-nested|r21-nested-matrix)
     exec bash scripts/run_as1455_r21_fixed_signal_nested_matrix.sh
     ;;
+  r21-fixed-nested-plots|r21-fixed-signal-nested-plots|r21-nested-matrix-plots)
+    exec bash scripts/plot_as1455_r21_fixed_signal_nested_matrix.sh
+    ;;
   r05-addon-first3-global-forward|r05-first3-global-forward|first3-ensemble-global-forward)
     exec bash scripts/run_as1455_r05_addon_first3_ensemble_global_forward.sh
     ;;
@@ -34,8 +37,8 @@ case "$mode" in
   r05-addon-best-global-forward-plots|r05-best-global-forward-plots|best-model-global-forward-plots)
     exec bash scripts/plot_as1455_r05_addon_best_model_global_forward.sh
     ;;
-  fixed-signal-matrix|requested-fixed-signal-matrix|seven-global-experiments|refresh-fixed-signal-matrix|nine-global-experiments|refresh-all-fixed-signals)
-    exec bash scripts/run_as1455_refresh_all_fixed_signal_backtests.sh
+  fixed-signal-matrix|requested-fixed-signal-matrix|seven-global-experiments|refresh-fixed-signal-matrix|nine-global-experiments|refresh-all-fixed-signals|refresh-all-fixed-signals-with-positions)
+    exec bash scripts/run_as1455_refresh_all_fixed_signal_backtests_with_positions.sh
     ;;
   migrate-r05-history|r05-history-migrate|r05-history-to-unified)
     exec bash scripts/migrate_as1455_r05_history_to_unified_matrix.sh
@@ -90,10 +93,12 @@ case "$mode" in
     ;;
   all|preflight|data|selfcheck|training|historical|forward|audit|status|"")
     echo "[BLOCKED] The unrestricted full-rebuild entry is disabled on this branch." >&2
-    echo "Refresh all nine fixed-signal experiments:" >&2
+    echo "Refresh all nine fixed-signal experiments with complete forward rebalance holdings:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh refresh-all-fixed-signals" >&2
     echo "Run the r21 per-fold nested fixed-signal experiment:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r21-fixed-nested" >&2
+    echo "Regenerate only the r21 nested plots:" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r21-fixed-nested-plots" >&2
     echo "Migrate validated legacy r05 histories into the unified directory:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh migrate-r05-history" >&2
     echo "The global batch dynamically uses target_fold0..5 when source_fold6 is" >&2
@@ -105,6 +110,7 @@ case "$mode" in
     echo "Usage:" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh refresh-all-fixed-signals" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r21-fixed-nested" >&2
+    echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r21-fixed-nested-plots" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh migrate-r05-history" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-comparison" >&2
     echo "  bash scripts/run_ch17_as1455_full_rebuild.sh r05-addon-first3-global-forward" >&2
