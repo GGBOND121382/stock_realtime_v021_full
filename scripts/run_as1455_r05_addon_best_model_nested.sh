@@ -107,6 +107,51 @@ fi
 [[ "${SKIP_CONTINUOUS:-0}" == "1" ]] && args+=(--skip-continuous)
 
 "${args[@]}"
+
+"$PYTHON_BIN" - "$OUT_ROOT" "$FIXED_SIGNAL_SPEC" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+root = Path(sys.argv[1]).expanduser().resolve()
+expected = sys.argv[2]
+rows = []
+for fold in range(6, -1, -1):
+    path = root / f"source_fold{fold}" / "selected_for_next_window.json"
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    selection = payload.get("selection") or {}
+    actual = selection.get("signal_spec")
+    if actual != expected:
+        raise RuntimeError(
+            f"fixed-best signal drift at source_fold{fold}: "
+            f"expected={expected!r} actual={actual!r}"
+        )
+    rows.append({
+        "source_fold": fold,
+        "target_fold": payload.get("target_fold"),
+        "signal_spec": actual,
+        "max_positions": selection.get("historical_max_positions"),
+        "sell_rank": selection.get("historical_sell_rank"),
+        "rebalance_offset": selection.get("historical_rebalance_offset"),
+        "validation_start": selection.get("historical_date_min"),
+        "validation_end": selection.get("historical_date_max"),
+    })
+audit = {
+    "status": "ok",
+    "protocol": "r05_per_source_fold_fixed_rank1_checkpoint_then_trading_grid",
+    "fixed_signal_spec": expected,
+    "checkpoint_rule": "model_0 is each source fold's rank-1 saved checkpoint",
+    "source_folds": list(range(6, -1, -1)),
+    "all_source_folds_fixed_to_rank1": True,
+    "rows": rows,
+}
+out = root / "fixed_best_signal_audit.json"
+out.write_text(json.dumps(audit, ensure_ascii=False, indent=2), encoding="utf-8")
+print(f"[PASS] fixed-best signal audit={out}")
+PY
+
 if [[ "${SKIP_PLOTS:-0}" != "1" ]]; then
   PYTHON_BIN="$PYTHON_BIN" \
   OUT_ROOT="$OUT_ROOT" \
