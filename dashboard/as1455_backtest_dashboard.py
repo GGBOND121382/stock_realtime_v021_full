@@ -338,7 +338,10 @@ with detail_tab:
                 columns = [column for column in preferred if column in selected.columns]
                 st.dataframe(selected[columns], hide_index=True, use_container_width=True)
     with grid_tab:
-        st.info("未找到 historical_grid_top20.csv。") if item["top20"].empty else st.dataframe(item["top20"], hide_index=True, use_container_width=True)
+        if item["top20"].empty:
+            st.info("未找到 historical_grid_top20.csv。")
+        else:
+            st.dataframe(item["top20"], hide_index=True, use_container_width=True)
     with files_tab:
         manifest = item["manifest"]
         st.json(
