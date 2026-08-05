@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 import subprocess
 import sys
 from datetime import datetime
@@ -54,24 +55,23 @@ st.markdown(
 
 def pct(value: Any) -> str:
     try:
-        result = float(value)
+        value = float(value)
     except (TypeError, ValueError):
         return "—"
-    return "—" if pd.isna(result) else f"{result * 100:+.2f}%"
+    return "—" if pd.isna(value) else f"{value * 100:+.2f}%"
 
 
 def number(value: Any, digits: int = 2) -> str:
     try:
-        result = float(value)
+        value = float(value)
     except (TypeError, ValueError):
         return "—"
-    return "—" if pd.isna(result) else f"{result:.{digits}f}"
+    return "—" if pd.isna(value) else f"{value:.{digits}f}"
 
 
 def path_input() -> Path:
     configured = os.environ.get("AS1455_MATRIX_ROOT", str(DEFAULT_MATRIX_ROOT))
-    value = st.sidebar.text_input("回测结果目录", value=configured)
-    return Path(value).expanduser().resolve()
+    return Path(st.sidebar.text_input("回测结果目录", value=configured)).expanduser().resolve()
 
 
 def start_refresh(matrix_root: Path, skip_data_refresh: bool) -> tuple[bool, str]:
@@ -82,7 +82,6 @@ def start_refresh(matrix_root: Path, skip_data_refresh: bool) -> tuple[bool, str
         {
             "MATRIX_ROOT": str(matrix_root),
             "SKIP_DATA_REFRESH": "1" if skip_data_refresh else "0",
-            "REQUIRE_HISTORICAL_REUSE": "1",
             "FORCE_HISTORICAL_GRID": "0",
             "FORCE_HISTORICAL_PREDICTIONS": "0",
         }
@@ -102,17 +101,33 @@ def start_refresh(matrix_root: Path, skip_data_refresh: bool) -> tuple[bool, str
     return True, "刷新任务已提交；页面不会阻塞，可稍后点击“重新读取”。"
 
 
+def process_is_alive(pid: Any) -> bool:
+    try:
+        os.kill(int(pid), 0)
+    except (TypeError, ValueError, ProcessLookupError, PermissionError, OSError):
+        return False
+    return True
+
+
+def effective_state(status: dict[str, Any]) -> str:
+    state = str(status.get("status", "idle"))
+    if state == "running" and not process_is_alive(status.get("pid")):
+        return "stale"
+    return state
+
+
 def render_refresh_panel(matrix_root: Path) -> None:
     st.sidebar.divider()
     st.sidebar.subheader("每日刷新")
     status = load_refresh_status(matrix_root)
-    state = str(status.get("status", "idle"))
+    state = effective_state(status)
     labels = {
         "idle": "尚未从前端启动",
         "running": "正在刷新",
         "success": "最近一次成功",
         "failed": "最近一次失败",
         "blocked": "已有刷新任务运行",
+        "stale": "上次任务异常终止，可重新启动",
     }
     st.sidebar.caption(labels.get(state, state))
     if status.get("started_at"):
@@ -120,32 +135,34 @@ def render_refresh_panel(matrix_root: Path) -> None:
     if status.get("finished_at"):
         st.sidebar.caption(f"结束：{status['finished_at']}")
 
+    required_token = os.environ.get("AS1455_DASHBOARD_REFRESH_TOKEN", "")
+    supplied_token = st.sidebar.text_input("刷新口令", type="password") if required_token else ""
+    authorized = not required_token or secrets.compare_digest(supplied_token, required_token)
     full = st.sidebar.button(
         "更新每日数据并刷新9组回测",
         type="primary",
-        disabled=state == "running",
+        disabled=state == "running" or not authorized,
         use_container_width=True,
     )
     backtest_only = st.sidebar.button(
         "复用现有数据，仅刷新9组回测",
-        disabled=state == "running",
+        disabled=state == "running" or not authorized,
         use_container_width=True,
     )
+    if required_token and not authorized:
+        st.sidebar.caption("输入正确口令后才可启动刷新。")
     if full or backtest_only:
         ok, message = start_refresh(matrix_root, skip_data_refresh=backtest_only)
         (st.sidebar.success if ok else st.sidebar.error)(message)
     if st.sidebar.button("重新读取结果与状态", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
-    st.sidebar.caption(
-        "前端强制要求复用9组历史 Grid；若任一历史结果缺失，刷新会失败，绝不会静默重跑 Grid。"
-    )
+    st.sidebar.caption("刷新前先验证9组历史 Grid；任一缺失都会停止，不会静默重跑 Grid。")
 
     log_value = status.get("resolved_log_file")
     if log_value:
-        with st.sidebar.expander("最近刷新日志", expanded=state in {"running", "failed"}):
-            text = tail_text(Path(str(log_value)), max_lines=100)
-            st.code(text or "日志尚无内容", language="text")
+        with st.sidebar.expander("最近刷新日志", expanded=state in {"running", "failed", "stale"}):
+            st.code(tail_text(Path(str(log_value)), max_lines=100) or "日志尚无内容", language="text")
 
 
 def summary_view(summary: pd.DataFrame) -> None:
@@ -161,8 +178,7 @@ def summary_view(summary: pd.DataFrame) -> None:
         "forward_end": "结束日期",
         "historical_result_reused": "历史Grid复用",
     }
-    keep = [column for column in columns if column in view.columns]
-    view = view[keep].rename(columns=columns)
+    view = view[[column for column in columns if column in view.columns]].rename(columns=columns)
     for column in ("Forward收益", "年化收益", "最大回撤"):
         if column in view.columns:
             view[column] = pd.to_numeric(view[column], errors="coerce").map(pct)
@@ -177,7 +193,6 @@ def summary_view(summary: pd.DataFrame) -> None:
 
 matrix_root = path_input()
 render_refresh_panel(matrix_root)
-
 st.title("AS1455 九模型回测看板")
 st.caption(f"结果目录：`{matrix_root}`")
 
@@ -205,13 +220,13 @@ latest_end = summary["forward_end"].dropna().astype(str).max() if "forward_end" 
 best_sharpe_row = None
 best_return_row = None
 if "sharpe" in summary.columns:
-    sharpe = pd.to_numeric(summary["sharpe"], errors="coerce")
-    if sharpe.notna().any():
-        best_sharpe_row = summary.loc[sharpe.idxmax()]
+    values = pd.to_numeric(summary["sharpe"], errors="coerce")
+    if values.notna().any():
+        best_sharpe_row = summary.loc[values.idxmax()]
 if "total_return" in summary.columns:
-    returns = pd.to_numeric(summary["total_return"], errors="coerce")
-    if returns.notna().any():
-        best_return_row = summary.loc[returns.idxmax()]
+    values = pd.to_numeric(summary["total_return"], errors="coerce")
+    if values.notna().any():
+        best_return_row = summary.loc[values.idxmax()]
 
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("已完成实验", f"{len(summary)}/9")
@@ -228,11 +243,11 @@ m4.metric(
 )
 
 status = load_refresh_status(matrix_root)
-state = str(status.get("status", "idle"))
+state = effective_state(status)
 if state == "running":
     st.markdown('<div class="status-running">刷新任务正在后台运行。当前页面展示的是最近一次完整结果。</div>', unsafe_allow_html=True)
-elif state == "failed":
-    st.markdown('<div class="status-failed">最近一次刷新失败。请在左侧展开日志查看原因；旧结果未被删除。</div>', unsafe_allow_html=True)
+elif state in {"failed", "stale"}:
+    st.markdown('<div class="status-failed">最近一次刷新未正常完成。请在左侧查看日志；旧结果未被删除。</div>', unsafe_allow_html=True)
 elif state == "success":
     st.markdown('<div class="status-success">最近一次前端刷新成功。</div>', unsafe_allow_html=True)
 
@@ -307,8 +322,10 @@ with detail_tab:
             dates["date"] = pd.to_datetime(dates["date"], errors="coerce").dt.strftime("%Y-%m-%d")
             st.dataframe(dates.sort_values("date", ascending=False), hide_index=True, use_container_width=True)
             available = sorted(dates["date"].dropna().unique(), reverse=True)
-            selected_date = st.selectbox("查看调仓后持仓", available)
-            if positions.empty:
+            selected_date = st.selectbox("查看调仓后持仓", available) if available else None
+            if not available:
+                st.warning("调仓日期文件没有有效日期。")
+            elif positions.empty:
                 st.warning("该实验没有持仓明细文件。")
             else:
                 positions["date"] = pd.to_datetime(positions["date"], errors="coerce").dt.strftime("%Y-%m-%d")
@@ -321,10 +338,7 @@ with detail_tab:
                 columns = [column for column in preferred if column in selected.columns]
                 st.dataframe(selected[columns], hide_index=True, use_container_width=True)
     with grid_tab:
-        if item["top20"].empty:
-            st.info("未找到 historical_grid_top20.csv。")
-        else:
-            st.dataframe(item["top20"], hide_index=True, use_container_width=True)
+        st.info("未找到 historical_grid_top20.csv。") if item["top20"].empty else st.dataframe(item["top20"], hide_index=True, use_container_width=True)
     with files_tab:
         manifest = item["manifest"]
         st.json(
