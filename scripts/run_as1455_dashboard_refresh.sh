@@ -4,6 +4,13 @@ cd "$(dirname "$0")/.."
 
 MATRIX_ROOT="${MATRIX_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/refresh_all_v1}"
 SKIP_DATA_REFRESH="${SKIP_DATA_REFRESH:-0}"
+if [[ -z "${PYTHON_BIN:-}" ]]; then
+  if [[ -x "$PWD/.venv_as1455/bin/python" ]]; then
+    PYTHON_BIN="$PWD/.venv_as1455/bin/python"
+  else
+    PYTHON_BIN="python3"
+  fi
+fi
 STATE_DIR="$MATRIX_ROOT/.dashboard"
 STATUS_FILE="$STATE_DIR/refresh_status.json"
 LOCK_FILE="$STATE_DIR/refresh.lock"
@@ -15,7 +22,7 @@ write_status() {
   local finished_at="${3:-}"
   STATUS_FILE="$STATUS_FILE" STATUS="$status" EXIT_CODE="$exit_code" \
     FINISHED_AT="$finished_at" LOG_FILE="$LOG_FILE" STARTED_AT="$STARTED_AT" \
-    SKIP_DATA_REFRESH="$SKIP_DATA_REFRESH" PID_VALUE="$$" python3 - <<'PY'
+    SKIP_DATA_REFRESH="$SKIP_DATA_REFRESH" PID_VALUE="$$" "$PYTHON_BIN" - <<'PY'
 import json
 import os
 from pathlib import Path
@@ -69,7 +76,7 @@ echo "[MODE] require_historical_reuse=1 force_historical_grid=0"
 # routine daily refresh into an unexpected 30/150/630-row historical Grid.
 PLAN_JSON="$STATE_DIR/dashboard_fold_availability_plan.json"
 eval "$(
-  python3 scripts/resolve_as1455_fixed_signal_matrix_folds.py \
+  "$PYTHON_BIN" scripts/resolve_as1455_fixed_signal_matrix_folds.py \
     --top-n 5 \
     --output-json "$PLAN_JSON" \
     --format shell
@@ -82,7 +89,7 @@ require_history() {
   local signal_kind="$4"
   local found
   found="$(
-    python3 scripts/find_as1455_compatible_historical_result.py \
+    "$PYTHON_BIN" scripts/find_as1455_compatible_historical_result.py \
       --target-col "$target_col" \
       --signal-kind "$signal_kind" \
       --rebalance-every "$rebalance_every" \
