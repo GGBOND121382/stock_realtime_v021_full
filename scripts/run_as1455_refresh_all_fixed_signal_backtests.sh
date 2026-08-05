@@ -20,6 +20,7 @@ MATRIX_ROOT="${MATRIX_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_sign
 SKIP_DATA_REFRESH="${SKIP_DATA_REFRESH:-0}"
 FORCE_HISTORICAL_GRID="${FORCE_HISTORICAL_GRID:-0}"
 FORCE_HISTORICAL_PREDICTIONS="${FORCE_HISTORICAL_PREDICTIONS:-0}"
+REQUIRE_HISTORICAL_REUSE="${REQUIRE_HISTORICAL_REUSE:-0}"
 RESET_FORWARD_RESULTS="${RESET_FORWARD_RESULTS:-1}"
 TOP_N="${TOP_N:-5}"
 
@@ -115,6 +116,18 @@ run_experiment() {
     )"
   else
     printf '%s\n' '{"status":"disabled","reason":"FORCE_HISTORICAL_GRID=1"}' > "$history_report"
+  fi
+
+  if [[ "$REQUIRE_HISTORICAL_REUSE" == "1" ]]; then
+    if [[ "$FORCE_HISTORICAL_GRID" == "1" ]]; then
+      echo "[BLOCKED] REQUIRE_HISTORICAL_REUSE=1 conflicts with FORCE_HISTORICAL_GRID=1" >&2
+      exit 1
+    fi
+    if [[ -z "$reuse_historical_root" || ! -d "$reuse_historical_root" ]]; then
+      echo "[BLOCKED] validated historical result is required but unavailable: target=$target_col signal=$signal_kind folds=$target_folds" >&2
+      exit 1
+    fi
+    echo "[HISTORY REQUIRED] reuse=$reuse_historical_root"
   fi
 
   experiment_names+=("$out_name")
