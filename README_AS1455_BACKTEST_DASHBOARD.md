@@ -12,6 +12,7 @@ saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/refresh_all_v1
 
 ```bash
 cd /root/stock_realtime_v021_full
+git pull --ff-only
 .venv_as1455/bin/pip install -r requirements-dashboard.txt
 ```
 
@@ -70,7 +71,7 @@ refresh_all_v1/.dashboard/
 └── refresh_YYYYmmdd_HHMMSS.log
 ```
 
-包装器使用文件锁防止并发，并在任何行情更新之前逐项检查9组历史Grid。任一历史结果缺失时立即失败，不会静默重跑30/150/630组历史Grid。
+包装器使用文件锁防止并发，并在任何行情更新之前逐项检查9组历史Grid。任一历史结果缺失时立即失败，不会静默重跑30/150/630组历史Grid。统一刷新主脚本也支持 `REQUIRE_HISTORICAL_REUSE=1` 的二次保护。
 
 ## 工作日自动刷新
 
