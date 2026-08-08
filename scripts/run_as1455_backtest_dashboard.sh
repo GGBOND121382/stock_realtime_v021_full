@@ -14,6 +14,7 @@ HOST="${HOST:-0.0.0.0}"
 PORT="${PORT:-8501}"
 BASE_URL_PATH="${BASE_URL_PATH:-}"
 MATRIX_ROOT="${MATRIX_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/refresh_all_v1}"
+LIVE_ROOT="${LIVE_ROOT:-saved_data/ashare_ml4t/live_as1455}"
 
 "$PYTHON_BIN" - <<'PY'
 try:
@@ -47,6 +48,7 @@ if [[ -n "$BASE_URL_PATH" ]]; then
 fi
 
 export AS1455_MATRIX_ROOT="$MATRIX_ROOT"
+export AS1455_LIVE_ROOT="$LIVE_ROOT"
 exec "$PYTHON_BIN" -m streamlit run \
-  dashboard/as1455_backtest_dashboard.py \
+  dashboard/as1455_strategy_dashboard.py \
   "${streamlit_args[@]}"
