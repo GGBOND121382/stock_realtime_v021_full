@@ -6,10 +6,16 @@ BaoStock's calendar can mark T as a trading day before T's bars are published.
 After 20:00 we prefer T only when a few liquid symbols already expose a normal
 daily row. Otherwise this prints ``auto`` and the canonical updater resolves T-1.
 Network/API failures are deliberately fail-soft and also return ``auto``.
+
+The command's stdout contract is intentionally strict: exactly one line, either
+``YYYY-MM-DD`` or ``auto``.  BaoStock sometimes prints login/logout diagnostics,
+so all third-party stdout/stderr is suppressed while probing.
 """
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -28,6 +34,12 @@ def trade_date(value: str, timezone: str) -> pd.Timestamp:
     if value.lower() == "today":
         return pd.Timestamp(datetime.now(ZoneInfo(timezone)).date())
     return pd.Timestamp(value).normalize()
+
+
+def _quiet_call(func, *args, **kwargs):
+    sink = io.StringIO()
+    with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
+        return func(*args, **kwargs)
 
 
 def probe(today: pd.Timestamp, universe_path: Path, probes: int) -> bool:
@@ -53,12 +65,13 @@ def probe(today: pd.Timestamp, universe_path: Path, probes: int) -> bool:
 
     login = None
     try:
-        login = bs.login()
+        login = _quiet_call(bs.login)
         if login is None or getattr(login, "error_code", None) != "0":
             return False
         day = today.strftime("%Y-%m-%d")
         for symbol in symbols:
-            rs = bs.query_history_k_data_plus(
+            rs = _quiet_call(
+                bs.query_history_k_data_plus,
                 baostock_code(symbol),
                 "date,code,close,tradestatus",
                 start_date=day,
@@ -72,9 +85,15 @@ def probe(today: pd.Timestamp, universe_path: Path, probes: int) -> bool:
             if getattr(rs, "error_code", "1") != "0" or not rows:
                 continue
             frame = pd.DataFrame(rows, columns=rs.fields)
-            dates = pd.to_datetime(frame.get("date"), errors="coerce").dt.normalize()
-            close = pd.to_numeric(frame.get("close"), errors="coerce")
-            status = pd.to_numeric(frame.get("tradestatus", 1), errors="coerce").fillna(1)
+            if not {"date", "close"}.issubset(frame.columns):
+                continue
+            dates = pd.to_datetime(frame["date"], errors="coerce").dt.normalize()
+            close = pd.to_numeric(frame["close"], errors="coerce")
+            status = (
+                pd.to_numeric(frame["tradestatus"], errors="coerce").fillna(1)
+                if "tradestatus" in frame.columns
+                else pd.Series(1, index=frame.index, dtype=float)
+            )
             if bool((dates.eq(today) & close.gt(0) & status.eq(1)).any()):
                 return True
     except Exception:
@@ -82,7 +101,7 @@ def probe(today: pd.Timestamp, universe_path: Path, probes: int) -> bool:
     finally:
         if login is not None:
             try:
-                bs.logout()
+                _quiet_call(bs.logout)
             except Exception:
                 pass
     return False
