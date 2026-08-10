@@ -4,8 +4,10 @@
 
 A tracking account is separate from the frozen research strict-forward artifact:
 - before the configured start date it is empty;
-- the first executable date is a forced bootstrap rebalance from empty;
-- later dates keep the historically validated rebalance phase;
+- the configured start date never resets the strategy's frozen rebalance phase;
+- if the start date is not a scheduled rebalance date, the account remains cash;
+- the first later scheduled rebalance starts from empty and therefore can buy but
+  cannot sell;
 - incremental refresh processes only dates after the latest account state.
 
 Predictions prefer saved 14:55 live files and fall back to the existing fold0
@@ -38,6 +40,7 @@ from utils.as1455_strict_oos import historical_phase_window, historical_trading_
 from utils.as1455_tracking import (  # noqa: E402
     TRACKING_MATRIX_MANIFEST,
     TRACKING_MATRIX_SUMMARY,
+    TRACKING_SEMANTICS_VERSION,
     contiguous_tracking_dates,
     experiment_tracking_paths,
     read_json,
@@ -145,6 +148,8 @@ def load_predictions(
 def patch_summary(v7: Any) -> None:
     """Use portfolio NAV, not residual cash, for continuation-chunk summaries."""
     original = v7.summarize_nav
+    if getattr(original, "_as1455_tracking_summary_adapter", False):
+        return
 
     def wrapped(nav, orders, rejects, cfg, actions=None, round_trips=None, daily_drawdown=None):
         summary_cfg = cfg
@@ -157,6 +162,7 @@ def patch_summary(v7: Any) -> None:
                     summary_cfg = replace(cfg, initial_cash=start_nav)
         return original(nav, orders, rejects, summary_cfg, actions, round_trips, daily_drawdown)
 
+    wrapped._as1455_tracking_summary_adapter = True  # type: ignore[attr-defined]
     v7.summarize_nav = wrapped
 
 
@@ -184,10 +190,16 @@ def run_chunk(
     dates: pd.DatetimeIndex,
     cash: float,
     positions: pd.DataFrame,
-    bootstrap: bool,
     capacity_mode: str,
     participation_rate: float,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Run a tracking chunk while preserving the frozen historical phase.
+
+    Crucially, the start of a tracking account does *not* force
+    ``rebalance_offset=0``. ``align_forward_rebalance_phase`` determines the
+    local offset for this chunk from the frozen historical phase and the full
+    execution calendar.
+    """
     date_set = set(pd.DatetimeIndex(dates).normalize())
     pred_dates = pd.DatetimeIndex(predictions.index.get_level_values("date")).normalize()
     selected = predictions.loc[pred_dates.isin(date_set)]
@@ -207,9 +219,10 @@ def run_chunk(
     cfg = live.build_trade_config(
         v7, selection, historical_config, phase, float(cash), capacity_mode, participation_rate
     )
-    cfg = replace(cfg, corporate_action_mode=planner.synthetic_corporate_action_mode(historical_config))
-    if bootstrap:
-        cfg = replace(cfg, rebalance_offset=0)
+    cfg = replace(
+        cfg,
+        corporate_action_mode=planner.synthetic_corporate_action_mode(historical_config),
+    )
     result = v7.backtest(
         preds[["symbol", "date", "score"]],
         execution.loc[execution["date"].isin(date_set)].copy(),
@@ -222,18 +235,27 @@ def run_chunk(
     return result, {"phase": phase, "trade_config": cfg.__dict__}
 
 
-def frames(result: dict[str, Any], bootstrap_date: pd.Timestamp | None = None) -> dict[str, pd.DataFrame]:
-    out = {key: result[src].copy() for key, src in {
-        "nav": "nav", "orders": "orders", "rejections": "rejections", "positions": "positions"
-    }.items()}
+def frames(result: dict[str, Any]) -> dict[str, pd.DataFrame]:
+    out = {
+        key: result[src].copy()
+        for key, src in {
+            "nav": "nav",
+            "orders": "orders",
+            "rejections": "rejections",
+            "positions": "positions",
+        }.items()
+    }
     for frame in out.values():
         if not frame.empty and "date" in frame.columns:
             frame["date"] = pd.to_datetime(frame["date"], errors="coerce").dt.normalize()
-            frame["tracking_bootstrap"] = frame["date"].eq(bootstrap_date) if bootstrap_date is not None else False
     return out
 
 
-def merge_frames(paths: dict[str, Path], fresh: list[dict[str, pd.DataFrame]], rebuild: bool) -> dict[str, pd.DataFrame]:
+def merge_frames(
+    paths: dict[str, Path],
+    fresh: list[dict[str, pd.DataFrame]],
+    rebuild: bool,
+) -> dict[str, pd.DataFrame]:
     merged: dict[str, pd.DataFrame] = {}
     for key in ("nav", "orders", "rejections", "positions"):
         pieces: list[pd.DataFrame] = []
@@ -248,9 +270,29 @@ def merge_frames(paths: dict[str, Path], fresh: list[dict[str, pd.DataFrame]], r
             if key == "nav":
                 frame = frame.sort_values("date").drop_duplicates("date", keep="last")
             elif key == "positions" and "symbol" in frame.columns:
-                frame = frame.sort_values(["date", "symbol"]).drop_duplicates(["date", "symbol"], keep="last")
+                frame = frame.sort_values(["date", "symbol"]).drop_duplicates(
+                    ["date", "symbol"], keep="last"
+                )
         merged[key] = frame.reset_index(drop=True)
     return merged
+
+
+def annotate_first_entry(combined: dict[str, pd.DataFrame]) -> pd.Timestamp | None:
+    """Mark the first actual buy date, not the account start date."""
+    first_entry: pd.Timestamp | None = None
+    orders = combined.get("orders", pd.DataFrame())
+    if not orders.empty and {"date", "side"}.issubset(orders.columns):
+        buys = orders.loc[orders["side"].astype(str).str.lower().eq("buy")].copy()
+        if not buys.empty:
+            first_entry = pd.Timestamp(pd.to_datetime(buys["date"]).min()).normalize()
+    for frame in combined.values():
+        if frame.empty or "date" not in frame.columns:
+            continue
+        dates = pd.to_datetime(frame["date"], errors="coerce").dt.normalize()
+        frame["tracking_bootstrap"] = (
+            dates.eq(first_entry) if first_entry is not None else False
+        )
+    return first_entry
 
 
 def recompute_nav(nav: pd.DataFrame, initial_cash: float) -> pd.DataFrame:
@@ -272,8 +314,18 @@ def account_summary(nav: pd.DataFrame, orders: pd.DataFrame, initial_cash: float
     rets = pd.to_numeric(nav["daily_return"], errors="coerce").dropna()
     final_nav = float(nav["nav"].iloc[-1])
     total_return = final_nav / initial_cash - 1
-    exponent = math.log1p(total_return) * 252 / max(len(nav), 1) if total_return > -1 else np.nan
-    annual_return = math.expm1(exponent) if pd.notna(exponent) and exponent < 700 else np.inf if pd.notna(exponent) else np.nan
+    exponent = (
+        math.log1p(total_return) * 252 / max(len(nav), 1)
+        if total_return > -1
+        else np.nan
+    )
+    annual_return = (
+        math.expm1(exponent)
+        if pd.notna(exponent) and exponent < 700
+        else np.inf
+        if pd.notna(exponent)
+        else np.nan
+    )
     vol = float(rets.std(ddof=0)) if len(rets) else np.nan
     return {
         "forward_start": pd.Timestamp(nav["date"].iloc[0]).strftime("%Y-%m-%d"),
@@ -290,7 +342,15 @@ def account_summary(nav: pd.DataFrame, orders: pd.DataFrame, initial_cash: float
 
 
 def clear_old(paths: dict[str, Path]) -> None:
-    for key in ("result", "nav", "orders", "rejections", "positions", "latest_state", "latest_positions"):
+    for key in (
+        "result",
+        "nav",
+        "orders",
+        "rejections",
+        "positions",
+        "latest_state",
+        "latest_positions",
+    ):
         paths[key].unlink(missing_ok=True)
 
 
@@ -332,7 +392,13 @@ def process_experiment(
 
     old_manifest = read_json(paths["manifest"], {}) or {}
     old_state = read_json(paths["latest_state"], {}) or {}
-    rebuild = mode == "rebuild" or old_manifest.get("tracking_start_date") != start.strftime("%Y-%m-%d") or not old_state
+    old_semantics = int(old_manifest.get("tracking_semantics_version", 0) or 0)
+    rebuild = (
+        mode == "rebuild"
+        or old_manifest.get("tracking_start_date") != start.strftime("%Y-%m-%d")
+        or old_semantics != TRACKING_SEMANTICS_VERSION
+        or not old_state
+    )
     old_positions = read_csv(paths["latest_positions"])
     if rebuild:
         lower = start
@@ -345,7 +411,12 @@ def process_experiment(
         cash = float(old_state["cash"])
         positions = old_positions
 
-    pred_dates = pd.DatetimeIndex(predictions.index.get_level_values("date")).normalize().unique().sort_values()
+    pred_dates = (
+        pd.DatetimeIndex(predictions.index.get_level_values("date"))
+        .normalize()
+        .unique()
+        .sort_values()
+    )
     dates = contiguous_tracking_dates(pred_dates, calendar, lower)
     if previous_asof is not None:
         dates = dates[dates > previous_asof]
@@ -353,37 +424,37 @@ def process_experiment(
     fresh: list[dict[str, pd.DataFrame]] = []
     phase_updates: list[dict[str, Any]] = []
     final_state: dict[str, Any] | None = None
-    if rebuild and len(dates):
-        first_date = pd.Timestamp(dates[0]).normalize()
-        first_result, meta = run_chunk(
-            v7, selection, historical_config, history_window, predictions, execution, calendar,
-            pd.DatetimeIndex([first_date]), initial_cash, pd.DataFrame(), True,
-            capacity_mode, participation_rate,
-        )
-        fresh.append(frames(first_result, first_date))
-        final_state = first_result["final_state"]
-        phase_updates.append({"bootstrap": True, "dates": [first_date.strftime("%Y-%m-%d")], **meta})
-        remaining = dates[dates > first_date]
-        if len(remaining):
-            result, meta = run_chunk(
-                v7, selection, historical_config, history_window, predictions, execution, calendar,
-                remaining, float(final_state["cash"]), pd.DataFrame(final_state.get("positions", [])), False,
-                capacity_mode, participation_rate,
-            )
-            fresh.append(frames(result))
-            final_state = result["final_state"]
-            phase_updates.append({"bootstrap": False, "dates": [remaining[0].strftime("%Y-%m-%d"), remaining[-1].strftime("%Y-%m-%d")], **meta})
-    elif not rebuild and len(dates):
+    if len(dates):
         result, meta = run_chunk(
-            v7, selection, historical_config, history_window, predictions, execution, calendar,
-            dates, cash, positions, False, capacity_mode, participation_rate,
+            v7,
+            selection,
+            historical_config,
+            history_window,
+            predictions,
+            execution,
+            calendar,
+            dates,
+            cash,
+            positions,
+            capacity_mode,
+            participation_rate,
         )
         fresh.append(frames(result))
         final_state = result["final_state"]
-        phase_updates.append({"bootstrap": False, "dates": [dates[0].strftime("%Y-%m-%d"), dates[-1].strftime("%Y-%m-%d")], **meta})
+        phase_updates.append(
+            {
+                "initial_account_empty": bool(rebuild),
+                "dates": [
+                    dates[0].strftime("%Y-%m-%d"),
+                    dates[-1].strftime("%Y-%m-%d"),
+                ],
+                **meta,
+            }
+        )
 
     combined = merge_frames(paths, fresh, rebuild)
     combined["nav"] = recompute_nav(combined["nav"], initial_cash)
+    first_entry = annotate_first_entry(combined)
     if combined["nav"].empty:
         if rebuild:
             clear_old(paths)
@@ -391,15 +462,23 @@ def process_experiment(
             "status": "waiting_for_completed_market_day",
             "experiment": experiment,
             "tracking_start_date": start.strftime("%Y-%m-%d"),
+            "tracking_semantics_version": TRACKING_SEMANTICS_VERSION,
             "initial_cash": initial_cash,
             "prediction_source": prediction_meta,
         }
         write_json(paths["manifest"], waiting)
-        return {"status": waiting["status"], "experiment": experiment, "tracking_start_date": start.strftime("%Y-%m-%d")}
+        return {
+            "status": waiting["status"],
+            "experiment": experiment,
+            "tracking_start_date": start.strftime("%Y-%m-%d"),
+        }
 
     for key in ("nav", "orders", "rejections", "positions"):
         atomic_csv(combined[key], paths[key])
+    first_account_date = pd.Timestamp(combined["nav"]["date"].iloc[0]).normalize()
     last_date = pd.Timestamp(combined["nav"]["date"].iloc[-1]).normalize()
+    first_entry_text = first_entry.strftime("%Y-%m-%d") if first_entry is not None else None
+
     if final_state is not None:
         latest_positions = pd.DataFrame(final_state.get("positions", []))
         atomic_csv(latest_positions, paths["latest_positions"])
@@ -407,13 +486,15 @@ def process_experiment(
             "status": "ok",
             "experiment": experiment,
             "tracking_start_date": start.strftime("%Y-%m-%d"),
-            "effective_start_date": pd.Timestamp(combined["nav"]["date"].iloc[0]).strftime("%Y-%m-%d"),
+            "tracking_semantics_version": TRACKING_SEMANTICS_VERSION,
+            "effective_start_date": first_account_date.strftime("%Y-%m-%d"),
+            "first_entry_date": first_entry_text,
             "asof_date": last_date.strftime("%Y-%m-%d"),
             "nav": float(combined["nav"]["nav"].iloc[-1]),
             "cash": float(final_state["cash"]),
             "n_positions": int(len(latest_positions)),
             "initial_cash": initial_cash,
-            "semantics": "empty_on_tracking_start_then_incremental_close_auction_tracking",
+            "semantics": "empty_from_tracking_start_preserve_historical_rebalance_phase",
         }
         write_json(paths["latest_state"], state)
 
@@ -423,36 +504,52 @@ def process_experiment(
         "status": "ok",
         "experiment": experiment,
         "tracking_start_date": start.strftime("%Y-%m-%d"),
-        "effective_start_date": pd.Timestamp(combined["nav"]["date"].iloc[0]).strftime("%Y-%m-%d"),
+        "tracking_semantics_version": TRACKING_SEMANTICS_VERSION,
+        "effective_start_date": first_account_date.strftime("%Y-%m-%d"),
+        "first_entry_date": first_entry_text,
         "historical_result_reused": True,
         "fixed_signal_spec": actual,
         "max_positions": int(selection.historical_max_positions),
         "sell_rank": int(selection.historical_sell_rank),
         "rebalance_every": int(selection.historical_rebalance_every),
+        "historical_offset": int(selection.historical_rebalance_offset),
     }
     atomic_csv(pd.DataFrame([row]), paths["result"])
-    write_json(paths["manifest"], {
-        "status": "ok",
-        "protocol": "as1455_tracking_account_v1",
-        "experiment": experiment,
-        "tracking_start_date": start.strftime("%Y-%m-%d"),
-        "effective_start_date": row["effective_start_date"],
-        "asof_date": last_date.strftime("%Y-%m-%d"),
-        "update_mode": "rebuild" if rebuild else "incremental",
-        "new_dates": [pd.Timestamp(d).strftime("%Y-%m-%d") for d in dates],
-        "initial_cash": initial_cash,
-        "prediction_source": prediction_meta,
-        "historical_selection": selection.to_dict(),
-        "historical_trade_config_file": str(historical_config_path),
-        "phase_updates": phase_updates,
-        "bootstrap_semantics": "first effective day is a forced rebalance from empty; later dates resume the frozen historical phase",
-    })
+    write_json(
+        paths["manifest"],
+        {
+            "status": "ok",
+            "protocol": "as1455_tracking_account_v2_preserve_phase",
+            "tracking_semantics_version": TRACKING_SEMANTICS_VERSION,
+            "experiment": experiment,
+            "tracking_start_date": start.strftime("%Y-%m-%d"),
+            "effective_start_date": row["effective_start_date"],
+            "first_entry_date": first_entry_text,
+            "asof_date": last_date.strftime("%Y-%m-%d"),
+            "update_mode": "rebuild" if rebuild else "incremental",
+            "new_dates": [pd.Timestamp(d).strftime("%Y-%m-%d") for d in dates],
+            "initial_cash": initial_cash,
+            "prediction_source": prediction_meta,
+            "historical_selection": selection.to_dict(),
+            "historical_trade_config_file": str(historical_config_path),
+            "historical_rebalance_offset": int(selection.historical_rebalance_offset),
+            "phase_updates": phase_updates,
+            "bootstrap_semantics": (
+                "tracking start never changes the frozen rebalance phase; the account "
+                "stays cash on non-rebalance dates, and the first later scheduled "
+                "rebalance starts from empty so it cannot sell"
+            ),
+        },
+    )
     return row
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--matrix-root", default="saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/refresh_all_v1")
+    ap.add_argument(
+        "--matrix-root",
+        default="saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/refresh_all_v1",
+    )
     ap.add_argument("--live-root", default=str(DEFAULT_LIVE_ROOT))
     ap.add_argument("--raw-daily-cache-dir", default=str(DEFAULT_RAW_DAILY))
     ap.add_argument("--cache-base", default=str(DEFAULT_CACHE_BASE))
@@ -469,9 +566,15 @@ def main() -> None:
     live_root = Path(args.live_root).expanduser().resolve()
     raw_daily = Path(args.raw_daily_cache_dir).expanduser().resolve()
     cache_base = Path(args.cache_base).expanduser().resolve()
-    start = pd.Timestamp(args.tracking_start_date).normalize() if args.tracking_start_date else tracking_start_date(matrix_root)
+    start = (
+        pd.Timestamp(args.tracking_start_date).normalize()
+        if args.tracking_start_date
+        else tracking_start_date(matrix_root)
+    )
     if start is None:
-        raise RuntimeError(f"tracking_start_date is missing under {matrix_root / '.dashboard'}")
+        raise RuntimeError(
+            f"tracking_start_date is missing under {matrix_root / '.dashboard'}"
+        )
 
     experiments = planner.parse_experiments(matrix_root)
     v7 = live.load_v7_module()
@@ -484,37 +587,69 @@ def main() -> None:
         )
 
     # Execution data are target-independent; build once instead of reopening the
-    # same ~1000 raw-daily files separately for r01/r05/r21.
+    # same raw-daily files separately for r01/r05/r21.
     union = pd.concat(list(target_predictions.values()))
     union = union[~union.index.duplicated(keep="last")].sort_index()
     execution, calendar = execution_inputs(v7, union, raw_daily)
-    print(f"[EXECUTION] built once symbols={union.index.get_level_values('symbol').nunique()} end={calendar[-1]:%Y-%m-%d}")
+    print(
+        f"[EXECUTION] built once symbols={union.index.get_level_values('symbol').nunique()} "
+        f"end={calendar[-1]:%Y-%m-%d}"
+    )
 
     rows = []
     for item in experiments:
         row = process_experiment(
-            item, matrix_root, start, target_predictions[item["target"]], target_meta[item["target"]],
-            execution, calendar, v7, args.mode, args.feature_preset, args.capacity_mode, args.participation_rate,
+            item,
+            matrix_root,
+            start,
+            target_predictions[item["target"]],
+            target_meta[item["target"]],
+            execution,
+            calendar,
+            v7,
+            args.mode,
+            args.feature_preset,
+            args.capacity_mode,
+            args.participation_rate,
         )
         rows.append(row)
-        print(f"[TRACK] {item['experiment']} status={row.get('status')} end={row.get('forward_end')}")
+        print(
+            f"[TRACK] {item['experiment']} status={row.get('status')} "
+            f"end={row.get('forward_end')} first_entry={row.get('first_entry_date')}"
+        )
 
     summary = pd.DataFrame(rows)
     summary_file = matrix_root / TRACKING_MATRIX_SUMMARY
     atomic_csv(summary, summary_file)
-    ok = summary.loc[summary["status"].astype(str).eq("ok")] if "status" in summary.columns else summary
+    ok = (
+        summary.loc[summary["status"].astype(str).eq("ok")]
+        if "status" in summary.columns
+        else summary
+    )
     manifest = {
         "status": "ok" if len(ok) == 9 else "partial",
-        "protocol": "as1455_tracking_matrix_v1",
+        "protocol": "as1455_tracking_matrix_v2_preserve_phase",
+        "tracking_semantics_version": TRACKING_SEMANTICS_VERSION,
         "tracking_start_date": start.strftime("%Y-%m-%d"),
         "experiment_count": int(len(summary)),
         "completed_experiment_count": int(len(ok)),
-        "asof_dates": sorted(set(ok["forward_end"].dropna().astype(str))) if "forward_end" in ok else [],
+        "asof_dates": (
+            sorted(set(ok["forward_end"].dropna().astype(str)))
+            if "forward_end" in ok
+            else []
+        ),
         "mode": args.mode,
         "summary_file": str(summary_file),
         "historical_fold_grid_recomputed": False,
         "canonical_strict_forward_recomputed": False,
-        "daily_update_semantics": "append only new completed market dates; rebuild only when tracking start changes",
+        "rebalance_phase_semantics": (
+            "tracking start does not reset historical offset; non-rebalance start "
+            "dates remain cash until the next frozen-schedule rebalance"
+        ),
+        "daily_update_semantics": (
+            "append only new completed market dates; rebuild only when tracking "
+            "start or tracking semantics changes"
+        ),
     }
     write_json(matrix_root / TRACKING_MATRIX_MANIFEST, manifest)
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
