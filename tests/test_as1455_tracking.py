@@ -6,8 +6,10 @@ from pathlib import Path
 import pandas as pd
 
 from utils.as1455_tracking import (
+    TRACKING_SEMANTICS_VERSION,
     contiguous_tracking_dates,
     resolve_initial_cash,
+    tracking_manifest_matches,
     tracking_start_date,
 )
 
@@ -26,12 +28,22 @@ def test_contiguous_tracking_dates_skips_nontrading_start_then_stops_at_gap() ->
         ["2026-08-10", "2026-08-11", "2026-08-13", "2026-08-14"]
     )
     calendar = pd.DatetimeIndex(
-        ["2026-08-07", "2026-08-10", "2026-08-11", "2026-08-12", "2026-08-13", "2026-08-14"]
+        [
+            "2026-08-07",
+            "2026-08-10",
+            "2026-08-11",
+            "2026-08-12",
+            "2026-08-13",
+            "2026-08-14",
+        ]
     )
     selected = contiguous_tracking_dates(
         predictions, calendar, pd.Timestamp("2026-08-08")
     )
-    assert selected.tolist() == [pd.Timestamp("2026-08-10"), pd.Timestamp("2026-08-11")]
+    assert selected.tolist() == [
+        pd.Timestamp("2026-08-10"),
+        pd.Timestamp("2026-08-11"),
+    ]
 
 
 def test_resolve_initial_cash_from_retained_forward_run(tmp_path: Path) -> None:
@@ -46,3 +58,32 @@ def test_resolve_initial_cash_from_retained_forward_run(tmp_path: Path) -> None:
         json.dumps({"initial_cash": 345678.0}), encoding="utf-8"
     )
     assert resolve_initial_cash(experiment) == 345678.0
+
+
+def test_tracking_manifest_requires_current_phase_semantics(tmp_path: Path) -> None:
+    experiment = tmp_path / "r05_all5_reb5_fold0_5_forward"
+    experiment.mkdir()
+    manifest = experiment / "tracking_forward_manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "status": "ok",
+                "tracking_start_date": "2026-08-07",
+                "tracking_semantics_version": TRACKING_SEMANTICS_VERSION - 1,
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert not tracking_manifest_matches(experiment, pd.Timestamp("2026-08-07"))
+
+    manifest.write_text(
+        json.dumps(
+            {
+                "status": "ok",
+                "tracking_start_date": "2026-08-07",
+                "tracking_semantics_version": TRACKING_SEMANTICS_VERSION,
+            }
+        ),
+        encoding="utf-8",
+    )
+    assert tracking_manifest_matches(experiment, pd.Timestamp("2026-08-07"))
