@@ -4,9 +4,14 @@
 
 Two adapters are installed before invoking the canonical planner:
 1. continuation summaries use portfolio NAV rather than residual cash;
-2. account state comes from the user-selected tracking account.  On the first
-   effective tracking day the account is empty and a one-off bootstrap
-   rebalance is forced, so the day can contain buys but cannot contain sells.
+2. account state comes from the user-selected tracking account.
+
+The tracking start date never resets the frozen rebalance phase. If the current
+trade date is the first tracking day (or no earlier trading day has occurred),
+the account starts empty, but the canonical planner still decides whether today
+is a rebalance day from the historical phase/offset. Therefore a non-rebalance
+start date remains cash; the first later scheduled rebalance can buy but cannot
+sell because the account is still empty.
 """
 from __future__ import annotations
 
@@ -25,14 +30,13 @@ if str(PROJECT_DIR) not in sys.path:
 
 from scripts import run_as1455_live_nine_strategy_planner as planner  # noqa: E402
 from utils.as1455_tracking import (  # noqa: E402
+    TRACKING_SEMANTICS_VERSION,
     experiment_tracking_paths,
     read_json,
     resolve_initial_cash,
     tracking_start_date,
 )
 
-_BOOTSTRAP_NEXT_CONFIG = False
-_STATE_SOURCE_NEXT = "canonical_strict_forward"
 _EXECUTION_CALENDAR = pd.DatetimeIndex([])
 
 
@@ -62,8 +66,12 @@ def _load_execution_calendar_from_cli() -> pd.DatetimeIndex:
 def _starting_portfolio_nav(nav: pd.DataFrame) -> float | None:
     if nav.empty or "nav" not in nav.columns or "daily_return" not in nav.columns:
         return None
-    first_nav = pd.to_numeric(pd.Series([nav.iloc[0]["nav"]]), errors="coerce").iloc[0]
-    first_ret = pd.to_numeric(pd.Series([nav.iloc[0]["daily_return"]]), errors="coerce").iloc[0]
+    first_nav = pd.to_numeric(
+        pd.Series([nav.iloc[0]["nav"]]), errors="coerce"
+    ).iloc[0]
+    first_ret = pd.to_numeric(
+        pd.Series([nav.iloc[0]["daily_return"]]), errors="coerce"
+    ).iloc[0]
     if not np.isfinite(first_nav) or not np.isfinite(first_ret):
         return None
     gross = 1.0 + float(first_ret)
@@ -79,6 +87,8 @@ def install_live_summary_adapter() -> None:
     def load_v7_with_live_summary():
         v7 = original_loader()
         original_summarize = v7.summarize_nav
+        if getattr(original_summarize, "_as1455_live_summary_adapter", False):
+            return v7
 
         def summarize_nav_live(
             nav: pd.DataFrame,
@@ -92,9 +102,16 @@ def install_live_summary_adapter() -> None:
             starting_nav = _starting_portfolio_nav(nav)
             summary_cfg = replace(cfg, initial_cash=starting_nav) if starting_nav else cfg
             return original_summarize(
-                nav, orders, rejects, summary_cfg, actions, round_trips, daily_drawdown
+                nav,
+                orders,
+                rejects,
+                summary_cfg,
+                actions,
+                round_trips,
+                daily_drawdown,
             )
 
+        summarize_nav_live._as1455_live_summary_adapter = True  # type: ignore[attr-defined]
         v7.summarize_nav = summarize_nav_live
         return v7
 
@@ -104,29 +121,32 @@ def install_live_summary_adapter() -> None:
 def _empty_positions() -> pd.DataFrame:
     return pd.DataFrame(
         columns=[
-            "symbol", "shares", "buy_date", "avg_entry_price", "entry_rank",
-            "entry_score", "cost_basis_notional", "cost_basis_fee",
+            "symbol",
+            "shares",
+            "buy_date",
+            "avg_entry_price",
+            "entry_rank",
+            "entry_score",
+            "cost_basis_notional",
+            "cost_basis_fee",
         ]
     )
 
 
 def install_tracking_state_adapter() -> None:
     original_load_state = planner.load_state
-    original_build_trade_config = planner.live.build_trade_config
 
     def tracking_load_state(experiment_root: Path, trade_date: pd.Timestamp):
-        global _BOOTSTRAP_NEXT_CONFIG, _STATE_SOURCE_NEXT
         matrix_root = experiment_root.parent
         start = tracking_start_date(matrix_root)
         if start is None:
-            _BOOTSTRAP_NEXT_CONFIG = False
-            _STATE_SOURCE_NEXT = "canonical_strict_forward"
             return original_load_state(experiment_root, trade_date)
 
         trade_date = pd.Timestamp(trade_date).normalize()
         if trade_date < start:
             raise RuntimeError(
-                f"trade_date {trade_date:%Y-%m-%d} is before tracking_start_date {start:%Y-%m-%d}"
+                f"trade_date {trade_date:%Y-%m-%d} is before "
+                f"tracking_start_date {start:%Y-%m-%d}"
             )
 
         prior_days = _EXECUTION_CALENDAR[
@@ -136,20 +156,21 @@ def install_tracking_state_adapter() -> None:
         manifest = read_json(paths["manifest"], {}) or {}
         state = read_json(paths["latest_state"], {}) or {}
 
-        bootstrap = trade_date == start or len(prior_days) == 0
-        if bootstrap:
+        # No earlier tracking-market day: account is empty. Do NOT override the
+        # trade config or rebalance offset; the canonical phase logic below will
+        # decide whether this date is actually a scheduled rebalance date.
+        if len(prior_days) == 0:
             cash = resolve_initial_cash(experiment_root)
-            _BOOTSTRAP_NEXT_CONFIG = True
-            _STATE_SOURCE_NEXT = "empty_tracking_start"
             return (
                 {
                     "status": "empty_tracking_start",
                     "asof_date": None,
                     "tracking_start_date": start.strftime("%Y-%m-%d"),
+                    "tracking_semantics_version": TRACKING_SEMANTICS_VERSION,
                     "cash": cash,
                     "nav": cash,
                     "n_positions": 0,
-                    "tracking_state_source": _STATE_SOURCE_NEXT,
+                    "tracking_state_source": "empty_tracking_start",
                 },
                 _empty_positions(),
             )
@@ -159,9 +180,15 @@ def install_tracking_state_adapter() -> None:
                 f"tracking account is not rebuilt for start={start:%Y-%m-%d}: "
                 f"experiment={experiment_root.name}"
             )
+        if int(manifest.get("tracking_semantics_version", 0) or 0) != TRACKING_SEMANTICS_VERSION:
+            raise RuntimeError(
+                f"tracking account semantics are stale for {experiment_root.name}; "
+                "rebuild the tracking account"
+            )
         if not state:
             raise FileNotFoundError(
-                f"tracking state missing for {experiment_root.name}; run the nightly/incremental refresh first"
+                f"tracking state missing for {experiment_root.name}; "
+                "run the nightly/incremental refresh first"
             )
         asof = pd.Timestamp(state["asof_date"]).normalize()
         expected_asof = pd.Timestamp(prior_days[-1]).normalize()
@@ -179,20 +206,9 @@ def install_tracking_state_adapter() -> None:
             )
         state = dict(state)
         state["tracking_state_source"] = "latest_tracking_account"
-        _BOOTSTRAP_NEXT_CONFIG = False
-        _STATE_SOURCE_NEXT = "latest_tracking_account"
         return state, positions
 
-    def tracking_build_trade_config(*args, **kwargs):
-        global _BOOTSTRAP_NEXT_CONFIG
-        cfg = original_build_trade_config(*args, **kwargs)
-        if _BOOTSTRAP_NEXT_CONFIG:
-            cfg = replace(cfg, rebalance_offset=0)
-            _BOOTSTRAP_NEXT_CONFIG = False
-        return cfg
-
     planner.load_state = tracking_load_state
-    planner.live.build_trade_config = tracking_build_trade_config
 
 
 def postprocess_manifests() -> None:
@@ -214,14 +230,30 @@ def postprocess_manifests() -> None:
                 "tracking_state_source", "latest_tracking_account"
             )
             payload["tracking_start_date"] = start.strftime("%Y-%m-%d")
-            payload["tracking_bootstrap"] = payload["account_state_source"] == "empty_tracking_start"
-            path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+            payload["tracking_semantics_version"] = TRACKING_SEMANTICS_VERSION
+            # A bootstrap is an actual first entry, not merely the selected
+            # account-start date. This is true only when no position existed
+            # before the plan and the plan actually contains buys.
+            payload["tracking_bootstrap"] = (
+                int(payload.get("current_position_count", 0) or 0) == 0
+                and int(payload.get("planned_buy_count", 0) or 0) > 0
+            )
+            path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2, default=str),
+                encoding="utf-8",
+            )
     manifest_file = out_root / "live_nine_strategy_manifest.json"
     if manifest_file.is_file():
         payload = json.loads(manifest_file.read_text(encoding="utf-8"))
         payload["tracking_start_date"] = start.strftime("%Y-%m-%d")
-        payload["account_state_semantics"] = "empty_on_tracking_start_then_latest_completed_tracking_account"
-        manifest_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+        payload["tracking_semantics_version"] = TRACKING_SEMANTICS_VERSION
+        payload["account_state_semantics"] = (
+            "empty_from_tracking_start_preserve_historical_rebalance_phase"
+        )
+        manifest_file.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, default=str),
+            encoding="utf-8",
+        )
 
 
 def main() -> None:
