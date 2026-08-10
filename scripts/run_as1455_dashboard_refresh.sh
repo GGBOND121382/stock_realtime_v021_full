@@ -16,6 +16,8 @@ FULL_RESEARCH_REFRESH="${FULL_RESEARCH_REFRESH:-0}"
 TIMEZONE="${TIMEZONE:-Asia/Shanghai}"
 TRADE_DATE="${TRADE_DATE:-today}"
 HISTORY_END_DATE="${HISTORY_END_DATE:-auto}"
+HISTORY_WORKERS="${HISTORY_WORKERS:-3}"
+SYMBOL_RETRIES="${SYMBOL_RETRIES:-2}"
 if [[ -z "${PYTHON_BIN:-}" ]]; then
   if [[ -x "$PWD/.venv_as1455/bin/python" ]]; then
     PYTHON_BIN="$PWD/.venv_as1455/bin/python"
@@ -32,6 +34,8 @@ mkdir -p "$STATE_DIR"
   echo "[ERROR] TRACKING_MODE must be incremental or rebuild" >&2
   exit 2
 }
+[[ "$HISTORY_WORKERS" =~ ^[1-8]$ ]] || { echo "[ERROR] HISTORY_WORKERS must be 1..8" >&2; exit 2; }
+[[ "$SYMBOL_RETRIES" =~ ^[0-9]+$ ]] || { echo "[ERROR] SYMBOL_RETRIES must be non-negative" >&2; exit 2; }
 
 write_status() {
   local status="$1"
@@ -58,7 +62,8 @@ payload = {
     "full_research_refresh": os.environ["FULL_RESEARCH_REFRESH"] == "1",
     "log_file": os.environ["LOG_FILE"],
     "daily_refresh_semantics": (
-        "update completed BaoStock caches, then advance only new tracking-account dates; "
+        "nightly raw-daily close update only, then append new tracking-account dates; "
+        "5m/AS1455 feature history is left to the next 09:35 preparation; "
         "historical Fold/Grid and canonical old forward results are not recomputed"
     ),
 }
@@ -104,10 +109,11 @@ count="$(grep -cve '^[[:space:]]*$' "$MATRIX_ROOT/expected_experiments.txt")"
 "$PYTHON_BIN" -m py_compile \
   scripts/update_as1455_tracking_accounts.py \
   scripts/resolve_as1455_nightly_history_end.py \
-  utils/as1455_tracking.py
+  utils/as1455_tracking.py \
+  pipelines/as1455_history_parallel_dispatch.py
 
 if [[ "$SKIP_DATA_REFRESH" != "1" ]]; then
-  echo "===== 1/2 update completed BaoStock caches only ====="
+  echo "===== 1/2 update completed BaoStock raw-daily closes only ====="
   resolved_history_end="$HISTORY_END_DATE"
   if [[ "${HISTORY_END_DATE,,}" == "auto" ]]; then
     resolved_history_end="$(
@@ -117,23 +123,64 @@ if [[ "$SKIP_DATA_REFRESH" != "1" ]]; then
         --universe "$UNIVERSE"
     )"
   fi
+  [[ "$resolved_history_end" == "auto" || "$resolved_history_end" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ || "$resolved_history_end" =~ ^[0-9]{8}$ ]] || {
+    echo "[ERROR] invalid resolved_history_end=$resolved_history_end" >&2
+    exit 1
+  }
   echo "[BAOSTOCK] requested_history_end=$HISTORY_END_DATE resolved_history_end=$resolved_history_end"
-  # The 14:55 predictions are already persisted during the trading day.  The
-  # night job only needs completed execution/close data; rebuilding multi-year
-  # model_data and rerunning TensorFlow inference is intentionally skipped.
-  env \
-    PYTHON="$PYTHON_BIN" \
-    TRADE_DATE="$TRADE_DATE" \
-    HISTORY_END_DATE="$resolved_history_end" \
-    TIMEZONE="$TIMEZONE" \
-    UNIVERSE="$UNIVERSE" \
-    OUT_ROOT="$LIVE_ROOT" \
-    RAW_5M_CACHE_DIR="$RAW_5M_CACHE_DIR" \
-    RAW_DAILY_CACHE_DIR="$RAW_DAILY_CACHE_DIR" \
-    AS1455_DAILY_CACHE_DIR="$AS1455_DAILY_CACHE_DIR" \
-    bash scripts/run_as1455_live_data_feature_pipeline.sh history
+  # Nightly account advancement only consumes completed daily closes.  Do not
+  # spend time downloading 5-minute bars, rebuilding AS1455 daily aggregates,
+  # rebuilding multi-year model_data, or running TensorFlow.  The next 09:35
+  # live-pre stage remains responsible for bringing feature history to T-1.
+  PROJECT_PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
+  PYTHONPATH="$PROJECT_PYTHONPATH" "$PYTHON_BIN" pipelines/as1455_history_parallel_dispatch.py \
+    --trade-date "$TRADE_DATE" \
+    --history-end-date "$resolved_history_end" \
+    --universe "$UNIVERSE" \
+    --raw-5m-cache-dir "$RAW_5M_CACHE_DIR" \
+    --raw-daily-cache-dir "$RAW_DAILY_CACHE_DIR" \
+    --as1455-daily-cache-dir "$AS1455_DAILY_CACHE_DIR" \
+    --out-root "$LIVE_ROOT" \
+    --workers "$HISTORY_WORKERS" \
+    --symbol-retries "$SYMBOL_RETRIES" \
+    --skip-raw-5m \
+    --skip-as1455-aggregate
+
+  trade_token="$($PYTHON_BIN - "$TRADE_DATE" "$TIMEZONE" <<'PY'
+import sys
+from datetime import datetime
+from zoneinfo import ZoneInfo
+value, timezone = sys.argv[1:]
+if value.lower() == "today":
+    print(datetime.now(ZoneInfo(timezone)).strftime("%Y%m%d"))
+else:
+    print(value.replace("-", ""))
+PY
+)"
+  history_report="$LIVE_ROOT/$trade_token/00_history_update_report.json"
+  "$PYTHON_BIN" - "$history_report" <<'PY'
+import json
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+if not path.is_file():
+    raise SystemExit(f"nightly raw-daily report missing: {path}")
+obj = json.loads(path.read_text(encoding="utf-8"))
+errors = int(obj.get("errors", 0))
+if errors:
+    raise SystemExit(
+        f"nightly raw-daily update incomplete: errors={errors} "
+        f"unresolved={obj.get('unresolved_symbols', [])}; see {path}"
+    )
+if not obj.get("skip_raw_5m"):
+    raise SystemExit("nightly refresh unexpectedly downloaded 5m data")
+print(
+    f"[PASS] nightly raw-daily update history_end={obj.get('history_end_date')} "
+    f"symbols={obj.get('n_symbols')} new_rows={obj.get('raw_daily_new_rows_sum')}"
+)
+PY
 else
-  echo "[SKIP] BaoStock cache refresh disabled"
+  echo "[SKIP] BaoStock raw-daily refresh disabled"
 fi
 
 if [[ "$FULL_RESEARCH_REFRESH" == "1" ]]; then
@@ -164,4 +211,5 @@ write_status success 0 "$finished_at"
 echo "[PASS] AS1455 daily refresh finished_at=$finished_at"
 echo "[PASS] historical Fold/Grid recomputed: no"
 echo "[PASS] canonical old forward window recomputed: no"
+echo "[PASS] nightly 5m/model inference recomputed: no"
 echo "[PASS] tracking account mode=$TRACKING_MODE"
