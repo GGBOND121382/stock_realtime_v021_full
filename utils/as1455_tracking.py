@@ -4,7 +4,7 @@
 
 The canonical strict-forward experiments remain immutable research artifacts.
 The dashboard tracking account is a separate state machine that starts empty on
-``tracking_start_date`` and is advanced only with newly available market days.
+``tracking_start_date`` and preserves the frozen historical rebalance phase.
 """
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from typing import Any
 import pandas as pd
 
 USER_CONFIG = Path(".dashboard") / "user_config.json"
+TRACKING_SEMANTICS_VERSION = 3
 TRACKING_MANIFEST = "tracking_forward_manifest.json"
 TRACKING_RESULT = "tracking_forward_result.csv"
 TRACKING_NAV = "tracking_forward_nav.csv"
@@ -62,11 +63,11 @@ def contiguous_tracking_dates(
     execution_calendar: pd.DatetimeIndex,
     lower_bound: pd.Timestamp,
 ) -> pd.DatetimeIndex:
-    """Return the contiguous executable/predicted dates from ``lower_bound``.
+    """Return contiguous executable/predicted dates from ``lower_bound``.
 
-    Dates before the first available prediction may be skipped (e.g. a weekend
-    start date).  Once tracking starts, a missing prediction stops advancement
-    so the account can never jump across an unprocessed market day.
+    Dates before the first available prediction may be skipped (for example a
+    weekend start). Once tracking starts, a missing prediction stops advancement
+    so the account never jumps across an unprocessed trading day.
     """
     prediction_dates = pd.DatetimeIndex(prediction_dates).normalize().unique().sort_values()
     execution_calendar = pd.DatetimeIndex(execution_calendar).normalize().unique().sort_values()
@@ -108,6 +109,8 @@ def tracking_manifest_matches(experiment_root: Path, start: pd.Timestamp) -> boo
     return (
         payload.get("status") == "ok"
         and payload.get("tracking_start_date") == start.strftime("%Y-%m-%d")
+        and int(payload.get("tracking_semantics_version", 0) or 0)
+        == TRACKING_SEMANTICS_VERSION
     )
 
 
@@ -122,8 +125,12 @@ def resolve_initial_cash(experiment_root: Path, default: float = 200_000.0) -> f
     strict = read_json(strict_file, {}) or {}
     run_name = strict.get("retained_run_name")
     if run_name:
-        config = read_json(strict_file.parent / "01_runs" / str(run_name) / "config.json", {}) or {}
-        value = pd.to_numeric(pd.Series([config.get("initial_cash")]), errors="coerce").iloc[0]
+        config = read_json(
+            strict_file.parent / "01_runs" / str(run_name) / "config.json", {}
+        ) or {}
+        value = pd.to_numeric(
+            pd.Series([config.get("initial_cash")]), errors="coerce"
+        ).iloc[0]
         if pd.notna(value) and float(value) > 0:
             return float(value)
     return float(default)
@@ -139,6 +146,12 @@ def load_latest_tracking_state(
         raise RuntimeError(
             f"tracking start mismatch for {experiment_root.name}: "
             f"expected={start:%Y-%m-%d} actual={manifest.get('tracking_start_date')}"
+        )
+    if int(manifest.get("tracking_semantics_version", 0) or 0) != TRACKING_SEMANTICS_VERSION:
+        raise RuntimeError(
+            f"tracking semantics are stale for {experiment_root.name}: "
+            f"expected={TRACKING_SEMANTICS_VERSION} "
+            f"actual={manifest.get('tracking_semantics_version')}"
         )
     state = read_json(paths["latest_state"], {}) or {}
     if not state:
