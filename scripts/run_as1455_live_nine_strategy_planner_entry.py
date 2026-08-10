@@ -17,13 +17,23 @@ unchanged.
 """
 from __future__ import annotations
 
+import sys
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from scripts import run_as1455_live_nine_strategy_planner as planner
+# When a Python file under scripts/ is executed directly, sys.path[0] is the
+# scripts directory rather than the repository root. Bootstrap the project root
+# before importing the scripts package so the documented direct command works
+# without requiring callers to set PYTHONPATH manually.
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from scripts import run_as1455_live_nine_strategy_planner as planner  # noqa: E402
 
 
 def _starting_portfolio_nav(nav: pd.DataFrame) -> float | None:
