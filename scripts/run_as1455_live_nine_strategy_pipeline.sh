@@ -57,6 +57,7 @@ check_files() {
     scripts/run_as1455_live_strict_oos_pipeline.sh
     scripts/run_as1455_live_target_predictions.py
     scripts/run_as1455_live_nine_strategy_planner.py
+    scripts/run_as1455_live_nine_strategy_planner_entry.py
     data_collection/collect_as1455_live_quotes_as1455.py
     features/finalize_as1455_live_features_fast.py
     tools/build_as1455_live_execution_sidecar_v1.py
@@ -66,6 +67,7 @@ check_files() {
   "$PYTHON_BIN" -m py_compile \
     scripts/run_as1455_live_target_predictions.py \
     scripts/run_as1455_live_nine_strategy_planner.py \
+    scripts/run_as1455_live_nine_strategy_planner_entry.py \
     data_collection/collect_as1455_live_quotes_as1455.py \
     features/finalize_as1455_live_features_fast.py \
     tools/build_as1455_live_execution_sidecar_v1.py
@@ -143,7 +145,7 @@ run_post() {
   done
 
   info "planning all nine fixed-signal strategies with T-1 simulated account states"
-  "$PYTHON_BIN" scripts/run_as1455_live_nine_strategy_planner.py \
+  "$PYTHON_BIN" scripts/run_as1455_live_nine_strategy_planner_entry.py \
     --trade-date "$LIVE_DATE" \
     --matrix-root "$MATRIX_ROOT" \
     --prediction-root "$PRED_ROOT" \
