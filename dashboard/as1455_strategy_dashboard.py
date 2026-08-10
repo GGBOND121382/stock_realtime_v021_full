@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Integrated AS1455 dashboard: nine backtests + 14:55 nine-strategy monitor."""
+"""Integrated AS1455 dashboard: tracking accounts + 14:55 nine-strategy monitor."""
 from __future__ import annotations
 
 import json
@@ -8,7 +8,7 @@ import os
 import secrets
 import subprocess
 import sys
-from datetime import date, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +26,7 @@ from dashboard.as1455_backtest_data import (  # noqa: E402
     load_experiment,
     load_matrix_summary,
     load_refresh_status,
+    load_tracking_matrix_summary,
     tail_text,
 )
 from dashboard.as1455_live_data import (  # noqa: E402
@@ -45,6 +46,7 @@ DEFAULT_MATRIX_ROOT = (
 DEFAULT_LIVE_ROOT = PROJECT_ROOT / "saved_data" / "ashare_ml4t" / "live_as1455"
 REFRESH_SCRIPT = PROJECT_ROOT / "scripts" / "run_as1455_dashboard_refresh.sh"
 LIVE_JOB_SCRIPT = PROJECT_ROOT / "scripts" / "run_as1455_live_nine_strategy_job.sh"
+TRACKING_SEMANTICS_VERSION = 2
 
 st.set_page_config(
     page_title="AS1455 策略看板",
@@ -59,7 +61,6 @@ st.markdown(
 .block-container {padding-top: 1.15rem; padding-bottom: 2rem;}
 [data-testid="stMetricValue"] {font-size: 1.55rem;}
 .status-running {padding:.65rem .9rem;border-left:4px solid #f39c12;background:rgba(243,156,18,.08);}
-.status-success {padding:.65rem .9rem;border-left:4px solid #27ae60;background:rgba(39,174,96,.08);}
 .status-failed {padding:.65rem .9rem;border-left:4px solid #c0392b;background:rgba(192,57,43,.08);}
 .strategy-action {padding:.55rem .8rem;border-left:4px solid #2980b9;background:rgba(41,128,185,.08);}
 </style>
@@ -82,6 +83,14 @@ def number(value: Any, digits: int = 2) -> str:
     except (TypeError, ValueError):
         return "—"
     return "—" if pd.isna(value) else f"{value:.{digits}f}"
+
+
+def as_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if pd.isna(value):
+        return False
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "t"}
 
 
 def read_json(path: Path, default: Any = None) -> Any:
@@ -134,62 +143,32 @@ def start_background(command: list[str], env_extra: dict[str, str]) -> tuple[boo
 
 
 def strategy_labels(summary: pd.DataFrame) -> dict[str, str]:
-    labels: dict[str, str] = {}
-    for _, row in summary.iterrows():
-        labels[str(row["experiment"])] = str(row.get("display_name", row["experiment"]))
-    return labels
+    return {
+        str(row["experiment"]): str(row.get("display_name", row["experiment"]))
+        for _, row in summary.iterrows()
+    }
 
 
-def load_curve_bounds(matrix_root: Path, experiment_names: list[str]) -> tuple[pd.Timestamp, pd.Timestamp]:
+def load_curve_bounds(matrix_root: Path, names: list[str]) -> tuple[pd.Timestamp, pd.Timestamp]:
     firsts: list[pd.Timestamp] = []
     lasts: list[pd.Timestamp] = []
-    for name in experiment_names:
-        nav = load_experiment(matrix_root, name)["forward_nav"]
-        if nav.empty:
-            continue
-        firsts.append(pd.Timestamp(nav["date"].min()).normalize())
-        lasts.append(pd.Timestamp(nav["date"].max()).normalize())
-    if not firsts or not lasts:
-        today = pd.Timestamp.today().normalize()
-        return today, today
-    return min(firsts), max(lasts)
-
-
-def build_rebased_curves(
-    matrix_root: Path,
-    names: list[str],
-    labels: dict[str, str],
-    start: pd.Timestamp,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    series: list[pd.Series] = []
-    effective_rows: list[dict[str, Any]] = []
     for name in names:
-        nav = load_experiment(matrix_root, name)["forward_nav"].copy()
-        if nav.empty:
-            continue
-        nav["date"] = pd.to_datetime(nav["date"], errors="coerce").dt.normalize()
-        nav["nav"] = pd.to_numeric(nav["nav"], errors="coerce")
-        nav = nav.dropna(subset=["date", "nav"]).sort_values("date")
-        part = nav.loc[nav["date"].ge(start)].copy()
-        if part.empty:
-            continue
-        baseline = float(part.iloc[0]["nav"])
-        if baseline <= 0:
-            continue
-        effective = pd.Timestamp(part.iloc[0]["date"]).normalize()
-        part["return_pct"] = (part["nav"] / baseline - 1.0) * 100.0
-        series.append(part.set_index("date")["return_pct"].rename(labels.get(name, name)))
-        effective_rows.append(
-            {
-                "实验": labels.get(name, name),
-                "选择起点": start.strftime("%Y-%m-%d"),
-                "实际起算交易日": effective.strftime("%Y-%m-%d"),
-                "起算NAV": baseline,
-                "最新收益": float(part.iloc[-1]["return_pct"]) / 100.0,
-            }
-        )
-    curves = pd.concat(series, axis=1).sort_index() if series else pd.DataFrame()
-    return curves, pd.DataFrame(effective_rows)
+        nav = load_experiment(matrix_root, name)["forward_nav"]
+        if not nav.empty:
+            firsts.append(pd.Timestamp(nav["date"].min()).normalize())
+            lasts.append(pd.Timestamp(nav["date"].max()).normalize())
+    now = pd.Timestamp.now(tz="Asia/Shanghai").tz_localize(None).normalize()
+    return (min(firsts), max(max(lasts), now)) if firsts and lasts else (now, now)
+
+
+def tracking_ready_for_start(summary: pd.DataFrame, manifest: dict[str, Any], start: pd.Timestamp) -> bool:
+    return (
+        manifest.get("status") == "ok"
+        and manifest.get("tracking_start_date") == start.strftime("%Y-%m-%d")
+        and int(manifest.get("completed_experiment_count", 0)) == 9
+        and len(summary) == 9
+        and ("status" not in summary.columns or summary["status"].astype(str).eq("ok").all())
+    )
 
 
 def summary_view(summary: pd.DataFrame) -> None:
@@ -197,17 +176,17 @@ def summary_view(summary: pd.DataFrame) -> None:
     columns = {
         "display_name": "实验",
         "rebalance_every": "调仓周期",
-        "total_return": "Forward收益",
+        "total_return": "跟踪收益",
         "annual_return": "年化收益",
         "sharpe": "Sharpe",
         "max_drawdown": "最大回撤",
-        "forward_start": "Forward开始",
+        "forward_start": "开始持仓",
         "forward_end": "最新日期",
         "historical_result_reused": "历史Grid复用",
     }
     keep = [column for column in columns if column in view.columns]
     view = view[keep].rename(columns=columns)
-    for column in ("Forward收益", "年化收益", "最大回撤"):
+    for column in ("跟踪收益", "年化收益", "最大回撤"):
         if column in view.columns:
             view[column] = pd.to_numeric(view[column], errors="coerce").map(pct)
     if "Sharpe" in view.columns:
@@ -217,6 +196,102 @@ def summary_view(summary: pd.DataFrame) -> None:
             lambda x: f"每{int(x)}日" if pd.notna(x) else "—"
         )
     st.dataframe(view, hide_index=True, use_container_width=True)
+
+
+def order_view(frame: pd.DataFrame) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    preferred = [
+        "symbol", "side", "shares", "filled_shares", "raw_exec_price",
+        "raw_close_1500", "notional", "rank", "score", "reason",
+        "order_status", "partial_fill", "position_before", "position_after",
+    ]
+    keep = [column for column in preferred if column in frame.columns]
+    return frame[keep].copy() if keep else frame.copy()
+
+
+def tracking_date_sets(matrix_root: Path, names: list[str], start: pd.Timestamp) -> tuple[set[str], dict[str, dict[str, Any]]]:
+    details: dict[str, dict[str, Any]] = {}
+    date_sets: list[set[str]] = []
+    for name in names:
+        item = load_experiment(matrix_root, name)
+        details[name] = item
+        manifest = item["tracking_manifest"]
+        nav = item["tracking_nav"]
+        if (
+            manifest.get("status") != "ok"
+            or manifest.get("tracking_start_date") != start.strftime("%Y-%m-%d")
+            or nav.empty
+        ):
+            return set(), details
+        date_sets.append(set(pd.to_datetime(nav["date"]).dt.strftime("%Y%m%d")))
+    return (set.intersection(*date_sets) if date_sets else set()), details
+
+
+def tracking_day_summary(
+    details: dict[str, dict[str, Any]],
+    names: list[str],
+    labels: dict[str, str],
+    date_token: str,
+) -> pd.DataFrame:
+    target_date = pd.to_datetime(date_token, format="%Y%m%d").normalize()
+    rows: list[dict[str, Any]] = []
+    for name in names:
+        item = details[name]
+        nav_day = item["tracking_nav"].loc[pd.to_datetime(item["tracking_nav"]["date"]).dt.normalize().eq(target_date)]
+        if nav_day.empty:
+            continue
+        nav_row = nav_day.iloc[-1]
+        orders = item["tracking_orders"]
+        if not orders.empty:
+            orders = orders.loc[pd.to_datetime(orders["date"]).dt.normalize().eq(target_date)]
+        rejections = item["tracking_rejections"]
+        if not rejections.empty:
+            rejections = rejections.loc[pd.to_datetime(rejections["date"]).dt.normalize().eq(target_date)]
+        positions = item["tracking_positions"]
+        if not positions.empty:
+            positions = positions.loc[pd.to_datetime(positions["date"]).dt.normalize().eq(target_date)]
+        is_rebalance = as_bool(nav_row.get("is_rebalance_day", False))
+        buys = int(orders["side"].astype(str).str.lower().eq("buy").sum()) if not orders.empty and "side" in orders else 0
+        sells = int(orders["side"].astype(str).str.lower().eq("sell").sum()) if not orders.empty and "side" in orders else 0
+        action = "调仓" if is_rebalance and len(orders) else "调仓日·无需成交" if is_rebalance else "非调仓日·继续持有"
+        rows.append({
+            "experiment": name,
+            "策略": labels.get(name, name),
+            "action": action,
+            "is_rebalance_day": is_rebalance,
+            "是否调仓": "是" if is_rebalance else "否",
+            "planned_orders": int(len(orders)),
+            "planned_buys": buys,
+            "planned_sells": sells,
+            "rejections": int(len(rejections)),
+            "target_positions": int(len(positions)),
+            "planned_cash_after": nav_row.get("cash"),
+            "tracking_bootstrap": as_bool(nav_row.get("tracking_bootstrap", False)),
+            "source": "当前起算日·收盘跟踪重放",
+        })
+    return pd.DataFrame(rows)
+
+
+def zero_before_start_summary(names: list[str], labels: dict[str, str]) -> pd.DataFrame:
+    return pd.DataFrame([
+        {
+            "experiment": name,
+            "策略": labels.get(name, name),
+            "action": "未开始持仓",
+            "is_rebalance_day": False,
+            "是否调仓": "否",
+            "planned_orders": 0,
+            "planned_buys": 0,
+            "planned_sells": 0,
+            "rejections": 0,
+            "target_positions": 0,
+            "planned_cash_after": None,
+            "tracking_bootstrap": False,
+            "source": "起算日前空仓",
+        }
+        for name in names
+    ])
 
 
 matrix_root = Path(
@@ -253,18 +328,26 @@ def cached_summary(root: str, token: int) -> pd.DataFrame:
     return load_matrix_summary(Path(root))
 
 
-summary = cached_summary(str(matrix_root), summary_mtime)
+canonical_summary = cached_summary(str(matrix_root), summary_mtime)
 experiment_names = discover_experiment_names(matrix_root)
-if summary.empty or len(experiment_names) != 9:
-    st.error(f"需要完整9组结果；当前summary={len(summary)} experiments={len(experiment_names)}")
+if canonical_summary.empty or len(experiment_names) != 9:
+    st.error(f"需要完整9组冻结策略；当前summary={len(canonical_summary)} experiments={len(experiment_names)}")
     st.stop()
-labels = strategy_labels(summary)
+labels = strategy_labels(canonical_summary)
 
-# Persist the performance start date so the page returns to the user's chosen
-# synchronization date after Streamlit/server restarts.
+refresh_status = load_refresh_status(matrix_root)
+refresh_state = effective_state(refresh_status)
+pre_status = load_job_status(live_root, "pre")
+post_status = load_job_status(live_root, "post")
+pre_state = effective_state(pre_status)
+post_state = effective_state(post_status)
+
 config_file = matrix_root / ".dashboard" / "user_config.json"
 user_config = read_json(config_file, {}) or {}
 curve_min, curve_max = load_curve_bounds(matrix_root, experiment_names)
+live_date_tokens = discover_live_dates(live_root)
+if live_date_tokens:
+    curve_max = max(curve_max, pd.to_datetime(max(live_date_tokens), format="%Y%m%d").normalize())
 stored = pd.to_datetime(user_config.get("tracking_start_date"), errors="coerce")
 if pd.isna(stored):
     stored = curve_min
@@ -274,29 +357,51 @@ selected_start_date = st.sidebar.date_input(
     value=stored.date(),
     min_value=curve_min.date(),
     max_value=curve_max.date(),
+    disabled=refresh_state == "running",
     help=(
-        "按所选日期或之后第一个交易日的策略NAV重新归零。"
-        "这是同步加入既有策略的收益起点，不重跑历史Grid，也不改变调仓相位。"
+        "这是真实的跟踪账户起点，不只是曲线归零。起算日前账户为空；"
+        "第一个有效交易日从空仓同步建仓，因此只能买入、不能卖出；之后恢复冻结策略原有调仓相位。"
     ),
 )
 selected_start = pd.Timestamp(selected_start_date).normalize()
-if user_config.get("tracking_start_date") != selected_start.strftime("%Y-%m-%d"):
-    user_config["tracking_start_date"] = selected_start.strftime("%Y-%m-%d")
+selected_start_text = selected_start.strftime("%Y-%m-%d")
+start_semantics_changed = (
+    user_config.get("tracking_start_date") != selected_start_text
+    or int(user_config.get("tracking_semantics_version", 0) or 0) != TRACKING_SEMANTICS_VERSION
+)
+start_rebuild_message: tuple[bool, str] | None = None
+if start_semantics_changed and refresh_state != "running":
+    user_config["tracking_start_date"] = selected_start_text
+    user_config["tracking_semantics_version"] = TRACKING_SEMANTICS_VERSION
     user_config["updated_at"] = datetime.now().isoformat(timespec="seconds")
     write_json(config_file, user_config)
+    start_rebuild_message = start_background(
+        ["bash", str(REFRESH_SCRIPT)],
+        {
+            "MATRIX_ROOT": str(matrix_root),
+            "LIVE_ROOT": str(live_root),
+            "SKIP_DATA_REFRESH": "1",
+            "TRACKING_MODE": "rebuild",
+            "TRACKING_START_DATE": selected_start_text,
+        },
+    )
+    if start_rebuild_message[0]:
+        refresh_state = "running"
 
-refresh_status = load_refresh_status(matrix_root)
-refresh_state = effective_state(refresh_status)
-pre_status = load_job_status(live_root, "pre")
-post_status = load_job_status(live_root, "post")
-pre_state = effective_state(pre_status)
-post_state = effective_state(post_status)
+tracking_summary, tracking_manifest = load_tracking_matrix_summary(matrix_root)
+tracking_ready = tracking_ready_for_start(tracking_summary, tracking_manifest, selected_start)
+active_summary = tracking_summary if tracking_ready else canonical_summary
 
 st.sidebar.divider()
 st.sidebar.subheader("后台任务")
-st.sidebar.caption(f"20:00回测刷新：{refresh_state}")
+st.sidebar.caption(f"20:20市场数据 + 增量账户刷新：{refresh_state}")
+if start_rebuild_message is not None:
+    ok, msg = start_rebuild_message
+    (st.sidebar.success if ok else st.sidebar.error)(
+        ("起算日已更新；" if ok else "起算日已保存，但重建启动失败：") + msg
+    )
 if st.sidebar.button(
-    "立即更新数据并刷新9组回测",
+    "更新市场数据并增量推进9组账户",
     type="primary",
     disabled=refresh_state == "running" or not authorized,
     use_container_width=True,
@@ -305,9 +410,25 @@ if st.sidebar.button(
         ["bash", str(REFRESH_SCRIPT)],
         {
             "MATRIX_ROOT": str(matrix_root),
+            "LIVE_ROOT": str(live_root),
             "SKIP_DATA_REFRESH": "0",
-            "REQUIRE_HISTORICAL_REUSE": "1",
-            "FORCE_HISTORICAL_GRID": "0",
+            "TRACKING_MODE": "incremental",
+        },
+    )
+    (st.sidebar.success if ok else st.sidebar.error)(msg)
+if st.sidebar.button(
+    "按当前起算日重建9组账户",
+    disabled=refresh_state == "running" or not authorized,
+    use_container_width=True,
+):
+    ok, msg = start_background(
+        ["bash", str(REFRESH_SCRIPT)],
+        {
+            "MATRIX_ROOT": str(matrix_root),
+            "LIVE_ROOT": str(live_root),
+            "SKIP_DATA_REFRESH": "1",
+            "TRACKING_MODE": "rebuild",
+            "TRACKING_START_DATE": selected_start_text,
         },
     )
     (st.sidebar.success if ok else st.sidebar.error)(msg)
@@ -333,36 +454,46 @@ if st.sidebar.button("重新读取页面", use_container_width=True):
     st.cache_data.clear()
     st.rerun()
 
-latest_end = summary["forward_end"].dropna().astype(str).max() if "forward_end" in summary else "—"
+latest_end = (
+    active_summary["forward_end"].dropna().astype(str).max()
+    if "forward_end" in active_summary and not active_summary.empty
+    else "—"
+)
 best_sharpe = None
-if "sharpe" in summary:
-    values = pd.to_numeric(summary["sharpe"], errors="coerce")
+if tracking_ready and "sharpe" in active_summary:
+    values = pd.to_numeric(active_summary["sharpe"], errors="coerce")
     if values.notna().any():
-        best_sharpe = summary.loc[values.idxmax()]
+        best_sharpe = active_summary.loc[values.idxmax()]
 
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("策略数", f"{len(summary)}/9")
-m2.metric("收益起算日", selected_start.strftime("%Y-%m-%d"))
-m3.metric("回测最新日期", latest_end)
+m1.metric("策略数", f"{len(canonical_summary)}/9")
+m2.metric("开始持仓", selected_start_text)
+m3.metric("跟踪最新日期", latest_end if tracking_ready else "重建中/未就绪")
 m4.metric(
-    "Forward最高Sharpe",
+    "跟踪最高Sharpe",
     number(best_sharpe.get("sharpe")) if best_sharpe is not None else "—",
     best_sharpe.get("display_name") if best_sharpe is not None else None,
 )
 
 if refresh_state == "running":
-    st.markdown('<div class="status-running">20:00收益刷新正在后台运行，页面暂时展示上一版完整结果。</div>', unsafe_allow_html=True)
+    st.markdown('<div class="status-running">账户刷新/重建正在后台运行，当前完整结果生成前不会混用旧起算日状态。</div>', unsafe_allow_html=True)
 elif refresh_state in {"failed", "stale"}:
-    st.markdown('<div class="status-failed">最近一次收益刷新未正常完成；旧结果仍保留，请查看任务日志。</div>', unsafe_allow_html=True)
+    st.markdown('<div class="status-failed">最近一次账户刷新未正常完成；请查看任务日志。冻结历史Grid不会被后台任务改写。</div>', unsafe_allow_html=True)
+if not tracking_ready:
+    st.warning(
+        "当前起算日的9个跟踪账户尚未全部就绪。页面不会把旧 strict-forward 账户冒充成当前跟踪账户；"
+        "可等待后台重建完成后点击“重新读取页面”。"
+    )
 
 curve_tab, overview_tab, detail_tab, live_tab, task_tab = st.tabs(
     ["9策略收益曲线", "回测总览", "单策略详情", "每日14:55盯盘", "自动任务与日志"]
 )
 
 with curve_tab:
-    st.subheader("从指定开始持仓日同步跟随9个策略")
+    st.subheader("从空仓开始的9策略跟踪收益")
     st.caption(
-        "曲线在所选日期或之后第一个可用交易日重新归零；不补计首次同步建仓成本，后续收益来自原 strict-forward 策略账户。"
+        "起算日前账户为空；第一个有效交易日强制从空仓同步建仓，之后按历史验证所得参数与原调仓相位继续。"
+        "因此这里不是把旧NAV简单重新归零，而是重新演化账户状态。"
     )
     c1, c2 = st.columns(2)
     target_filter = c1.multiselect(
@@ -375,150 +506,288 @@ with curve_tab:
         options=list(SIGNAL_LABELS.values()),
         default=list(SIGNAL_LABELS.values()),
     )
-    selected_names = summary.loc[
-        summary["target_label"].isin(target_filter)
-        & summary["signal_label"].isin(signal_filter),
-        "experiment",
-    ].astype(str).tolist()
-    curves, effective = build_rebased_curves(
-        matrix_root, selected_names, labels, selected_start
-    )
-    if curves.empty:
-        st.info("所选开始日期之后没有可用Forward NAV。")
+    if not tracking_ready:
+        st.info("等待当前起算日账户重建完成。")
     else:
-        st.line_chart(curves, use_container_width=True, height=560)
-        if not effective.empty:
-            table = effective.copy()
-            table["最新收益"] = table["最新收益"].map(pct)
-            st.dataframe(table, hide_index=True, use_container_width=True)
+        selected_names = active_summary.loc[
+            active_summary["target_label"].isin(target_filter)
+            & active_summary["signal_label"].isin(signal_filter),
+            "experiment",
+        ].astype(str).tolist()
+        series: list[pd.Series] = []
+        rows: list[dict[str, Any]] = []
+        for name in selected_names:
+            item = load_experiment(matrix_root, name)
+            nav = item["tracking_nav"]
+            if nav.empty:
+                continue
+            series.append(
+                nav.set_index("date")["cumulative_return_pct"].rename(labels.get(name, name))
+            )
+            result = item["tracking_result"].iloc[0].to_dict() if not item["tracking_result"].empty else {}
+            rows.append({
+                "实验": labels.get(name, name),
+                "选择起点": selected_start_text,
+                "实际建仓交易日": item["tracking_manifest"].get("effective_start_date", "—"),
+                "最新收益": result.get("total_return"),
+            })
+        curves = pd.concat(series, axis=1).sort_index() if series else pd.DataFrame()
+        if curves.empty:
+            st.info("当前起算日之后还没有已完成的市场日。")
+        else:
+            st.line_chart(curves, use_container_width=True, height=560)
+            table = pd.DataFrame(rows)
+            if not table.empty:
+                table["最新收益"] = table["最新收益"].map(pct)
+                st.dataframe(table, hide_index=True, use_container_width=True)
 
 with overview_tab:
-    st.subheader("9组统一回测指标")
-    summary_view(summary)
-    chart = summary[["display_name", "total_return"]].copy()
-    chart["Forward收益率（%）"] = pd.to_numeric(chart["total_return"], errors="coerce") * 100
-    st.bar_chart(chart.set_index("display_name")[["Forward收益率（%）"]], use_container_width=True)
+    st.subheader("9组当前跟踪账户指标")
+    if tracking_ready:
+        summary_view(active_summary)
+        chart = active_summary[["display_name", "total_return"]].copy()
+        chart["跟踪收益率（%）"] = pd.to_numeric(chart["total_return"], errors="coerce") * 100
+        st.bar_chart(chart.set_index("display_name")[["跟踪收益率（%）"]], use_container_width=True)
+    else:
+        st.info("等待当前起算日账户重建完成；历史Fold/Grid仍保持冻结，可在单策略详情中查看。")
 
 with detail_tab:
     label_to_name = {labels[name]: name for name in experiment_names}
     selected_label = st.selectbox("选择策略", list(label_to_name))
-    item = load_experiment(matrix_root, label_to_name[selected_label])
-    result = item["result"].iloc[0].to_dict() if not item["result"].empty else {}
+    selected_name = label_to_name[selected_label]
+    item = load_experiment(matrix_root, selected_name)
+    item_tracking_ready = (
+        item["tracking_manifest"].get("status") == "ok"
+        and item["tracking_manifest"].get("tracking_start_date") == selected_start_text
+        and not item["tracking_nav"].empty
+    )
+    result = item["tracking_result"].iloc[0].to_dict() if item_tracking_ready and not item["tracking_result"].empty else {}
     d1, d2, d3, d4 = st.columns(4)
-    d1.metric("Forward收益", pct(result.get("total_return")))
+    d1.metric("跟踪收益", pct(result.get("total_return")))
     d2.metric("年化收益", pct(result.get("annual_return")))
     d3.metric("Sharpe", number(result.get("sharpe")))
     d4.metric("最大回撤", pct(result.get("max_drawdown")))
-    nav = item["forward_nav"]
-    if not nav.empty:
-        curve = nav.set_index("date")[["cumulative_return_pct"]].rename(
+    if item_tracking_ready:
+        curve = item["tracking_nav"].set_index("date")[["cumulative_return_pct"]].rename(
             columns={"cumulative_return_pct": "累计收益率（%）"}
         )
         st.line_chart(curve, use_container_width=True, height=420)
-    sub1, sub2, sub3 = st.tabs(["历史Fold", "调仓持仓", "历史Grid Top20"])
-    with sub1:
-        st.dataframe(item["fold_returns"], hide_index=True, use_container_width=True)
-    with sub2:
-        dates = item["rebalance_dates"].copy()
-        positions = item["positions"].copy()
-        if dates.empty:
-            st.info("尚无调仓持仓审计文件。")
+    else:
+        st.info("该策略当前起算日跟踪账户尚未就绪。")
+
+    sub_actions, sub_positions, sub_fold, sub_grid = st.tabs(
+        ["每日买卖动作", "调仓持仓", "历史Fold", "历史Grid Top20"]
+    )
+    with sub_actions:
+        if not item_tracking_ready:
+            st.info("跟踪账户就绪后，这里会逐日展示买入、卖出以及无交易日。")
         else:
-            dates["date"] = pd.to_datetime(dates["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-            st.dataframe(dates.sort_values("date", ascending=False), hide_index=True, use_container_width=True)
-            available = sorted(dates["date"].dropna().unique(), reverse=True)
-            if available and not positions.empty:
-                selected_date = st.selectbox("调仓日", available)
-                positions["date"] = pd.to_datetime(positions["date"], errors="coerce").dt.strftime("%Y-%m-%d")
-                st.dataframe(
-                    positions.loc[positions["date"].eq(selected_date)],
-                    hide_index=True,
-                    use_container_width=True,
-                )
-    with sub3:
+            nav = item["tracking_nav"].copy()
+            nav["date"] = pd.to_datetime(nav["date"], errors="coerce").dt.normalize()
+            available = sorted(nav["date"].dropna().dt.strftime("%Y-%m-%d").unique(), reverse=True)
+            selected_action_date = st.selectbox("交易日", available, key="detail_action_date")
+            target_date = pd.Timestamp(selected_action_date).normalize()
+            nav_row = nav.loc[nav["date"].eq(target_date)].iloc[-1]
+            orders = item["tracking_orders"].copy()
+            if not orders.empty:
+                orders = orders.loc[pd.to_datetime(orders["date"]).dt.normalize().eq(target_date)]
+            buys = orders.loc[orders["side"].astype(str).str.lower().eq("buy")] if not orders.empty and "side" in orders else pd.DataFrame()
+            sells = orders.loc[orders["side"].astype(str).str.lower().eq("sell")] if not orders.empty and "side" in orders else pd.DataFrame()
+            is_rebalance = as_bool(nav_row.get("is_rebalance_day", False))
+            bootstrap = as_bool(nav_row.get("tracking_bootstrap", False))
+            action = "首次建仓" if bootstrap else "调仓" if is_rebalance and len(orders) else "调仓日·无需成交" if is_rebalance else "非调仓日·继续持有"
+            a1, a2, a3, a4 = st.columns(4)
+            a1.metric("动作", action)
+            a2.metric("买入", str(len(buys)))
+            a3.metric("卖出", str(len(sells)))
+            a4.metric("收盘持仓", str(int(nav_row.get("n_positions", 0))))
+            if bootstrap:
+                st.caption("这是当前起算日后的第一个有效交易日：账户从空仓开始，因此只允许买入，不可能产生卖出。")
+            buy_col, sell_col = st.columns(2)
+            with buy_col:
+                st.markdown("**买入动作**")
+                st.info("无买入") if buys.empty else st.dataframe(order_view(buys), hide_index=True, use_container_width=True)
+            with sell_col:
+                st.markdown("**卖出动作**")
+                st.info("无卖出") if sells.empty else st.dataframe(order_view(sells), hide_index=True, use_container_width=True)
+    with sub_positions:
+        if not item_tracking_ready:
+            st.info("跟踪账户尚未就绪。")
+        else:
+            dates = item["tracking_rebalance_dates"].copy()
+            positions = item["tracking_positions"].copy()
+            if dates.empty:
+                st.info("当前跟踪区间还没有调仓日。")
+            else:
+                dates["date"] = pd.to_datetime(dates["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                preferred = [
+                    "date", "is_rebalance_day", "tracking_bootstrap", "nav", "cash",
+                    "n_positions", "orders", "buy_orders", "sell_orders", "turnover",
+                ]
+                st.dataframe(dates[[c for c in preferred if c in dates.columns]].sort_values("date", ascending=False), hide_index=True, use_container_width=True)
+                available = sorted(dates["date"].dropna().unique(), reverse=True)
+                if available:
+                    selected_rebalance_date = st.selectbox("调仓日持仓", available, key="detail_position_date")
+                    if not positions.empty:
+                        positions["date"] = pd.to_datetime(positions["date"], errors="coerce").dt.strftime("%Y-%m-%d")
+                        held = positions.loc[positions["date"].eq(selected_rebalance_date)]
+                        st.info("该调仓日收盘后为空仓。") if held.empty else st.dataframe(held, hide_index=True, use_container_width=True)
+    with sub_fold:
+        st.caption("历史Fold用于冻结模型/交易参数，不随开始持仓日改变。")
+        st.dataframe(item["fold_returns"], hide_index=True, use_container_width=True)
+    with sub_grid:
+        st.caption("历史Grid只用于历史窗口参数选择；每日刷新不会重跑。")
         st.dataframe(item["top20"], hide_index=True, use_container_width=True)
 
 with live_tab:
     st.subheader("每日14:55九策略盯盘")
     st.caption(
-        "09:35准备历史/特征状态；14:50开始采集；14:55冻结最新有效快照后生成计划。"
-        "这里只输出 planned_not_submitted 策略，不调用券商API。"
+        "当前交易日使用14:55实时快照；已完成历史日期按当前起算日账户状态重放。"
+        "起算日前统一视为空仓。所有订单均为 planned_not_submitted，不调用券商API。"
     )
-    live_dates = discover_live_dates(live_root)
-    if not live_dates:
-        st.info("还没有九策略盯盘结果。安装定时任务或手动运行预处理/生成今日策略后会出现在这里。")
+    tracking_dates, tracking_details = tracking_date_sets(matrix_root, experiment_names, selected_start)
+    original_live_dates = set(discover_live_dates(live_root))
+    available_tokens = sorted(original_live_dates | tracking_dates, reverse=True)
+    if not available_tokens:
+        st.info("还没有可展示的盯盘/跟踪日期。")
     else:
-        selected_live_date = st.selectbox("盯盘日期", live_dates, index=0)
-        live_day = load_live_day(live_root, selected_live_date)
-        live_summary = live_day["summary"].copy()
-        if live_summary.empty:
-            st.warning("该日期manifest存在，但summary为空。")
+        selected_live_date = st.selectbox("盯盘日期", available_tokens, index=0)
+        selected_live_ts = pd.to_datetime(selected_live_date, format="%Y%m%d").normalize()
+        source_mode = "none"
+        live_day: dict[str, Any] | None = None
+        if selected_live_ts < selected_start:
+            live_summary = zero_before_start_summary(experiment_names, labels)
+            source_mode = "before_start"
+        elif selected_live_date in tracking_dates:
+            live_summary = tracking_day_summary(tracking_details, experiment_names, labels, selected_live_date)
+            source_mode = "tracking"
+        elif selected_live_date in original_live_dates:
+            live_day = load_live_day(live_root, selected_live_date)
+            live_manifest = live_day["manifest"]
+            if live_manifest.get("tracking_start_date") != selected_start_text:
+                live_summary = pd.DataFrame()
+                st.warning(
+                    "这一天保存的14:55计划对应旧的开始持仓日，不能与当前账户状态混用。"
+                    "可重新生成该日计划（若原始快照仍在），或等待收盘跟踪重放覆盖。"
+                )
+            else:
+                live_summary = live_day["summary"].copy()
+                if not live_summary.empty:
+                    live_summary["策略"] = live_summary["experiment"].map(labels).fillna(live_summary["experiment"])
+                    live_summary["是否调仓"] = live_summary["is_rebalance_day"].map(as_bool).map({True: "是", False: "否"})
+                source_mode = "live"
         else:
-            live_summary["策略"] = live_summary["experiment"].map(labels).fillna(live_summary["experiment"])
-            live_summary["是否调仓"] = live_summary["is_rebalance_day"].astype(bool).map({True: "是", False: "否"})
+            live_summary = pd.DataFrame()
+
+        if source_mode == "before_start":
+            st.info(f"{selected_live_ts:%Y-%m-%d} 早于开始持仓日 {selected_start_text}：9个账户均为空仓，不产生买卖。")
+        elif source_mode == "tracking":
+            st.caption("数据源：按当前开始持仓日重新演化的收盘跟踪账户；用于历史日期的一致性展示。")
+        elif source_mode == "live":
+            st.caption("数据源：当日14:55实时计划，初始账户来自同一起算日的最新已完成跟踪状态。")
+
+        if live_summary.empty:
+            if source_mode != "live":
+                st.info("该日期没有与当前起算日一致的完整9策略结果。")
+        else:
             preferred = [
                 "策略", "action", "是否调仓", "planned_buys", "planned_sells",
                 "rejections", "current_positions", "target_positions",
-                "state_asof_date", "planned_cash_after", "fixed_signal_spec",
+                "planned_cash_after", "tracking_bootstrap", "source",
             ]
             st.dataframe(
                 live_summary[[c for c in preferred if c in live_summary.columns]],
                 hide_index=True,
                 use_container_width=True,
             )
-            rebalance_today = live_summary.loc[live_summary["is_rebalance_day"].astype(bool)]
-            st.metric("今日需要调仓的策略", f"{len(rebalance_today)}/9")
+            rebalance_today = live_summary.loc[live_summary["is_rebalance_day"].map(as_bool)] if "is_rebalance_day" in live_summary else pd.DataFrame()
+            st.metric("该日需要调仓的策略", f"{len(rebalance_today)}/9")
             if not rebalance_today.empty:
                 names = "、".join(rebalance_today["策略"].astype(str).tolist())
                 st.markdown(
-                    f'<div class="strategy-action"><b>今日调仓：</b>{names}</div>',
+                    f'<div class="strategy-action"><b>该日调仓：</b>{names}</div>',
                     unsafe_allow_html=True,
                 )
+
             strategy_label_map = {
                 labels.get(str(row["experiment"]), str(row["experiment"])): str(row["experiment"])
                 for _, row in live_summary.iterrows()
             }
             selected_strategy_label = st.selectbox("查看策略计划", list(strategy_label_map))
             selected_experiment = strategy_label_map[selected_strategy_label]
-            detail = load_strategy(live_day, selected_experiment)
-            manifest = detail["manifest"]
+            orders = pd.DataFrame()
+            target_positions = pd.DataFrame()
+            rejections = pd.DataFrame()
+            rank = pd.DataFrame()
+            action = "—"
+
+            if source_mode == "tracking":
+                detail = tracking_details[selected_experiment]
+                target_date = selected_live_ts
+                nav_day = detail["tracking_nav"].loc[pd.to_datetime(detail["tracking_nav"]["date"]).dt.normalize().eq(target_date)]
+                nav_row = nav_day.iloc[-1]
+                action = "首次建仓" if as_bool(nav_row.get("tracking_bootstrap", False)) else "调仓" if as_bool(nav_row.get("is_rebalance_day", False)) and int(nav_row.get("orders", 0)) else "调仓日·无需成交" if as_bool(nav_row.get("is_rebalance_day", False)) else "非调仓日·继续持有"
+                orders = detail["tracking_orders"]
+                if not orders.empty:
+                    orders = orders.loc[pd.to_datetime(orders["date"]).dt.normalize().eq(target_date)]
+                target_positions = detail["tracking_positions"]
+                if not target_positions.empty:
+                    target_positions = target_positions.loc[pd.to_datetime(target_positions["date"]).dt.normalize().eq(target_date)]
+                rejections = detail["tracking_rejections"]
+                if not rejections.empty:
+                    rejections = rejections.loc[pd.to_datetime(rejections["date"]).dt.normalize().eq(target_date)]
+                if selected_live_date in original_live_dates:
+                    rank = load_strategy(load_live_day(live_root, selected_live_date), selected_experiment)["rank"]
+            elif source_mode == "live" and live_day is not None:
+                detail = load_strategy(live_day, selected_experiment)
+                action = str(detail["manifest"].get("action", "—"))
+                orders = detail["orders"]
+                target_positions = detail["target_positions"]
+                rejections = detail["rejections"]
+                rank = detail["rank"]
+            elif source_mode == "before_start":
+                action = "未开始持仓"
+
+            buy_count = int(orders["side"].astype(str).str.lower().eq("buy").sum()) if not orders.empty and "side" in orders else 0
+            sell_count = int(orders["side"].astype(str).str.lower().eq("sell").sum()) if not orders.empty and "side" in orders else 0
             q1, q2, q3, q4 = st.columns(4)
-            q1.metric("动作", str(manifest.get("action", "—")))
-            q2.metric("计划买入", str(manifest.get("planned_buy_count", 0)))
-            q3.metric("计划卖出", str(manifest.get("planned_sell_count", 0)))
-            q4.metric("目标持仓数", str(manifest.get("target_position_count", 0)))
+            q1.metric("动作", action)
+            q2.metric("计划买入", str(buy_count))
+            q3.metric("计划卖出", str(sell_count))
+            q4.metric("目标持仓数", str(len(target_positions)))
             orders_tab, target_tab, reject_tab, rank_tab = st.tabs(
                 ["计划订单", "调仓后目标组合", "未成交/拒单", "当日模型排名"]
             )
             with orders_tab:
-                if detail["orders"].empty:
-                    st.info("今日没有计划成交；若不是调仓日，这是正常状态。")
-                else:
-                    st.dataframe(detail["orders"], hide_index=True, use_container_width=True)
+                st.info("该日没有计划成交。") if orders.empty else st.dataframe(order_view(orders), hide_index=True, use_container_width=True)
             with target_tab:
-                st.dataframe(detail["target_positions"], hide_index=True, use_container_width=True)
+                st.dataframe(target_positions, hide_index=True, use_container_width=True)
             with reject_tab:
-                st.dataframe(detail["rejections"], hide_index=True, use_container_width=True)
+                st.dataframe(rejections, hide_index=True, use_container_width=True)
             with rank_tab:
-                st.dataframe(detail["rank"].head(100), hide_index=True, use_container_width=True)
+                st.info("该历史日期没有保存14:55模型排名。") if rank.empty else st.dataframe(rank.head(100), hide_index=True, use_container_width=True)
 
 with task_tab:
     st.subheader("自动任务")
     st.code(
         "09:35  工作日：准备T-1历史、preclose和紧凑特征状态\n"
         "14:50  工作日：启动实时采集，14:55冻结快照并生成9策略计划\n"
-        "20:00  工作日：更新每日数据、刷新9组Forward收益曲线和T日最终账户状态",
+        "20:20  工作日：探测BaoStock当日数据；可用则更新到T，否则保持T-1；随后只增量推进9个跟踪账户",
         language="text",
     )
     st.markdown(
-        "安装定时任务：\n"
+        "安装定时任务（需要 root）：\n"
         "```bash\n"
-        "bash scripts/install_as1455_live_nine_strategy_cron.sh\n"
-        "bash scripts/install_as1455_dashboard_daily_refresh_cron.sh\n"
+        "sudo bash scripts/install_as1455_live_nine_strategy_cron.sh\n"
+        "sudo bash scripts/install_as1455_dashboard_daily_refresh_cron.sh\n"
         "```"
     )
+    st.caption(
+        "每日任务不重跑历史Fold/Grid，也不重新计算旧Forward窗口；正常情况下只更新市场缓存并追加新日期。"
+        "只有开始持仓日改变时，才会从新起点重建跟踪账户。"
+    )
     statuses = {
-        "20:00收益刷新": refresh_status,
+        "20:20市场数据/账户刷新": refresh_status,
         "09:35盯盘预处理": pre_status,
         "14:55盯盘计划": post_status,
     }
@@ -528,8 +797,5 @@ with task_tab:
             log = status.get("resolved_log_file")
             if log:
                 st.code(tail_text(Path(str(log)), max_lines=120) or "日志尚无内容", language="text")
-    st.caption(
-        "前端/定时刷新均要求复用9组已验证历史Grid；缺失任何历史结果都会失败关闭，不会静默重新跑Grid。"
-    )
 
 st.caption(f"页面读取时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
