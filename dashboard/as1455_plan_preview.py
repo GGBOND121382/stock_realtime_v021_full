@@ -200,8 +200,11 @@ def _selection_context(
 
 
 def _rank_table(predictions: pd.DataFrame, selection: Any, date: pd.Timestamp) -> pd.DataFrame:
+    target_date = _normalize_date(date)
     dates = pd.DatetimeIndex(predictions.index.get_level_values("date")).normalize()
-    day = predictions.loc[dates.eq(date)]
+    day = predictions.loc[dates == target_date]
+    if day.empty:
+        return pd.DataFrame(columns=["rank", "symbol", "date", "score"])
     score = live.score_predictions(day, selection)
     ranked = score.reset_index()
     if "score" not in ranked.columns:
