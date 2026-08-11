@@ -48,6 +48,8 @@ PRED_ROOT="$NINE_ROOT/shared_predictions"
 FEATURE_FILE="$LIVE_DIR/11_live_model_features_for_prediction.csv"
 SIDECAR_FILE="$LIVE_DIR/08_live_execution_sidecar.csv"
 CALENDAR_FILE="$LIVE_DIR/05_execution_calendar.csv"
+PREPARED_FEATURE_FILE="$LIVE_DIR/12_live_ch17_inference_features.pkl"
+PREPARED_FEATURE_REPORT="$LIVE_DIR/12_live_ch17_inference_features_report.json"
 
 fail() { echo "[ERROR] $*" >&2; exit 1; }
 info() { echo "[INFO] $*"; }
@@ -55,22 +57,26 @@ info() { echo "[INFO] $*"; }
 check_files() {
   local files=(
     scripts/run_as1455_live_strict_oos_pipeline.sh
+    scripts/prepare_as1455_live_inference_features.py
     scripts/run_as1455_live_target_predictions.py
     scripts/run_as1455_live_nine_strategy_planner.py
     scripts/run_as1455_live_nine_strategy_planner_entry.py
     data_collection/collect_as1455_live_quotes_as1455.py
     features/finalize_as1455_live_features_fast.py
     tools/build_as1455_live_execution_sidecar_v1.py
+    utils/as1455_live_inference_lowmem.py
   )
   local f
   for f in "${files[@]}"; do [[ -f "$f" ]] || fail "missing $f"; done
   "$PYTHON_BIN" -m py_compile \
+    scripts/prepare_as1455_live_inference_features.py \
     scripts/run_as1455_live_target_predictions.py \
     scripts/run_as1455_live_nine_strategy_planner.py \
     scripts/run_as1455_live_nine_strategy_planner_entry.py \
     data_collection/collect_as1455_live_quotes_as1455.py \
     features/finalize_as1455_live_features_fast.py \
-    tools/build_as1455_live_execution_sidecar_v1.py
+    tools/build_as1455_live_execution_sidecar_v1.py \
+    utils/as1455_live_inference_lowmem.py
   [[ -f "$MATRIX_ROOT/expected_experiments.txt" ]] || fail "missing matrix results: $MATRIX_ROOT"
   [[ -f "$MATRIX_ROOT/strict_forward_latest_states_manifest.json" ]] || fail \
     "missing latest strategy account states; run the 20:00 backtest refresh first"
@@ -132,14 +138,27 @@ run_post() {
   [[ -f "$SIDECAR_FILE" ]] || fail "missing live execution sidecar: $SIDECAR_FILE"
   [[ -f "$CALENDAR_FILE" ]] || fail "missing execution calendar: $CALENDAR_FILE"
 
+  info "preparing one shared low-memory Chapter-17 inference matrix"
+  "$PYTHON_BIN" scripts/prepare_as1455_live_inference_features.py \
+    --trade-date "$LIVE_DATE" \
+    --feature-preset "$FEATURE_PRESET" \
+    --model-data "$MODEL_DATA" \
+    --feature-file "$FEATURE_FILE" \
+    --out-file "$PREPARED_FEATURE_FILE" \
+    --report-file "$PREPARED_FEATURE_REPORT"
+
+  [[ -f "$PREPARED_FEATURE_FILE" ]] || fail "missing prepared inference matrix: $PREPARED_FEATURE_FILE"
+
   for target in r01 r05 r21; do
-    info "shared fold0 inference target=${target}_fwd"
+    info "shared fold0 inference target=${target}_fwd using prepared current-day matrix"
     "$PYTHON_BIN" scripts/run_as1455_live_target_predictions.py \
       --trade-date "$LIVE_DATE" \
       --target-col "${target}_fwd" \
       --feature-preset "$FEATURE_PRESET" \
       --model-data "$MODEL_DATA" \
       --feature-file "$FEATURE_FILE" \
+      --prepared-feature-file "$PREPARED_FEATURE_FILE" \
+      --prepared-feature-report "$PREPARED_FEATURE_REPORT" \
       --out-dir "$PRED_ROOT/$target" \
       --top-n 5
   done
@@ -168,6 +187,7 @@ status() {
     "$LIVE_DIR/05_prepare_report.json" \
     "$LIVE_DIR/08_collection_report.json" \
     "$FEATURE_FILE" \
+    "$PREPARED_FEATURE_FILE" \
     "$NINE_ROOT/live_nine_strategy_summary.csv" \
     "$NINE_ROOT/live_nine_strategy_manifest.json" 2>/dev/null || true
   [[ -f "$NINE_ROOT/live_nine_strategy_summary.csv" ]] && cat "$NINE_ROOT/live_nine_strategy_summary.csv"
