@@ -19,6 +19,8 @@ TRADE_DATE="${TRADE_DATE:-today}"
 HISTORY_END_DATE="${HISTORY_END_DATE:-auto}"
 HISTORY_WORKERS="${HISTORY_WORKERS:-3}"
 SYMBOL_RETRIES="${SYMBOL_RETRIES:-2}"
+HEAVY_LOCK_FILE="${AS1455_HEAVY_LOCK_FILE:-saved_data/ashare_ml4t/.as1455_heavy_compute.lock}"
+HEAVY_LOCK_WAIT_SECONDS="${AS1455_HEAVY_LOCK_WAIT_SECONDS:-0}"
 if [[ -z "${PYTHON_BIN:-}" ]]; then
   if [[ -x "$PWD/.venv_as1455/bin/python" ]]; then
     PYTHON_BIN="$PWD/.venv_as1455/bin/python"
@@ -29,7 +31,7 @@ fi
 STATE_DIR="$MATRIX_ROOT/.dashboard"
 STATUS_FILE="$STATE_DIR/refresh_status.json"
 LOCK_FILE="$STATE_DIR/refresh.lock"
-mkdir -p "$STATE_DIR"
+mkdir -p "$STATE_DIR" "$(dirname "$HEAVY_LOCK_FILE")"
 
 [[ "$TRACKING_MODE" == "incremental" || "$TRACKING_MODE" == "rebuild" ]] || {
   echo "[ERROR] TRACKING_MODE must be incremental or rebuild" >&2
@@ -37,6 +39,7 @@ mkdir -p "$STATE_DIR"
 }
 [[ "$HISTORY_WORKERS" =~ ^[1-8]$ ]] || { echo "[ERROR] HISTORY_WORKERS must be 1..8" >&2; exit 2; }
 [[ "$SYMBOL_RETRIES" =~ ^[0-9]+$ ]] || { echo "[ERROR] SYMBOL_RETRIES must be non-negative" >&2; exit 2; }
+[[ "$HEAVY_LOCK_WAIT_SECONDS" =~ ^[0-9]+$ ]] || { echo "[ERROR] AS1455_HEAVY_LOCK_WAIT_SECONDS must be non-negative" >&2; exit 2; }
 
 write_status() {
   local status="$1"
@@ -75,17 +78,31 @@ tmp.replace(path)
 PY
 }
 
+STARTED_AT="$(TZ="$TIMEZONE" date -Iseconds)"
+LOG_FILE="$STATE_DIR/refresh_$(TZ="$TIMEZONE" date +%Y%m%d_%H%M%S).log"
+
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
-  STARTED_AT="$(TZ="$TIMEZONE" date -Iseconds)"
-  LOG_FILE="$STATE_DIR/refresh_blocked_$(TZ="$TIMEZONE" date +%Y%m%d_%H%M%S).log"
   printf '%s\n' "[BLOCKED] another dashboard refresh holds $LOCK_FILE" > "$LOG_FILE"
   write_status blocked 75 "$(TZ="$TIMEZONE" date -Iseconds)"
   exit 75
 fi
 
-STARTED_AT="$(TZ="$TIMEZONE" date -Iseconds)"
-LOG_FILE="$STATE_DIR/refresh_$(TZ="$TIMEZONE" date +%Y%m%d_%H%M%S).log"
+exec 8>"$HEAVY_LOCK_FILE"
+if [[ "$HEAVY_LOCK_WAIT_SECONDS" -gt 0 ]]; then
+  flock -w "$HEAVY_LOCK_WAIT_SECONDS" 8 || {
+    printf '%s\n' "[BLOCKED] live/heavy AS1455 compute holds $HEAVY_LOCK_FILE" > "$LOG_FILE"
+    write_status blocked 76 "$(TZ="$TIMEZONE" date -Iseconds)"
+    exit 76
+  }
+else
+  flock -n 8 || {
+    printf '%s\n' "[BLOCKED] live/heavy AS1455 compute holds $HEAVY_LOCK_FILE" > "$LOG_FILE"
+    write_status blocked 76 "$(TZ="$TIMEZONE" date -Iseconds)"
+    exit 76
+  }
+fi
+
 write_status running
 exec > >(tee -a "$LOG_FILE") 2>&1
 
@@ -100,6 +117,7 @@ trap on_exit EXIT
 
 echo "[START] AS1455 daily refresh started_at=$STARTED_AT"
 echo "[MODE] skip_data_refresh=$SKIP_DATA_REFRESH tracking_mode=$TRACKING_MODE full_research_refresh=$FULL_RESEARCH_REFRESH"
+echo "[RESOURCE] acquired shared heavy-compute lock: $HEAVY_LOCK_FILE"
 
 echo "===== 0/3 validate frozen nine-strategy matrix ====="
 [[ -f "$MATRIX_ROOT/expected_experiments.txt" ]] || {
