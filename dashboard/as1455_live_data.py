@@ -40,7 +40,10 @@ def discover_live_dates(live_root: Path) -> list[str]:
     for item in live_root.iterdir():
         if not item.is_dir() or not DATE_RE.fullmatch(item.name):
             continue
-        if (item / "nine_strategy" / "live_nine_strategy_manifest.json").is_file():
+        nine = item / "nine_strategy"
+        canonical = nine / "live_nine_strategy_manifest.json"
+        materialized = nine / "start_date_plan" / "live_nine_strategy_manifest.json"
+        if canonical.is_file() or materialized.is_file():
             dates.append(item.name)
     return sorted(dates, reverse=True)
 
