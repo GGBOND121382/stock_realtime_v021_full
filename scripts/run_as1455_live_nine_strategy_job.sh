@@ -20,10 +20,16 @@ MATRIX_ROOT="${MATRIX_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_sign
 RAW_DAILY_CACHE_DIR="${RAW_DAILY_CACHE_DIR:-saved_data/ashare_ml4t/ch12_as1455/baostock_raw_daily_cache}"
 FEATURE_PRESET="${FEATURE_PRESET:-rotation_addon_onehot}"
 PARTICIPATION_RATE="${PARTICIPATION_RATE:-0.05}"
+HEAVY_LOCK_FILE="${AS1455_HEAVY_LOCK_FILE:-saved_data/ashare_ml4t/.as1455_heavy_compute.lock}"
+HEAVY_LOCK_WAIT_SECONDS="${AS1455_HEAVY_LOCK_WAIT_SECONDS:-900}"
+[[ "$HEAVY_LOCK_WAIT_SECONDS" =~ ^[0-9]+$ ]] || {
+  echo "AS1455_HEAVY_LOCK_WAIT_SECONDS must be a non-negative integer" >&2
+  exit 2
+}
 STATE_DIR="$OUT_ROOT/.dashboard"
 STATUS_FILE="$STATE_DIR/nine_strategy_${STAGE}_status.json"
 LOCK_FILE="$STATE_DIR/nine_strategy.lock"
-mkdir -p "$STATE_DIR"
+mkdir -p "$STATE_DIR" "$(dirname "$HEAVY_LOCK_FILE")"
 
 trade_date="$($PYTHON_BIN - <<PY
 from datetime import datetime
@@ -144,6 +150,13 @@ if ! flock -n 9; then
   exit 75
 fi
 
+exec 8>"$HEAVY_LOCK_FILE"
+if ! flock -w "$HEAVY_LOCK_WAIT_SECONDS" 8; then
+  printf '%s\n' "[BLOCKED] heavy AS1455 compute is busy: $HEAVY_LOCK_FILE wait=${HEAVY_LOCK_WAIT_SECONDS}s" > "$LOG_FILE"
+  write_status blocked 76 "$(TZ="$TIMEZONE" date -Iseconds)"
+  exit 76
+fi
+
 write_status running
 exec > >(tee -a "$LOG_FILE") 2>&1
 completed=0
@@ -156,6 +169,7 @@ on_exit() {
 trap on_exit EXIT
 
 echo "[START] stage=$STAGE trade_date=$trade_date started_at=$STARTED_AT"
+echo "[RESOURCE] acquired shared heavy-compute lock: $HEAVY_LOCK_FILE"
 rc=0
 set +e
 if [[ "$STAGE" == "pre" ]]; then
