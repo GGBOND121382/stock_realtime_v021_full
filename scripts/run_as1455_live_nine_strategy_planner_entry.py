@@ -133,6 +133,46 @@ def _empty_positions() -> pd.DataFrame:
     )
 
 
+def _load_tracking_positions(path: Path, expected_count: int) -> pd.DataFrame:
+    """Load a persisted tracking position snapshot without masking corruption.
+
+    Older tracking writers may persist an empty account as a zero-byte/headerless
+    CSV.  That representation is safe only when the authoritative JSON state says
+    ``n_positions == 0``.  A missing/empty file with a positive expected count is
+    treated as corruption and must fail closed.
+    """
+    expected = int(expected_count)
+    if expected < 0:
+        raise RuntimeError(f"invalid expected tracking position count: {expected}")
+    if not path.is_file():
+        if expected == 0:
+            return _empty_positions()
+        raise FileNotFoundError(path)
+    if path.stat().st_size == 0:
+        if expected == 0:
+            return _empty_positions()
+        raise RuntimeError(
+            f"tracking positions file is empty but state expects {expected} positions: {path}"
+        )
+    try:
+        positions = planner.live.load_positions(
+            path, allow_missing_buy_date=False
+        )
+    except pd.errors.EmptyDataError:
+        if expected == 0:
+            return _empty_positions()
+        raise RuntimeError(
+            f"tracking positions file has no columns but state expects {expected} positions: {path}"
+        )
+    if len(positions) != expected:
+        raise RuntimeError(
+            f"tracking position count mismatch: file={len(positions)} expected={expected} path={path}"
+        )
+    if positions.empty:
+        return _empty_positions()
+    return positions
+
+
 def install_tracking_state_adapter() -> None:
     original_load_state = planner.load_state
 
@@ -197,13 +237,10 @@ def install_tracking_state_adapter() -> None:
                 f"stale tracking state for {experiment_root.name}: "
                 f"asof={asof:%Y-%m-%d} expected={expected_asof:%Y-%m-%d}"
             )
-        positions = planner.live.load_positions(
-            paths["latest_positions"], allow_missing_buy_date=False
+        expected_positions = int(state.get("n_positions", 0) or 0)
+        positions = _load_tracking_positions(
+            paths["latest_positions"], expected_positions
         )
-        if len(positions) != int(state.get("n_positions", 0)):
-            raise RuntimeError(
-                f"tracking position count mismatch for {experiment_root.name}"
-            )
         state = dict(state)
         state["tracking_state_source"] = "latest_tracking_account"
         return state, positions
