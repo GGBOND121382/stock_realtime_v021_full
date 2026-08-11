@@ -12,6 +12,7 @@ UNIVERSE="${UNIVERSE:-saved_data/ashare_static_universe/07_universe_allA_top1000
 SKIP_DATA_REFRESH="${SKIP_DATA_REFRESH:-0}"
 TRACKING_MODE="${TRACKING_MODE:-incremental}"
 TRACKING_START_DATE="${TRACKING_START_DATE:-}"
+FEATURE_PRESET="${FEATURE_PRESET:-rotation_addon_onehot}"
 FULL_RESEARCH_REFRESH="${FULL_RESEARCH_REFRESH:-0}"
 TIMEZONE="${TIMEZONE:-Asia/Shanghai}"
 TRADE_DATE="${TRADE_DATE:-today}"
@@ -59,11 +60,12 @@ payload = {
     "exit_code": int(os.environ["EXIT_CODE"]) if os.environ.get("EXIT_CODE") else None,
     "skip_data_refresh": os.environ["SKIP_DATA_REFRESH"] == "1",
     "tracking_mode": os.environ["TRACKING_MODE"],
+    "materialize_live_plans": os.environ["TRACKING_MODE"] == "rebuild",
     "full_research_refresh": os.environ["FULL_RESEARCH_REFRESH"] == "1",
     "log_file": os.environ["LOG_FILE"],
     "daily_refresh_semantics": (
         "nightly raw-daily close update only, then append new tracking-account dates; "
-        "5m/AS1455 feature history is left to the next 09:35 preparation; "
+        "changing/rebuilding tracking start additionally materializes all existing 14:55 plans once; "
         "historical Fold/Grid and canonical old forward results are not recomputed"
     ),
 }
@@ -99,7 +101,7 @@ trap on_exit EXIT
 echo "[START] AS1455 daily refresh started_at=$STARTED_AT"
 echo "[MODE] skip_data_refresh=$SKIP_DATA_REFRESH tracking_mode=$TRACKING_MODE full_research_refresh=$FULL_RESEARCH_REFRESH"
 
-echo "===== 0/2 validate frozen nine-strategy matrix ====="
+echo "===== 0/3 validate frozen nine-strategy matrix ====="
 [[ -f "$MATRIX_ROOT/expected_experiments.txt" ]] || {
   echo "[ERROR] missing $MATRIX_ROOT/expected_experiments.txt" >&2
   exit 1
@@ -109,11 +111,15 @@ count="$(grep -cve '^[[:space:]]*$' "$MATRIX_ROOT/expected_experiments.txt")"
 "$PYTHON_BIN" -m py_compile \
   scripts/update_as1455_tracking_accounts.py \
   scripts/resolve_as1455_nightly_history_end.py \
+  scripts/materialize_as1455_start_date_plans.py \
+  dashboard/as1455_plan_compute.py \
+  dashboard/as1455_plan_preview.py \
+  utils/as1455_materialized_plan.py \
   utils/as1455_tracking.py \
   pipelines/as1455_history_parallel_dispatch.py
 
 if [[ "$SKIP_DATA_REFRESH" != "1" ]]; then
-  echo "===== 1/2 update completed BaoStock raw-daily closes only ====="
+  echo "===== 1/3 update completed BaoStock raw-daily closes only ====="
   resolved_history_end="$HISTORY_END_DATE"
   if [[ "${HISTORY_END_DATE,,}" == "auto" ]]; then
     resolved_history_end="$(
@@ -128,10 +134,6 @@ if [[ "$SKIP_DATA_REFRESH" != "1" ]]; then
     exit 1
   }
   echo "[BAOSTOCK] requested_history_end=$HISTORY_END_DATE resolved_history_end=$resolved_history_end"
-  # Nightly account advancement only consumes completed daily closes.  Do not
-  # spend time downloading 5-minute bars, rebuilding AS1455 daily aggregates,
-  # rebuilding multi-year model_data, or running TensorFlow.  The next 09:35
-  # live-pre stage remains responsible for bringing feature history to T-1.
   PROJECT_PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
   PYTHONPATH="$PROJECT_PYTHONPATH" "$PYTHON_BIN" pipelines/as1455_history_parallel_dispatch.py \
     --trade-date "$TRADE_DATE" \
@@ -194,7 +196,7 @@ if [[ "$FULL_RESEARCH_REFRESH" == "1" ]]; then
     bash scripts/run_ch17_as1455_full_rebuild.sh refresh-all-fixed-signals
 fi
 
-echo "===== 2/2 advance tracking accounts ====="
+echo "===== 2/3 advance tracking accounts ====="
 tracking_args=(
   scripts/update_as1455_tracking_accounts.py
   --matrix-root "$MATRIX_ROOT"
@@ -205,6 +207,21 @@ tracking_args=(
 [[ -n "$TRACKING_START_DATE" ]] && tracking_args+=(--tracking-start-date "$TRACKING_START_DATE")
 "$PYTHON_BIN" "${tracking_args[@]}"
 
+if [[ "$TRACKING_MODE" == "rebuild" ]]; then
+  echo "===== 3/3 materialize all saved 14:55 plans for the new start date ====="
+  materialize_args=(
+    scripts/materialize_as1455_start_date_plans.py
+    --matrix-root "$MATRIX_ROOT"
+    --live-root "$LIVE_ROOT"
+    --feature-preset "$FEATURE_PRESET"
+  )
+  [[ -n "$TRACKING_START_DATE" ]] && materialize_args+=(--tracking-start-date "$TRACKING_START_DATE")
+  "$PYTHON_BIN" "${materialize_args[@]}"
+else
+  echo "===== 3/3 keep existing start-date plan cache ====="
+  echo "[SKIP] incremental refresh does not rebuild historical 14:55 plan cache"
+fi
+
 finished_at="$(TZ="$TIMEZONE" date -Iseconds)"
 completed=1
 write_status success 0 "$finished_at"
@@ -213,3 +230,4 @@ echo "[PASS] historical Fold/Grid recomputed: no"
 echo "[PASS] canonical old forward window recomputed: no"
 echo "[PASS] nightly 5m/model inference recomputed: no"
 echo "[PASS] tracking account mode=$TRACKING_MODE"
+[[ "$TRACKING_MODE" == "rebuild" ]] && echo "[PASS] saved 14:55 plans materialized for current tracking start: yes"
