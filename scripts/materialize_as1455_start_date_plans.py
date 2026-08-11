@@ -22,7 +22,7 @@ PROJECT_DIR = Path(__file__).resolve().parents[1]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
-from dashboard.as1455_plan_preview import compute_nine_strategy_day  # noqa: E402
+from dashboard.as1455_plan_compute import compute_nine_strategy_day  # noqa: E402
 from utils.as1455_materialized_plan import (  # noqa: E402
     PLAN_CACHE_VERSION,
     atomic_json,
