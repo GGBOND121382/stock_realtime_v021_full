@@ -508,7 +508,7 @@ if st.sidebar.button(
     )
     (st.sidebar.success if ok else st.sidebar.error)(msg)
 if st.sidebar.button(
-    "按当前起算日重建9组账户",
+    "按当前起算日重建9组账户和盯盘计划",
     disabled=refresh_state == "running" or not authorized,
     use_container_width=True,
 ):
@@ -576,7 +576,7 @@ m4.metric(
 
 if refresh_state == "running":
     st.markdown(
-        '<div class="status-running">账户收益曲线正在后台刷新；14:55计划仍可按当前起算日即时重算。</div>',
+        '<div class="status-running">当前起算日的9组收益账户和已有14:55盯盘计划正在后台统一刷新；完成后页面只读缓存，不再现场重放。</div>',
         unsafe_allow_html=True,
     )
 elif refresh_state in {"failed", "stale"}:
@@ -586,8 +586,8 @@ elif refresh_state in {"failed", "stale"}:
     )
 if not tracking_ready:
     st.warning(
-        "当前起算日的9个跟踪收益账户尚未全部就绪；收益曲线需等待后台重建。"
-        "但14:55计划会直接复用已有预测/rank即时重算，不等待这个后台任务。"
+        "当前起算日的9个跟踪收益账户和盯盘缓存尚未全部就绪；请等待一次后台统一重建完成。"
+        "页面查看本身不会再现场重放9个策略。"
     )
 
 curve_tab, overview_tab, detail_tab, live_tab, task_tab = st.tabs(
@@ -844,9 +844,8 @@ with detail_tab:
 with live_tab:
     st.subheader("每日14:55九策略盯盘")
     st.caption(
-        "这里不再把保存的旧plan当作账户真值。选择日期后，页面直接复用已经生成的Top-5预测/rank、"
-        "冻结交易参数和14:55执行快照，按当前开始持仓日轻量重放账户并重新计算当天计划。"
-        "不会重新运行模型推理，也不会重跑历史Fold/Grid。"
+        "修改开始持仓日时，系统会在后台一次性重建9个跟踪账户，并把已有14:55日期按新起算日统一重算后落盘。"
+        "这里切换日期或策略时只读取已保存结果，不运行模型、不重跑Fold/Grid，也不现场重放账户。"
     )
     tracking_dates, tracking_details = tracking_date_sets(
         matrix_root, experiment_names, selected_start
@@ -869,13 +868,12 @@ with live_tab:
             source_mode = "before_start"
         elif selected_live_date in original_live_dates:
             try:
-                with st.spinner("复用已有预测/rank，按当前起算日即时重算9策略计划…"):
-                    preview = cached_plan_preview(
-                        str(matrix_root),
-                        str(live_root),
-                        selected_start_text,
-                        selected_live_date,
-                    )
+                preview = cached_plan_preview(
+                    str(matrix_root),
+                    str(live_root),
+                    selected_start_text,
+                    selected_live_date,
+                )
                 live_summary = preview["summary"].copy()
                 if not live_summary.empty:
                     live_summary["策略"] = live_summary["experiment"].map(
@@ -887,7 +885,7 @@ with live_tab:
                 source_mode = "preview"
             except Exception as exc:
                 st.warning(
-                    "即时计划重算失败，尝试回退到已完成的同起算日跟踪结果。"
+                    "当前起算日的预计算盯盘缓存尚未就绪，尝试回退到已完成的同起算日跟踪结果。"
                     f" 原因：{type(exc).__name__}: {exc}"
                 )
                 if selected_live_date in tracking_dates:
@@ -912,12 +910,12 @@ with live_tab:
         elif source_mode == "preview" and preview is not None:
             fallback_dates = preview.get("raw_daily_fallback_dates") or []
             st.caption(
-                "数据源：即时重算；模型推理=否，历史Grid=否。"
+                "数据源：起算日变更时统一预计算缓存 / 当日正式计划；页面即时计算=否，模型推理=否，历史Grid=否。"
                 f"执行数据={preview.get('execution_source', '—')}。"
             )
             if fallback_dates:
                 st.caption(
-                    "部分旧日期缺少保存的14:55 sidecar，重放时使用raw-daily执行数据回退："
+                    "部分旧日期缺少保存的14:55 sidecar，统一重建时使用raw-daily执行数据回退："
                     + "、".join(fallback_dates)
                 )
         elif source_mode == "tracking":
@@ -1113,7 +1111,7 @@ with task_tab:
     )
     st.caption(
         "每日任务不重跑历史Fold/Grid，也不重新计算旧Forward窗口；正常情况下只更新市场缓存并追加新日期。"
-        "开始持仓日改变时收益账户在后台重建，但14:55计划会直接复用已有预测/rank即时重算。"
+        "开始持仓日改变时，9个收益账户和已有14:55计划会在后台统一重建一次；之后页面只读缓存。"
     )
     statuses = {
         "20:20市场数据/账户刷新": refresh_status,
