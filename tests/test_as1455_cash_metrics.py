@@ -37,6 +37,21 @@ def test_order_amount_metrics_falls_back_to_shares_times_price() -> None:
     assert actual["conservative_cash_required"] == 1_000.0
 
 
+def test_order_amount_metrics_fills_missing_notional_row_by_row() -> None:
+    frame = pd.DataFrame(
+        {
+            "side": ["buy", "sell"],
+            "notional": [5_000.0, None],
+            "filled_shares": [None, 200],
+            "shares": [100, 250],
+            "raw_exec_price": [50.0, 12.0],
+        }
+    )
+    actual = order_amount_metrics(frame)
+    assert actual["buy_amount"] == 5_000.0
+    assert actual["sell_amount"] == 2_400.0
+
+
 def test_aggregate_cash_requirements_reports_max_and_sum() -> None:
     summary = pd.DataFrame(
         {
