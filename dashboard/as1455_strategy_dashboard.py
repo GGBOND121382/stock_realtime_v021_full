@@ -29,6 +29,10 @@ from dashboard.as1455_backtest_data import (  # noqa: E402
     load_tracking_matrix_summary,
     tail_text,
 )
+from dashboard.as1455_cash_metrics import (  # noqa: E402
+    aggregate_cash_requirements,
+    order_amount_metrics,
+)
 from dashboard.as1455_live_data import (  # noqa: E402
     discover_live_dates,
     load_job_status,
@@ -84,6 +88,16 @@ def number(value: Any, digits: int = 2) -> str:
     except (TypeError, ValueError):
         return "—"
     return "—" if pd.isna(value) else f"{value:.{digits}f}"
+
+
+def money(value: Any, *, signed: bool = False) -> str:
+    try:
+        value = float(value)
+    except (TypeError, ValueError):
+        return "—"
+    if pd.isna(value):
+        return "—"
+    return f"{value:+,.0f} 元" if signed else f"{value:,.0f} 元"
 
 
 def as_bool(value: Any) -> bool:
@@ -233,6 +247,38 @@ def order_view(frame: pd.DataFrame) -> pd.DataFrame:
     return frame[keep].copy() if keep else frame.copy()
 
 
+def cash_table_view(frame: pd.DataFrame, base_columns: list[str]) -> pd.DataFrame:
+    if frame.empty:
+        return frame
+    preferred = [
+        *base_columns,
+        "buy_amount",
+        "sell_amount",
+        "gross_trade_amount",
+        "net_buy_amount",
+        "conservative_cash_required",
+        "planned_cash_after",
+    ]
+    view = frame[[column for column in preferred if column in frame.columns]].copy()
+    rename = {
+        "buy_amount": "买入金额",
+        "sell_amount": "卖出金额",
+        "gross_trade_amount": "调仓总额",
+        "net_buy_amount": "净买入金额",
+        "conservative_cash_required": "保守现金需求",
+        "planned_cash_after": "计划后现金",
+    }
+    view = view.rename(columns=rename)
+    for column in ("买入金额", "卖出金额", "调仓总额", "保守现金需求", "计划后现金"):
+        if column in view.columns:
+            view[column] = pd.to_numeric(view[column], errors="coerce").map(money)
+    if "净买入金额" in view.columns:
+        view["净买入金额"] = pd.to_numeric(
+            view["净买入金额"], errors="coerce"
+        ).map(lambda value: money(value, signed=True))
+    return view
+
+
 def tracking_date_sets(
     matrix_root: Path,
     names: list[str],
@@ -299,6 +345,7 @@ def tracking_day_summary(
             if not orders.empty and "side" in orders
             else 0
         )
+        cash_metrics = order_amount_metrics(orders)
         bootstrap = as_bool(nav_row.get("tracking_bootstrap", False))
         n_positions = int(nav_row.get("n_positions", 0) or 0)
         action = (
@@ -322,6 +369,7 @@ def tracking_day_summary(
                 "planned_orders": int(len(orders)),
                 "planned_buys": buys,
                 "planned_sells": sells,
+                **cash_metrics,
                 "rejections": int(len(rejections)),
                 "target_positions": int(len(positions)),
                 "planned_cash_after": nav_row.get("cash"),
@@ -344,6 +392,11 @@ def zero_before_start_summary(names: list[str], labels: dict[str, str]) -> pd.Da
                 "planned_orders": 0,
                 "planned_buys": 0,
                 "planned_sells": 0,
+                "buy_amount": 0.0,
+                "sell_amount": 0.0,
+                "gross_trade_amount": 0.0,
+                "net_buy_amount": 0.0,
+                "conservative_cash_required": 0.0,
                 "rejections": 0,
                 "current_positions": 0,
                 "target_positions": 0,
@@ -670,6 +723,62 @@ with overview_tab:
             chart.set_index("display_name")[["跟踪收益率（%）"]],
             use_container_width=True,
         )
+
+        st.subheader("9策略每日调仓资金需求")
+        overview_dates, overview_details = tracking_date_sets(
+            matrix_root, experiment_names, selected_start
+        )
+        if not overview_dates:
+            st.info("当前起算日还没有完整9策略的每日资金数据。")
+        else:
+            overview_date = st.selectbox(
+                "资金日期",
+                sorted(overview_dates, reverse=True),
+                key="overview_cash_date",
+                format_func=lambda value: pd.to_datetime(
+                    value, format="%Y%m%d"
+                ).strftime("%Y-%m-%d"),
+            )
+            overview_cash = tracking_day_summary(
+                overview_details,
+                experiment_names,
+                labels,
+                overview_date,
+            )
+            totals = aggregate_cash_requirements(overview_cash)
+            k1, k2, k3 = st.columns(3)
+            k1.metric(
+                "单策略最大保守现金需求",
+                money(totals["max_single_strategy_cash_required"]),
+            )
+            k2.metric(
+                "9策略合计保守现金需求",
+                money(totals["sum_cash_required"]),
+            )
+            k3.metric(
+                "9策略合计调仓总额",
+                money(totals["sum_gross_trade_amount"]),
+            )
+            st.caption(
+                "保守现金需求=当日买入金额，不抵扣同一竞价阶段的卖出回款；"
+                "净买入金额=买入金额-卖出金额。若实际只执行其中一个策略，请看对应策略行或单策略最大值，"
+                "不要把9策略合计误当成单账户需求。金额基于模拟/计划订单notional，未额外放大手续费和滑点。"
+            )
+            st.dataframe(
+                cash_table_view(
+                    overview_cash,
+                    [
+                        "策略",
+                        "action",
+                        "是否调仓",
+                        "planned_buys",
+                        "planned_sells",
+                        "target_positions",
+                    ],
+                ),
+                hide_index=True,
+                use_container_width=True,
+            )
     else:
         st.info(
             "等待当前起算日账户重建完成；历史Fold/Grid仍保持冻结，可在单策略详情中查看。"
@@ -763,6 +872,20 @@ with detail_tab:
             a2.metric("买入", str(len(buys)))
             a3.metric("卖出", str(len(sells)))
             a4.metric("收盘持仓", str(n_positions))
+            action_cash = order_amount_metrics(orders)
+            c1, c2, c3, c4, c5 = st.columns(5)
+            c1.metric("买入金额", money(action_cash["buy_amount"]))
+            c2.metric("卖出金额", money(action_cash["sell_amount"]))
+            c3.metric("调仓总额", money(action_cash["gross_trade_amount"]))
+            c4.metric(
+                "净买入金额",
+                money(action_cash["net_buy_amount"], signed=True),
+            )
+            c5.metric(
+                "保守现金需求",
+                money(action_cash["conservative_cash_required"]),
+            )
+            st.caption("保守现金需求不抵扣同日卖出回款，用于估算需要额外预留的可用现金。")
             if bootstrap:
                 st.caption(
                     "这是该策略按原历史offset遇到的首次实际建仓日。此前账户一直为空，"
@@ -882,6 +1005,14 @@ with live_tab:
                     live_summary["是否调仓"] = live_summary[
                         "is_rebalance_day"
                     ].map(as_bool).map({True: "是", False: "否"})
+                    for row_index, row in live_summary.iterrows():
+                        experiment = str(row["experiment"])
+                        detail = preview.get("details", {}).get(experiment, {})
+                        metrics = order_amount_metrics(
+                            detail.get("orders", pd.DataFrame())
+                        )
+                        for key, value in metrics.items():
+                            live_summary.at[row_index, key] = value
                 source_mode = "preview"
             except Exception as exc:
                 st.warning(
@@ -924,24 +1055,23 @@ with live_tab:
         if live_summary.empty:
             st.info("该日期没有可用的完整9策略结果。")
         else:
-            preferred = [
-                "策略",
-                "action",
-                "是否调仓",
-                "rebalance_every",
-                "historical_offset",
-                "effective_preview_offset",
-                "planned_buys",
-                "planned_sells",
-                "rejections",
-                "current_positions",
-                "target_positions",
-                "planned_cash_after",
-                "tracking_bootstrap",
-                "source",
-            ]
             st.dataframe(
-                live_summary[[c for c in preferred if c in live_summary.columns]],
+                cash_table_view(
+                    live_summary,
+                    [
+                        "策略",
+                        "action",
+                        "是否调仓",
+                        "rebalance_every",
+                        "historical_offset",
+                        "effective_preview_offset",
+                        "planned_buys",
+                        "planned_sells",
+                        "rejections",
+                        "current_positions",
+                        "target_positions",
+                    ],
+                ),
                 hide_index=True,
                 use_container_width=True,
             )
@@ -950,7 +1080,25 @@ with live_tab:
                 if "is_rebalance_day" in live_summary
                 else pd.DataFrame()
             )
-            st.metric("该日需要调仓的策略", f"{len(rebalance_today)}/9")
+            live_totals = aggregate_cash_requirements(live_summary)
+            r1, r2, r3, r4 = st.columns(4)
+            r1.metric("该日需要调仓的策略", f"{len(rebalance_today)}/9")
+            r2.metric(
+                "单策略最大保守现金需求",
+                money(live_totals["max_single_strategy_cash_required"]),
+            )
+            r3.metric(
+                "9策略合计保守现金需求",
+                money(live_totals["sum_cash_required"]),
+            )
+            r4.metric(
+                "9策略合计调仓总额",
+                money(live_totals["sum_gross_trade_amount"]),
+            )
+            st.caption(
+                "保守现金需求按买入金额计算，不抵扣同一竞价阶段卖出回款；"
+                "用于判断账户需要额外预留多少可用现金。金额基于当前计划/跟踪订单，不额外放大手续费和滑点。"
+            )
             if not rebalance_today.empty:
                 names = "、".join(rebalance_today["策略"].astype(str).tolist())
                 st.markdown(
@@ -1051,6 +1199,19 @@ with live_tab:
                 q2.metric("计划买入", str(buy_count))
                 q3.metric("计划卖出", str(sell_count))
                 q4.metric("目标持仓数", str(len(target_positions)))
+                selected_cash = order_amount_metrics(orders)
+                qc1, qc2, qc3, qc4, qc5 = st.columns(5)
+                qc1.metric("买入金额", money(selected_cash["buy_amount"]))
+                qc2.metric("卖出金额", money(selected_cash["sell_amount"]))
+                qc3.metric("调仓总额", money(selected_cash["gross_trade_amount"]))
+                qc4.metric(
+                    "净买入金额",
+                    money(selected_cash["net_buy_amount"], signed=True),
+                )
+                qc5.metric(
+                    "保守现金需求",
+                    money(selected_cash["conservative_cash_required"]),
+                )
                 orders_tab, target_tab, current_tab, reject_tab, rank_tab = st.tabs(
                     [
                         "计划订单",
