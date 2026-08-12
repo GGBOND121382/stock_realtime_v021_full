@@ -265,11 +265,11 @@ def cash_table_view(frame: pd.DataFrame, base_columns: list[str]) -> pd.DataFram
         "sell_amount": "卖出金额",
         "gross_trade_amount": "调仓总额",
         "net_buy_amount": "净买入金额",
-        "conservative_cash_required": "保守现金需求",
+        "conservative_cash_required": "涨停价最大占款",
         "planned_cash_after": "计划后现金",
     }
     view = view.rename(columns=rename)
-    for column in ("买入金额", "卖出金额", "调仓总额", "保守现金需求", "计划后现金"):
+    for column in ("买入金额", "卖出金额", "调仓总额", "涨停价最大占款", "计划后现金"):
         if column in view.columns:
             view[column] = pd.to_numeric(view[column], errors="coerce").map(money)
     if "净买入金额" in view.columns:
@@ -308,6 +308,7 @@ def tracking_day_summary(
     names: list[str],
     labels: dict[str, str],
     date_token: str,
+    live_root: Path,
 ) -> pd.DataFrame:
     target_date = pd.to_datetime(date_token, format="%Y%m%d").normalize()
     rows: list[dict[str, Any]] = []
@@ -345,7 +346,7 @@ def tracking_day_summary(
             if not orders.empty and "side" in orders
             else 0
         )
-        cash_metrics = order_amount_metrics(orders)
+        cash_metrics = order_amount_metrics(orders, live_root=live_root)
         bootstrap = as_bool(nav_row.get("tracking_bootstrap", False))
         n_positions = int(nav_row.get("n_positions", 0) or 0)
         action = (
@@ -397,6 +398,7 @@ def zero_before_start_summary(names: list[str], labels: dict[str, str]) -> pd.Da
                 "gross_trade_amount": 0.0,
                 "net_buy_amount": 0.0,
                 "conservative_cash_required": 0.0,
+                "cash_requirement_complete": True,
                 "rejections": 0,
                 "current_positions": 0,
                 "target_positions": 0,
@@ -744,15 +746,16 @@ with overview_tab:
                 experiment_names,
                 labels,
                 overview_date,
+                live_root,
             )
             totals = aggregate_cash_requirements(overview_cash)
             k1, k2, k3 = st.columns(3)
             k1.metric(
-                "单策略最大保守现金需求",
+                "单策略最大涨停价占款",
                 money(totals["max_single_strategy_cash_required"]),
             )
             k2.metric(
-                "9策略合计保守现金需求",
+                "9策略合计涨停价占款",
                 money(totals["sum_cash_required"]),
             )
             k3.metric(
@@ -760,9 +763,9 @@ with overview_tab:
                 money(totals["sum_gross_trade_amount"]),
             )
             st.caption(
-                "保守现金需求=当日买入金额，不抵扣同一竞价阶段的卖出回款；"
-                "净买入金额=买入金额-卖出金额。若实际只执行其中一个策略，请看对应策略行或单策略最大值，"
-                "不要把9策略合计误当成单账户需求。金额基于模拟/计划订单notional，未额外放大手续费和滑点。"
+                "买入/卖出/调仓总额沿用策略模拟成交notional；涨停价最大占款则按每笔计划买单的股数×当日实际涨停价"
+                "并加上保守手续费预留计算，不抵扣同一竞价阶段的卖出回款。若某日涨停价无法从订单或14:55 sidecar取得，"
+                "该占款显示为—，不会用模拟成交价冒充。若实际只执行一个策略，请看对应策略行或单策略最大值。"
             )
             st.dataframe(
                 cash_table_view(
@@ -872,7 +875,7 @@ with detail_tab:
             a2.metric("买入", str(len(buys)))
             a3.metric("卖出", str(len(sells)))
             a4.metric("收盘持仓", str(n_positions))
-            action_cash = order_amount_metrics(orders)
+            action_cash = order_amount_metrics(orders, live_root=live_root)
             c1, c2, c3, c4, c5 = st.columns(5)
             c1.metric("买入金额", money(action_cash["buy_amount"]))
             c2.metric("卖出金额", money(action_cash["sell_amount"]))
@@ -882,10 +885,13 @@ with detail_tab:
                 money(action_cash["net_buy_amount"], signed=True),
             )
             c5.metric(
-                "保守现金需求",
+                "涨停价最大占款",
                 money(action_cash["conservative_cash_required"]),
             )
-            st.caption("保守现金需求不抵扣同日卖出回款，用于估算需要额外预留的可用现金。")
+            st.caption(
+                "涨停价最大占款=计划买入股数×当日涨停价+保守手续费预留，不抵扣同日卖出回款；"
+                "缺少精确涨停价时显示—。"
+            )
             if bootstrap:
                 st.caption(
                     "这是该策略按原历史offset遇到的首次实际建仓日。此前账户一直为空，"
@@ -1009,7 +1015,8 @@ with live_tab:
                         experiment = str(row["experiment"])
                         detail = preview.get("details", {}).get(experiment, {})
                         metrics = order_amount_metrics(
-                            detail.get("orders", pd.DataFrame())
+                            detail.get("orders", pd.DataFrame()),
+                            live_root=live_root,
                         )
                         for key, value in metrics.items():
                             live_summary.at[row_index, key] = value
@@ -1025,11 +1032,16 @@ with live_tab:
                         experiment_names,
                         labels,
                         selected_live_date,
+                        live_root,
                     )
                     source_mode = "tracking"
         elif selected_live_date in tracking_dates:
             live_summary = tracking_day_summary(
-                tracking_details, experiment_names, labels, selected_live_date
+                tracking_details,
+                experiment_names,
+                labels,
+                selected_live_date,
+                live_root,
             )
             source_mode = "tracking"
 
@@ -1084,11 +1096,11 @@ with live_tab:
             r1, r2, r3, r4 = st.columns(4)
             r1.metric("该日需要调仓的策略", f"{len(rebalance_today)}/9")
             r2.metric(
-                "单策略最大保守现金需求",
+                "单策略最大涨停价占款",
                 money(live_totals["max_single_strategy_cash_required"]),
             )
             r3.metric(
-                "9策略合计保守现金需求",
+                "9策略合计涨停价占款",
                 money(live_totals["sum_cash_required"]),
             )
             r4.metric(
@@ -1096,8 +1108,8 @@ with live_tab:
                 money(live_totals["sum_gross_trade_amount"]),
             )
             st.caption(
-                "保守现金需求按买入金额计算，不抵扣同一竞价阶段卖出回款；"
-                "用于判断账户需要额外预留多少可用现金。金额基于当前计划/跟踪订单，不额外放大手续费和滑点。"
+                "买入/卖出/调仓总额仍按策略模拟成交notional；涨停价占款按计划买入股数×当日实际涨停价+保守手续费预留计算，"
+                "并且不抵扣同一竞价阶段卖出回款。缺少精确涨停价时显示—。"
             )
             if not rebalance_today.empty:
                 names = "、".join(rebalance_today["策略"].astype(str).tolist())
@@ -1199,7 +1211,7 @@ with live_tab:
                 q2.metric("计划买入", str(buy_count))
                 q3.metric("计划卖出", str(sell_count))
                 q4.metric("目标持仓数", str(len(target_positions)))
-                selected_cash = order_amount_metrics(orders)
+                selected_cash = order_amount_metrics(orders, live_root=live_root)
                 qc1, qc2, qc3, qc4, qc5 = st.columns(5)
                 qc1.metric("买入金额", money(selected_cash["buy_amount"]))
                 qc2.metric("卖出金额", money(selected_cash["sell_amount"]))
@@ -1209,7 +1221,7 @@ with live_tab:
                     money(selected_cash["net_buy_amount"], signed=True),
                 )
                 qc5.metric(
-                    "保守现金需求",
+                    "涨停价最大占款",
                     money(selected_cash["conservative_cash_required"]),
                 )
                 orders_tab, target_tab, current_tab, reject_tab, rank_tab = st.tabs(
