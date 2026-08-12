@@ -1,24 +1,25 @@
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 import pandas as pd
 
 
-def _numeric_column(frame: pd.DataFrame, candidates: tuple[str, ...]) -> pd.Series:
+def _coalesce_numeric(frame: pd.DataFrame, candidates: tuple[str, ...]) -> pd.Series:
+    out = pd.Series(np.nan, index=frame.index, dtype="float64")
     for column in candidates:
-        if column in frame.columns:
-            return pd.to_numeric(frame[column], errors="coerce")
-    return pd.Series(np.nan, index=frame.index, dtype="float64")
+        if column not in frame.columns:
+            continue
+        values = pd.to_numeric(frame[column], errors="coerce")
+        out = out.where(out.notna(), values)
+    return out
 
 
 def order_amount_metrics(frame: pd.DataFrame) -> dict[str, float]:
     """Summarize buy/sell cash demand from planned or simulated order rows.
 
-    ``notional`` is authoritative when present. Older artifacts can be
-    reconstructed from filled/planned shares and the first available execution
-    price. All monetary values are positive magnitudes except ``net_buy_amount``.
+    ``notional`` is authoritative when present. Missing notionals are recovered
+    row-by-row from filled/planned shares and the first available execution price.
+    All monetary values are positive magnitudes except ``net_buy_amount``.
     ``conservative_cash_required`` deliberately does not offset same-auction sell
     proceeds, so it is the useful reserve-cash upper bound for simultaneous orders.
     """
@@ -37,15 +38,17 @@ def order_amount_metrics(frame: pd.DataFrame) -> dict[str, float]:
         if "side" in work.columns
         else pd.Series("", index=work.index, dtype="object")
     )
+    shares = _coalesce_numeric(work, ("filled_shares", "shares")).abs()
+    price = _coalesce_numeric(
+        work,
+        ("raw_exec_price", "raw_close_1500", "price", "exec_price"),
+    ).abs()
+    fallback_notional = shares * price
     if "notional" in work.columns:
         notional = pd.to_numeric(work["notional"], errors="coerce").abs()
+        notional = notional.where(notional.notna(), fallback_notional)
     else:
-        shares = _numeric_column(work, ("filled_shares", "shares")).abs()
-        price = _numeric_column(
-            work,
-            ("raw_exec_price", "raw_close_1500", "price", "exec_price"),
-        ).abs()
-        notional = shares * price
+        notional = fallback_notional
     notional = notional.replace([np.inf, -np.inf], np.nan).fillna(0.0)
 
     buy_amount = float(notional.loc[side.eq("buy")].sum())
