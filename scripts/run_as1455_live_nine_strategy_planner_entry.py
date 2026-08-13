@@ -6,6 +6,10 @@ Two adapters are installed before invoking the canonical planner:
 1. continuation summaries use portfolio NAV rather than residual cash;
 2. account state comes from the user-selected tracking account.
 
+After planning, this entry point also publishes one compact, atomically-written
+``execution_batch.json`` per strategy.  That batch contains final limit-order
+prices and is the only artifact the Windows executor needs to read.
+
 The tracking start date never resets the frozen rebalance phase. If the current
 trade date is the first tracking day (or no earlier trading day has occurred),
 the account starts empty, but the canonical planner still decides whether today
@@ -15,9 +19,12 @@ sell because the account is still empty.
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import math
 import sys
 from dataclasses import replace
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 
@@ -38,6 +45,7 @@ from utils.as1455_tracking import (  # noqa: E402
 )
 
 _EXECUTION_CALENDAR = pd.DatetimeIndex([])
+EXECUTION_BATCH_PROTOCOL = "as1455_execution_batch_v1"
 
 
 def _arg_value(flag: str) -> str | None:
@@ -248,6 +256,237 @@ def install_tracking_state_adapter() -> None:
     planner.load_state = tracking_load_state
 
 
+def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_suffix(path.suffix + ".tmp")
+    temp.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, default=str),
+        encoding="utf-8",
+    )
+    temp.replace(path)
+
+
+def _positive_price(value: object, field: str) -> Decimal:
+    try:
+        price = Decimal(str(value))
+    except (InvalidOperation, ValueError) as exc:
+        raise RuntimeError(f"invalid {field}={value!r}") from exc
+    if not price.is_finite() or price <= 0:
+        raise RuntimeError(f"invalid {field}={value!r}")
+    return price.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _order_qty(row: pd.Series) -> int:
+    for name in ("filled_shares", "shares", "intended_shares"):
+        if name not in row.index or pd.isna(row[name]):
+            continue
+        value = float(row[name])
+        if not math.isfinite(value) or value <= 0 or not value.is_integer():
+            raise RuntimeError(f"invalid {name}={row[name]!r}")
+        return int(value)
+    raise RuntimeError("planned order lacks a positive integer share quantity")
+
+
+def _reference_price(row: pd.Series) -> Decimal:
+    for name in ("raw_exec_price", "raw_close_1500"):
+        if name in row.index and not pd.isna(row[name]):
+            return _positive_price(row[name], name)
+    raise RuntimeError("planned order lacks raw_exec_price/raw_close_1500")
+
+
+def _server_signal_id(
+    trade_date: str,
+    experiment: str,
+    code: str,
+    side: str,
+    qty: int,
+    submit_price: Decimal,
+    rank: object,
+    reason: object,
+) -> str:
+    stable = "|".join(
+        [
+            trade_date,
+            experiment,
+            code,
+            side,
+            str(qty),
+            format(submit_price, "f"),
+            "" if pd.isna(rank) else str(rank),
+            "" if pd.isna(reason) else str(reason),
+        ]
+    )
+    return hashlib.sha256(stable.encode("utf-8")).hexdigest()
+
+
+def publish_execution_batches() -> None:
+    """Publish the minimal immutable server -> Windows execution contract.
+
+    `execution_batch.json` is written only after every order has a validated final
+    submit price.  The final rename is atomic, so its presence itself is the READY
+    marker.  Windows no longer needs the strategy manifest, planned-order CSV,
+    positions file, quote lookup, or any account read before submitting.
+    """
+    out_value = _arg_value("--out-root")
+    sidecar_value = _arg_value("--execution-sidecar")
+    if not out_value or not sidecar_value:
+        raise RuntimeError("execution batch publication requires --out-root and --execution-sidecar")
+
+    out_root = Path(out_value).expanduser().resolve()
+    sidecar_path = Path(sidecar_value).expanduser().resolve()
+    if not sidecar_path.is_file():
+        raise FileNotFoundError(sidecar_path)
+    sidecar = pd.read_csv(
+        sidecar_path,
+        dtype={"symbol": str, "code": str},
+        encoding="utf-8-sig",
+    )
+    if "symbol" not in sidecar.columns:
+        if "code" in sidecar.columns:
+            sidecar["symbol"] = sidecar["code"]
+        else:
+            raise RuntimeError("execution sidecar requires symbol/code")
+    required = {"up_limit", "down_limit"}
+    missing = required - set(sidecar.columns)
+    if missing:
+        raise RuntimeError(f"execution sidecar missing final-price fields: {sorted(missing)}")
+    sidecar = sidecar.copy()
+    sidecar["symbol"] = sidecar["symbol"].map(planner.live.exchange_symbol)
+    if sidecar["symbol"].duplicated().any():
+        dup = sidecar.loc[sidecar["symbol"].duplicated(), "symbol"].head().tolist()
+        raise RuntimeError(f"duplicate symbols in execution sidecar: {dup}")
+    sidecar = sidecar.set_index("symbol", drop=False)
+
+    strategies_root = out_root / "strategies"
+    if not strategies_root.is_dir():
+        raise FileNotFoundError(strategies_root)
+    batch_files: dict[str, str] = {}
+
+    for strategy_dir in sorted(path for path in strategies_root.iterdir() if path.is_dir()):
+        manifest_file = strategy_dir / "strategy_manifest.json"
+        orders_file = strategy_dir / "16_live_orders.csv"
+        if not manifest_file.is_file() or not orders_file.is_file():
+            raise FileNotFoundError(
+                f"strategy output incomplete before execution publication: {strategy_dir}"
+            )
+        manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+        trade_date = str(manifest["trade_date"])
+        experiment = str(manifest["experiment"])
+        try:
+            orders = pd.read_csv(orders_file, dtype={"symbol": str}, encoding="utf-8-sig")
+        except pd.errors.EmptyDataError:
+            orders = pd.DataFrame()
+        expected_count = int(manifest.get("planned_order_count", len(orders)) or 0)
+        if expected_count != len(orders):
+            raise RuntimeError(
+                f"planned order count mismatch for {experiment}: manifest={expected_count} csv={len(orders)}"
+            )
+
+        prepared: list[dict[str, Any]] = []
+        for source_index, (_, row) in enumerate(orders.iterrows()):
+            side = str(row.get("side", "")).strip().lower()
+            if side not in {"buy", "sell"}:
+                raise RuntimeError(f"unsupported planned order side for {experiment}: {side!r}")
+            symbol = planner.live.exchange_symbol(row.get("symbol", ""))
+            code = planner.live.code6(symbol)
+            if symbol not in sidecar.index:
+                raise RuntimeError(f"order symbol missing from execution sidecar: {symbol}")
+            execution_row = sidecar.loc[symbol]
+            if isinstance(execution_row, pd.DataFrame):
+                raise RuntimeError(f"ambiguous execution sidecar symbol: {symbol}")
+            upper = _positive_price(execution_row["up_limit"], f"up_limit[{symbol}]")
+            lower = _positive_price(execution_row["down_limit"], f"down_limit[{symbol}]")
+            if lower >= upper:
+                raise RuntimeError(f"invalid daily limit range for {symbol}: lower={lower} upper={upper}")
+            reference = _reference_price(row)
+            if not (lower <= reference <= upper):
+                raise RuntimeError(
+                    f"reference price outside server daily limits for {symbol}: "
+                    f"reference={reference} lower={lower} upper={upper}"
+                )
+            qty = _order_qty(row)
+            submit_price = upper if side == "buy" else lower
+            rank = row.get("rank", np.nan)
+            reason = row.get("reason", "")
+            prepared.append(
+                {
+                    "_source_index": source_index,
+                    "signal_id": _server_signal_id(
+                        trade_date,
+                        experiment,
+                        code,
+                        side,
+                        qty,
+                        submit_price,
+                        rank,
+                        reason,
+                    ),
+                    "code": code,
+                    "symbol": symbol,
+                    "side": side,
+                    "qty": qty,
+                    "submit_price": format(submit_price, ".2f"),
+                    "reference_price": format(reference, ".2f"),
+                    "upper_limit": format(upper, ".2f"),
+                    "lower_limit": format(lower, ".2f"),
+                    "rank": None if pd.isna(rank) else float(rank),
+                    "position_before": (
+                        None
+                        if "position_before" not in row.index or pd.isna(row.get("position_before"))
+                        else float(row.get("position_before"))
+                    ),
+                    "price_source": "server_execution_sidecar_limits",
+                }
+            )
+
+        prepared.sort(key=lambda item: (0 if item["side"] == "sell" else 1, item["_source_index"]))
+        final_orders: list[dict[str, Any]] = []
+        for sequence, item in enumerate(prepared, start=1):
+            item = dict(item)
+            item.pop("_source_index", None)
+            item["sequence"] = sequence
+            final_orders.append(item)
+
+        batch = {
+            "status": "ready",
+            "protocol": EXECUTION_BATCH_PROTOCOL,
+            "trade_date": trade_date,
+            "experiment": experiment,
+            "order_count": len(final_orders),
+            "submit_sequence": "sells_then_buys",
+            "price_semantics": (
+                "server_final_limit_price: buy=upper_limit, sell=lower_limit; "
+                "reference_price is audit/research only"
+            ),
+            "price_source": "server_execution_sidecar_limits",
+            "broker_orders_submitted": False,
+            "windows_required_files": ["execution_batch.json"],
+            "windows_quote_lookup_required": False,
+            "windows_account_reads_required": False,
+            "orders": final_orders,
+        }
+        batch_file = strategy_dir / "execution_batch.json"
+        _atomic_write_json(batch_file, batch)
+        batch_files[experiment] = str(batch_file)
+
+        manifest["execution_batch_file"] = str(batch_file)
+        manifest["execution_batch_protocol"] = EXECUTION_BATCH_PROTOCOL
+        manifest["execution_price_source"] = "server_execution_sidecar_limits"
+        manifest["windows_required_files"] = ["execution_batch.json"]
+        manifest["windows_quote_lookup_required"] = False
+        manifest["windows_account_reads_required"] = False
+        _atomic_write_json(manifest_file, manifest)
+
+    root_manifest_file = out_root / "live_nine_strategy_manifest.json"
+    if root_manifest_file.is_file():
+        root_manifest = json.loads(root_manifest_file.read_text(encoding="utf-8"))
+        root_manifest["execution_batch_protocol"] = EXECUTION_BATCH_PROTOCOL
+        root_manifest["execution_batch_files"] = batch_files
+        root_manifest["windows_quote_lookup_required"] = False
+        root_manifest["windows_account_reads_required"] = False
+        _atomic_write_json(root_manifest_file, root_manifest)
+
+
 def postprocess_manifests() -> None:
     out_value = _arg_value("--out-root")
     matrix_value = _arg_value("--matrix-root")
@@ -275,10 +514,7 @@ def postprocess_manifests() -> None:
                 int(payload.get("current_position_count", 0) or 0) == 0
                 and int(payload.get("planned_buy_count", 0) or 0) > 0
             )
-            path.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2, default=str),
-                encoding="utf-8",
-            )
+            _atomic_write_json(path, payload)
     manifest_file = out_root / "live_nine_strategy_manifest.json"
     if manifest_file.is_file():
         payload = json.loads(manifest_file.read_text(encoding="utf-8"))
@@ -287,10 +523,7 @@ def postprocess_manifests() -> None:
         payload["account_state_semantics"] = (
             "empty_from_tracking_start_preserve_historical_rebalance_phase"
         )
-        manifest_file.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2, default=str),
-            encoding="utf-8",
-        )
+        _atomic_write_json(manifest_file, payload)
 
 
 def main() -> None:
@@ -299,6 +532,7 @@ def main() -> None:
     install_live_summary_adapter()
     install_tracking_state_adapter()
     planner.main()
+    publish_execution_batches()
     postprocess_manifests()
 
 
