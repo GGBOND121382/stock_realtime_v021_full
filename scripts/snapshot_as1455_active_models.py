@@ -9,6 +9,8 @@ import json
 import sys
 from pathlib import Path
 
+import pandas as pd
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -18,7 +20,6 @@ from utils.as1455_model_registry import (  # noqa: E402
     bootstrap_registry,
     write_active_snapshot,
 )
-from utils.as1455_model_roll import ensure_legacy_period_initialized  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -33,17 +34,16 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     registry_root = Path(args.registry_root).expanduser().resolve()
-    bootstrap_registry(registry_root, feature_preset=args.feature_preset)
-    registry = ensure_legacy_period_initialized(
-        registry_root, feature_preset=args.feature_preset
-    )
+    # Keep this path O(1): the one-time legacy fold0-forward HDF reconciliation
+    # is intentionally deferred to the 21:30 rollover checker.
+    registry = bootstrap_registry(registry_root, feature_preset=args.feature_preset)
 
     # A newly activated generation does not know its exact first trading date
-    # until the next live run starts.  Put that date into the immutable day
-    # snapshot provisionally, but do not mutate registry progress here.  The
-    # pipeline records the date only after all nine plans finish successfully.
+    # until the next live run starts. Put that date into the immutable day
+    # snapshot provisionally, but do not mutate registry progress here. The
+    # pipeline commits it only after all nine plans finish successfully.
     snapshot_registry = copy.deepcopy(registry)
-    date_text = str(args.trade_date)
+    date_text = pd.Timestamp(args.trade_date).strftime("%Y-%m-%d")
     for entry in snapshot_registry.get("active_models", {}).values():
         if not entry.get("model_updated_date"):
             entry["model_updated_date"] = date_text
