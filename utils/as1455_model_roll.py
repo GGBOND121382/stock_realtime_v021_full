@@ -50,12 +50,14 @@ def _prediction_dates(path: Path) -> pd.DatetimeIndex:
     frame = pd.read_hdf(path, "predictions")
     if not isinstance(frame.index, pd.MultiIndex) or "date" not in frame.index.names:
         raise RuntimeError(f"unexpected prediction index in {path}: {frame.index.names}")
-    return (
+    dates = (
         pd.DatetimeIndex(pd.to_datetime(frame.index.get_level_values("date")))
         .normalize()
         .unique()
         .sort_values()
     )
+    del frame
+    return dates
 
 
 def legacy_common_forward_dates(
@@ -87,25 +89,36 @@ def ensure_legacy_period_initialized(
     feature_preset: str = "rotation_addon_onehot",
     cache_base: Path = DEFAULT_PREDICTION_CACHE_BASE,
 ) -> dict[str, Any]:
+    """Merge the pre-registry legacy forward history into period000 once.
+
+    This can read the historical fold0-forward HDF caches, so callers on the
+    14:55 critical path must not invoke it.  The 21:30 rollover checker calls it
+    instead.  Live planning only appends the successfully completed current day.
+    """
     root = Path(registry_root or DEFAULT_REGISTRY_ROOT).expanduser().resolve()
     registry = bootstrap_registry(root, feature_preset=feature_preset)
     current = dict(registry.get("current_period") or {})
     if registry.get("active_generation") != LEGACY_GENERATION:
         return registry
+    if bool(current.get("legacy_cache_initialized")):
+        return registry
+
     existing = _normalized_date_strings(list(current.get("observed_dates") or []))
-    if existing:
+    legacy_dates = legacy_common_forward_dates(feature_preset, cache_base)
+    if not len(legacy_dates):
         return registry
-    dates = legacy_common_forward_dates(feature_preset, cache_base)
-    if not len(dates):
-        return registry
+    merged = _normalized_date_strings(
+        existing + [value.strftime("%Y-%m-%d") for value in legacy_dates]
+    )
     current["period_id"] = current.get("period_id") or period_id(0)
     current["period_index"] = int(current.get("period_index", 0) or 0)
     current["generation_id"] = LEGACY_GENERATION
-    current["observed_dates"] = [value.strftime("%Y-%m-%d") for value in dates]
-    current["observed_days"] = int(len(dates))
+    current["observed_dates"] = merged
+    current["observed_days"] = len(merged)
     current["required_days"] = int(registry.get("period_length", 63) or 63)
-    current["start_date"] = dates[0].strftime("%Y-%m-%d")
-    current["last_observed_date"] = dates[-1].strftime("%Y-%m-%d")
+    current["start_date"] = merged[0] if merged else None
+    current["last_observed_date"] = merged[-1] if merged else None
+    current["legacy_cache_initialized"] = True
     registry = deepcopy(registry)
     registry["current_period"] = current
     atomic_write_json(root / "registry.json", registry)
@@ -117,10 +130,18 @@ def record_live_generation_use(
     *,
     trade_date: str,
     feature_preset: str = "rotation_addon_onehot",
+    initialize_legacy: bool = False,
 ) -> dict[str, Any]:
+    """Append one successfully completed live day to the active period.
+
+    ``initialize_legacy`` defaults to False so production post-processing stays
+    O(1).  Historical HDF reconciliation is deferred to ``rollover_status``.
+    """
     root = Path(registry_root or DEFAULT_REGISTRY_ROOT).expanduser().resolve()
-    registry = ensure_legacy_period_initialized(
-        root, feature_preset=feature_preset
+    registry = (
+        ensure_legacy_period_initialized(root, feature_preset=feature_preset)
+        if initialize_legacy
+        else bootstrap_registry(root, feature_preset=feature_preset)
     )
     validate_registry(registry)
     date_text = pd.Timestamp(trade_date).strftime("%Y-%m-%d")
@@ -173,6 +194,8 @@ def rollover_status(
     *,
     feature_preset: str = "rotation_addon_onehot",
 ) -> dict[str, Any]:
+    # This is intentionally the non-live path where the one-time legacy HDF scan
+    # is allowed to happen.
     registry = ensure_legacy_period_initialized(
         registry_root, feature_preset=feature_preset
     )
@@ -180,7 +203,7 @@ def rollover_status(
     dates = _normalized_date_strings(list(current.get("observed_dates") or []))
     required = int(current.get("required_days") or registry.get("period_length", 63) or 63)
     due = len(dates) >= required
-    boundary = dates[required - 1] if due else None
+    boundary = dates[-1] if due else None
     return {
         "status": "due" if due else "waiting",
         "due": due,
@@ -193,6 +216,7 @@ def rollover_status(
         "period_start": dates[0] if dates else None,
         "period_last_observed": dates[-1] if dates else None,
         "rollover_boundary": boundary,
+        "legacy_cache_initialized": bool(current.get("legacy_cache_initialized")),
     }
 
 
@@ -258,6 +282,7 @@ def activate_generation(
         "observed_days": 0,
         "required_days": int(updated.get("period_length", 63) or 63),
         "last_observed_date": None,
+        "legacy_cache_initialized": True,
     }
     atomic_write_json(root / "registry.json", updated)
     return updated
