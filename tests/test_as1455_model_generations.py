@@ -51,6 +51,7 @@ def test_only_successfully_recorded_live_days_advance_period(tmp_path: Path) -> 
             "start_date": dates[0],
             "last_observed_date": dates[-1],
             "required_days": 63,
+            "legacy_cache_initialized": True,
         }
     )
     atomic_write_json(tmp_path / "registry.json", registry)
@@ -84,6 +85,7 @@ def test_activation_is_atomic_across_all_three_targets(tmp_path: Path) -> None:
             "start_date": dates[0],
             "last_observed_date": dates[-1],
             "required_days": 63,
+            "legacy_cache_initialized": True,
         }
     )
     atomic_write_json(tmp_path / "registry.json", registry)
