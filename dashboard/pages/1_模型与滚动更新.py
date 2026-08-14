@@ -72,6 +72,9 @@ if summary.empty or len(experiments) != 9:
 
 summary = attach_current_model_columns(summary, registry)
 period = dict(registry.get("current_period") or {})
+legacy_initialized = bool(period.get("legacy_cache_initialized")) or str(
+    registry.get("active_generation")
+) != "gen000"
 observed = int(period.get("observed_days", 0) or 0)
 required = int(period.get("required_days", registry.get("period_length", 63)) or 63)
 remaining = max(0, required - observed)
@@ -79,8 +82,22 @@ remaining = max(0, required - observed)
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("当前模型代", str(registry.get("active_generation") or "—"))
 m2.metric("当前服务周期", str(period.get("period_id") or "—"))
-m3.metric("Forward进度", f"{observed}/{required} 交易日")
-m4.metric("距离下次模型更新", "已到期" if remaining == 0 else f"{remaining} 交易日")
+m3.metric(
+    "Forward进度",
+    f"{observed}/{required} 交易日" if legacy_initialized else "待初始化",
+)
+m4.metric(
+    "距离下次模型更新",
+    ("已到期" if remaining == 0 else f"{remaining} 交易日")
+    if legacy_initialized
+    else "待初始化",
+)
+if not legacy_initialized:
+    st.info(
+        "gen000 的现有 strict-forward 历史尚未一次性并入 period000。"
+        "运行滚动状态检查后，系统会读取既有 r01/r05/r21 fold0-forward 预测日期的交集，"
+        "恢复真实进度和 gen000 的首次生产使用日期；不会训练模型。"
+    )
 
 st.subheader("9策略当前模型")
 view = summary.copy()
@@ -114,21 +131,22 @@ if "调仓周期" in view.columns:
     )
 for column in ("模型版本", "模型更新日期", "训练起点", "训练截止"):
     if column in view.columns:
-        view[column] = view[column].fillna("—").astype(str)
+        view[column] = view[column].fillna("待初始化" if column == "模型更新日期" else "—").astype(str)
 st.dataframe(view, hide_index=True, use_container_width=True)
 
 st.caption(
-    "模型更新日期表示该 generation 首次用于生产交易信号的交易日。gen000 保留 legacy fold0 来源；"
-    "后续 gen001、gen002… 不再使用 fold 命名。九策略本身的 experiment 名、历史 Fold/Grid 和交易参数不会因此重命名。"
+    "模型更新日期=该 generation 首次实际用于生产交易信号的交易日。gen000 的日期从既有 strict-forward "
+    "首个公共预测交易日恢复，不拿 fold0 的 test_end 冒充；gen001、gen002… 则在第一次成功 live 使用时记录。"
+    "九策略 experiment 名、历史 Fold/Grid 和交易参数均不因此重命名。"
 )
 
 st.subheader("当前 period")
 p1, p2, p3, p4 = st.columns(4)
-p1.metric("开始日期", str(period.get("start_date") or "—"))
+p1.metric("开始日期", str(period.get("start_date") or ("待初始化" if not legacy_initialized else "—")))
 p2.metric("最近成功 live 日", str(period.get("last_observed_date") or "—"))
-p3.metric("累计成功日", str(observed))
+p3.metric("累计成功日", str(observed) if legacy_initialized else "待初始化")
 p4.metric("要求长度", str(required))
-if observed:
+if observed and legacy_initialized:
     st.progress(min(1.0, observed / max(required, 1)))
 
 st.subheader("模型代历史")
@@ -143,7 +161,7 @@ for generation in registry.get("generations", []):
             "来源": source_labels.get(
                 str(generation.get("source_type")), generation.get("source_type")
             ),
-            "首次生产使用": generation.get("model_updated_date") or "—",
+            "首次生产使用": generation.get("model_updated_date") or "待初始化",
             "来源周期": generation.get("source_period") or "—",
             "上一模型": generation.get("source_generation") or "—",
             "r01训练截止": (targets.get("r01_fwd") or {}).get("train_end") or "—",
