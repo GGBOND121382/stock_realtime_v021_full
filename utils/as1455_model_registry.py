@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """Production model registry for rolling AS1455 live inference.
 
-Historical ``fold0..fold6`` keep their original CV meaning.  Production models
+Historical ``fold0..fold6`` keep their original CV meaning. Production models
 are addressed by monotonically increasing ``genNNN`` generation ids instead.
 ``gen000`` is a compatibility view over the existing fold0 model directories;
 it does not move or copy any historical artifacts.
@@ -71,7 +71,8 @@ def period_id(index: int) -> str:
     return f"period{int(index):03d}"
 
 
-def _legacy_model_updated_date(model_dir: Path) -> str | None:
+def _legacy_fold_reference_date(model_dir: Path) -> str | None:
+    """Return fold0's historical validation boundary, not production use date."""
     manifest_path = model_dir / "preprocess" / "feature_manifest.json"
     if not manifest_path.is_file():
         return None
@@ -90,14 +91,16 @@ def _legacy_model_updated_date(model_dir: Path) -> str | None:
 
 def legacy_target_entry(feature_preset: str, target_col: str) -> dict[str, Any]:
     model_dir = common.default_fold0_dir(feature_preset, target_col).resolve()
-    updated = _legacy_model_updated_date(model_dir)
     return {
         "generation_id": LEGACY_GENERATION,
         "source_type": "legacy_cv_fold",
         "source_fold": 0,
         "model_dir": str(model_dir),
-        "model_updated_date": updated,
-        "effective_from": updated,
+        # The production activation date is filled by the one-time legacy
+        # forward reconciliation. Never use fold0 test_end as a fake update date.
+        "model_updated_date": None,
+        "effective_from": None,
+        "legacy_fold_reference_date": _legacy_fold_reference_date(model_dir),
         "trained_at": None,
         "train_start": None,
         "train_end": None,
@@ -126,11 +129,7 @@ def virtual_legacy_registry(feature_preset: str) -> dict[str, Any]:
                 "generation_index": 0,
                 "source_type": "legacy_cv_fold",
                 "source_fold": 0,
-                "model_updated_date": max(
-                    (entry.get("model_updated_date") or "" for entry in targets.values()),
-                    default="",
-                )
-                or None,
+                "model_updated_date": None,
                 "targets": targets,
             }
         ],
@@ -139,8 +138,10 @@ def virtual_legacy_registry(feature_preset: str) -> dict[str, Any]:
             "period_index": 0,
             "generation_id": LEGACY_GENERATION,
             "start_date": None,
+            "observed_dates": [],
             "observed_days": 0,
             "required_days": DEFAULT_PERIOD_LENGTH,
+            "legacy_cache_initialized": False,
         },
     }
 
@@ -308,4 +309,5 @@ def model_display_for_experiment(
         "model_train_end": entry.get("train_end"),
         "model_trained_at": entry.get("trained_at"),
         "model_target_col": target_col,
+        "legacy_fold_reference_date": entry.get("legacy_fold_reference_date"),
     }
