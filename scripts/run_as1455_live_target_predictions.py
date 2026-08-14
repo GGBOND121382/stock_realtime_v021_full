@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Build one shared Top-5 fold0 prediction panel for a live AS1455 target.
+"""Build one shared Top-5 production prediction panel for a live AS1455 target.
 
-The preferred production path reads a prepared current-day Chapter-17 feature
-matrix. This keeps TensorFlow inference independent from the multi-year HDF
-history and lets r01/r05/r21 share one low-memory feature-preparation pass.
+Historical CV folds keep their original meaning.  Production inference resolves
+an immutable ``genNNN`` model generation from the current-day model snapshot.
+The legacy ``--fold0-dir`` option remains supported for diagnostics and parity
+checks; when no snapshot is supplied the previous fold0 behavior is preserved.
 """
 from __future__ import annotations
 
@@ -24,6 +25,7 @@ if str(PROJECT_DIR) not in sys.path:
 from scripts import run_as1455_live_strict_oos_monitor as live  # noqa: E402
 from utils import as1455_ch17_common as common  # noqa: E402
 from utils.as1455_live_inference import build_inference_features_from_frame  # noqa: E402
+from utils.as1455_model_registry import load_snapshot, snapshot_model  # noqa: E402
 
 
 def write_json(path: Path, payload: dict) -> None:
@@ -46,7 +48,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--feature-file", required=True)
     parser.add_argument("--prepared-feature-file", default=None)
     parser.add_argument("--prepared-feature-report", default=None)
-    parser.add_argument("--fold0-dir", default=None)
+    parser.add_argument("--model-snapshot", default=None)
+    parser.add_argument(
+        "--fold0-dir",
+        default=None,
+        help="Legacy explicit model-dir override; kept for diagnostics/parity tests.",
+    )
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--top-n", type=int, default=5)
     return parser.parse_args()
@@ -80,18 +87,40 @@ def _prepared_features(
     return X
 
 
+def _resolve_model(args: argparse.Namespace) -> tuple[Path, dict]:
+    if args.fold0_dir:
+        model_dir = Path(args.fold0_dir).expanduser().resolve()
+        return model_dir, {
+            "generation_id": "gen000",
+            "source_type": "legacy_explicit_model_dir",
+            "source_fold": 0,
+            "model_dir": str(model_dir),
+            "model_updated_date": None,
+            "effective_from": None,
+        }
+    if args.model_snapshot:
+        snapshot = load_snapshot(Path(args.model_snapshot).expanduser().resolve())
+        entry = snapshot_model(snapshot, args.target_col)
+        return Path(str(entry["model_dir"])).expanduser().resolve(), entry
+    model_dir = common.default_fold0_dir(args.feature_preset, args.target_col)
+    return model_dir, {
+        "generation_id": "gen000",
+        "source_type": "legacy_cv_fold",
+        "source_fold": 0,
+        "model_dir": str(model_dir),
+        "model_updated_date": None,
+        "effective_from": None,
+    }
+
+
 def main() -> None:
     args = parse_args()
     trade_date = live.parse_trade_date(args.trade_date)
     feature_file = Path(args.feature_file).expanduser().resolve()
     out_dir = Path(args.out_dir).expanduser().resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
-    fold0_dir = (
-        Path(args.fold0_dir).expanduser().resolve()
-        if args.fold0_dir
-        else common.default_fold0_dir(args.feature_preset, args.target_col)
-    )
-    _, preprocess_manifest = common.load_preprocess(fold0_dir)
+    model_dir, model_entry = _resolve_model(args)
+    _, preprocess_manifest = common.load_preprocess(model_dir)
     required_columns = list(preprocess_manifest["feature_cols_final"])
 
     if args.prepared_feature_file:
@@ -147,13 +176,16 @@ def main() -> None:
         X_final = feature_result.X
         feature_report = feature_result.report
 
+    generation = str(model_entry.get("generation_id") or "gen000")
+    source_fold = model_entry.get("source_fold")
     predictions, checkpoints, source_manifest = common.predict_checkpoint_set(
         X_final,
         row_indices,
-        fold0_dir,
+        model_dir,
         args.top_n,
         metadata={
-            "source_model_fold": 0,
+            "source_model_generation": generation,
+            "source_model_fold": source_fold,
             "live_trade_date": trade_date.strftime("%Y-%m-%d"),
             "shared_across_fixed_signals": True,
             "prepared_feature_path_used": bool(args.prepared_feature_file),
@@ -177,7 +209,19 @@ def main() -> None:
         "feature_preset": args.feature_preset,
         "feature_file": str(feature_file),
         "prepared_feature_file": str(Path(args.prepared_feature_file).expanduser().resolve()) if args.prepared_feature_file else None,
-        "fold0_dir": str(fold0_dir),
+        "model_snapshot": str(Path(args.model_snapshot).expanduser().resolve()) if args.model_snapshot else None,
+        "model_generation": generation,
+        "model_source_type": model_entry.get("source_type"),
+        "model_source_fold": source_fold,
+        "model_dir": str(model_dir),
+        "model_updated_date": model_entry.get("model_updated_date")
+        or model_entry.get("effective_from"),
+        "model_trained_at": model_entry.get("trained_at"),
+        "model_train_start": model_entry.get("train_start"),
+        "model_train_end": model_entry.get("train_end"),
+        "model_label_valid_end": model_entry.get("label_valid_end"),
+        # Compatibility field for downstream readers that still know the old name.
+        "fold0_dir": str(model_dir) if source_fold == 0 else None,
         "top_n": args.top_n,
         "prediction_rows": int(len(predictions)),
         "prediction_columns": [str(column) for column in predictions.columns],
@@ -198,6 +242,8 @@ def main() -> None:
                 "status": "ok",
                 "target_col": args.target_col,
                 "trade_date": manifest["trade_date"],
+                "model_generation": generation,
+                "model_updated_date": manifest["model_updated_date"],
                 "prediction_rows": manifest["prediction_rows"],
                 "prediction_file": str(prediction_file),
                 "prepared_feature_path_used": bool(args.prepared_feature_file),
