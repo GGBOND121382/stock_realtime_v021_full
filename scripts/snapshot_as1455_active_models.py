@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import sys
 from pathlib import Path
@@ -17,7 +18,7 @@ from utils.as1455_model_registry import (  # noqa: E402
     bootstrap_registry,
     write_active_snapshot,
 )
-from utils.as1455_model_roll import record_live_generation_use  # noqa: E402
+from utils.as1455_model_roll import ensure_legacy_period_initialized  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -33,16 +34,32 @@ def main() -> None:
     args = parse_args()
     registry_root = Path(args.registry_root).expanduser().resolve()
     bootstrap_registry(registry_root, feature_preset=args.feature_preset)
-    # Record the exact first live-use date and advance the current 63-day period
-    # before writing the immutable day snapshot.  This makes the snapshot itself
-    # carry the final model-updated date shown by the dashboard.
-    registry = record_live_generation_use(
-        registry_root,
-        trade_date=args.trade_date,
-        feature_preset=args.feature_preset,
+    registry = ensure_legacy_period_initialized(
+        registry_root, feature_preset=args.feature_preset
     )
+
+    # A newly activated generation does not know its exact first trading date
+    # until the next live run starts.  Put that date into the immutable day
+    # snapshot provisionally, but do not mutate registry progress here.  The
+    # pipeline records the date only after all nine plans finish successfully.
+    snapshot_registry = copy.deepcopy(registry)
+    date_text = str(args.trade_date)
+    for entry in snapshot_registry.get("active_models", {}).values():
+        if not entry.get("model_updated_date"):
+            entry["model_updated_date"] = date_text
+            entry["effective_from"] = date_text
+    for generation in snapshot_registry.get("generations", []):
+        if generation.get("generation_id") != snapshot_registry.get("active_generation"):
+            continue
+        if not generation.get("model_updated_date"):
+            generation["model_updated_date"] = date_text
+        for entry in (generation.get("targets") or {}).values():
+            if not entry.get("model_updated_date"):
+                entry["model_updated_date"] = date_text
+                entry["effective_from"] = date_text
+
     snapshot = write_active_snapshot(
-        Path(args.out_file), registry, trade_date=args.trade_date
+        Path(args.out_file), snapshot_registry, trade_date=args.trade_date
     )
     current_period = registry.get("current_period") or {}
     print(
@@ -52,7 +69,7 @@ def main() -> None:
                 "trade_date": snapshot["trade_date"],
                 "active_generation": snapshot.get("active_generation"),
                 "period_id": current_period.get("period_id"),
-                "period_progress": {
+                "period_progress_before_today": {
                     "observed_days": current_period.get("observed_days"),
                     "required_days": current_period.get("required_days"),
                 },
