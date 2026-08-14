@@ -80,7 +80,31 @@ def legacy_common_forward_dates(
 
 def _normalized_date_strings(values: list[Any]) -> list[str]:
     dates = pd.DatetimeIndex(pd.to_datetime(values, errors="coerce")).dropna().normalize()
-    return [pd.Timestamp(value).strftime("%Y-%m-%d") for value in dates.unique().sort_values()]
+    return [
+        pd.Timestamp(value).strftime("%Y-%m-%d")
+        for value in dates.unique().sort_values()
+    ]
+
+
+def _set_legacy_activation_date(
+    registry: dict[str, Any], first_forward_date: str
+) -> None:
+    for target_col in common.TARGET_SPECS:
+        entry = registry["active_models"][target_col]
+        if str(entry.get("generation_id")) == LEGACY_GENERATION:
+            entry["model_updated_date"] = first_forward_date
+            entry["effective_from"] = first_forward_date
+    for generation in registry.get("generations", []):
+        if str(generation.get("generation_id")) != LEGACY_GENERATION:
+            continue
+        generation["model_updated_date"] = first_forward_date
+        targets = generation.get("targets")
+        if isinstance(targets, dict):
+            for target_col in common.TARGET_SPECS:
+                entry = targets.get(target_col)
+                if isinstance(entry, dict):
+                    entry["model_updated_date"] = first_forward_date
+                    entry["effective_from"] = first_forward_date
 
 
 def ensure_legacy_period_initialized(
@@ -92,8 +116,8 @@ def ensure_legacy_period_initialized(
     """Merge the pre-registry legacy forward history into period000 once.
 
     This can read the historical fold0-forward HDF caches, so callers on the
-    14:55 critical path must not invoke it.  The 21:30 rollover checker calls it
-    instead.  Live planning only appends the successfully completed current day.
+    14:55 critical path must not invoke it. The 21:30 rollover checker calls it
+    instead. Live planning only appends the successfully completed current day.
     """
     root = Path(registry_root or DEFAULT_REGISTRY_ROOT).expanduser().resolve()
     registry = bootstrap_registry(root, feature_preset=feature_preset)
@@ -119,8 +143,11 @@ def ensure_legacy_period_initialized(
     current["start_date"] = merged[0] if merged else None
     current["last_observed_date"] = merged[-1] if merged else None
     current["legacy_cache_initialized"] = True
+
     registry = deepcopy(registry)
     registry["current_period"] = current
+    if merged:
+        _set_legacy_activation_date(registry, merged[0])
     atomic_write_json(root / "registry.json", registry)
     return registry
 
@@ -135,7 +162,7 @@ def record_live_generation_use(
     """Append one successfully completed live day to the active period.
 
     ``initialize_legacy`` defaults to False so production post-processing stays
-    O(1).  Historical HDF reconciliation is deferred to ``rollover_status``.
+    O(1). Historical HDF reconciliation is deferred to ``rollover_status``.
     """
     root = Path(registry_root or DEFAULT_REGISTRY_ROOT).expanduser().resolve()
     registry = (
@@ -147,6 +174,16 @@ def record_live_generation_use(
     date_text = pd.Timestamp(trade_date).strftime("%Y-%m-%d")
     active_generation = str(registry["active_generation"])
     updated = deepcopy(registry)
+    current = dict(updated.get("current_period") or {})
+    if str(current.get("generation_id")) != active_generation:
+        raise RuntimeError(
+            "current period generation differs from active generation: "
+            f"period={current.get('generation_id')} active={active_generation}"
+        )
+    legacy_date_pending = (
+        active_generation == LEGACY_GENERATION
+        and not bool(current.get("legacy_cache_initialized"))
+    )
 
     for target_col in common.TARGET_SPECS:
         entry = updated["active_models"][target_col]
@@ -155,30 +192,30 @@ def record_live_generation_use(
                 "active target generations are inconsistent: "
                 f"registry={active_generation} {target_col}={entry.get('generation_id')}"
             )
-        if not entry.get("model_updated_date"):
+        if not legacy_date_pending and not entry.get("model_updated_date"):
             entry["model_updated_date"] = date_text
             entry["effective_from"] = date_text
 
     for generation in updated.get("generations", []):
         if str(generation.get("generation_id")) != active_generation:
             continue
-        if not generation.get("model_updated_date"):
+        if not legacy_date_pending and not generation.get("model_updated_date"):
             generation["model_updated_date"] = date_text
         targets = generation.get("targets")
         if isinstance(targets, dict):
             for target_col in common.TARGET_SPECS:
                 target = targets.get(target_col)
-                if isinstance(target, dict) and not target.get("model_updated_date"):
+                if (
+                    isinstance(target, dict)
+                    and not legacy_date_pending
+                    and not target.get("model_updated_date")
+                ):
                     target["model_updated_date"] = date_text
                     target["effective_from"] = date_text
 
-    current = dict(updated.get("current_period") or {})
-    if str(current.get("generation_id")) != active_generation:
-        raise RuntimeError(
-            "current period generation differs from active generation: "
-            f"period={current.get('generation_id')} active={active_generation}"
-        )
-    dates = _normalized_date_strings(list(current.get("observed_dates") or []) + [date_text])
+    dates = _normalized_date_strings(
+        list(current.get("observed_dates") or []) + [date_text]
+    )
     current["observed_dates"] = dates
     current["observed_days"] = len(dates)
     current["required_days"] = int(updated.get("period_length", 63) or 63)
@@ -201,7 +238,9 @@ def rollover_status(
     )
     current = dict(registry.get("current_period") or {})
     dates = _normalized_date_strings(list(current.get("observed_dates") or []))
-    required = int(current.get("required_days") or registry.get("period_length", 63) or 63)
+    required = int(
+        current.get("required_days") or registry.get("period_length", 63) or 63
+    )
     due = len(dates) >= required
     boundary = dates[-1] if due else None
     return {
@@ -243,7 +282,10 @@ def activate_generation(
     if not new_id:
         raise RuntimeError("generation record lacks generation_id")
     generation_index(new_id)
-    if any(str(item.get("generation_id")) == new_id for item in registry.get("generations", [])):
+    if any(
+        str(item.get("generation_id")) == new_id
+        for item in registry.get("generations", [])
+    ):
         raise RuntimeError(f"generation already registered: {new_id}")
     targets = generation.get("targets")
     if not isinstance(targets, dict):
