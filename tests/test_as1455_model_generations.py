@@ -14,6 +14,7 @@ from utils.as1455_model_registry import (
 )
 from utils.as1455_model_roll import (
     activate_generation,
+    ensure_legacy_period_initialized,
     next_generation,
     record_live_generation_use,
     rollover_status,
@@ -39,6 +40,57 @@ def test_bootstrap_keeps_legacy_fold0_as_gen000_reference(tmp_path: Path) -> Non
         assert entry["source_type"] == "legacy_cv_fold"
         assert entry["source_fold"] == 0
         assert "fold0" in entry["model_dir"]
+        assert entry["model_updated_date"] is None
+
+
+def test_legacy_forward_intersection_sets_gen000_first_production_date(
+    tmp_path: Path,
+) -> None:
+    registry_root = tmp_path / "registry"
+    cache_root = tmp_path / "prediction_cache"
+    target_dates = {
+        "r01_fwd": pd.bdate_range("2026-01-05", periods=66),
+        "r05_fwd": pd.bdate_range("2026-01-06", periods=65),
+        "r21_fwd": pd.bdate_range("2026-01-07", periods=64),
+    }
+    for target_col, dates in target_dates.items():
+        path = (
+            cache_root
+            / f"rotation_addon_onehot_{target_col}_top5"
+            / "fold0_forward_latest"
+            / "00_predictions"
+            / "fold0_forward_preds.h5"
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        index = pd.MultiIndex.from_product(
+            [["000001"], dates], names=["symbol", "date"]
+        )
+        pd.DataFrame({0: range(len(index))}, index=index).to_hdf(
+            path, key="predictions", mode="w"
+        )
+
+    registry = ensure_legacy_period_initialized(
+        registry_root,
+        feature_preset="rotation_addon_onehot",
+        cache_base=cache_root,
+    )
+    expected_common = set(target_dates["r01_fwd"])
+    expected_common &= set(target_dates["r05_fwd"])
+    expected_common &= set(target_dates["r21_fwd"])
+    expected_dates = sorted(pd.Timestamp(value).normalize() for value in expected_common)
+
+    assert registry["current_period"]["legacy_cache_initialized"] is True
+    assert registry["current_period"]["observed_days"] == len(expected_dates)
+    assert registry["current_period"]["start_date"] == expected_dates[0].strftime(
+        "%Y-%m-%d"
+    )
+    assert registry["current_period"]["last_observed_date"] == expected_dates[-1].strftime(
+        "%Y-%m-%d"
+    )
+    for target in ("r01_fwd", "r05_fwd", "r21_fwd"):
+        assert registry["active_models"][target][
+            "model_updated_date"
+        ] == expected_dates[0].strftime("%Y-%m-%d")
 
 
 def test_only_successfully_recorded_live_days_advance_period(tmp_path: Path) -> None:
@@ -62,7 +114,9 @@ def test_only_successfully_recorded_live_days_advance_period(tmp_path: Path) -> 
 
     # The production pipeline calls this function only after the nine-strategy
     # planner has completed successfully.
-    final_date = pd.bdate_range(pd.Timestamp(dates[-1]) + pd.Timedelta(days=1), periods=1)[0]
+    final_date = pd.bdate_range(
+        pd.Timestamp(dates[-1]) + pd.Timedelta(days=1), periods=1
+    )[0]
     record_live_generation_use(tmp_path, trade_date=final_date.strftime("%Y-%m-%d"))
     after = rollover_status(tmp_path)
     assert after["due"] is True
