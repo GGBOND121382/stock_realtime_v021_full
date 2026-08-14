@@ -17,6 +17,7 @@ from utils.as1455_model_registry import (  # noqa: E402
     bootstrap_registry,
     write_active_snapshot,
 )
+from utils.as1455_model_roll import record_live_generation_use  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -30,18 +31,31 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
-    registry = bootstrap_registry(
-        Path(args.registry_root), feature_preset=args.feature_preset
+    registry_root = Path(args.registry_root).expanduser().resolve()
+    bootstrap_registry(registry_root, feature_preset=args.feature_preset)
+    # Record the exact first live-use date and advance the current 63-day period
+    # before writing the immutable day snapshot.  This makes the snapshot itself
+    # carry the final model-updated date shown by the dashboard.
+    registry = record_live_generation_use(
+        registry_root,
+        trade_date=args.trade_date,
+        feature_preset=args.feature_preset,
     )
     snapshot = write_active_snapshot(
         Path(args.out_file), registry, trade_date=args.trade_date
     )
+    current_period = registry.get("current_period") or {}
     print(
         json.dumps(
             {
                 "status": "ok",
                 "trade_date": snapshot["trade_date"],
                 "active_generation": snapshot.get("active_generation"),
+                "period_id": current_period.get("period_id"),
+                "period_progress": {
+                    "observed_days": current_period.get("observed_days"),
+                    "required_days": current_period.get("required_days"),
+                },
                 "targets": {
                     key: {
                         "generation_id": value.get("generation_id"),
