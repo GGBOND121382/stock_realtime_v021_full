@@ -24,6 +24,12 @@ def main() -> None:
     status = rollover_status(
         Path(args.registry_root), feature_preset=args.feature_preset
     )
+    # Normally the nightly checker runs on day 63, so these two dates are equal.
+    # If generation management is introduced after an old forward period has
+    # already exceeded 63 days, catch up at the latest actually observed day
+    # rather than pretending the new model was trained at a historical boundary.
+    if status.get("due") and status.get("period_last_observed"):
+        status["rollover_boundary"] = status["period_last_observed"]
     print(json.dumps(status, ensure_ascii=False, indent=2))
 
 
