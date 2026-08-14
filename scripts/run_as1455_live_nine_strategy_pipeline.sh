@@ -15,6 +15,7 @@ TIMEZONE="${TIMEZONE:-Asia/Shanghai}"
 OUT_ROOT="${OUT_ROOT:-saved_data/ashare_ml4t/live_as1455}"
 MATRIX_ROOT="${MATRIX_ROOT:-saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_matrix/refresh_all_v1}"
 MODEL_DATA="${MODEL_DATA:-saved_data/ashare_ml4t/ch12_as1455/model_data_as1455.h5}"
+MODEL_REGISTRY_ROOT="${MODEL_REGISTRY_ROOT:-saved_data/ashare_ml4t/ch17_as1455_model_registry}"
 UNIVERSE="${UNIVERSE:-saved_data/ashare_static_universe/07_universe_allA_top1000_static.csv}"
 RAW_DAILY_CACHE_DIR="${RAW_DAILY_CACHE_DIR:-saved_data/ashare_ml4t/ch12_as1455/baostock_raw_daily_cache}"
 FEATURE_PRESET="${FEATURE_PRESET:-rotation_addon_onehot}"
@@ -50,6 +51,7 @@ SIDECAR_FILE="$LIVE_DIR/08_live_execution_sidecar.csv"
 CALENDAR_FILE="$LIVE_DIR/05_execution_calendar.csv"
 PREPARED_FEATURE_FILE="$LIVE_DIR/12_live_ch17_inference_features.pkl"
 PREPARED_FEATURE_REPORT="$LIVE_DIR/12_live_ch17_inference_features_report.json"
+ACTIVE_MODEL_SNAPSHOT="$LIVE_DIR/13_active_model_snapshot.json"
 
 fail() { echo "[ERROR] $*" >&2; exit 1; }
 info() { echo "[INFO] $*"; }
@@ -61,10 +63,12 @@ check_files() {
     scripts/run_as1455_live_target_predictions.py
     scripts/run_as1455_live_nine_strategy_planner.py
     scripts/run_as1455_live_nine_strategy_planner_entry.py
+    scripts/snapshot_as1455_active_models.py
     data_collection/collect_as1455_live_quotes_as1455.py
     features/finalize_as1455_live_features_fast.py
     tools/build_as1455_live_execution_sidecar_v1.py
     utils/as1455_live_inference_lowmem.py
+    utils/as1455_model_registry.py
   )
   local f
   for f in "${files[@]}"; do [[ -f "$f" ]] || fail "missing $f"; done
@@ -73,10 +77,12 @@ check_files() {
     scripts/run_as1455_live_target_predictions.py \
     scripts/run_as1455_live_nine_strategy_planner.py \
     scripts/run_as1455_live_nine_strategy_planner_entry.py \
+    scripts/snapshot_as1455_active_models.py \
     data_collection/collect_as1455_live_quotes_as1455.py \
     features/finalize_as1455_live_features_fast.py \
     tools/build_as1455_live_execution_sidecar_v1.py \
-    utils/as1455_live_inference_lowmem.py
+    utils/as1455_live_inference_lowmem.py \
+    utils/as1455_model_registry.py
   [[ -f "$MATRIX_ROOT/expected_experiments.txt" ]] || fail "missing matrix results: $MATRIX_ROOT"
   [[ -f "$MATRIX_ROOT/strict_forward_latest_states_manifest.json" ]] || fail \
     "missing latest strategy account states; run the 20:00 backtest refresh first"
@@ -138,19 +144,28 @@ run_post() {
   [[ -f "$SIDECAR_FILE" ]] || fail "missing live execution sidecar: $SIDECAR_FILE"
   [[ -f "$CALENDAR_FILE" ]] || fail "missing execution calendar: $CALENDAR_FILE"
 
+  info "freezing one production model-generation snapshot for all live targets"
+  "$PYTHON_BIN" scripts/snapshot_as1455_active_models.py \
+    --trade-date "$LIVE_DATE" \
+    --feature-preset "$FEATURE_PRESET" \
+    --registry-root "$MODEL_REGISTRY_ROOT" \
+    --out-file "$ACTIVE_MODEL_SNAPSHOT"
+  [[ -f "$ACTIVE_MODEL_SNAPSHOT" ]] || fail "missing active model snapshot: $ACTIVE_MODEL_SNAPSHOT"
+
   info "preparing one shared low-memory Chapter-17 inference matrix"
   "$PYTHON_BIN" scripts/prepare_as1455_live_inference_features.py \
     --trade-date "$LIVE_DATE" \
     --feature-preset "$FEATURE_PRESET" \
     --model-data "$MODEL_DATA" \
     --feature-file "$FEATURE_FILE" \
+    --model-snapshot "$ACTIVE_MODEL_SNAPSHOT" \
     --out-file "$PREPARED_FEATURE_FILE" \
     --report-file "$PREPARED_FEATURE_REPORT"
 
   [[ -f "$PREPARED_FEATURE_FILE" ]] || fail "missing prepared inference matrix: $PREPARED_FEATURE_FILE"
 
   for target in r01 r05 r21; do
-    info "shared fold0 inference target=${target}_fwd using prepared current-day matrix"
+    info "shared production inference target=${target}_fwd using prepared current-day matrix"
     "$PYTHON_BIN" scripts/run_as1455_live_target_predictions.py \
       --trade-date "$LIVE_DATE" \
       --target-col "${target}_fwd" \
@@ -159,6 +174,7 @@ run_post() {
       --feature-file "$FEATURE_FILE" \
       --prepared-feature-file "$PREPARED_FEATURE_FILE" \
       --prepared-feature-report "$PREPARED_FEATURE_REPORT" \
+      --model-snapshot "$ACTIVE_MODEL_SNAPSHOT" \
       --out-dir "$PRED_ROOT/$target" \
       --top-n 5
   done
@@ -176,6 +192,7 @@ run_post() {
     --participation-rate "$PARTICIPATION_RATE"
 
   echo "[PASS] nine-strategy 14:55 planning complete"
+  echo "[PASS] model_snapshot=$ACTIVE_MODEL_SNAPSHOT"
   echo "[PASS] summary=$NINE_ROOT/live_nine_strategy_summary.csv"
   echo "[PASS] rebalance_only=$NINE_ROOT/live_rebalance_strategies.csv"
 }
@@ -188,6 +205,7 @@ status() {
     "$LIVE_DIR/08_collection_report.json" \
     "$FEATURE_FILE" \
     "$PREPARED_FEATURE_FILE" \
+    "$ACTIVE_MODEL_SNAPSHOT" \
     "$NINE_ROOT/live_nine_strategy_summary.csv" \
     "$NINE_ROOT/live_nine_strategy_manifest.json" 2>/dev/null || true
   [[ -f "$NINE_ROOT/live_nine_strategy_summary.csv" ]] && cat "$NINE_ROOT/live_nine_strategy_summary.csv"
