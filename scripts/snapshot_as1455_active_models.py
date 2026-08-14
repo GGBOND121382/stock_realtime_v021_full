@@ -17,6 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from utils.as1455_model_registry import (  # noqa: E402
     DEFAULT_REGISTRY_ROOT,
+    LEGACY_GENERATION,
     bootstrap_registry,
     write_active_snapshot,
 )
@@ -38,30 +39,36 @@ def main() -> None:
     # is intentionally deferred to the 21:30 rollover checker.
     registry = bootstrap_registry(registry_root, feature_preset=args.feature_preset)
 
-    # A newly activated generation does not know its exact first trading date
-    # until the next live run starts. Put that date into the immutable day
-    # snapshot provisionally, but do not mutate registry progress here. The
-    # pipeline commits it only after all nine plans finish successfully.
+    # A newly activated rolling generation does not know its exact first trading
+    # date until the next live run starts. Put that date into the immutable day
+    # snapshot provisionally, but do not mutate registry progress here. gen000 is
+    # different: its true first production day is historical and is derived by
+    # the one-time legacy forward reconciliation, so never guess it here.
     snapshot_registry = copy.deepcopy(registry)
     date_text = pd.Timestamp(args.trade_date).strftime("%Y-%m-%d")
-    for entry in snapshot_registry.get("active_models", {}).values():
-        if not entry.get("model_updated_date"):
-            entry["model_updated_date"] = date_text
-            entry["effective_from"] = date_text
-    for generation in snapshot_registry.get("generations", []):
-        if generation.get("generation_id") != snapshot_registry.get("active_generation"):
-            continue
-        if not generation.get("model_updated_date"):
-            generation["model_updated_date"] = date_text
-        for entry in (generation.get("targets") or {}).values():
+    current_period = registry.get("current_period") or {}
+    legacy_date_pending = (
+        registry.get("active_generation") == LEGACY_GENERATION
+        and not bool(current_period.get("legacy_cache_initialized"))
+    )
+    if not legacy_date_pending:
+        for entry in snapshot_registry.get("active_models", {}).values():
             if not entry.get("model_updated_date"):
                 entry["model_updated_date"] = date_text
                 entry["effective_from"] = date_text
+        for generation in snapshot_registry.get("generations", []):
+            if generation.get("generation_id") != snapshot_registry.get("active_generation"):
+                continue
+            if not generation.get("model_updated_date"):
+                generation["model_updated_date"] = date_text
+            for entry in (generation.get("targets") or {}).values():
+                if not entry.get("model_updated_date"):
+                    entry["model_updated_date"] = date_text
+                    entry["effective_from"] = date_text
 
     snapshot = write_active_snapshot(
         Path(args.out_file), snapshot_registry, trade_date=args.trade_date
     )
-    current_period = registry.get("current_period") or {}
     print(
         json.dumps(
             {
@@ -69,6 +76,7 @@ def main() -> None:
                 "trade_date": snapshot["trade_date"],
                 "active_generation": snapshot.get("active_generation"),
                 "period_id": current_period.get("period_id"),
+                "legacy_date_pending": legacy_date_pending,
                 "period_progress_before_today": {
                     "observed_days": current_period.get("observed_days"),
                     "required_days": current_period.get("required_days"),
