@@ -64,11 +64,13 @@ check_files() {
     scripts/run_as1455_live_nine_strategy_planner.py
     scripts/run_as1455_live_nine_strategy_planner_entry.py
     scripts/snapshot_as1455_active_models.py
+    scripts/record_as1455_model_live_use.py
     data_collection/collect_as1455_live_quotes_as1455.py
     features/finalize_as1455_live_features_fast.py
     tools/build_as1455_live_execution_sidecar_v1.py
     utils/as1455_live_inference_lowmem.py
     utils/as1455_model_registry.py
+    utils/as1455_model_roll.py
   )
   local f
   for f in "${files[@]}"; do [[ -f "$f" ]] || fail "missing $f"; done
@@ -78,11 +80,13 @@ check_files() {
     scripts/run_as1455_live_nine_strategy_planner.py \
     scripts/run_as1455_live_nine_strategy_planner_entry.py \
     scripts/snapshot_as1455_active_models.py \
+    scripts/record_as1455_model_live_use.py \
     data_collection/collect_as1455_live_quotes_as1455.py \
     features/finalize_as1455_live_features_fast.py \
     tools/build_as1455_live_execution_sidecar_v1.py \
     utils/as1455_live_inference_lowmem.py \
-    utils/as1455_model_registry.py
+    utils/as1455_model_registry.py \
+    utils/as1455_model_roll.py
   [[ -f "$MATRIX_ROOT/expected_experiments.txt" ]] || fail "missing matrix results: $MATRIX_ROOT"
   [[ -f "$MATRIX_ROOT/strict_forward_latest_states_manifest.json" ]] || fail \
     "missing latest strategy account states; run the 20:00 backtest refresh first"
@@ -190,6 +194,12 @@ run_post() {
     --feature-preset "$FEATURE_PRESET" \
     --capacity-mode "$CAPACITY_MODE" \
     --participation-rate "$PARTICIPATION_RATE"
+
+  info "committing this successful live day to the active model period"
+  "$PYTHON_BIN" scripts/record_as1455_model_live_use.py \
+    --trade-date "$LIVE_DATE" \
+    --feature-preset "$FEATURE_PRESET" \
+    --registry-root "$MODEL_REGISTRY_ROOT"
 
   echo "[PASS] nine-strategy 14:55 planning complete"
   echo "[PASS] model_snapshot=$ACTIVE_MODEL_SNAPSHOT"
