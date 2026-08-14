@@ -22,6 +22,7 @@ from utils.as1455_live_inference_lowmem import (  # noqa: E402
     build_current_day_inference_features,
     load_live_history_context,
 )
+from utils.as1455_model_registry import load_snapshot, snapshot_model  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,6 +36,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--feature-file", required=True)
     p.add_argument("--out-file", required=True)
     p.add_argument("--report-file", default=None)
+    p.add_argument("--model-snapshot", default=None)
     p.add_argument("--hdf-chunksize", type=int, default=100_000)
     return p.parse_args()
 
@@ -55,6 +57,11 @@ def main() -> None:
         if args.report_file
         else out_file.with_suffix(out_file.suffix + ".report.json")
     )
+    model_snapshot = (
+        load_snapshot(Path(args.model_snapshot).expanduser().resolve())
+        if args.model_snapshot
+        else None
+    )
 
     context = load_live_history_context(
         model_data,
@@ -68,11 +75,31 @@ def main() -> None:
     )
 
     target_manifests: dict[str, dict] = {}
+    target_models: dict[str, dict] = {}
     required_union: list[str] = []
     for target_col in common.TARGET_SPECS:
-        fold0_dir = common.default_fold0_dir(args.feature_preset, target_col)
-        _, manifest = common.load_preprocess(fold0_dir)
+        if model_snapshot is not None:
+            model_entry = snapshot_model(model_snapshot, target_col)
+            model_dir = Path(str(model_entry["model_dir"])).expanduser().resolve()
+        else:
+            model_dir = common.default_fold0_dir(args.feature_preset, target_col)
+            model_entry = {
+                "generation_id": "gen000",
+                "source_type": "legacy_cv_fold",
+                "source_fold": 0,
+                "model_dir": str(model_dir),
+                "model_updated_date": None,
+            }
+        _, manifest = common.load_preprocess(model_dir)
         target_manifests[target_col] = manifest
+        target_models[target_col] = {
+            "generation_id": model_entry.get("generation_id"),
+            "source_type": model_entry.get("source_type"),
+            "source_fold": model_entry.get("source_fold"),
+            "model_dir": str(model_dir),
+            "model_updated_date": model_entry.get("model_updated_date")
+            or model_entry.get("effective_from"),
+        }
         for column in manifest["feature_cols_final"]:
             if column not in required_union:
                 required_union.append(column)
@@ -90,12 +117,16 @@ def main() -> None:
     result.X.to_pickle(out_file, protocol=4)
     report = {
         "status": "ok",
-        "protocol": "as1455_live_shared_inference_features_lowmem_v1",
+        "protocol": "as1455_live_shared_inference_features_lowmem_v2_model_generation",
         "trade_date": trade_date.strftime("%Y-%m-%d"),
         "feature_preset": args.feature_preset,
         "model_data": str(model_data),
         "source_feature_file": str(feature_file),
         "prepared_feature_file": str(out_file),
+        "model_snapshot": str(Path(args.model_snapshot).expanduser().resolve())
+        if args.model_snapshot
+        else None,
+        "active_models": target_models,
         "rows": int(len(result.X)),
         "columns": int(result.X.shape[1]),
         "required_union_columns": required_union,
@@ -115,6 +146,10 @@ def main() -> None:
         "columns": report["columns"],
         "history_read_mode": report.get("history_read_mode"),
         "peak_rss_mb": report["peak_rss_mb"],
+        "model_generations": {
+            target: value.get("generation_id")
+            for target, value in target_models.items()
+        },
         "prepared_feature_file": str(out_file),
     }, ensure_ascii=False, indent=2))
 
