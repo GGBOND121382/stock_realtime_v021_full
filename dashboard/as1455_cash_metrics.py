@@ -208,8 +208,9 @@ def order_amount_metrics(
     Upper-limit lookup order:
     1. exact limit fields already saved on the order;
     2. saved 14:55 execution sidecar for live dates;
-    3. historical BaoStock raw-daily ``preclose`` only when
-       ``raw_daily_cache_dir`` is explicitly supplied by the caller.
+    3. historical BaoStock raw-daily ``preclose`` when the caller explicitly
+       supplies ``raw_daily_cache_dir``, or when the canonical project
+       ``live_as1455`` root is supplied by the production dashboard.
 
     The AS1455 strategies trade mainboard and exclude ST names. Historical rows
     without an explicit ``is_st`` flag therefore use the normal 10% mainboard
@@ -264,11 +265,12 @@ def order_amount_metrics(
             if live_root is not None
             else DEFAULT_LIVE_ROOT.resolve()
         )
-        raw = (
-            Path(raw_daily_cache_dir).expanduser().resolve()
-            if raw_daily_cache_dir is not None
-            else None
-        )
+        if raw_daily_cache_dir is not None:
+            raw = Path(raw_daily_cache_dir).expanduser().resolve()
+        elif live_root is not None and live == DEFAULT_LIVE_ROOT.resolve():
+            raw = DEFAULT_RAW_DAILY_ROOT.resolve()
+        else:
+            raw = None
         upper = _upper_limit_prices(work, live, raw)
         limit_notional_rows = shares * upper
         precise = (
