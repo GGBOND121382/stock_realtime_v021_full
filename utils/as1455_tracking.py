@@ -7,7 +7,7 @@ from typing import Any
 import pandas as pd
 
 USER_CONFIG = Path(".dashboard") / "user_config.json"
-TRACKING_SEMANTICS_VERSION = 4
+TRACKING_SEMANTICS_VERSION = 5
 DEFAULT_TRACKING_INITIAL_CASH = 120_000.0
 TRACKING_MANIFEST = "tracking_forward_manifest.json"
 TRACKING_RESULT = "tracking_forward_result.csv"
