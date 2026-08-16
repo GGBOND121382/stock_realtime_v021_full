@@ -164,22 +164,34 @@ def load_state(experiment_root: Path, trade_date: pd.Timestamp) -> tuple[dict[st
 
 
 def synthetic_corporate_action_mode(historical_config: dict[str, Any]) -> str:
-    mode = str(
+    """Return the executable paper/live corporate-action approximation.
+
+    Historical research may use ``synthetic_share_factor_from_preclose`` to keep
+    total-return continuity, but that mode can multiply an integer A-share
+    position into fractional shares.  Fractional shares cannot be submitted to
+    the broker, so tracking/live accounts must not reuse that representation.
+
+    Until an exact corporate-action feed is supplied, keep the existing share
+    quantity unchanged and realize the preclose adjustment as synthetic cash.
+    This is exact for a pure cash dividend and remains a value-continuity
+    approximation for bonus/split/rights events.  Frozen Fold/Grid artifacts are
+    not changed because this function is used only by tracking/live planning.
+    """
+    historical_mode = str(
         historical_config.get(
             "corporate_action_mode", "synthetic_share_factor_from_preclose"
         )
     )
-    if mode == "none":
-        # The simulated T-1 state has not been adjusted by a broker on the current
-        # live date. Keep the historical backtest continuity semantics instead.
-        mode = "synthetic_share_factor_from_preclose"
-    if mode not in {
+    if historical_mode not in {
         "synthetic_share_factor_from_preclose",
         "synthetic_cash_from_preclose",
         "none",
     }:
-        raise RuntimeError(f"unsupported corporate_action_mode for live paper state: {mode}")
-    return mode
+        raise RuntimeError(
+            "unsupported corporate_action_mode for live paper state: "
+            f"{historical_mode}"
+        )
+    return "synthetic_cash_from_preclose"
 
 
 def output_strategy_tables(
