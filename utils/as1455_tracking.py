@@ -46,6 +46,7 @@ def tracking_user_config(matrix_root: Path) -> dict[str, Any]:
 
 
 def tracking_start_date(matrix_root: Path) -> pd.Timestamp | None:
+    matrix_root = Path(matrix_root)
     payload = tracking_user_config(matrix_root)
     value = payload.get("tracking_start_date")
     if not value:
@@ -53,6 +54,12 @@ def tracking_start_date(matrix_root: Path) -> pd.Timestamp | None:
     parsed = pd.to_datetime(value, errors="coerce")
     if pd.isna(parsed):
         return None
+    matrix_manifest = read_json(matrix_root / TRACKING_MATRIX_MANIFEST, {}) or {}
+    if matrix_manifest.get("status") == "stale_account_config":
+        raise RuntimeError(
+            "tracking account configuration changed but the nine accounts have not "
+            "been rebuilt successfully yet"
+        )
     return pd.Timestamp(parsed).normalize()
 
 
@@ -63,7 +70,7 @@ def tracking_initial_cash(
     """Return the user-configured strategy-account starting capital.
 
     This is deliberately separate from the immutable historical/strict-forward
-    research run's ``initial_cash``.  Tracking/live accounts use this capital as
+    research run's ``initial_cash``. Tracking/live accounts use this capital as
     their starting NAV, then compound naturally from their actual NAV: profits
     increase later position sizing and losses decrease it.
     """
@@ -128,7 +135,7 @@ def resolve_initial_cash(
     """Resolve tracking/live starting capital from the dashboard account config.
 
     ``experiment_root`` is one strategy directory directly under the nine-strategy
-    matrix root, so its parent owns ``.dashboard/user_config.json``.  Historical
+    matrix root, so its parent owns ``.dashboard/user_config.json``. Historical
     Fold/Grid and canonical strict-forward artifacts retain their original frozen
     research capital and are never rewritten by this helper.
     """
