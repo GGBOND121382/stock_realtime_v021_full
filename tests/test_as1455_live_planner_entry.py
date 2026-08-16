@@ -56,3 +56,27 @@ def test_live_summary_adapter_uses_portfolio_nav_only_for_summary(monkeypatch) -
     # The adapter passes a replaced dataclass only to the summary function; it
     # must never mutate the actual residual cash available to the trading loop.
     assert original_cfg.initial_cash == 1_000.0
+
+
+@pytest.mark.parametrize(
+    "historical_mode",
+    ["synthetic_share_factor_from_preclose", "synthetic_cash_from_preclose", "none"],
+)
+def test_live_tracking_corporate_action_policy_keeps_share_quantity_executable(
+    historical_mode: str,
+) -> None:
+    assert entry.planner.synthetic_corporate_action_mode(
+        {"corporate_action_mode": historical_mode}
+    ) == "synthetic_cash_from_preclose"
+
+
+def test_execution_batch_accepts_integer_odd_lot_sell_quantity() -> None:
+    # A position can legitimately contain an integer odd-lot remainder after a
+    # real corporate action. The batch contract requires integer shares, not a
+    # 100-share multiple, for sells.
+    assert entry._order_qty(pd.Series({"shares": 1031.0})) == 1031
+
+
+def test_execution_batch_rejects_fractional_share_quantity() -> None:
+    with pytest.raises(RuntimeError, match="invalid shares"):
+        entry._order_qty(pd.Series({"shares": 1031.042129}))
