@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""Shared tracking-account helpers for the AS1455 strategy dashboard.
-
-The canonical strict-forward experiments remain immutable research artifacts.
-The dashboard tracking account is a separate state machine that starts empty on
-``tracking_start_date`` and preserves the frozen historical rebalance phase.
-"""
 from __future__ import annotations
 
 import json
@@ -15,7 +7,8 @@ from typing import Any
 import pandas as pd
 
 USER_CONFIG = Path(".dashboard") / "user_config.json"
-TRACKING_SEMANTICS_VERSION = 3
+TRACKING_SEMANTICS_VERSION = 4
+DEFAULT_TRACKING_INITIAL_CASH = 120_000.0
 TRACKING_MANIFEST = "tracking_forward_manifest.json"
 TRACKING_RESULT = "tracking_forward_result.csv"
 TRACKING_NAV = "tracking_forward_nav.csv"
@@ -47,8 +40,13 @@ def write_json(path: Path, payload: Any) -> None:
     tmp.replace(path)
 
 
+def tracking_user_config(matrix_root: Path) -> dict[str, Any]:
+    payload = read_json(Path(matrix_root) / USER_CONFIG, {}) or {}
+    return payload if isinstance(payload, dict) else {}
+
+
 def tracking_start_date(matrix_root: Path) -> pd.Timestamp | None:
-    payload = read_json(matrix_root / USER_CONFIG, {}) or {}
+    payload = tracking_user_config(matrix_root)
     value = payload.get("tracking_start_date")
     if not value:
         return None
@@ -56,6 +54,25 @@ def tracking_start_date(matrix_root: Path) -> pd.Timestamp | None:
     if pd.isna(parsed):
         return None
     return pd.Timestamp(parsed).normalize()
+
+
+def tracking_initial_cash(
+    matrix_root: Path,
+    default: float = DEFAULT_TRACKING_INITIAL_CASH,
+) -> float:
+    """Return the user-configured strategy-account starting capital.
+
+    This is deliberately separate from the immutable historical/strict-forward
+    research run's ``initial_cash``.  Tracking/live accounts use this capital as
+    their starting NAV, then compound naturally from their actual NAV: profits
+    increase later position sizing and losses decrease it.
+    """
+    payload = tracking_user_config(matrix_root)
+    raw = payload.get("tracking_initial_cash", default)
+    value = pd.to_numeric(pd.Series([raw]), errors="coerce").iloc[0]
+    if pd.isna(value) or not float(value) > 0:
+        raise ValueError(f"invalid tracking_initial_cash={raw!r}")
+    return float(value)
 
 
 def contiguous_tracking_dates(
@@ -104,36 +121,34 @@ def experiment_tracking_paths(experiment_root: Path) -> dict[str, Path]:
     }
 
 
+def resolve_initial_cash(
+    experiment_root: Path,
+    default: float = DEFAULT_TRACKING_INITIAL_CASH,
+) -> float:
+    """Resolve tracking/live starting capital from the dashboard account config.
+
+    ``experiment_root`` is one strategy directory directly under the nine-strategy
+    matrix root, so its parent owns ``.dashboard/user_config.json``.  Historical
+    Fold/Grid and canonical strict-forward artifacts retain their original frozen
+    research capital and are never rewritten by this helper.
+    """
+    return tracking_initial_cash(Path(experiment_root).parent, default=default)
+
+
 def tracking_manifest_matches(experiment_root: Path, start: pd.Timestamp) -> bool:
     payload = read_json(experiment_root / TRACKING_MANIFEST, {}) or {}
+    try:
+        expected_cash = resolve_initial_cash(experiment_root)
+        actual_cash = float(payload.get("initial_cash"))
+    except (TypeError, ValueError):
+        return False
     return (
         payload.get("status") == "ok"
         and payload.get("tracking_start_date") == start.strftime("%Y-%m-%d")
         and int(payload.get("tracking_semantics_version", 0) or 0)
         == TRACKING_SEMANTICS_VERSION
+        and abs(actual_cash - expected_cash) <= 1e-6
     )
-
-
-def resolve_initial_cash(experiment_root: Path, default: float = 200_000.0) -> float:
-    """Read the frozen strict-forward run's configured initial cash."""
-    strict_file = (
-        experiment_root
-        / "strict_oos_forward"
-        / "01_close_auction_grid"
-        / "strict_oos_manifest.json"
-    )
-    strict = read_json(strict_file, {}) or {}
-    run_name = strict.get("retained_run_name")
-    if run_name:
-        config = read_json(
-            strict_file.parent / "01_runs" / str(run_name) / "config.json", {}
-        ) or {}
-        value = pd.to_numeric(
-            pd.Series([config.get("initial_cash")]), errors="coerce"
-        ).iloc[0]
-        if pd.notna(value) and float(value) > 0:
-            return float(value)
-    return float(default)
 
 
 def load_latest_tracking_state(
@@ -153,9 +168,26 @@ def load_latest_tracking_state(
             f"expected={TRACKING_SEMANTICS_VERSION} "
             f"actual={manifest.get('tracking_semantics_version')}"
         )
+    expected_cash = resolve_initial_cash(experiment_root)
+    actual_cash = pd.to_numeric(
+        pd.Series([manifest.get("initial_cash")]), errors="coerce"
+    ).iloc[0]
+    if pd.isna(actual_cash) or abs(float(actual_cash) - expected_cash) > 1e-6:
+        raise RuntimeError(
+            f"tracking initial cash is stale for {experiment_root.name}: "
+            f"expected={expected_cash:.2f} actual={manifest.get('initial_cash')}"
+        )
     state = read_json(paths["latest_state"], {}) or {}
     if not state:
         raise FileNotFoundError(paths["latest_state"])
+    state_cash = pd.to_numeric(
+        pd.Series([state.get("initial_cash")]), errors="coerce"
+    ).iloc[0]
+    if pd.isna(state_cash) or abs(float(state_cash) - expected_cash) > 1e-6:
+        raise RuntimeError(
+            f"tracking state initial cash is stale for {experiment_root.name}: "
+            f"expected={expected_cash:.2f} actual={state.get('initial_cash')}"
+        )
     if paths["latest_positions"].is_file():
         try:
             positions = pd.read_csv(paths["latest_positions"], encoding="utf-8-sig")
