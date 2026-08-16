@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 import sys
@@ -33,7 +32,6 @@ from utils.as1455_tracking import (  # noqa: E402
     USER_CONFIG,
     read_json,
     tracking_initial_cash,
-    tracking_start_date,
     write_json,
 )
 
@@ -139,7 +137,8 @@ if not matrix_root.is_dir():
 
 config_file = matrix_root / USER_CONFIG
 config = read_json(config_file, {}) or {}
-start = tracking_start_date(matrix_root)
+raw_start = pd.to_datetime(config.get("tracking_start_date"), errors="coerce")
+start = None if pd.isna(raw_start) else pd.Timestamp(raw_start).normalize()
 try:
     configured_cash = tracking_initial_cash(matrix_root)
 except ValueError:
@@ -199,7 +198,9 @@ summary_cash = (
     if not tracking_summary.empty and "initial_cash" in tracking_summary.columns
     else pd.Series(dtype=float)
 )
-matching = int(np.isclose(summary_cash.dropna(), configured_cash, rtol=0, atol=1e-6).sum())
+matching = int(
+    np.isclose(summary_cash.dropna(), configured_cash, rtol=0, atol=1e-6).sum()
+)
 
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("当前配置", money(configured_cash))
@@ -268,7 +269,9 @@ segments = report["segments"].copy()
 if not segments.empty:
     for column in ("start_date", "end_date", "peak_date"):
         if column in segments.columns:
-            segments[column] = pd.to_datetime(segments[column], errors="coerce").dt.strftime("%Y-%m-%d")
+            segments[column] = pd.to_datetime(
+                segments[column], errors="coerce"
+            ).dt.strftime("%Y-%m-%d")
     if "peak_cash_required" in segments.columns:
         segments["peak_cash_required"] = pd.to_numeric(
             segments["peak_cash_required"], errors="coerce"
@@ -293,7 +296,7 @@ st.caption(
 )
 st.caption(
     "“当前持仓等股数估计”不是预测下一次一定会买哪些股票；它把当前持仓的相同股数按最新可得涨停价重新计价，"
-    "手续费使用该策略历史/forward/track中观察到的最高有效买入费率，仅用于准备现金规模的保守参考。"
+    "手续费使用该策略历史/forward/tracking中观察到的最高有效买入费率，仅用于准备现金规模的保守参考。"
 )
 
 if st.button("重新读取", use_container_width=False):
