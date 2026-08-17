@@ -109,8 +109,7 @@ function summary(order, rowNumber, total, mode) {
 function requireLiveAck(order) {
   var expected = "SUBMIT " + order.code + " " + order.qty + " " + Number(order.submit_price).toFixed(2);
   var entered = dialogs.rawInput(
-    "真实委托二次确认",
-    "本模式会真实提交一笔委托。提交后请你立即到同花顺撤单。\n\n请输入下面整行文本继续：\n" + expected,
+    "真实委托二次确认\n本模式会真实提交一笔委托。提交后请你立即到同花顺撤单。\n请输入下面整行文本继续：\n" + expected,
     ""
   );
   if (String(entered || "").trim() !== expected) {
@@ -148,7 +147,6 @@ function run() {
     throw new Error("config.smoke_csv_row must be an integer from 1 to " + rows.length + ": " + rowNumber);
   }
 
-  // Smoke testing is intentionally one order per run. Never loop over the CSV.
   var order = normalizeOrder(rows[rowNumber - 1], rowNumber);
   var text = summary(order, rowNumber, rows.length, config.smoke_mode);
 
