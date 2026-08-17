@@ -7,6 +7,7 @@ var ledger = require("./lib/ledger.js");
 var client = require("./lib/plan_client.js");
 var ths = require("./lib/ths_adapter.js");
 var mobileGuard = require("./lib/mobile_ui_guard.js");
+var mobileBaseline = null;
 
 function loadConfig() {
   var path = files.join(files.cwd(), "config.json");
@@ -41,6 +42,18 @@ function failureSkipMs(config) {
 function runMobileGuard(config, label, includeMetadata) {
   if (config.mobile_preflight_enabled === false) return null;
   var result = mobileGuard.assertReady(config, { include_metadata: includeMetadata === true });
+  if (includeMetadata === true) {
+    mobileBaseline = result.snapshot;
+  } else if (mobileBaseline) {
+    var stable = mobileGuard.compareBaseline(mobileBaseline, result.snapshot);
+    if (!stable.ok) {
+      var baselineError = new Error("THS mobile layout changed during batch: " + stable.errors.join("; "));
+      baselineError.stage = "mobile_layout_changed";
+      baselineError.ambiguous = false;
+      baselineError.fatal_ui_state = true;
+      throw baselineError;
+    }
+  }
   if (result.warnings.length) {
     console.warn("[MOBILE_GUARD_WARN] " + label + " " + result.warnings.join(" | "));
   }
@@ -159,7 +172,9 @@ function runOnce() {
     }
   }
 
-  // Full read-only Android/THS environment check once per batch.
+  // Full mobile-environment check once per batch: package, version pin (if configured),
+  // orientation, required Accessibility nodes, and known blocking dialogs. This check
+  // is read-only and never clicks or dismisses anything.
   runMobileGuard(config, "batch_start", true);
 
   console.log("[RUN] trade_date=" + batch.trade_date + " orders=" + pending.length + " mode=" + config.mode);
@@ -168,8 +183,9 @@ function runOnce() {
   var completed = 0;
   var skipped = 0;
   for (var i = 0; i < pending.length; i++) {
-    // Lightweight read-only guard before each order. Unknown/stale UI state stops
-    // the batch before the next order is touched; it never dismisses a dialog.
+    // Lightweight guard before every order catches stale confirmation/result dialogs,
+    // login/captcha/risk/network blockers, package switches, and missing key nodes.
+    // Unknown UI state stops the batch before the next order is touched.
     runMobileGuard(config, "before_order_" + pending[i].sequence, false);
     var status = executeOne(pending[i], config, manualQueue);
     if (status === "completed") completed++;
