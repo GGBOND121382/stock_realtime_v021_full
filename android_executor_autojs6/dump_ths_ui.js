@@ -5,6 +5,7 @@ auto.waitFor();
 var THS_PACKAGE = "com.hexin.plat.android";
 var WAIT_SECONDS = 15;
 var MAX_NODES = 300;
+var CONSOLE_HOLD_MS = 30000;
 
 var knownIds = [
   "com.hexin.plat.android:id/btn",
@@ -66,11 +67,25 @@ function waitForThs() {
   return currentPackage() === THS_PACKAGE;
 }
 
+function timestampToken() {
+  var d = new Date();
+  function pad(n) { return n < 10 ? "0" + n : String(n); }
+  return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + "_" +
+    pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+}
+
 if (!waitForThs()) {
+  var failText = [
+    "[FAIL] 当前包不是同花顺: " + currentPackage(),
+    "请重新运行脚本，并在倒计时内切到同花顺买入/卖出页面。",
+    "脚本不会主动启动或跳转同花顺。"
+  ].join("\n");
+  var failPath = files.join(files.cwd(), "ths_ui_probe_failed_" + timestampToken() + ".txt");
+  files.write(failPath, failText);
   console.show();
-  console.error("[FAIL] 当前包不是同花顺: " + currentPackage());
-  console.error("请重新运行脚本，并在倒计时内切到同花顺买入/卖出页面。脚本不会主动启动或跳转同花顺。");
-  dialogs.alert("探测失败", "没有在倒计时内检测到同花顺。请重新运行后手工切到买入或卖出页面。");
+  console.error(failText);
+  toast("探测失败；日志已保存: " + failPath);
+  sleep(10000);
   exit();
 }
 
@@ -102,7 +117,6 @@ if (allNodes) {
     var text = safeValue(function () { return node.text(); }, "");
     var desc = safeValue(function () { return node.desc(); }, "");
     var clickable = safeValue(function () { return node.clickable(); }, false);
-    // Keep nodes that expose an identifier/user-visible content, plus clickable nodes.
     if (rid || text || desc || clickable) dumpLines.push(nodeLine(node, i));
   }
   if (total > MAX_NODES) {
@@ -112,18 +126,33 @@ if (allNodes) {
   dumpLines.push("[WARN] 无法通过 classNameMatches(/.*/) 枚举无障碍节点");
 }
 
-// Show the console only after sampling so the floating console does not affect the target snapshot.
-console.show();
-console.log("========== THS UI PROBE ==========");
-console.log("当前包: " + packageName);
-console.log("当前Activity: " + activityName);
-console.log("---------- known resource ids ----------");
-knownResults.forEach(function (line) { console.log(line); });
-console.log("---------- accessibility nodes ----------");
+var outputLines = [
+  "========== THS UI PROBE ==========",
+  "当前包: " + packageName,
+  "当前Activity: " + activityName,
+  "---------- known resource ids ----------"
+].concat(knownResults).concat([
+  "---------- accessibility nodes ----------"
+]);
+
 if (!dumpLines.length) {
-  console.log("[EMPTY] 当前页面没有枚举到带 id/text/desc/clickable 的无障碍节点");
+  outputLines.push("[EMPTY] 当前页面没有枚举到带 id/text/desc/clickable 的无障碍节点");
 } else {
-  dumpLines.forEach(function (line) { console.log(line); });
+  outputLines = outputLines.concat(dumpLines);
 }
-console.log("========== END THS UI PROBE ==========");
-toast("同花顺页面探测完成，请截图或复制控制台输出");
+outputLines.push("========== END THS UI PROBE ==========");
+
+var outputText = outputLines.join("\n");
+var outputPath = files.join(files.cwd(), "ths_ui_probe_" + timestampToken() + ".txt");
+files.write(outputPath, outputText);
+
+// Console is secondary. The text file above is the source of truth and already exists
+// even if Android refuses to show the floating console while another app is foreground.
+console.show();
+outputLines.forEach(function (line) { console.log(line); });
+console.log("探测结果文件: " + outputPath);
+toast("探测完成；结果已保存到当前脚本目录");
+
+// Keep the engine alive long enough for the floating console to become visible on
+// devices that delay overlay creation. The persisted file does not depend on this.
+sleep(CONSOLE_HOLD_MS);
