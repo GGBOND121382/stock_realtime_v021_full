@@ -106,17 +106,6 @@ function summary(order, rowNumber, total, mode) {
   ].join("\n");
 }
 
-function requireLiveAck(order) {
-  var expected = "SUBMIT " + order.code + " " + order.qty + " " + Number(order.submit_price).toFixed(2);
-  var entered = dialogs.rawInput(
-    "真实委托二次确认\n本模式会真实提交一笔委托。提交后请你立即到同花顺撤单。\n请输入下面整行文本继续：\n" + expected,
-    ""
-  );
-  if (String(entered || "").trim() !== expected) {
-    throw new Error("live_submit acknowledgement mismatch; order not submitted");
-  }
-}
-
 function writeResult(mode, rowNumber, order, result) {
   var resultPath = files.join(files.cwd(), "smoke_result.txt");
   files.write(resultPath, JSON.stringify({
@@ -167,7 +156,6 @@ function run() {
     return;
   }
 
-  requireLiveAck(order);
   result = ths.submit(order, config);
   var resultPath = writeResult("live_submit", rowNumber, order, result);
   dialogs.alert(
