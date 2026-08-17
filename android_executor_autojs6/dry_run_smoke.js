@@ -12,7 +12,8 @@ function loadConfig() {
   return {
     ths_package: String(cfg.ths_package || "com.hexin.plat.android"),
     ui_timeout_ms: Number(cfg.ui_timeout_ms || 5000),
-    smoke_csv_row: Number(cfg.smoke_csv_row || 1)
+    smoke_csv_row: Number(cfg.smoke_csv_row || 1),
+    smoke_mode: String(cfg.smoke_mode || "fill_only")
   };
 }
 
@@ -92,6 +93,44 @@ function normalizeOrder(row, rowNumber) {
   };
 }
 
+function summary(order, rowNumber, total, mode) {
+  var modeText = mode === "live_submit" ? "真实提交一笔" :
+    (mode === "confirm_cancel" ? "到确认框后自动取消" : "仅填写，不提交");
+  return [
+    modeText,
+    "CSV行: " + rowNumber + "/" + total,
+    "股票: " + order.symbol + " → " + order.code,
+    "方向: " + order.side,
+    "数量: " + order.qty,
+    "价格: " + Number(order.submit_price).toFixed(2)
+  ].join("\n");
+}
+
+function requireLiveAck(order) {
+  var expected = "SUBMIT " + order.code + " " + order.qty + " " + Number(order.submit_price).toFixed(2);
+  var entered = dialogs.rawInput(
+    "真实委托二次确认",
+    "本模式会真实提交一笔委托。提交后请你立即到同花顺撤单。\n\n请输入下面整行文本继续：\n" + expected,
+    ""
+  );
+  if (String(entered || "").trim() !== expected) {
+    throw new Error("live_submit acknowledgement mismatch; order not submitted");
+  }
+}
+
+function writeResult(mode, rowNumber, order, result) {
+  var resultPath = files.join(files.cwd(), "smoke_result.txt");
+  files.write(resultPath, JSON.stringify({
+    status: "ok",
+    mode: mode,
+    csv_row: rowNumber,
+    order: order,
+    result: result,
+    finished_at: new Date().toISOString()
+  }, null, 2));
+  return resultPath;
+}
+
 function run() {
   var csvPath = files.join(files.cwd(), CSV_NAME);
   if (!files.exists(csvPath)) {
@@ -99,38 +138,44 @@ function run() {
   }
 
   var config = loadConfig();
+  if (["fill_only", "confirm_cancel", "live_submit"].indexOf(config.smoke_mode) < 0) {
+    throw new Error("config.smoke_mode must be fill_only, confirm_cancel, or live_submit");
+  }
+
   var rows = readCsv(csvPath);
   var rowNumber = config.smoke_csv_row;
   if (!isFinite(rowNumber) || Math.floor(rowNumber) !== rowNumber || rowNumber < 1 || rowNumber > rows.length) {
     throw new Error("config.smoke_csv_row must be an integer from 1 to " + rows.length + ": " + rowNumber);
   }
 
+  // Smoke testing is intentionally one order per run. Never loop over the CSV.
   var order = normalizeOrder(rows[rowNumber - 1], rowNumber);
-  var summary = [
-    "仅填写，不提交",
-    "CSV行: " + rowNumber + "/" + rows.length,
-    "股票: " + order.symbol + " → " + order.code,
-    "方向: " + order.side,
-    "数量: " + order.qty,
-    "价格: " + Number(order.submit_price).toFixed(2),
-    "",
-    "本测试不会点击同花顺的买入/卖出委托按钮。"
-  ].join("\n");
+  var text = summary(order, rowNumber, rows.length, config.smoke_mode);
 
-  if (!dialogs.confirm("AS1455 FILL-ONLY 测试", summary)) return;
+  if (!dialogs.confirm("AS1455 SMOKE TEST", text)) return;
 
-  var result = ths.fillOrderFields(order, config);
-  var resultPath = files.join(files.cwd(), "smoke_fill_result.txt");
-  files.write(resultPath, JSON.stringify({
-    status: "ok",
-    mode: "fill_only",
-    csv_row: rowNumber,
-    order: order,
-    result: result,
-    finished_at: new Date().toISOString()
-  }, null, 2));
+  var result;
+  if (config.smoke_mode === "fill_only") {
+    result = ths.fillOrderFields(order, config);
+    writeResult("fill_only", rowNumber, order, result);
+    toast("FILL-ONLY完成：请人工核对同花顺代码/价格/数量；未点击委托按钮");
+    return;
+  }
 
-  toast("FILL-ONLY完成：请人工核对同花顺代码/价格/数量；未点击委托按钮");
+  if (config.smoke_mode === "confirm_cancel") {
+    result = ths.preview(order, config);
+    writeResult("confirm_cancel", rowNumber, order, result);
+    toast("CONFIRM-CANCEL完成：已到确认框并自动取消");
+    return;
+  }
+
+  requireLiveAck(order);
+  result = ths.submit(order, config);
+  var resultPath = writeResult("live_submit", rowNumber, order, result);
+  dialogs.alert(
+    "真实委托已提交",
+    "脚本已完成真实委托提交。\n请立即到同花顺“撤单”页面人工撤销该笔测试委托。\n\n结果文件：\n" + resultPath
+  );
 }
 
 try {
@@ -139,5 +184,5 @@ try {
   var message = e && e.stack ? e.stack : String(e);
   console.show();
   console.error(message);
-  dialogs.alert("AS1455 FILL-ONLY 测试失败", String(e));
+  dialogs.alert("AS1455 SMOKE TEST 失败", String(e));
 }
