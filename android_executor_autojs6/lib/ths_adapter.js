@@ -146,7 +146,7 @@ function fillCode(code, config) {
   sleep(350);
 }
 
-function inputOrder(order, config) {
+function fillOrderFields(order, config) {
   ensureTradingPage(order.side, config);
   clickTradeTab(order.side === "buy" ? "买入" : "卖出", timeout(config));
   sleep(250);
@@ -157,6 +157,19 @@ function inputOrder(order, config) {
 
   var priceEdit = waitDescendantEdit(IDS.stockPrice, "价格", timeout(config));
   clearAndSet(priceEdit, Number(order.submit_price).toFixed(2));
+
+  return {
+    success: true,
+    stage: "fields_filled",
+    code: String(order.code),
+    side: String(order.side),
+    qty: Number(order.qty),
+    submit_price: Number(order.submit_price)
+  };
+}
+
+function inputOrder(order, config) {
+  fillOrderFields(order, config);
 
   var submit = waitId(IDS.transaction, timeout(config));
   if (!clickNode(submit)) throw new Error("THS transaction button click failed");
@@ -217,5 +230,6 @@ module.exports = {
   IDS: IDS,
   preview: preview,
   submit: submit,
+  fillOrderFields: fillOrderFields,
   ensureTradingPage: ensureTradingPage
 };
