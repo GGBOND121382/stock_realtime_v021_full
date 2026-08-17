@@ -143,7 +143,8 @@ def _validated_positions(
         dup = work.loc[work["symbol"].duplicated(), "symbol"].tolist()
         raise ValueError(f"持仓表存在重复股票：{dup}")
     shares = pd.to_numeric(work["shares"], errors="coerce")
-    if shares.isna().any() or (~shares.gt(0)).any() or (~shares.map(float.is_integer)).any():
+    integer_mask = shares.map(lambda value: float(value).is_integer() if pd.notna(value) else False)
+    if shares.isna().any() or (~shares.gt(0)).any() or (~integer_mask).any():
         raise ValueError("持仓 shares 必须全部为正整数；卖出零股可以是非100整数倍，但不能是小数股")
     work["shares"] = shares.astype(int)
     buy_dates = pd.to_datetime(work["buy_date"], errors="coerce").dt.normalize()
@@ -257,13 +258,30 @@ def _archive_existing_ready(live_root: Path | None, experiment: str, calibration
     if live_root is None:
         return None
     token = _calibration_now().strftime("%Y%m%d")
-    batch = Path(live_root) / token / "nine_strategy" / "strategies" / experiment / "execution_batch.json"
+    nine_root = Path(live_root) / token / "nine_strategy"
+    strategy_root = nine_root / "strategies" / experiment
+    batch = strategy_root / "execution_batch.json"
     if not batch.is_file():
         return None
-    archive = batch.parent / "_superseded_execution_batches"
+    archive = strategy_root / "_superseded_execution_batches"
     archive.mkdir(parents=True, exist_ok=True)
     target = archive / f"{calibration_id}.json"
     batch.replace(target)
+
+    manifest_file = strategy_root / "strategy_manifest.json"
+    if manifest_file.is_file():
+        payload = read_json(manifest_file, {}) or {}
+        for key in ("execution_batch_file", "execution_batch_protocol", "execution_price_source"):
+            payload.pop(key, None)
+        payload["execution_batch_state"] = "invalidated_by_manual_calibration"
+        write_json(manifest_file, payload)
+    root_manifest_file = nine_root / "live_nine_strategy_manifest.json"
+    if root_manifest_file.is_file():
+        payload = read_json(root_manifest_file, {}) or {}
+        payload.pop("execution_batch_protocol", None)
+        payload["execution_batch_files"] = {}
+        payload["execution_batch_state"] = "invalidated_by_manual_calibration"
+        write_json(root_manifest_file, payload)
     return str(target)
 
 
@@ -304,7 +322,12 @@ def apply_manual_calibration(
                 f"current={state.get('asof_date')} requested={expected_asof:%Y-%m-%d}"
             )
         initial_cash = resolve_initial_cash(root)
-        if abs(float(state.get("initial_cash", np.nan)) - initial_cash) > 1e-6:
+        state_initial_cash = pd.to_numeric(pd.Series([state.get("initial_cash")]), errors="coerce").iloc[0]
+        if (
+            pd.isna(state_initial_cash)
+            or not math.isfinite(float(state_initial_cash))
+            or abs(float(state_initial_cash) - initial_cash) > 1e-6
+        ):
             raise RuntimeError("tracking初始资金口径已变化，请先重建账户再校准")
 
         existing_positions = _read_csv(paths["latest_positions"])
@@ -338,6 +361,10 @@ def apply_manual_calibration(
         for source in backup_sources:
             if source.is_file():
                 shutil.copy2(source, backup_dir / source.name)
+
+        # The account state is about to change. Any same-day READY order derived
+        # from the previous state is invalid and must disappear before mutation.
+        archived_batch = _archive_existing_ready(live_root, experiment, calibration_id)
 
         nav = nav.copy()
         nav.loc[mask, "nav"] = nav_value
@@ -407,7 +434,6 @@ def apply_manual_calibration(
         }
         write_json(matrix_manifest_path, matrix_manifest)
 
-        archived_batch = _archive_existing_ready(live_root, experiment, calibration_id)
         audit = {
             "status": "applied",
             "protocol": "as1455_manual_broker_calibration_v1",
