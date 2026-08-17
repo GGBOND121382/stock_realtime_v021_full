@@ -310,16 +310,39 @@ function openOrderConfirmation(order, config) {
   return confirmation;
 }
 
-function findSuccessText(timeoutMs) {
+function extractContractNumber(message) {
+  var textValue = String(message || "");
+  var match = textValue.match(/合同号(?:为)?[：:\s]*([0-9\s]+)/);
+  return match ? String(match[1]).replace(/\s/g, "") : "";
+}
+
+function waitSuccessDialog(timeoutMs) {
   var deadline = Date.now() + Number(timeoutMs || 3000);
   while (Date.now() <= deadline) {
-    var submitted = textContains("委托已提交").findOnce();
-    if (submitted) return String(submitted.text());
-    var contract = textContains("合同号").findOnce();
-    if (contract) return String(contract.text());
+    var messageNode = textContains("委托已提交").findOnce();
+    var okNode = text("确定").findOnce();
+    var titleNode = text("系统信息").findOnce();
+    if (messageNode && okNode) {
+      var message = String(messageNode.text() || "");
+      return {
+        title: titleNode ? String(titleNode.text() || "") : "系统信息",
+        message: message,
+        contract_no: extractContractNumber(message),
+        ok: okNode
+      };
+    }
     sleep(100);
   }
-  return "";
+  return null;
+}
+
+function waitSuccessDialogDismissed(timeoutMs) {
+  var deadline = Date.now() + Number(timeoutMs || 2000);
+  while (Date.now() <= deadline) {
+    if (!textContains("委托已提交").findOnce()) return true;
+    sleep(100);
+  }
+  return false;
 }
 
 function preview(order, config) {
@@ -340,23 +363,33 @@ function submit(order, config) {
     throw new Error("THS order confirmation coordinate tap failed");
   }
 
-  sleep(500);
-  var successText = findSuccessText(2500);
-  if (successText) {
-    return {
-      success: true,
-      mode: "live",
-      prompt: { title: confirmation.labels.title, content: successText }
-    };
+  var successDialog = waitSuccessDialog(timeout(config));
+  if (!successDialog) {
+    var resultProbe = dumpPostSubmitProbe(order, "confirmation_clicked_result_unrecognized");
+    throw new Error(
+      "THS confirmation was tapped but submission result is not recognized; probe=" + resultProbe
+    );
   }
 
-  // Some broker builds dismiss the confirmation and show a result surface whose
-  // text differs from the historical IDs. Capture that exact UI and stop rather
-  // than assuming submission success and moving on to the next order.
-  var resultProbe = dumpPostSubmitProbe(order, "confirmation_clicked_result_unrecognized");
-  throw new Error(
-    "THS confirmation was tapped but submission result is not recognized; probe=" + resultProbe
-  );
+  if (!clickNodeCenter(successDialog.ok)) {
+    var okProbe = dumpPostSubmitProbe(order, "success_dialog_ok_tap_failed");
+    throw new Error("THS success dialog OK coordinate tap failed; probe=" + okProbe);
+  }
+  if (!waitSuccessDialogDismissed(2000)) {
+    var dismissProbe = dumpPostSubmitProbe(order, "success_dialog_not_dismissed");
+    throw new Error("THS success dialog did not dismiss after OK tap; probe=" + dismissProbe);
+  }
+
+  return {
+    success: true,
+    mode: "live",
+    prompt: {
+      title: successDialog.title,
+      content: successDialog.message
+    },
+    contract_no: successDialog.contract_no,
+    stage: "submitted_and_result_dismissed"
+  };
 }
 
 module.exports = {
