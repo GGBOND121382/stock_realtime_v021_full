@@ -38,9 +38,23 @@ assert.strictEqual(guard.evaluateSnapshot(wrongPackage, {}).ok, false);
 
 var wrongVersion = baseSnapshot();
 assert.strictEqual(guard.evaluateSnapshot(wrongVersion, { expected_ths_version_name: "99.0" }).ok, false);
+var unreadableVersion = baseSnapshot();
+unreadableVersion.app_version_name = "";
+assert.strictEqual(guard.evaluateSnapshot(unreadableVersion, { expected_ths_version_name: "11.55.03" }).ok, false);
 
 var wrongOrientation = baseSnapshot();
 assert.strictEqual(guard.evaluateSnapshot(wrongOrientation, { expected_orientation: "landscape" }).ok, false);
+
+var baseline = baseSnapshot();
+var rotated = baseSnapshot();
+rotated.orientation = "landscape";
+rotated.width = 2400;
+rotated.height = 1080;
+assert.strictEqual(guard.compareBaseline(baseline, rotated).ok, false);
+var resized = baseSnapshot();
+resized.width = 900;
+assert.strictEqual(guard.compareBaseline(baseline, resized).ok, false);
+assert.strictEqual(guard.compareBaseline(baseline, baseSnapshot()).ok, true);
 
 var warning = guard.evaluateSnapshot(baseSnapshot(), { ui_timeout_ms: 200, field_verify_timeout_ms: 100 });
 assert.strictEqual(warning.ok, true);
