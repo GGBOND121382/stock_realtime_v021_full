@@ -69,6 +69,7 @@ info() { echo "[INFO] $*"; }
 
 check_files() {
   local files=(
+    scripts/invalidate_as1455_execution_ready.py
     scripts/prepare_as1455_live_inference_features.py
     scripts/run_as1455_live_target_predictions.py
     scripts/run_as1455_live_production_strategy_planner_entry.py
@@ -83,6 +84,7 @@ check_files() {
   local f
   for f in "${files[@]}"; do [[ -f "$f" ]] || fail "missing $f"; done
   "$PYTHON_BIN" -m py_compile \
+    scripts/invalidate_as1455_execution_ready.py \
     scripts/prepare_as1455_live_inference_features.py \
     scripts/run_as1455_live_target_predictions.py \
     scripts/run_as1455_live_production_strategy_planner_entry.py \
@@ -101,6 +103,12 @@ check_files() {
 
 run_post() {
   check_files
+
+  # READY lifecycle starts here, before collection/inference.  A rerun can never
+  # leave the previous same-day execution batch visible while new work is running.
+  info "invalidating any existing same-day READY batch before recompute"
+  "$PYTHON_BIN" scripts/invalidate_as1455_execution_ready.py --out-root "$NINE_ROOT"
+
   [[ -f "$LIVE_DIR/06_live_feature_state_fast.npz" ]] || fail \
     "missing prefast state; run the 09:35 pre job before the 14:50 collection window"
   mkdir -p "$PRED_ROOT/$PRODUCTION_TARGET"
