@@ -42,6 +42,7 @@ print(datetime.now(ZoneInfo("$TIMEZONE")).strftime("%Y%m%d"))
 PY
 )"
 LIVE_DIR="$OUT_ROOT/$trade_date"
+NINE_ROOT="$LIVE_DIR/nine_strategy"
 CALENDAR_FILE="$LIVE_DIR/05_execution_calendar.csv"
 STARTED_AT="$(TZ="$TIMEZONE" date -Iseconds)"
 LOG_FILE="$STATE_DIR/nine_strategy_${STAGE}_${trade_date}_$(date +%H%M%S).log"
@@ -116,8 +117,14 @@ except Exception as exc:
     )
     raise SystemExit(1)
 
-if start >= trade_date:
-    print(f"[TRACKING] no prior tracking day required: start={start:%Y-%m-%d}")
+if start > trade_date:
+    print(
+        f"[TRACKING] tracking start is after trade date: start={start:%Y-%m-%d} trade={trade_date:%Y-%m-%d}",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+if start == trade_date:
+    print(f"[TRACKING] first tracking day; no prior account state required: start={start:%Y-%m-%d}")
     raise SystemExit(0)
 
 calendar = pd.read_csv(calendar_file, encoding="utf-8-sig")
@@ -196,7 +203,10 @@ if [[ "$STAGE" == "pre" ]]; then
     rc=$?
   fi
 else
-  if ! tracking_ready_for_post; then
+  # READY must disappear before any new post-run readiness catch-up or inference.
+  "$PYTHON_BIN" scripts/invalidate_as1455_execution_ready.py --out-root "$NINE_ROOT"
+  rc=$?
+  if [[ "$rc" -eq 0 ]] && ! tracking_ready_for_post; then
     echo "[TRACKING] stale state detected at 14:50; one all-nine catch-up before collection"
     sync_tracking_accounts
     rc=$?
@@ -224,9 +234,9 @@ if [[ "$rc" -eq 0 ]]; then
   completed=1
   write_status success 0 "$finished_at" || \
     echo "[WARN] READY may be published but success status file could not be updated" >&2
-  echo "[PASS] stage=$STAGE finished_at=$finished_at"
+  echo "[PASS] stage=$STAGE finished_at=$finished_at" || true
 else
   write_status failed "$rc" "$finished_at" || true
-  echo "[FAILED] stage=$STAGE exit_code=$rc finished_at=$finished_at" >&2
+  echo "[FAILED] stage=$STAGE exit_code=$rc finished_at=$finished_at" >&2 || true
 fi
 exit "$rc"
