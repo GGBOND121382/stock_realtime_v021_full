@@ -14,9 +14,31 @@ var EDIT_TEXT = "android.widget.EditText";
 var THS_PACKAGE = "com.hexin.plat.android";
 var TAP_ATTEMPTS = 3;
 var PROBE_MAX_NODES = 400;
+var FILL_ATTEMPTS = 2; // first attempt + exactly one fast retry
 
 function timeout(config) {
   return Number((config && config.ui_timeout_ms) || 5000);
+}
+
+function fillTimeout(config) {
+  var configured = Number(config && config.fill_timeout_ms);
+  if (isFinite(configured) && configured > 0) return configured;
+  return Math.min(timeout(config), 1800);
+}
+
+function fieldVerifyTimeout(config) {
+  var configured = Number(config && config.field_verify_timeout_ms);
+  return isFinite(configured) && configured > 0 ? configured : 700;
+}
+
+function manualConfirmTimeout(config) {
+  var configured = Number(config && config.manual_confirm_timeout_ms);
+  return isFinite(configured) && configured > 0 ? configured : 5500;
+}
+
+function manualResultGrace(config) {
+  var configured = Number(config && config.manual_result_grace_ms);
+  return isFinite(configured) && configured > 0 ? configured : 1000;
 }
 
 function waitId(resourceId, timeoutMs) {
@@ -69,7 +91,7 @@ function clearAndSet(node, value) {
   }
   if (safeNodeText(node) === v) return;
   if (!clickNode(node)) throw new Error("THS input focus failed");
-  sleep(120);
+  sleep(90);
   if (!setText(v)) throw new Error("THS setText failed: " + v);
 }
 
@@ -79,7 +101,7 @@ function findInside(container, selector, timeoutMs) {
     var node = null;
     try { node = container.findOne(selector); } catch (e) { node = null; }
     if (node) return node;
-    sleep(80);
+    sleep(60);
   }
   return null;
 }
@@ -88,25 +110,39 @@ function waitDescendantEdit(containerId, hint, timeoutMs) {
   var t = Number(timeoutMs || 5000);
   var container = waitId(containerId, t);
   var edit = findInside(container, className(EDIT_TEXT), t);
-  if (!edit && hint) edit = className(EDIT_TEXT).text(String(hint)).findOne(400);
+  if (!edit && hint) edit = className(EDIT_TEXT).text(String(hint)).findOne(300);
   if (!edit) throw new Error("THS descendant EditText not found: " + containerId);
   return edit;
 }
 
-function waitFieldValue(containerId, expected, timeoutMs) {
-  var deadline = Date.now() + Number(timeoutMs || 1200);
-  var expectedText = String(expected);
+function normalizeNumericText(value) {
+  var text = String(value === null || value === undefined ? "" : value)
+    .replace(/,/g, "")
+    .trim();
+  var n = Number(text);
+  return isFinite(n) ? n : null;
+}
+
+function fieldMatches(actual, expected, numeric) {
+  if (!numeric) return String(actual) === String(expected);
+  var a = normalizeNumericText(actual);
+  var e = normalizeNumericText(expected);
+  return a !== null && e !== null && Math.abs(a - e) < 0.000001;
+}
+
+function waitFieldValue(containerId, expected, timeoutMs, numeric) {
+  var deadline = Date.now() + Number(timeoutMs || 700);
   while (Date.now() <= deadline) {
     try {
       var container = id(containerId).findOnce();
       if (container) {
         var edit = container.findOne(className(EDIT_TEXT));
-        if (edit && safeNodeText(edit) === expectedText) return true;
+        if (edit && fieldMatches(safeNodeText(edit), expected, numeric === true)) return true;
       }
     } catch (e) {
       // Retry until deadline.
     }
-    sleep(80);
+    sleep(60);
   }
   return false;
 }
@@ -121,15 +157,30 @@ function ensureTradingPage(side, config) {
   var pkg = String(config.ths_package || THS_PACKAGE);
   if (currentPackage() !== pkg) {
     app.launchPackage(pkg);
-    sleep(700);
+    sleep(650);
   }
-  var codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(1200);
+  var codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(1000);
   if (!codeEdit) {
     clickTradeTab(side === "sell" ? "卖出" : "买入", timeout(config));
     codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(timeout(config));
   }
   if (!codeEdit) throw new Error("not on THS trading page");
   return codeEdit;
+}
+
+function recoverToTradingPage(side, config) {
+  try {
+    if (id(IDS.searchContainer).findOnce()) {
+      back();
+      sleep(120);
+    }
+  } catch (e) {
+    // Continue with deterministic navigation below.
+  }
+  ensureTradingPage(side, config);
+  clickTradeTab(side === "sell" ? "卖出" : "买入", timeout(config));
+  sleep(140);
+  return true;
 }
 
 function findSuggestionOnce(searchContainer, code) {
@@ -143,9 +194,6 @@ function findSuggestionOnce(searchContainer, code) {
 }
 
 function isMainTradeCodeResolved(code) {
-  // A resolved symbol is defined by the final trade form, not by the transient
-  // search suggestion list. THS may auto-resolve a valid six-digit code and close
-  // the search overlay without ever exposing stockcode_tv.
   if (id(IDS.searchContainer).findOnce()) return false;
   var codeNode = id(IDS.stockCode).className(EDIT_TEXT).text(String(code)).findOnce();
   var transaction = id(IDS.transaction).findOnce();
@@ -153,10 +201,10 @@ function isMainTradeCodeResolved(code) {
 }
 
 function waitMainTradeCodeResolved(code, timeoutMs) {
-  var deadline = Date.now() + Number(timeoutMs || 1200);
+  var deadline = Date.now() + Number(timeoutMs || 900);
   while (Date.now() <= deadline) {
     if (isMainTradeCodeResolved(code)) return true;
-    sleep(80);
+    sleep(60);
   }
   return false;
 }
@@ -165,20 +213,19 @@ function fillCode(code, config) {
   var expected = String(code);
   if (isMainTradeCodeResolved(expected)) return;
 
-  var codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(timeout(config));
+  var t = fillTimeout(config);
+  var codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(t);
   if (!codeEdit) throw new Error("THS stock code EditText not found");
   if (!clickNode(codeEdit)) throw new Error("THS stock code click failed");
-  sleep(180);
+  sleep(120);
 
-  var searchContainer = waitId(IDS.searchContainer, timeout(config));
-  var searchEdit = findInside(searchContainer, id(IDS.stockCode).className(EDIT_TEXT), timeout(config));
+  var searchContainer = waitId(IDS.searchContainer, t);
+  var searchEdit = findInside(searchContainer, id(IDS.stockCode).className(EDIT_TEXT), t);
   if (!searchEdit) throw new Error("THS stock search EditText not found");
   clearAndSet(searchEdit, expected);
 
-  var deadline = Date.now() + timeout(config);
+  var deadline = Date.now() + t;
   while (Date.now() <= deadline) {
-    // Preferred success condition: THS has already accepted the code and returned
-    // to the main trade form. No suggestion click is required in this path.
     if (isMainTradeCodeResolved(expected)) return;
 
     var activeSearch = id(IDS.searchContainer).findOnce();
@@ -187,7 +234,7 @@ function fillCode(code, config) {
       if (suggestion) {
         for (var attempt = 1; attempt <= TAP_ATTEMPTS; attempt++) {
           if (!tapCenter(suggestion)) break;
-          if (waitMainTradeCodeResolved(expected, 650)) return;
+          if (waitMainTradeCodeResolved(expected, 500)) return;
           activeSearch = id(IDS.searchContainer).findOnce();
           if (!activeSearch) break;
           suggestion = findSuggestionOnce(activeSearch, expected);
@@ -195,19 +242,17 @@ function fillCode(code, config) {
         }
       }
     }
-    sleep(100);
+    sleep(70);
   }
 
-  // Final check avoids false failure when THS resolves the symbol exactly as the
-  // timeout expires.
   if (isMainTradeCodeResolved(expected)) return;
   throw new Error("THS stock code not resolved on final trade form code=" + expected);
 }
 
-function fillOrderFields(order, config) {
+function fillOrderFieldsOnce(order, config) {
   ensureTradingPage(order.side, config);
   clickTradeTab(order.side === "sell" ? "卖出" : "买入", timeout(config));
-  sleep(220);
+  sleep(140);
   fillCode(order.code, config);
 
   if (!isMainTradeCodeResolved(String(order.code))) {
@@ -216,25 +261,18 @@ function fillOrderFields(order, config) {
 
   var qtyText = String(order.qty);
   var priceText = Number(order.submit_price).toFixed(2);
+  var verifyMs = fieldVerifyTimeout(config);
 
-  var volumeEdit = waitDescendantEdit(IDS.stockVolume, "数量", timeout(config));
+  var volumeEdit = waitDescendantEdit(IDS.stockVolume, "数量", fillTimeout(config));
   clearAndSet(volumeEdit, qtyText);
-  if (!waitFieldValue(IDS.stockVolume, qtyText, 1200)) {
-    volumeEdit = waitDescendantEdit(IDS.stockVolume, "数量", timeout(config));
-    clearAndSet(volumeEdit, qtyText);
-    if (!waitFieldValue(IDS.stockVolume, qtyText, 1200)) {
-      throw new Error("THS quantity verification failed expected=" + qtyText);
-    }
+  if (!waitFieldValue(IDS.stockVolume, qtyText, verifyMs, true)) {
+    throw new Error("THS quantity verification failed expected=" + qtyText);
   }
 
-  var priceEdit = waitDescendantEdit(IDS.stockPrice, "价格", timeout(config));
+  var priceEdit = waitDescendantEdit(IDS.stockPrice, "价格", fillTimeout(config));
   clearAndSet(priceEdit, priceText);
-  if (!waitFieldValue(IDS.stockPrice, priceText, 1200)) {
-    priceEdit = waitDescendantEdit(IDS.stockPrice, "价格", timeout(config));
-    clearAndSet(priceEdit, priceText);
-    if (!waitFieldValue(IDS.stockPrice, priceText, 1200)) {
-      throw new Error("THS price verification failed expected=" + priceText);
-    }
+  if (!waitFieldValue(IDS.stockPrice, priceText, verifyMs, true)) {
+    throw new Error("THS price verification failed expected=" + priceText);
   }
 
   return {
@@ -245,6 +283,41 @@ function fillOrderFields(order, config) {
     qty: Number(order.qty),
     submit_price: Number(order.submit_price)
   };
+}
+
+function fillOrderFields(order, config) {
+  var firstError = null;
+  for (var attempt = 1; attempt <= FILL_ATTEMPTS; attempt++) {
+    try {
+      var result = fillOrderFieldsOnce(order, config);
+      result.fill_attempts = attempt;
+      return result;
+    } catch (e) {
+      if (attempt === 1) {
+        firstError = String(e);
+        try { recoverToTradingPage(order.side, config); } catch (recoverError) {
+          var recoveryFailure = new Error(
+            "THS fill retry recovery failed; first_error=" + firstError +
+            "; recovery_error=" + String(recoverError)
+          );
+          recoveryFailure.stage = "fill_retry_recovery_failed";
+          recoveryFailure.ambiguous = false;
+          recoveryFailure.fatal_ui_state = true;
+          throw recoveryFailure;
+        }
+        continue;
+      }
+
+      var finalError = new Error(
+        "THS fill failed after one retry; first_error=" + firstError +
+        "; second_error=" + String(e)
+      );
+      finalError.stage = "fill_failed_after_retry";
+      finalError.ambiguous = false;
+      throw finalError;
+    }
+  }
+  throw new Error("unreachable fillOrderFields state");
 }
 
 function confirmationLabels(side) {
@@ -266,7 +339,7 @@ function waitConfirmation(order, timeoutMs) {
   while (Date.now() <= deadline) {
     var c = findConfirmation(order);
     if (c) return c;
-    sleep(90);
+    sleep(70);
   }
   return null;
 }
@@ -295,7 +368,7 @@ function waitSuccessDialog(timeoutMs) {
   while (Date.now() <= deadline) {
     var s = findSuccessDialog();
     if (s) return s;
-    sleep(90);
+    sleep(70);
   }
   return null;
 }
@@ -354,23 +427,28 @@ function dumpProbe(order, stage) {
 }
 
 function openOrderConfirmation(order, config) {
-  fillOrderFields(order, config);
-  var waitMs = Math.max(900, Math.min(1800, Math.floor(timeout(config) / 2)));
+  var fillResult = fillOrderFields(order, config);
+  var waitMs = Math.max(700, Math.min(1300, Math.floor(timeout(config) / 3)));
 
   for (var attempt = 1; attempt <= TAP_ATTEMPTS; attempt++) {
     var existing = findConfirmation(order);
-    if (existing) return existing;
+    if (existing) return { confirmation: existing, fill: fillResult };
 
-    var submitNode = waitId(IDS.transaction, Math.min(timeout(config), 1500));
+    var submitNode = waitId(IDS.transaction, Math.min(timeout(config), 1200));
     if (!tapCenter(submitNode)) throw new Error("THS transaction button tap failed");
 
     var confirmation = waitConfirmation(order, waitMs);
-    if (confirmation) return confirmation;
-    sleep(160);
+    if (confirmation) return { confirmation: confirmation, fill: fillResult };
+    sleep(100);
   }
 
   var probe = dumpProbe(order, "transaction_no_confirmation_after_retries");
-  throw new Error("THS transaction tap did not open " + confirmationLabels(order.side).title + "; probe=" + probe);
+  var err = new Error(
+    "THS transaction tap did not open " + confirmationLabels(order.side).title + "; probe=" + probe
+  );
+  err.stage = "transaction_no_confirmation";
+  err.ambiguous = false;
+  throw err;
 }
 
 function dismissSuccessDialog(order, dialog) {
@@ -378,64 +456,127 @@ function dismissSuccessDialog(order, dialog) {
     if (!textContains("委托已提交").findOnce()) return;
     var current = findSuccessDialog() || dialog;
     if (!current || !current.ok || !tapCenter(current.ok)) break;
-    sleep(350);
+    sleep(220);
     if (!textContains("委托已提交").findOnce()) return;
   }
   var probe = dumpProbe(order, "success_dialog_not_dismissed_after_retries");
-  throw new Error("THS success dialog did not dismiss after retries; probe=" + probe);
+  var err = new Error("THS success dialog did not dismiss after retries; probe=" + probe);
+  err.stage = "success_dialog_stuck";
+  err.ambiguous = true;
+  err.fatal_ui_state = true;
+  throw err;
+}
+
+function cancelOpenConfirmation(order) {
+  var current = findConfirmation(order);
+  if (!current) return true;
+  for (var attempt = 1; attempt <= 2; attempt++) {
+    if (!tapCenter(current.cancel)) break;
+    sleep(180);
+    if (!findConfirmation(order)) return true;
+    current = findConfirmation(order);
+    if (!current) return true;
+  }
+  return !findConfirmation(order);
 }
 
 function preview(order, config) {
-  var confirmation = openOrderConfirmation(order, config);
-  for (var attempt = 1; attempt <= TAP_ATTEMPTS; attempt++) {
-    var current = findConfirmation(order);
-    if (!current) return { success: true, mode: "dry_run", stage: "confirmation_reached_and_cancelled" };
-    if (!tapCenter(current.cancel)) break;
-    sleep(300);
+  openOrderConfirmation(order, config);
+  if (!cancelOpenConfirmation(order)) {
+    var probe = dumpProbe(order, "cancel_confirmation_not_dismissed");
+    var err = new Error("THS confirmation cancel did not dismiss; probe=" + probe);
+    err.stage = "dry_run_cancel_failed";
+    err.ambiguous = false;
+    err.fatal_ui_state = true;
+    throw err;
   }
-  var probe = dumpProbe(order, "cancel_confirmation_not_dismissed");
-  throw new Error("THS confirmation cancel did not dismiss; probe=" + probe);
+  return { success: true, mode: "dry_run", stage: "confirmation_reached_and_cancelled" };
 }
 
 function submit(order, config) {
-  openOrderConfirmation(order, config);
-  var success = null;
+  var opened = openOrderConfirmation(order, config);
+  var labels = confirmationLabels(order.side);
+  toast("核对后手动点击" + labels.action + "：" + order.code + " x" + order.qty);
 
-  for (var attempt = 1; attempt <= 2; attempt++) {
-    success = findSuccessDialog();
-    if (success) break;
-
-    var confirmation = findConfirmation(order);
-    if (!confirmation) {
-      success = waitSuccessDialog(timeout(config));
-      break;
+  var deadline = Date.now() + manualConfirmTimeout(config);
+  while (Date.now() <= deadline) {
+    var success = findSuccessDialog();
+    if (success) {
+      dismissSuccessDialog(order, success);
+      sleep(120);
+      return {
+        success: true,
+        mode: "live",
+        prompt: { title: success.title, content: success.message },
+        contract_no: success.contract_no,
+        stage: "submitted_after_manual_confirmation",
+        fill_attempts: opened.fill.fill_attempts
+      };
     }
 
-    if (!tapCenter(confirmation.action)) throw new Error("THS order confirmation tap failed");
-    success = waitSuccessDialog(Math.max(1800, Math.min(timeout(config), 3500)));
-    if (success) break;
+    if (!findConfirmation(order)) {
+      success = waitSuccessDialog(manualResultGrace(config));
+      if (success) {
+        dismissSuccessDialog(order, success);
+        sleep(120);
+        return {
+          success: true,
+          mode: "live",
+          prompt: { title: success.title, content: success.message },
+          contract_no: success.contract_no,
+          stage: "submitted_after_manual_confirmation",
+          fill_attempts: opened.fill.fill_attempts
+        };
+      }
 
-    // Retry final confirmation only if the exact confirmation dialog is still
-    // present. If it disappeared, state is ambiguous; stop to avoid duplicates.
-    if (!findConfirmation(order)) break;
-    sleep(160);
+      var ambiguous = new Error(
+        "THS manual confirmation dialog disappeared but no recognized submission result was found"
+      );
+      ambiguous.stage = "manual_confirmation_result_unrecognized";
+      ambiguous.ambiguous = true;
+      throw ambiguous;
+    }
+    sleep(70);
   }
 
-  if (!success) {
-    var probe = dumpProbe(order, "confirmation_result_ambiguous");
-    throw new Error("THS confirmation result is ambiguous or unrecognized; probe=" + probe);
+  var confirmation = findConfirmation(order);
+  if (confirmation) {
+    if (!cancelOpenConfirmation(order)) {
+      var stuckProbe = dumpProbe(order, "manual_confirmation_timeout_cancel_failed");
+      var stuck = new Error(
+        "THS manual confirmation timed out and confirmation dialog could not be cancelled; probe=" + stuckProbe
+      );
+      stuck.stage = "manual_confirmation_timeout_cancel_failed";
+      stuck.ambiguous = false;
+      stuck.fatal_ui_state = true;
+      throw stuck;
+    }
+
+    var timeoutError = new Error(
+      "THS manual confirmation timed out; order was not submitted and was returned to manual queue"
+    );
+    timeoutError.stage = "manual_confirmation_timeout";
+    timeoutError.ambiguous = false;
+    throw timeoutError;
   }
 
-  dismissSuccessDialog(order, success);
-  sleep(220);
+  var lateSuccess = waitSuccessDialog(manualResultGrace(config));
+  if (lateSuccess) {
+    dismissSuccessDialog(order, lateSuccess);
+    return {
+      success: true,
+      mode: "live",
+      prompt: { title: lateSuccess.title, content: lateSuccess.message },
+      contract_no: lateSuccess.contract_no,
+      stage: "submitted_after_manual_confirmation",
+      fill_attempts: opened.fill.fill_attempts
+    };
+  }
 
-  return {
-    success: true,
-    mode: "live",
-    prompt: { title: success.title, content: success.message },
-    contract_no: success.contract_no,
-    stage: "submitted_and_result_dismissed"
-  };
+  var unknown = new Error("THS manual confirmation ended in an unrecognized state");
+  unknown.stage = "manual_confirmation_state_unknown";
+  unknown.ambiguous = true;
+  throw unknown;
 }
 
 module.exports = {
@@ -443,5 +584,6 @@ module.exports = {
   preview: preview,
   submit: submit,
   fillOrderFields: fillOrderFields,
-  ensureTradingPage: ensureTradingPage
+  ensureTradingPage: ensureTradingPage,
+  recoverToTradingPage: recoverToTradingPage
 };

@@ -12,10 +12,9 @@ function get(signalId) {
 
 function isTerminal(signalId) {
   var item = get(signalId);
-  // Only a broker submission is permanently terminal. A dry-run is deliberately
-  // repeatable and must never prevent the same signal from being submitted later
-  // after the operator explicitly switches config.mode to "live".
-  return !!(item && item.status === "submitted");
+  // "unknown" is terminal for automation because the broker may already have
+  // accepted the order. It must be resolved manually before any retry.
+  return !!(item && (item.status === "submitted" || item.status === "unknown"));
 }
 
 function mark(signalId, payload) {
@@ -26,39 +25,44 @@ function mark(signalId, payload) {
   return item;
 }
 
-function markStarted(order) {
-  return mark(order.signal_id, {
-    status: "started",
+function baseOrder(order) {
+  return {
     code: order.code,
     side: order.side,
     qty: order.qty,
     submit_price: order.submit_price,
     sequence: order.sequence
-  });
+  };
+}
+
+function markStarted(order) {
+  var item = baseOrder(order);
+  item.status = "started";
+  return mark(order.signal_id, item);
 }
 
 function markResult(order, result, dryRun) {
-  return mark(order.signal_id, {
-    status: dryRun ? "dry_run" : "submitted",
-    code: order.code,
-    side: order.side,
-    qty: order.qty,
-    submit_price: order.submit_price,
-    sequence: order.sequence,
-    broker_result: result || null
-  });
+  var item = baseOrder(order);
+  item.status = dryRun ? "dry_run" : "submitted";
+  item.broker_result = result || null;
+  return mark(order.signal_id, item);
+}
+
+function markManualRequired(order, error) {
+  var item = baseOrder(order);
+  var ambiguous = !!(error && error.ambiguous === true);
+  item.status = ambiguous ? "unknown" : "manual_required";
+  item.stage = error && error.stage ? String(error.stage) : "manual_required";
+  item.ambiguous = ambiguous;
+  item.error = String(error);
+  return mark(order.signal_id, item);
 }
 
 function markFailed(order, message) {
-  return mark(order.signal_id, {
-    status: "failed",
-    code: order.code,
-    side: order.side,
-    qty: order.qty,
-    submit_price: order.submit_price,
-    sequence: order.sequence,
-    error: String(message)
-  });
+  var item = baseOrder(order);
+  item.status = "failed";
+  item.error = String(message);
+  return mark(order.signal_id, item);
 }
 
 module.exports = {
@@ -66,5 +70,6 @@ module.exports = {
   isTerminal: isTerminal,
   markStarted: markStarted,
   markResult: markResult,
+  markManualRequired: markManualRequired,
   markFailed: markFailed
 };
