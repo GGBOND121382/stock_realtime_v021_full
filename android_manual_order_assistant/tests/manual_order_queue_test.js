@@ -35,6 +35,7 @@ q.markSkipped(state, orders[1]);
 assert.deepStrictEqual(q.counts(state, orders), { total: 3, pending: 1, done: 1, skipped: 1 });
 assert.strictEqual(q.findNextIndex(state, orders, "normal", 0), 2);
 assert.strictEqual(q.findNextIndex(state, orders, "skipped", 0), 1);
+assert.strictEqual(q.findNextIndex(state, orders, "skipped", 2), -1);
 q.reopen(state, orders[1]);
 assert.strictEqual(q.counts(state, orders).pending, 2);
 
