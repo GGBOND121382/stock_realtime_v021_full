@@ -73,7 +73,6 @@ check_files() {
     scripts/run_as1455_live_target_predictions.py
     scripts/run_as1455_live_production_strategy_planner_entry.py
     scripts/snapshot_as1455_active_models.py
-    scripts/record_as1455_model_live_use.py
     data_collection/collect_as1455_live_quotes_as1455.py
     features/finalize_as1455_live_features_fast.py
     tools/build_as1455_live_execution_sidecar_v1.py
@@ -88,7 +87,6 @@ check_files() {
     scripts/run_as1455_live_target_predictions.py \
     scripts/run_as1455_live_production_strategy_planner_entry.py \
     scripts/snapshot_as1455_active_models.py \
-    scripts/record_as1455_model_live_use.py \
     data_collection/collect_as1455_live_quotes_as1455.py \
     features/finalize_as1455_live_features_fast.py \
     tools/build_as1455_live_execution_sidecar_v1.py \
@@ -142,9 +140,6 @@ run_post() {
   [[ -f "$SIDECAR_FILE" ]] || fail "missing live execution sidecar: $SIDECAR_FILE"
   [[ -f "$CALENDAR_FILE" ]] || fail "missing execution calendar: $CALENDAR_FILE"
 
-  # Keep a full generation snapshot and the union feature matrix.  The latter is
-  # reused after market close to generate the other eight research-monitor
-  # signals without putting those model loads on the 14:55 critical path.
   info "freezing production model-generation snapshot"
   "$PYTHON_BIN" scripts/snapshot_as1455_active_models.py \
     --trade-date "$LIVE_DATE" \
@@ -177,9 +172,10 @@ run_post() {
     --out-dir "$PRED_ROOT/$PRODUCTION_TARGET" \
     --top-n "$PRODUCTION_TOP_N"
 
-  info "planning production strategy only: $PRODUCTION_EXPERIMENT"
+  info "planning production strategy and committing READY last: $PRODUCTION_EXPERIMENT"
   "$PYTHON_BIN" scripts/run_as1455_live_production_strategy_planner_entry.py \
     --production-experiment "$PRODUCTION_EXPERIMENT" \
+    --model-registry-root "$MODEL_REGISTRY_ROOT" \
     --trade-date "$LIVE_DATE" \
     --matrix-root "$MATRIX_ROOT" \
     --prediction-root "$PRED_ROOT" \
@@ -190,16 +186,11 @@ run_post() {
     --capacity-mode "$CAPACITY_MODE" \
     --participation-rate "$PARTICIPATION_RATE"
 
-  info "committing successful live day to active model period"
-  "$PYTHON_BIN" scripts/record_as1455_model_live_use.py \
-    --trade-date "$LIVE_DATE" \
-    --feature-preset "$FEATURE_PRESET" \
-    --registry-root "$MODEL_REGISTRY_ROOT"
-
+  # No required/fallible state mutation belongs after execution_batch.json READY.
   echo "[PASS] production 14:55 planning complete"
   echo "[PASS] production_experiment=$PRODUCTION_EXPERIMENT"
   echo "[PASS] critical_path_models=1"
-  echo "[PASS] summary=$NINE_ROOT/live_nine_strategy_summary.csv"
+  echo "[PASS] READY is the final production commit"
 }
 
 status() {
