@@ -52,9 +52,22 @@ function tapCenter(node) {
   return click(b.centerX(), b.centerY());
 }
 
+function safeNodeText(node) {
+  try {
+    return node ? String(node.text() || "") : "";
+  } catch (e) {
+    return "";
+  }
+}
+
 function clearAndSet(node, value) {
   var v = String(value);
-  if (node.setText(v)) return;
+  try {
+    node.setText(v);
+  } catch (e) {
+    // Fall through to focused setText below.
+  }
+  if (safeNodeText(node) === v) return;
   if (!clickNode(node)) throw new Error("THS input focus failed");
   sleep(120);
   if (!setText(v)) throw new Error("THS setText failed: " + v);
@@ -80,6 +93,24 @@ function waitDescendantEdit(containerId, hint, timeoutMs) {
   return edit;
 }
 
+function waitFieldValue(containerId, expected, timeoutMs) {
+  var deadline = Date.now() + Number(timeoutMs || 1200);
+  var expectedText = String(expected);
+  while (Date.now() <= deadline) {
+    try {
+      var container = id(containerId).findOnce();
+      if (container) {
+        var edit = container.findOne(className(EDIT_TEXT));
+        if (edit && safeNodeText(edit) === expectedText) return true;
+      }
+    } catch (e) {
+      // Retry until deadline.
+    }
+    sleep(80);
+  }
+  return false;
+}
+
 function clickTradeTab(label, timeoutMs) {
   var node = id(IDS.navButton).text(label).findOne(Number(timeoutMs || 5000));
   if (!node) throw new Error("THS trading tab not found: " + label);
@@ -101,19 +132,39 @@ function ensureTradingPage(side, config) {
   return codeEdit;
 }
 
-function findSuggestion(searchContainer, code, timeoutMs) {
-  var deadline = Date.now() + Number(timeoutMs || 5000);
+function findSuggestionOnce(searchContainer, code) {
+  var node = id(IDS.stockSuggestionCode).text(String(code)).findOnce();
+  if (node) return node;
+  try {
+    return searchContainer.findOne(className("android.widget.TextView").text(String(code)));
+  } catch (e) {
+    return null;
+  }
+}
+
+function isMainTradeCodeResolved(code) {
+  // A resolved symbol is defined by the final trade form, not by the transient
+  // search suggestion list. THS may auto-resolve a valid six-digit code and close
+  // the search overlay without ever exposing stockcode_tv.
+  if (id(IDS.searchContainer).findOnce()) return false;
+  var codeNode = id(IDS.stockCode).className(EDIT_TEXT).text(String(code)).findOnce();
+  var transaction = id(IDS.transaction).findOnce();
+  return !!(codeNode && transaction);
+}
+
+function waitMainTradeCodeResolved(code, timeoutMs) {
+  var deadline = Date.now() + Number(timeoutMs || 1200);
   while (Date.now() <= deadline) {
-    var node = id(IDS.stockSuggestionCode).text(String(code)).findOnce();
-    if (node) return node;
-    node = findInside(searchContainer, className("android.widget.TextView").text(String(code)), 120);
-    if (node) return node;
+    if (isMainTradeCodeResolved(code)) return true;
     sleep(80);
   }
-  return null;
+  return false;
 }
 
 function fillCode(code, config) {
+  var expected = String(code);
+  if (isMainTradeCodeResolved(expected)) return;
+
   var codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(timeout(config));
   if (!codeEdit) throw new Error("THS stock code EditText not found");
   if (!clickNode(codeEdit)) throw new Error("THS stock code click failed");
@@ -122,13 +173,35 @@ function fillCode(code, config) {
   var searchContainer = waitId(IDS.searchContainer, timeout(config));
   var searchEdit = findInside(searchContainer, id(IDS.stockCode).className(EDIT_TEXT), timeout(config));
   if (!searchEdit) throw new Error("THS stock search EditText not found");
-  clearAndSet(searchEdit, code);
-  sleep(300);
+  clearAndSet(searchEdit, expected);
 
-  var suggestion = findSuggestion(searchContainer, code, timeout(config));
-  if (!suggestion) throw new Error("THS stock suggestion does not match code=" + code);
-  if (!clickNode(suggestion)) throw new Error("THS stock suggestion click failed code=" + code);
-  sleep(300);
+  var deadline = Date.now() + timeout(config);
+  while (Date.now() <= deadline) {
+    // Preferred success condition: THS has already accepted the code and returned
+    // to the main trade form. No suggestion click is required in this path.
+    if (isMainTradeCodeResolved(expected)) return;
+
+    var activeSearch = id(IDS.searchContainer).findOnce();
+    if (activeSearch) {
+      var suggestion = findSuggestionOnce(activeSearch, expected);
+      if (suggestion) {
+        for (var attempt = 1; attempt <= TAP_ATTEMPTS; attempt++) {
+          if (!tapCenter(suggestion)) break;
+          if (waitMainTradeCodeResolved(expected, 650)) return;
+          activeSearch = id(IDS.searchContainer).findOnce();
+          if (!activeSearch) break;
+          suggestion = findSuggestionOnce(activeSearch, expected);
+          if (!suggestion) break;
+        }
+      }
+    }
+    sleep(100);
+  }
+
+  // Final check avoids false failure when THS resolves the symbol exactly as the
+  // timeout expires.
+  if (isMainTradeCodeResolved(expected)) return;
+  throw new Error("THS stock code not resolved on final trade form code=" + expected);
 }
 
 function fillOrderFields(order, config) {
@@ -137,12 +210,36 @@ function fillOrderFields(order, config) {
   sleep(220);
   fillCode(order.code, config);
 
-  clearAndSet(waitDescendantEdit(IDS.stockVolume, "数量", timeout(config)), String(order.qty));
-  clearAndSet(waitDescendantEdit(IDS.stockPrice, "价格", timeout(config)), Number(order.submit_price).toFixed(2));
+  if (!isMainTradeCodeResolved(String(order.code))) {
+    throw new Error("THS final code verification failed code=" + order.code);
+  }
+
+  var qtyText = String(order.qty);
+  var priceText = Number(order.submit_price).toFixed(2);
+
+  var volumeEdit = waitDescendantEdit(IDS.stockVolume, "数量", timeout(config));
+  clearAndSet(volumeEdit, qtyText);
+  if (!waitFieldValue(IDS.stockVolume, qtyText, 1200)) {
+    volumeEdit = waitDescendantEdit(IDS.stockVolume, "数量", timeout(config));
+    clearAndSet(volumeEdit, qtyText);
+    if (!waitFieldValue(IDS.stockVolume, qtyText, 1200)) {
+      throw new Error("THS quantity verification failed expected=" + qtyText);
+    }
+  }
+
+  var priceEdit = waitDescendantEdit(IDS.stockPrice, "价格", timeout(config));
+  clearAndSet(priceEdit, priceText);
+  if (!waitFieldValue(IDS.stockPrice, priceText, 1200)) {
+    priceEdit = waitDescendantEdit(IDS.stockPrice, "价格", timeout(config));
+    clearAndSet(priceEdit, priceText);
+    if (!waitFieldValue(IDS.stockPrice, priceText, 1200)) {
+      throw new Error("THS price verification failed expected=" + priceText);
+    }
+  }
 
   return {
     success: true,
-    stage: "fields_filled",
+    stage: "fields_filled_and_verified",
     code: String(order.code),
     side: String(order.side),
     qty: Number(order.qty),
