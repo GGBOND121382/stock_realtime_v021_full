@@ -92,6 +92,7 @@ tracking_ready_for_post() {
   }
   "$PYTHON_BIN" - "$MATRIX_ROOT" "$CALENDAR_FILE" "$trade_date" <<'PY'
 import json
+import math
 import sys
 from pathlib import Path
 import pandas as pd
@@ -105,9 +106,15 @@ manifest_file = matrix_root / "tracking_matrix_manifest.json"
 try:
     config = json.loads(config_file.read_text(encoding="utf-8"))
     start = pd.Timestamp(config["tracking_start_date"]).normalize()
+    initial_cash = float(config["tracking_initial_cash"])
+    if not math.isfinite(initial_cash) or initial_cash <= 0:
+        raise ValueError(f"invalid tracking_initial_cash={initial_cash}")
 except Exception as exc:
-    print(f"[TRACKING] no valid tracking start; planner may use legacy state: {exc}")
-    raise SystemExit(0)
+    print(
+        f"[TRACKING] production account config invalid; legacy fallback forbidden: {exc}",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
 
 if start >= trade_date:
     print(f"[TRACKING] no prior tracking day required: start={start:%Y-%m-%d}")
@@ -168,7 +175,7 @@ completed=0
 on_exit() {
   local rc=$?
   if [[ "$completed" != "1" && "$rc" -ne 0 ]]; then
-    write_status failed "$rc" "$(TZ="$TIMEZONE" date -Iseconds)"
+    write_status failed "$rc" "$(TZ="$TIMEZONE" date -Iseconds)" || true
   fi
 }
 trap on_exit EXIT
@@ -211,11 +218,15 @@ set -e
 
 finished_at="$(TZ="$TIMEZONE" date -Iseconds)"
 if [[ "$rc" -eq 0 ]]; then
+  # execution_batch.json, when present, was already the final required commit.
+  # Status bookkeeping is therefore best-effort and must never retroactively
+  # turn a published READY order set into a FAILED production run.
   completed=1
-  write_status success 0 "$finished_at"
+  write_status success 0 "$finished_at" || \
+    echo "[WARN] READY may be published but success status file could not be updated" >&2
   echo "[PASS] stage=$STAGE finished_at=$finished_at"
 else
-  write_status failed "$rc" "$finished_at"
+  write_status failed "$rc" "$finished_at" || true
   echo "[FAILED] stage=$STAGE exit_code=$rc finished_at=$finished_at" >&2
 fi
 exit "$rc"
