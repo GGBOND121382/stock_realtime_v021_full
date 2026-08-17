@@ -1,0 +1,9 @@
+{
+  "csv_file": "orders.csv",
+  "target_seconds": 120,
+  "allow_duplicates": false,
+  "show_price": true,
+  "floaty_x": 8,
+  "floaty_y": 180,
+  "debounce_ms": 350
+}
