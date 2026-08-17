@@ -6,6 +6,7 @@ var safety = require("./lib/safety.js");
 var ledger = require("./lib/ledger.js");
 var client = require("./lib/plan_client.js");
 var ths = require("./lib/ths_adapter.js");
+var mobileGuard = require("./lib/mobile_ui_guard.js");
 
 function loadConfig() {
   var path = files.join(files.cwd(), "config.json");
@@ -35,6 +36,22 @@ function betweenOrdersMs(config) {
 function failureSkipMs(config) {
   if (config.failure_skip_ms === undefined || config.failure_skip_ms === null) return 100;
   return Math.max(0, Number(config.failure_skip_ms));
+}
+
+function runMobileGuard(config, label, includeMetadata) {
+  if (config.mobile_preflight_enabled === false) return null;
+  var result = mobileGuard.assertReady(config, { include_metadata: includeMetadata === true });
+  if (result.warnings.length) {
+    console.warn("[MOBILE_GUARD_WARN] " + label + " " + result.warnings.join(" | "));
+  }
+  console.log(
+    "[MOBILE_GUARD_OK] " + label +
+    " package=" + result.snapshot.package_name +
+    " activity=" + result.snapshot.activity_name +
+    " orientation=" + result.snapshot.orientation +
+    (result.snapshot.app_version_name ? " version=" + result.snapshot.app_version_name : "")
+  );
+  return result;
 }
 
 function queueItem(order, error) {
@@ -142,12 +159,18 @@ function runOnce() {
     }
   }
 
+  // Full read-only Android/THS environment check once per batch.
+  runMobileGuard(config, "batch_start", true);
+
   console.log("[RUN] trade_date=" + batch.trade_date + " orders=" + pending.length + " mode=" + config.mode);
 
   var manualQueue = [];
   var completed = 0;
   var skipped = 0;
   for (var i = 0; i < pending.length; i++) {
+    // Lightweight read-only guard before each order. Unknown/stale UI state stops
+    // the batch before the next order is touched; it never dismisses a dialog.
+    runMobileGuard(config, "before_order_" + pending[i].sequence, false);
     var status = executeOne(pending[i], config, manualQueue);
     if (status === "completed") completed++;
     else if (status === "manual_required" || status === "failed") skipped++;
