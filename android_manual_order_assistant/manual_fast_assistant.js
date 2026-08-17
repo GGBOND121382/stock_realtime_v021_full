@@ -151,7 +151,6 @@ function markSkipped() {
     state.history.push({ at: new Date().toISOString(), order_id: order.id, action: "defer_skipped" });
     saveState();
     var next = queueLib.findNextIndex(state, orders, "skipped", currentIndex + 1);
-    if (next === currentIndex) next = -1;
     if (next < 0) {
       state.completed_at = new Date().toISOString();
       saveState();
@@ -174,7 +173,7 @@ function reopenPrevious() {
     var entry = state.history[i];
     if (entry.action !== "done" && entry.action !== "skipped") continue;
     for (var j = 0; j < orders.length; j++) {
-      if (orders[j].id === entry.order_id) {
+      if (orders[j].id === entry.order_id && state.status[orders[j].id] !== "pending") {
         queueLib.reopen(state, orders[j]);
         state.phase = "normal";
         saveState();
@@ -238,15 +237,13 @@ function attachDragHandle() {
           rawX: event.getRawX(),
           rawY: event.getRawY(),
           winX: windowRef.getX(),
-          winY: windowRef.getY(),
-          moved: false
+          winY: windowRef.getY()
         };
         return true;
       }
       if (action === event.ACTION_MOVE && dragState) {
         var dx = event.getRawX() - dragState.rawX;
         var dy = event.getRawY() - dragState.rawY;
-        if (Math.abs(dx) + Math.abs(dy) > 8) dragState.moved = true;
         windowRef.setPosition(dragState.winX + dx, dragState.winY + dy);
         return true;
       }
@@ -345,7 +342,7 @@ function start() {
   state = loadState(plan.fingerprint, orders);
 
   if (!dialogs.confirm("AS1455 高速人工下单助手", preflightSummary(plan))) return;
-  if (!state.started_at || queueLib.counts(state, orders).done === 0) state.started_at = new Date().toISOString();
+  if (!state.started_at) state.started_at = new Date().toISOString();
   state.completed_at = null;
   saveState();
 
