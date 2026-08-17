@@ -38,6 +38,12 @@ function clickNode(node) {
   return click(b.centerX(), b.centerY());
 }
 
+function clickNodeCenter(node) {
+  if (!node) return false;
+  var b = node.bounds();
+  return click(b.centerX(), b.centerY());
+}
+
 function waitEditById(resourceId, timeoutMs) {
   var node = id(resourceId).className(EDIT_TEXT).findOne(Number(timeoutMs || 5000));
   if (!node) throw new Error("THS EditText not found: " + resourceId);
@@ -164,21 +170,34 @@ function fillOrderFields(order, config) {
   };
 }
 
-function inputOrder(order, config) {
-  fillOrderFields(order, config);
-
-  var submit = waitId(IDS.transaction, timeout(config));
-  if (!clickNode(submit)) throw new Error("THS transaction button click failed");
-  sleep(500);
+function confirmationLabels(side) {
+  return side === "sell" ? {
+    title: "委托卖出确认",
+    action: "确认卖出"
+  } : {
+    title: "委托买入确认",
+    action: "确认买入"
+  };
 }
 
-function readPrompt() {
-  var titleNode = id(IDS.dialogTitle).findOne(400);
-  var promptNode = id(IDS.prompt).findOne(800);
-  return {
-    title: titleNode ? String(titleNode.text()) : "",
-    content: promptNode ? String(promptNode.text()) : ""
-  };
+function waitConfirmation(order, timeoutMs) {
+  var labels = confirmationLabels(order.side);
+  var deadline = Date.now() + Number(timeoutMs || 5000);
+  while (Date.now() <= deadline) {
+    var titleNode = text(labels.title).findOnce();
+    var actionNode = text(labels.action).findOnce();
+    var cancelNode = text("取消").findOnce();
+    if (titleNode && actionNode && cancelNode) {
+      return {
+        title: titleNode,
+        action: actionNode,
+        cancel: cancelNode,
+        labels: labels
+      };
+    }
+    sleep(100);
+  }
+  return null;
 }
 
 function safeValue(fn, fallback) {
@@ -269,39 +288,75 @@ function dumpPostSubmitProbe(order, stage) {
   return path;
 }
 
-function preview(order, config) {
-  inputOrder(order, config);
-  var cancelNode = id(IDS.cancel).findOne(timeout(config));
-  var okNode = id(IDS.ok).findOne(800);
-  if (cancelNode && okNode) {
-    if (!clickNode(cancelNode)) throw new Error("THS confirmation cancel click failed");
-    return { success: true, mode: "dry_run", stage: "confirmation_reached_and_cancelled" };
+function openOrderConfirmation(order, config) {
+  fillOrderFields(order, config);
+
+  var submit = waitId(IDS.transaction, timeout(config));
+  // THS's transaction container may report accessibility ACTION_CLICK success
+  // without changing the UI. Use a physical screen-coordinate tap on the verified
+  // transaction button bounds, then require the current confirmation dialog text.
+  if (!clickNodeCenter(submit)) {
+    throw new Error("THS transaction button coordinate tap failed");
   }
 
-  var probePath = dumpPostSubmitProbe(order, "preview_confirmation_missing");
-  throw new Error("THS confirmation controls not recognized; no confirm button clicked; probe=" + probePath);
+  var confirmation = waitConfirmation(order, timeout(config));
+  if (!confirmation) {
+    var probePath = dumpPostSubmitProbe(order, "transaction_tap_no_confirmation");
+    throw new Error(
+      "THS transaction tap did not open " + confirmationLabels(order.side).title +
+      "; probe=" + probePath
+    );
+  }
+  return confirmation;
+}
+
+function findSuccessText(timeoutMs) {
+  var deadline = Date.now() + Number(timeoutMs || 3000);
+  while (Date.now() <= deadline) {
+    var submitted = textContains("委托已提交").findOnce();
+    if (submitted) return String(submitted.text());
+    var contract = textContains("合同号").findOnce();
+    if (contract) return String(contract.text());
+    sleep(100);
+  }
+  return "";
+}
+
+function preview(order, config) {
+  var confirmation = openOrderConfirmation(order, config);
+  if (!clickNodeCenter(confirmation.cancel)) {
+    throw new Error("THS confirmation cancel coordinate tap failed");
+  }
+  return {
+    success: true,
+    mode: "dry_run",
+    stage: "confirmation_reached_and_cancelled"
+  };
 }
 
 function submit(order, config) {
-  inputOrder(order, config);
-  var okNode = id(IDS.ok).findOne(timeout(config));
-  var cancelNode = id(IDS.cancel).findOne(500);
-  if (!okNode || !cancelNode) {
-    var probePath = dumpPostSubmitProbe(order, "submit_confirmation_missing");
-    throw new Error("THS order confirmation missing; stopped before any guessed confirmation click; probe=" + probePath);
+  var confirmation = openOrderConfirmation(order, config);
+  if (!clickNodeCenter(confirmation.action)) {
+    throw new Error("THS order confirmation coordinate tap failed");
   }
 
-  if (!clickNode(okNode)) throw new Error("THS order confirmation click failed");
   sleep(500);
-  var prompt = readPrompt();
-  var finalOk = id(IDS.ok).findOne(timeout(config));
-  if (finalOk) clickNode(finalOk);
-  var content = String(prompt.content || "");
-  if (content.indexOf("委托已提交") < 0 && content.indexOf("合同号") < 0) {
-    var resultProbe = dumpPostSubmitProbe(order, "submit_result_unrecognized");
-    throw new Error("THS order result not recognized: " + JSON.stringify(prompt) + "; probe=" + resultProbe);
+  var successText = findSuccessText(2500);
+  if (successText) {
+    return {
+      success: true,
+      mode: "live",
+      prompt: { title: confirmation.labels.title, content: successText }
+    };
   }
-  return { success: true, mode: "live", prompt: prompt };
+
+  // Some broker builds dismiss the confirmation and show a result surface whose
+  // text differs from the historical IDs. Capture that exact UI and stop rather
+  // than assuming submission success and moving on to the next order.
+  var resultProbe = dumpPostSubmitProbe(order, "confirmation_clicked_result_unrecognized");
+  throw new Error(
+    "THS confirmation was tapped but submission result is not recognized; probe=" + resultProbe
+  );
 }
 
 module.exports = {
