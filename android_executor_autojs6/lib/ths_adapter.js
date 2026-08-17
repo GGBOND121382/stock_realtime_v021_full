@@ -1,8 +1,5 @@
 "use strict";
 
-// Resource IDs verified against the target phone's THS trading page on 2026-08-17.
-// Price and volume IDs identify FrameLayout containers; their editable controls
-// are descendant android.widget.EditText nodes without their own resource IDs.
 var IDS = {
   navButton: "com.hexin.plat.android:id/btn",
   stockCode: "com.hexin.plat.android:id/auto_stockcode",
@@ -10,15 +7,12 @@ var IDS = {
   stockSuggestionCode: "com.hexin.plat.android:id/stockcode_tv",
   stockVolume: "com.hexin.plat.android:id/stockvolume",
   stockPrice: "com.hexin.plat.android:id/stockprice",
-  transaction: "com.hexin.plat.android:id/btn_transaction",
-  ok: "com.hexin.plat.android:id/ok_btn",
-  cancel: "com.hexin.plat.android:id/cancel_btn",
-  prompt: "com.hexin.plat.android:id/prompt_content",
-  dialogTitle: "com.hexin.plat.android:id/dialog_title"
+  transaction: "com.hexin.plat.android:id/btn_transaction"
 };
 
 var EDIT_TEXT = "android.widget.EditText";
 var THS_PACKAGE = "com.hexin.plat.android";
+var TAP_ATTEMPTS = 3;
 var PROBE_MAX_NODES = 400;
 
 function timeout(config) {
@@ -38,43 +32,51 @@ function clickNode(node) {
   return click(b.centerX(), b.centerY());
 }
 
-function clickNodeCenter(node) {
-  if (!node) return false;
-  var b = node.bounds();
+function tapTarget(node) {
+  var cur = node;
+  for (var i = 0; i < 5 && cur; i++) {
+    try {
+      if (cur.clickable()) return cur;
+      cur = cur.parent();
+    } catch (e) {
+      break;
+    }
+  }
+  return node;
+}
+
+function tapCenter(node) {
+  var target = tapTarget(node);
+  if (!target) return false;
+  var b = target.bounds();
   return click(b.centerX(), b.centerY());
 }
 
-function waitEditById(resourceId, timeoutMs) {
-  var node = id(resourceId).className(EDIT_TEXT).findOne(Number(timeoutMs || 5000));
-  if (!node) throw new Error("THS EditText not found: " + resourceId);
-  return node;
+function clearAndSet(node, value) {
+  var v = String(value);
+  if (node.setText(v)) return;
+  if (!clickNode(node)) throw new Error("THS input focus failed");
+  sleep(120);
+  if (!setText(v)) throw new Error("THS setText failed: " + v);
 }
 
 function findInside(container, selector, timeoutMs) {
   var deadline = Date.now() + Number(timeoutMs || 5000);
   while (Date.now() <= deadline) {
     var node = null;
-    try {
-      node = container.findOne(selector);
-    } catch (e) {
-      node = null;
-    }
+    try { node = container.findOne(selector); } catch (e) { node = null; }
     if (node) return node;
-    sleep(100);
+    sleep(80);
   }
   return null;
 }
 
 function waitDescendantEdit(containerId, hint, timeoutMs) {
-  var limit = Number(timeoutMs || 5000);
-  var container = waitId(containerId, limit);
-  var edit = findInside(container, className(EDIT_TEXT), limit);
-  if (!edit && hint) {
-    edit = className(EDIT_TEXT).text(String(hint)).findOne(500);
-  }
-  if (!edit) {
-    throw new Error("THS descendant EditText not found: " + containerId + " hint=" + hint);
-  }
+  var t = Number(timeoutMs || 5000);
+  var container = waitId(containerId, t);
+  var edit = findInside(container, className(EDIT_TEXT), t);
+  if (!edit && hint) edit = className(EDIT_TEXT).text(String(hint)).findOne(400);
+  if (!edit) throw new Error("THS descendant EditText not found: " + containerId);
   return edit;
 }
 
@@ -84,81 +86,59 @@ function clickTradeTab(label, timeoutMs) {
   if (!clickNode(node)) throw new Error("THS trading tab click failed: " + label);
 }
 
-function clearAndSet(node, value) {
-  var textValue = String(value);
-  if (node.setText(textValue)) return;
-  clickNode(node);
-  sleep(150);
-  if (!setText(textValue)) throw new Error("THS setText failed: " + textValue);
-}
-
 function ensureTradingPage(side, config) {
   var pkg = String(config.ths_package || THS_PACKAGE);
   if (currentPackage() !== pkg) {
     app.launchPackage(pkg);
     sleep(700);
   }
-
   var codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(1200);
   if (!codeEdit) {
-    clickTradeTab(side === "buy" ? "买入" : "卖出", timeout(config));
+    clickTradeTab(side === "sell" ? "卖出" : "买入", timeout(config));
     codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(timeout(config));
   }
-  if (!codeEdit) throw new Error("not on THS trading page; open 交易 -> 买入/卖出 first");
+  if (!codeEdit) throw new Error("not on THS trading page");
   return codeEdit;
 }
 
 function findSuggestion(searchContainer, code, timeoutMs) {
-  var limit = Number(timeoutMs || 5000);
-  var deadline = Date.now() + limit;
+  var deadline = Date.now() + Number(timeoutMs || 5000);
   while (Date.now() <= deadline) {
-    var suggestion = id(IDS.stockSuggestionCode).text(String(code)).findOnce();
-    if (suggestion) return suggestion;
-
-    suggestion = findInside(
-      searchContainer,
-      className("android.widget.TextView").text(String(code)),
-      150
-    );
-    if (suggestion) return suggestion;
-    sleep(100);
+    var node = id(IDS.stockSuggestionCode).text(String(code)).findOnce();
+    if (node) return node;
+    node = findInside(searchContainer, className("android.widget.TextView").text(String(code)), 120);
+    if (node) return node;
+    sleep(80);
   }
   return null;
 }
 
 function fillCode(code, config) {
-  var codeEdit = waitEditById(IDS.stockCode, timeout(config));
-  if (!clickNode(codeEdit)) throw new Error("THS stock code field click failed");
-  sleep(200);
+  var codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(timeout(config));
+  if (!codeEdit) throw new Error("THS stock code EditText not found");
+  if (!clickNode(codeEdit)) throw new Error("THS stock code click failed");
+  sleep(180);
 
   var searchContainer = waitId(IDS.searchContainer, timeout(config));
-  var searchEdit = findInside(
-    searchContainer,
-    id(IDS.stockCode).className(EDIT_TEXT),
-    timeout(config)
-  );
+  var searchEdit = findInside(searchContainer, id(IDS.stockCode).className(EDIT_TEXT), timeout(config));
   if (!searchEdit) throw new Error("THS stock search EditText not found");
-
   clearAndSet(searchEdit, code);
-  sleep(350);
+  sleep(300);
 
   var suggestion = findSuggestion(searchContainer, code, timeout(config));
   if (!suggestion) throw new Error("THS stock suggestion does not match code=" + code);
   if (!clickNode(suggestion)) throw new Error("THS stock suggestion click failed code=" + code);
-  sleep(350);
+  sleep(300);
 }
 
 function fillOrderFields(order, config) {
   ensureTradingPage(order.side, config);
-  clickTradeTab(order.side === "buy" ? "买入" : "卖出", timeout(config));
-  sleep(250);
+  clickTradeTab(order.side === "sell" ? "卖出" : "买入", timeout(config));
+  sleep(220);
   fillCode(order.code, config);
 
-  var volumeEdit = waitDescendantEdit(IDS.stockVolume, "数量", timeout(config));
-  clearAndSet(volumeEdit, String(order.qty));
-
-  var priceEdit = waitDescendantEdit(IDS.stockPrice, "价格", timeout(config));
-  clearAndSet(priceEdit, Number(order.submit_price).toFixed(2));
+  clearAndSet(waitDescendantEdit(IDS.stockVolume, "数量", timeout(config)), String(order.qty));
+  clearAndSet(waitDescendantEdit(IDS.stockPrice, "价格", timeout(config)), Number(order.submit_price).toFixed(2));
 
   return {
     success: true,
@@ -171,49 +151,67 @@ function fillOrderFields(order, config) {
 }
 
 function confirmationLabels(side) {
-  return side === "sell" ? {
-    title: "委托卖出确认",
-    action: "确认卖出"
-  } : {
-    title: "委托买入确认",
-    action: "确认买入"
-  };
+  return side === "sell" ? { title: "委托卖出确认", action: "确认卖出" } :
+    { title: "委托买入确认", action: "确认买入" };
+}
+
+function findConfirmation(order) {
+  var labels = confirmationLabels(order.side);
+  var titleNode = text(labels.title).findOnce();
+  var actionNode = text(labels.action).findOnce();
+  var cancelNode = text("取消").findOnce();
+  if (!titleNode || !actionNode || !cancelNode) return null;
+  return { title: titleNode, action: actionNode, cancel: cancelNode, labels: labels };
 }
 
 function waitConfirmation(order, timeoutMs) {
-  var labels = confirmationLabels(order.side);
   var deadline = Date.now() + Number(timeoutMs || 5000);
   while (Date.now() <= deadline) {
-    var titleNode = text(labels.title).findOnce();
-    var actionNode = text(labels.action).findOnce();
-    var cancelNode = text("取消").findOnce();
-    if (titleNode && actionNode && cancelNode) {
-      return {
-        title: titleNode,
-        action: actionNode,
-        cancel: cancelNode,
-        labels: labels
-      };
-    }
-    sleep(100);
+    var c = findConfirmation(order);
+    if (c) return c;
+    sleep(90);
+  }
+  return null;
+}
+
+function extractContractNumber(message) {
+  var m = String(message || "").match(/合同号(?:为)?[：:\s]*([0-9\s]+)/);
+  return m ? String(m[1]).replace(/\s/g, "") : "";
+}
+
+function findSuccessDialog() {
+  var messageNode = textContains("委托已提交").findOnce();
+  var okNode = text("确定").findOnce();
+  if (!messageNode || !okNode) return null;
+  var titleNode = text("系统信息").findOnce();
+  var message = String(messageNode.text() || "");
+  return {
+    title: titleNode ? String(titleNode.text() || "") : "系统信息",
+    message: message,
+    contract_no: extractContractNumber(message),
+    ok: okNode
+  };
+}
+
+function waitSuccessDialog(timeoutMs) {
+  var deadline = Date.now() + Number(timeoutMs || 5000);
+  while (Date.now() <= deadline) {
+    var s = findSuccessDialog();
+    if (s) return s;
+    sleep(90);
   }
   return null;
 }
 
 function safeValue(fn, fallback) {
   try {
-    var value = fn();
-    return value === null || value === undefined ? fallback : value;
-  } catch (e) {
-    return fallback;
-  }
+    var v = fn();
+    return v === null || v === undefined ? fallback : v;
+  } catch (e) { return fallback; }
 }
 
-function clean(value) {
-  return String(value === null || value === undefined ? "" : value)
-    .replace(/\r/g, "\\r")
-    .replace(/\n/g, "\\n")
-    .replace(/\t/g, "\\t");
+function clean(v) {
+  return String(v === null || v === undefined ? "" : v).replace(/\r/g, "\\r").replace(/\n/g, "\\n");
 }
 
 function timestampToken() {
@@ -223,66 +221,36 @@ function timestampToken() {
     pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
 }
 
-function nodeLine(node, index) {
-  var pkg = safeValue(function () { return node.packageName(); }, "");
-  var rid = safeValue(function () { return node.id(); }, "");
-  var textValue = safeValue(function () { return node.text(); }, "");
-  var desc = safeValue(function () { return node.desc(); }, "");
-  var cls = safeValue(function () { return node.className(); }, "");
-  var clickable = safeValue(function () { return node.clickable(); }, false);
-  var enabled = safeValue(function () { return node.enabled(); }, false);
-  var bounds = safeValue(function () { return node.bounds(); }, null);
-  return "[" + index + "]" +
-    " package=" + clean(pkg) +
-    " id=" + clean(rid) +
-    " text=" + JSON.stringify(clean(textValue)) +
-    " desc=" + JSON.stringify(clean(desc)) +
-    " class=" + clean(cls) +
-    " clickable=" + clickable +
-    " enabled=" + enabled +
-    " bounds=" + (bounds ? clean(bounds.toString()) : "");
-}
-
-function dumpPostSubmitProbe(order, stage) {
+function dumpProbe(order, stage) {
   var lines = [
-    "========== THS POST-SUBMIT PROBE ==========",
-    "stage=" + String(stage || "unknown"),
+    "========== THS UI PROBE ==========",
+    "stage=" + String(stage),
     "order=" + JSON.stringify(order || {}),
     "currentPackage=" + safeValue(function () { return currentPackage(); }, ""),
     "currentActivity=" + safeValue(function () { return currentActivity(); }, ""),
-    "known_ok_count=" + id(IDS.ok).find().size(),
-    "known_cancel_count=" + id(IDS.cancel).find().size(),
-    "known_prompt_count=" + id(IDS.prompt).find().size(),
-    "known_title_count=" + id(IDS.dialogTitle).find().size(),
-    "---------- accessibility nodes ----------"
+    "---------- nodes ----------"
   ];
-
   var nodes = null;
-  try {
-    nodes = classNameMatches(/.*/).find();
-  } catch (e) {
-    lines.push("[WARN] cannot enumerate nodes: " + String(e));
-  }
-
+  try { nodes = classNameMatches(/.*/).find(); } catch (e) { lines.push("probe_error=" + String(e)); }
   if (nodes) {
     var limit = Math.min(nodes.size(), PROBE_MAX_NODES);
     for (var i = 0; i < limit; i++) {
-      var node = nodes.get(i);
-      var pkg = safeValue(function () { return node.packageName(); }, "");
-      var rid = safeValue(function () { return node.id(); }, "");
-      var textValue = safeValue(function () { return node.text(); }, "");
-      var desc = safeValue(function () { return node.desc(); }, "");
-      var clickable = safeValue(function () { return node.clickable(); }, false);
-      if (String(pkg) === THS_PACKAGE || rid || textValue || desc || clickable) {
-        lines.push(nodeLine(node, i));
+      var n = nodes.get(i);
+      var pkg = safeValue(function () { return n.packageName(); }, "");
+      var rid = safeValue(function () { return n.id(); }, "");
+      var txt = safeValue(function () { return n.text(); }, "");
+      var desc = safeValue(function () { return n.desc(); }, "");
+      if (String(pkg) === THS_PACKAGE || rid || txt || desc) {
+        var b = safeValue(function () { return n.bounds(); }, null);
+        lines.push("[" + i + "] pkg=" + clean(pkg) + " id=" + clean(rid) +
+          " text=" + JSON.stringify(clean(txt)) + " desc=" + JSON.stringify(clean(desc)) +
+          " class=" + clean(safeValue(function () { return n.className(); }, "")) +
+          " clickable=" + safeValue(function () { return n.clickable(); }, false) +
+          " bounds=" + (b ? clean(b.toString()) : ""));
       }
     }
-    if (nodes.size() > PROBE_MAX_NODES) {
-      lines.push("[TRUNCATED] total_nodes=" + nodes.size() + " max_nodes=" + PROBE_MAX_NODES);
-    }
   }
-
-  lines.push("========== END THS POST-SUBMIT PROBE ==========");
+  lines.push("========== END THS UI PROBE ==========");
   var path = files.join(files.cwd(), "ths_order_confirmation_probe_" + timestampToken() + ".txt");
   files.write(path, lines.join("\n"));
   return path;
@@ -290,104 +258,85 @@ function dumpPostSubmitProbe(order, stage) {
 
 function openOrderConfirmation(order, config) {
   fillOrderFields(order, config);
+  var waitMs = Math.max(900, Math.min(1800, Math.floor(timeout(config) / 2)));
 
-  var submit = waitId(IDS.transaction, timeout(config));
-  // THS's transaction container may report accessibility ACTION_CLICK success
-  // without changing the UI. Use a physical screen-coordinate tap on the verified
-  // transaction button bounds, then require the current confirmation dialog text.
-  if (!clickNodeCenter(submit)) {
-    throw new Error("THS transaction button coordinate tap failed");
+  for (var attempt = 1; attempt <= TAP_ATTEMPTS; attempt++) {
+    var existing = findConfirmation(order);
+    if (existing) return existing;
+
+    var submitNode = waitId(IDS.transaction, Math.min(timeout(config), 1500));
+    if (!tapCenter(submitNode)) throw new Error("THS transaction button tap failed");
+
+    var confirmation = waitConfirmation(order, waitMs);
+    if (confirmation) return confirmation;
+    sleep(160);
   }
 
-  var confirmation = waitConfirmation(order, timeout(config));
-  if (!confirmation) {
-    var probePath = dumpPostSubmitProbe(order, "transaction_tap_no_confirmation");
-    throw new Error(
-      "THS transaction tap did not open " + confirmationLabels(order.side).title +
-      "; probe=" + probePath
-    );
-  }
-  return confirmation;
+  var probe = dumpProbe(order, "transaction_no_confirmation_after_retries");
+  throw new Error("THS transaction tap did not open " + confirmationLabels(order.side).title + "; probe=" + probe);
 }
 
-function extractContractNumber(message) {
-  var textValue = String(message || "");
-  var match = textValue.match(/合同号(?:为)?[：:\s]*([0-9\s]+)/);
-  return match ? String(match[1]).replace(/\s/g, "") : "";
-}
-
-function waitSuccessDialog(timeoutMs) {
-  var deadline = Date.now() + Number(timeoutMs || 3000);
-  while (Date.now() <= deadline) {
-    var messageNode = textContains("委托已提交").findOnce();
-    var okNode = text("确定").findOnce();
-    var titleNode = text("系统信息").findOnce();
-    if (messageNode && okNode) {
-      var message = String(messageNode.text() || "");
-      return {
-        title: titleNode ? String(titleNode.text() || "") : "系统信息",
-        message: message,
-        contract_no: extractContractNumber(message),
-        ok: okNode
-      };
-    }
-    sleep(100);
+function dismissSuccessDialog(order, dialog) {
+  for (var attempt = 1; attempt <= TAP_ATTEMPTS; attempt++) {
+    if (!textContains("委托已提交").findOnce()) return;
+    var current = findSuccessDialog() || dialog;
+    if (!current || !current.ok || !tapCenter(current.ok)) break;
+    sleep(350);
+    if (!textContains("委托已提交").findOnce()) return;
   }
-  return null;
-}
-
-function waitSuccessDialogDismissed(timeoutMs) {
-  var deadline = Date.now() + Number(timeoutMs || 2000);
-  while (Date.now() <= deadline) {
-    if (!textContains("委托已提交").findOnce()) return true;
-    sleep(100);
-  }
-  return false;
+  var probe = dumpProbe(order, "success_dialog_not_dismissed_after_retries");
+  throw new Error("THS success dialog did not dismiss after retries; probe=" + probe);
 }
 
 function preview(order, config) {
   var confirmation = openOrderConfirmation(order, config);
-  if (!clickNodeCenter(confirmation.cancel)) {
-    throw new Error("THS confirmation cancel coordinate tap failed");
+  for (var attempt = 1; attempt <= TAP_ATTEMPTS; attempt++) {
+    var current = findConfirmation(order);
+    if (!current) return { success: true, mode: "dry_run", stage: "confirmation_reached_and_cancelled" };
+    if (!tapCenter(current.cancel)) break;
+    sleep(300);
   }
-  return {
-    success: true,
-    mode: "dry_run",
-    stage: "confirmation_reached_and_cancelled"
-  };
+  var probe = dumpProbe(order, "cancel_confirmation_not_dismissed");
+  throw new Error("THS confirmation cancel did not dismiss; probe=" + probe);
 }
 
 function submit(order, config) {
-  var confirmation = openOrderConfirmation(order, config);
-  if (!clickNodeCenter(confirmation.action)) {
-    throw new Error("THS order confirmation coordinate tap failed");
+  openOrderConfirmation(order, config);
+  var success = null;
+
+  for (var attempt = 1; attempt <= 2; attempt++) {
+    success = findSuccessDialog();
+    if (success) break;
+
+    var confirmation = findConfirmation(order);
+    if (!confirmation) {
+      success = waitSuccessDialog(timeout(config));
+      break;
+    }
+
+    if (!tapCenter(confirmation.action)) throw new Error("THS order confirmation tap failed");
+    success = waitSuccessDialog(Math.max(1800, Math.min(timeout(config), 3500)));
+    if (success) break;
+
+    // Retry final confirmation only if the exact confirmation dialog is still
+    // present. If it disappeared, state is ambiguous; stop to avoid duplicates.
+    if (!findConfirmation(order)) break;
+    sleep(160);
   }
 
-  var successDialog = waitSuccessDialog(timeout(config));
-  if (!successDialog) {
-    var resultProbe = dumpPostSubmitProbe(order, "confirmation_clicked_result_unrecognized");
-    throw new Error(
-      "THS confirmation was tapped but submission result is not recognized; probe=" + resultProbe
-    );
+  if (!success) {
+    var probe = dumpProbe(order, "confirmation_result_ambiguous");
+    throw new Error("THS confirmation result is ambiguous or unrecognized; probe=" + probe);
   }
 
-  if (!clickNodeCenter(successDialog.ok)) {
-    var okProbe = dumpPostSubmitProbe(order, "success_dialog_ok_tap_failed");
-    throw new Error("THS success dialog OK coordinate tap failed; probe=" + okProbe);
-  }
-  if (!waitSuccessDialogDismissed(2000)) {
-    var dismissProbe = dumpPostSubmitProbe(order, "success_dialog_not_dismissed");
-    throw new Error("THS success dialog did not dismiss after OK tap; probe=" + dismissProbe);
-  }
+  dismissSuccessDialog(order, success);
+  sleep(220);
 
   return {
     success: true,
     mode: "live",
-    prompt: {
-      title: successDialog.title,
-      content: successDialog.message
-    },
-    contract_no: successDialog.contract_no,
+    prompt: { title: success.title, content: success.message },
+    contract_no: success.contract_no,
     stage: "submitted_and_result_dismissed"
   };
 }
