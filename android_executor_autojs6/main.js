@@ -1,7 +1,6 @@
 "use strict";
 
 auto.waitFor();
-console.show();
 
 var safety = require("./lib/safety.js");
 var ledger = require("./lib/ledger.js");
@@ -30,7 +29,7 @@ function summary(batch, pending) {
 
 function executeOne(order, config) {
   if (ledger.isTerminal(order.signal_id)) {
-    console.log("[SKIP] already terminal " + order.signal_id + " " + order.code);
+    console.log("[SKIP] already submitted " + order.signal_id + " " + order.code);
     return;
   }
   ledger.markStarted(order);
@@ -56,10 +55,12 @@ function runOnce() {
   }
   var batch = safety.validateBatch(raw, config);
   batch.mode = config.mode;
+  // Dry-run records are intentionally repeatable. Only broker-submitted signals
+  // are filtered here so a prior dry-run can never suppress a later live order.
   var pending = batch.orders.filter(function (o) { return !ledger.isTerminal(o.signal_id); });
   if (pending.length === 0) {
-    toast("AS1455: 今日订单已处理");
-    console.log("[DONE] all signal_ids already terminal");
+    toast("AS1455: 今日订单均已实盘提交");
+    console.log("[DONE] all signal_ids already submitted");
     return;
   }
 
