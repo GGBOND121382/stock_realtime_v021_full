@@ -110,19 +110,10 @@ function requireBatchAck(orders, totalNotional) {
     "买入: " + buys + " / 卖出: " + sells,
     "计划金额合计: " + notionalText + " 元",
     "",
+    "确认后立即按 CSV 顺序批量提交。",
     "提交后请人工到同花顺撤单页面处理测试委托。"
   ].join("\n");
-  if (!dialogs.confirm("AS1455 批量真实下单测试", summary)) return false;
-
-  var expected = "SUBMIT ALL " + orders.length + " ORDERS " + notionalText;
-  var entered = dialogs.rawInput(
-    "批量真实下单二次确认\n请输入下面整行文本继续：\n" + expected,
-    ""
-  );
-  if (String(entered || "").trim() !== expected) {
-    throw new Error("batch live acknowledgement mismatch; no orders submitted");
-  }
-  return true;
+  return dialogs.confirm("AS1455 批量真实下单测试", summary);
 }
 
 function run() {
