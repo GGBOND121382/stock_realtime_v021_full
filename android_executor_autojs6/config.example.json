@@ -9,5 +9,7 @@
   "request_timeout_ms": 5000,
   "ui_timeout_ms": 5000,
   "between_orders_ms": 800,
-  "max_orders": 60
+  "max_orders": 60,
+  "allow_batch_live_test": false,
+  "batch_test_continue_on_error": false
 }
