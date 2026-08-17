@@ -19,7 +19,7 @@ var state = null;
 var config = null;
 var statePath = null;
 var currentIndex = -1;
-var lastActionAt = 0;
+var lastMutationAt = 0;
 var dragState = null;
 
 function mergeConfig(base, extra) {
@@ -114,16 +114,15 @@ function advance() {
   setCurrent(next);
 }
 
-function debounce() {
+function debounceMutation() {
   var now = Date.now();
   var wait = Number(config.debounce_ms || 350);
-  if (now - lastActionAt < wait) return false;
-  lastActionAt = now;
+  if (now - lastMutationAt < wait) return false;
+  lastMutationAt = now;
   return true;
 }
 
 function copyText(kind, value) {
-  if (!debounce()) return;
   setClip(String(value));
   var order = currentOrder();
   if (order) {
@@ -135,7 +134,7 @@ function copyText(kind, value) {
 }
 
 function markDone() {
-  if (!debounce()) return;
+  if (!debounceMutation()) return;
   var order = currentOrder();
   if (!order) return;
   queueLib.markDone(state, order);
@@ -144,7 +143,7 @@ function markDone() {
 }
 
 function markSkipped() {
-  if (!debounce()) return;
+  if (!debounceMutation()) return;
   var order = currentOrder();
   if (!order) return;
   if (state.phase === "skipped") {
@@ -164,7 +163,7 @@ function markSkipped() {
 }
 
 function reopenPrevious() {
-  if (!debounce()) return;
+  if (!debounceMutation()) return;
   if (!state.history || !state.history.length) {
     toast("没有可回退记录");
     return;
@@ -192,8 +191,9 @@ function render() {
   var started = state.started_at ? new Date(state.started_at).getTime() : Date.now();
   var elapsed = Date.now() - started;
   var targetMs = Math.max(1, Number(config.target_seconds || 120)) * 1000;
-  var expectedDone = Math.min(c.total, Math.floor((elapsed / targetMs) * c.total));
-  var paceDelta = c.done - expectedDone;
+  var expectedProcessed = Math.min(c.total, Math.floor((elapsed / targetMs) * c.total));
+  var processed = c.done + c.skipped;
+  var paceDelta = processed - expectedProcessed;
   var phaseText = state.phase === "skipped" ? "异常补单" : "正常队列";
 
   runUi(function () {
@@ -237,13 +237,15 @@ function attachDragHandle() {
           rawX: event.getRawX(),
           rawY: event.getRawY(),
           winX: windowRef.getX(),
-          winY: windowRef.getY()
+          winY: windowRef.getY(),
+          moved: false
         };
         return true;
       }
       if (action === event.ACTION_MOVE && dragState) {
         var dx = event.getRawX() - dragState.rawX;
         var dy = event.getRawY() - dragState.rawY;
+        if (Math.abs(dx) + Math.abs(dy) > 8) dragState.moved = true;
         windowRef.setPosition(dragState.winX + dx, dragState.winY + dy);
         return true;
       }
