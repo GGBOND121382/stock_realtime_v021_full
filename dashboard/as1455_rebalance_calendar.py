@@ -3,8 +3,8 @@
 """Read-only rebalance calendar helpers for the AS1455 dashboard.
 
 The schedule is anchored to each tracking account's latest persisted V7 phase:
-``day_index``, ``rebalance_every`` and ``rebalance_offset``.  Future market dates
-come from BaoStock's trading calendar.  We intentionally do not substitute a
+``day_index``, ``rebalance_every`` and ``rebalance_offset``. Future market dates
+come from BaoStock's trading calendar. We intentionally do not substitute a
 weekday-only calendar because Chinese exchange holidays would shift the phase.
 """
 from __future__ import annotations
@@ -35,10 +35,21 @@ def _dates(values: Iterable[Any]) -> pd.DatetimeIndex:
     )
 
 
+def _bool_value(value: object) -> bool:
+    if isinstance(value, (bool, np.bool_)):
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "y", "t"}:
+        return True
+    if text in {"0", "false", "no", "n", "f"}:
+        return False
+    raise RuntimeError(f"invalid persisted boolean value: {value!r}")
+
+
 def query_baostock_trade_dates(start: date | str, end: date | str) -> pd.DatetimeIndex:
     """Return authoritative A-share trading dates from BaoStock.
 
-    This function raises on login/query failure.  Callers should surface the
+    This function raises on login/query failure. Callers should surface the
     failure instead of silently replacing the exchange calendar with weekdays.
     """
     import baostock as bs
@@ -102,7 +113,7 @@ def _latest_phase(nav: pd.DataFrame) -> dict[str, Any]:
             f"invalid persisted rebalance phase: every={every} offset={offset}"
         )
     expected = (day_index - offset) % every == 0
-    actual = bool(row["is_rebalance_day"])
+    actual = _bool_value(row["is_rebalance_day"])
     if expected != actual:
         raise RuntimeError(
             "latest tracking phase is internally inconsistent: "
@@ -147,16 +158,32 @@ def project_rebalance_dates(
     )
 
 
+def _anchor_frame(phase: dict[str, Any]) -> pd.DataFrame:
+    return pd.DataFrame(
+        [
+            {
+                "date": phase["date"],
+                "day_index": int(phase["day_index"]),
+                "is_rebalance_day": bool(phase["is_rebalance_day"]),
+                "rebalance_every": int(phase["rebalance_every"]),
+                "rebalance_offset": int(phase["rebalance_offset"]),
+                "schedule_source": "tracking_actual",
+            }
+        ]
+    )
+
+
 def build_rebalance_schedule(
     matrix_root: Path,
     future_trade_dates: Iterable[Any],
     *,
     production_experiment: str = DEFAULT_PRODUCTION_EXPERIMENT,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Return long-form future schedule plus per-strategy status.
+    """Return long-form schedule plus per-strategy status.
 
-    A strategy with missing/corrupt tracking phase is retained in the status
-    table with ``status=error`` but contributes no projected calendar rows.
+    Each strategy contributes its latest actual tracking day plus projected later
+    exchange sessions. A strategy with missing/corrupt tracking phase is retained
+    in the status table with ``status=error`` but contributes no guessed rows.
     """
     matrix_root = Path(matrix_root).expanduser().resolve()
     future = _dates(future_trade_dates)
@@ -187,18 +214,23 @@ def build_rebalance_schedule(
             )
             continue
 
+        anchor = _anchor_frame(phase)
         if not projection.empty:
             projection = projection.copy()
-            projection["experiment"] = name
-            projection["display_name"] = identity.display_name
-            projection["target"] = identity.target
-            projection["signal"] = identity.signal
-            projection["is_production"] = name == production_experiment
-            schedule_rows.append(projection)
+            projection["schedule_source"] = "phase_projection"
+            combined = pd.concat([anchor, projection], ignore_index=True)
             reb = projection.loc[projection["is_rebalance_day"].astype(bool), "date"]
             next_rebalance = pd.Timestamp(reb.iloc[0]).normalize() if len(reb) else None
         else:
+            combined = anchor
             next_rebalance = None
+
+        combined["experiment"] = name
+        combined["display_name"] = identity.display_name
+        combined["target"] = identity.target
+        combined["signal"] = identity.signal
+        combined["is_production"] = name == production_experiment
+        schedule_rows.append(combined)
 
         status_rows.append(
             {
@@ -216,11 +248,7 @@ def build_rebalance_schedule(
             }
         )
 
-    schedule = (
-        pd.concat(schedule_rows, ignore_index=True)
-        if schedule_rows
-        else pd.DataFrame()
-    )
+    schedule = pd.concat(schedule_rows, ignore_index=True) if schedule_rows else pd.DataFrame()
     if not schedule.empty:
         schedule["date"] = pd.to_datetime(schedule["date"]).dt.normalize()
         schedule = schedule.sort_values(["date", "rebalance_every", "signal"]).reset_index(drop=True)
@@ -229,7 +257,7 @@ def build_rebalance_schedule(
 
 
 def daily_rebalance_summary(schedule: pd.DataFrame) -> pd.DataFrame:
-    """Collapse the long schedule into one row per future trading day."""
+    """Collapse the long schedule into one row per represented trading day."""
     if schedule.empty:
         return pd.DataFrame(
             columns=["date", "rebalance_count", "rebalance_experiments", "production_rebalance"]
