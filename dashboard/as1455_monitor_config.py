@@ -37,6 +37,12 @@ def config_file(matrix_root: Path) -> Path:
     return Path(matrix_root).expanduser().resolve() / ".dashboard" / "user_config.json"
 
 
+def has_explicit_monitor_config(matrix_root: Path) -> bool:
+    """Return whether the user explicitly stored a monitor strategy list."""
+    payload = _read_json(config_file(matrix_root))
+    return isinstance(payload.get(MONITOR_CONFIG_KEY), list)
+
+
 def normalize_monitor_experiments(
     values: Iterable[object] | None,
     available: Iterable[str] | None = None,
