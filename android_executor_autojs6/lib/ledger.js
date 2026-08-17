@@ -12,7 +12,10 @@ function get(signalId) {
 
 function isTerminal(signalId) {
   var item = get(signalId);
-  return item && (item.status === "submitted" || item.status === "dry_run");
+  // Only a broker submission is permanently terminal. A dry-run is deliberately
+  // repeatable and must never prevent the same signal from being submitted later
+  // after the operator explicitly switches config.mode to "live".
+  return !!(item && item.status === "submitted");
 }
 
 function mark(signalId, payload) {
