@@ -3,12 +3,12 @@
 """Read-only start-date-aware plan access for the Streamlit dashboard.
 
 Expensive/lightweight replay alike is deliberately excluded from the page read
-path.  A tracking-start change rebuilds accounts and materializes all saved live
-plans once in the background.  The dashboard then only loads persisted CSV/JSON
-artifacts.  A freshly generated canonical live plan may also be read directly
+path. A tracking-start change rebuilds accounts and materializes all saved live
+plans once in the background. The dashboard then only loads persisted CSV/JSON
+artifacts. A freshly generated canonical live plan may also be read directly
 when its tracking-start metadata already matches the current configuration.
 
-The dashboard monitor selection is intentionally separate from production.  The
+The dashboard monitor selection is intentionally separate from production. The
 production experiment remains fixed elsewhere; this module only filters the
 persisted plans that the page attempts to display.
 """
@@ -20,7 +20,11 @@ from typing import Any
 import pandas as pd
 
 from dashboard.as1455_live_data import load_live_day, load_strategy
-from dashboard.as1455_monitor_config import load_monitor_experiments
+from dashboard.as1455_monitor_config import (
+    DEFAULT_PRODUCTION_EXPERIMENT,
+    has_explicit_monitor_config,
+    load_monitor_experiments,
+)
 from utils.as1455_materialized_plan import (
     load_materialized_day,
     load_materialized_strategy,
@@ -31,6 +35,31 @@ from utils.as1455_tracking import TRACKING_SEMANTICS_VERSION
 
 def _normalize_date(value: Any) -> pd.Timestamp:
     return pd.Timestamp(value).normalize()
+
+
+def _available_experiments(summary: pd.DataFrame) -> list[str]:
+    if summary.empty or "experiment" not in summary.columns:
+        return []
+    return list(dict.fromkeys(summary["experiment"].astype(str).tolist()))
+
+
+def _requested_for_summary(matrix_root: Path, summary: pd.DataFrame) -> list[str]:
+    """Resolve dashboard monitor selection for one persisted plan.
+
+    New/current data defaults to the fixed production r21_best strategy. Legacy
+    materialized plans and older tests may not contain that experiment name at
+    all; when there is no explicit user monitor configuration, keep those legacy
+    rows readable instead of filtering the whole persisted plan to empty.
+    """
+    available = _available_experiments(summary)
+    requested = load_monitor_experiments(matrix_root)
+    if (
+        not has_explicit_monitor_config(matrix_root)
+        and DEFAULT_PRODUCTION_EXPERIMENT not in available
+        and available
+    ):
+        return available
+    return requested
 
 
 def _filter_summary(summary: pd.DataFrame, requested: list[str]) -> tuple[pd.DataFrame, list[str]]:
@@ -116,17 +145,17 @@ def preview_nine_strategy_day(
 ) -> dict[str, Any]:
     """Load, never compute, one start-date-aware configured-monitor plan.
 
-    The legacy function name is retained for callers.  The returned rows follow
+    The legacy function name is retained for callers. New/current plans follow
     ``user_config.json.monitor_experiments`` and default to the production
-    ``r21_best`` strategy.  Missing configured research-monitor plans are
-    reported but do not invalidate an otherwise available production plan.
+    ``r21_best`` strategy. Legacy persisted plans without that experiment remain
+    readable when the user has not explicitly chosen a monitor list.
     """
     matrix_root = Path(matrix_root).expanduser().resolve()
     live_root = Path(live_root).expanduser().resolve()
     start = _normalize_date(start)
     selected = _normalize_date(selected)
     token = selected.strftime("%Y%m%d")
-    requested = load_monitor_experiments(matrix_root)
+    default_requested = load_monitor_experiments(matrix_root)
 
     if selected < start:
         return {
@@ -140,7 +169,7 @@ def preview_nine_strategy_day(
             "model_inference_rerun": False,
             "historical_grid_rerun": False,
             "dashboard_replay_rerun": False,
-            "monitor_experiments": requested,
+            "monitor_experiments": default_requested,
             "missing_monitor_experiments": [],
         }
 
@@ -152,6 +181,7 @@ def preview_nine_strategy_day(
                 start,
                 TRACKING_SEMANTICS_VERSION,
             )
+            requested = _requested_for_summary(matrix_root, day["summary"])
             filtered, missing = _filter_summary(day["summary"], requested)
             details = _details_from_materialized(day, requested)
             if not filtered.empty and len(details) == len(filtered):
@@ -177,10 +207,11 @@ def preview_nine_strategy_day(
             pass
 
     # Today's production job intentionally persists only the production strategy.
-    # A partial canonical day is therefore valid as long as its tracking metadata
-    # matches the configured account and at least one requested monitor exists.
+    # A partial canonical day is valid as long as its tracking metadata matches
+    # the configured account and at least one requested monitor exists.
     canonical = load_live_day(live_root, token)
     if _canonical_matches_start(canonical, start):
+        requested = _requested_for_summary(matrix_root, canonical["summary"])
         filtered, missing = _filter_summary(canonical["summary"], requested)
         details = _details_from_canonical(canonical, requested)
         if not filtered.empty and len(details) == len(filtered):
@@ -202,6 +233,6 @@ def preview_nine_strategy_day(
             }
 
     raise RuntimeError(
-        "当前起算日的已配置盯盘模型尚无可用计划缓存。页面只读取已经落盘的计划，"
-        "不会即时运行模型或重放策略。"
+        "当前起算日的已配置盯盘模型尚无可用计划缓存；页面查看本身不会再即时重放，"
+        "只读取已经落盘的计划，不会即时运行模型或重放策略。"
     )
