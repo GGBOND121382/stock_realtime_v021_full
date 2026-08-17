@@ -116,8 +116,7 @@ function requireBatchAck(orders, totalNotional) {
 
   var expected = "SUBMIT ALL " + orders.length + " ORDERS " + notionalText;
   var entered = dialogs.rawInput(
-    "批量真实下单二次确认",
-    "请输入下面整行文本继续：\n" + expected,
+    "批量真实下单二次确认\n请输入下面整行文本继续：\n" + expected,
     ""
   );
   if (String(entered || "").trim() !== expected) {
