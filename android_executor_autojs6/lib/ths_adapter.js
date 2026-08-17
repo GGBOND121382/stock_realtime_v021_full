@@ -18,6 +18,8 @@ var IDS = {
 };
 
 var EDIT_TEXT = "android.widget.EditText";
+var THS_PACKAGE = "com.hexin.plat.android";
+var PROBE_MAX_NODES = 400;
 
 function timeout(config) {
   return Number((config && config.ui_timeout_ms) || 5000);
@@ -85,7 +87,7 @@ function clearAndSet(node, value) {
 }
 
 function ensureTradingPage(side, config) {
-  var pkg = String(config.ths_package || "com.hexin.plat.android");
+  var pkg = String(config.ths_package || THS_PACKAGE);
   if (currentPackage() !== pkg) {
     app.launchPackage(pkg);
     sleep(700);
@@ -93,9 +95,6 @@ function ensureTradingPage(side, config) {
 
   var codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(1200);
   if (!codeEdit) {
-    // If THS was brought to foreground on an already-open trading screen, select
-    // the requested side. We deliberately do not guess coordinates or navigate
-    // account/login screens.
     clickTradeTab(side === "buy" ? "买入" : "卖出", timeout(config));
     codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(timeout(config));
   }
@@ -110,9 +109,6 @@ function findSuggestion(searchContainer, code, timeoutMs) {
     var suggestion = id(IDS.stockSuggestionCode).text(String(code)).findOnce();
     if (suggestion) return suggestion;
 
-    // Some THS builds expose the result code only as TextView text without the
-    // historical stockcode_tv resource id. Restrict the fallback to the active
-    // search dialog so the typed EditText itself cannot be mistaken for a result.
     suggestion = findInside(
       searchContainer,
       className("android.widget.TextView").text(String(code)),
@@ -173,7 +169,7 @@ function inputOrder(order, config) {
 
   var submit = waitId(IDS.transaction, timeout(config));
   if (!clickNode(submit)) throw new Error("THS transaction button click failed");
-  sleep(300);
+  sleep(500);
 }
 
 function readPrompt() {
@@ -185,24 +181,105 @@ function readPrompt() {
   };
 }
 
+function safeValue(fn, fallback) {
+  try {
+    var value = fn();
+    return value === null || value === undefined ? fallback : value;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+function clean(value) {
+  return String(value === null || value === undefined ? "" : value)
+    .replace(/\r/g, "\\r")
+    .replace(/\n/g, "\\n")
+    .replace(/\t/g, "\\t");
+}
+
+function timestampToken() {
+  var d = new Date();
+  function pad(n) { return n < 10 ? "0" + n : String(n); }
+  return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + "_" +
+    pad(d.getHours()) + pad(d.getMinutes()) + pad(d.getSeconds());
+}
+
+function nodeLine(node, index) {
+  var pkg = safeValue(function () { return node.packageName(); }, "");
+  var rid = safeValue(function () { return node.id(); }, "");
+  var textValue = safeValue(function () { return node.text(); }, "");
+  var desc = safeValue(function () { return node.desc(); }, "");
+  var cls = safeValue(function () { return node.className(); }, "");
+  var clickable = safeValue(function () { return node.clickable(); }, false);
+  var enabled = safeValue(function () { return node.enabled(); }, false);
+  var bounds = safeValue(function () { return node.bounds(); }, null);
+  return "[" + index + "]" +
+    " package=" + clean(pkg) +
+    " id=" + clean(rid) +
+    " text=" + JSON.stringify(clean(textValue)) +
+    " desc=" + JSON.stringify(clean(desc)) +
+    " class=" + clean(cls) +
+    " clickable=" + clickable +
+    " enabled=" + enabled +
+    " bounds=" + (bounds ? clean(bounds.toString()) : "");
+}
+
+function dumpPostSubmitProbe(order, stage) {
+  var lines = [
+    "========== THS POST-SUBMIT PROBE ==========",
+    "stage=" + String(stage || "unknown"),
+    "order=" + JSON.stringify(order || {}),
+    "currentPackage=" + safeValue(function () { return currentPackage(); }, ""),
+    "currentActivity=" + safeValue(function () { return currentActivity(); }, ""),
+    "known_ok_count=" + id(IDS.ok).find().size(),
+    "known_cancel_count=" + id(IDS.cancel).find().size(),
+    "known_prompt_count=" + id(IDS.prompt).find().size(),
+    "known_title_count=" + id(IDS.dialogTitle).find().size(),
+    "---------- accessibility nodes ----------"
+  ];
+
+  var nodes = null;
+  try {
+    nodes = classNameMatches(/.*/).find();
+  } catch (e) {
+    lines.push("[WARN] cannot enumerate nodes: " + String(e));
+  }
+
+  if (nodes) {
+    var limit = Math.min(nodes.size(), PROBE_MAX_NODES);
+    for (var i = 0; i < limit; i++) {
+      var node = nodes.get(i);
+      var pkg = safeValue(function () { return node.packageName(); }, "");
+      var rid = safeValue(function () { return node.id(); }, "");
+      var textValue = safeValue(function () { return node.text(); }, "");
+      var desc = safeValue(function () { return node.desc(); }, "");
+      var clickable = safeValue(function () { return node.clickable(); }, false);
+      if (String(pkg) === THS_PACKAGE || rid || textValue || desc || clickable) {
+        lines.push(nodeLine(node, i));
+      }
+    }
+    if (nodes.size() > PROBE_MAX_NODES) {
+      lines.push("[TRUNCATED] total_nodes=" + nodes.size() + " max_nodes=" + PROBE_MAX_NODES);
+    }
+  }
+
+  lines.push("========== END THS POST-SUBMIT PROBE ==========");
+  var path = files.join(files.cwd(), "ths_order_confirmation_probe_" + timestampToken() + ".txt");
+  files.write(path, lines.join("\n"));
+  return path;
+}
+
 function preview(order, config) {
   inputOrder(order, config);
   var cancelNode = id(IDS.cancel).findOne(timeout(config));
   var okNode = id(IDS.ok).findOne(800);
   if (cancelNode && okNode) {
-    // DRY-RUN safety contract: reaching the broker confirmation is success only
-    // after clicking the explicit cancel control. Never click OK in dry-run.
     if (!clickNode(cancelNode)) throw new Error("THS confirmation cancel click failed");
     return { success: true, mode: "dry_run", stage: "confirmation_reached_and_cancelled" };
   }
 
-  var prompt = readPrompt();
-  // Fail closed. The confirmation dialog may remain visible for manual inspection,
-  // but no confirm/OK control is touched when its structure is not recognized.
-  throw new Error(
-    "THS confirmation controls not recognized; no confirm button clicked: " +
-    JSON.stringify(prompt)
-  );
+  var probePath = dumpPostSubmitProbe(order, "preview_confirmation_missing");
+  throw new Error("THS confirmation controls not recognized; no confirm button clicked; probe=" + probePath);
 }
 
 function submit(order, config) {
@@ -210,8 +287,8 @@ function submit(order, config) {
   var okNode = id(IDS.ok).findOne(timeout(config));
   var cancelNode = id(IDS.cancel).findOne(500);
   if (!okNode || !cancelNode) {
-    var badPrompt = readPrompt();
-    throw new Error("THS order confirmation missing: " + JSON.stringify(badPrompt));
+    var probePath = dumpPostSubmitProbe(order, "submit_confirmation_missing");
+    throw new Error("THS order confirmation missing; stopped before any guessed confirmation click; probe=" + probePath);
   }
 
   if (!clickNode(okNode)) throw new Error("THS order confirmation click failed");
@@ -221,7 +298,8 @@ function submit(order, config) {
   if (finalOk) clickNode(finalOk);
   var content = String(prompt.content || "");
   if (content.indexOf("委托已提交") < 0 && content.indexOf("合同号") < 0) {
-    throw new Error("THS order not confirmed submitted: " + JSON.stringify(prompt));
+    var resultProbe = dumpPostSubmitProbe(order, "submit_result_unrecognized");
+    throw new Error("THS order result not recognized: " + JSON.stringify(prompt) + "; probe=" + resultProbe);
   }
   return { success: true, mode: "live", prompt: prompt };
 }
