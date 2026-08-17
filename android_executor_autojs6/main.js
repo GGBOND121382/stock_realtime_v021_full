@@ -55,6 +55,13 @@ function runOnce() {
   }
   var batch = safety.validateBatch(raw, config);
   batch.mode = config.mode;
+
+  if (batch.orders.length === 0) {
+    toast("AS1455: r21_best 今日无调仓订单");
+    console.log("[IDLE] READY r21_best batch contains zero orders");
+    return;
+  }
+
   // Dry-run records are intentionally repeatable. Only broker-submitted signals
   // are filtered here so a prior dry-run can never suppress a later live order.
   var pending = batch.orders.filter(function (o) { return !ledger.isTerminal(o.signal_id); });
