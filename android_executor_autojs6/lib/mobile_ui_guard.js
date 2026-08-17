@@ -58,9 +58,12 @@ function evaluateSnapshot(snapshot, config) {
     errors.push("orientation mismatch: expected=" + expectedOrientation + " actual=" + String(snapshot.orientation || "unknown"));
   }
 
-  if (config.expected_ths_version_name && snapshot.app_version_name &&
-      String(config.expected_ths_version_name) !== String(snapshot.app_version_name)) {
-    errors.push("THS version mismatch: expected=" + config.expected_ths_version_name + " actual=" + snapshot.app_version_name);
+  if (config.expected_ths_version_name) {
+    if (!snapshot.app_version_name) {
+      errors.push("unable to read THS version while expected_ths_version_name is pinned");
+    } else if (String(config.expected_ths_version_name) !== String(snapshot.app_version_name)) {
+      errors.push("THS version mismatch: expected=" + config.expected_ths_version_name + " actual=" + snapshot.app_version_name);
+    }
   }
 
   var required = Array.isArray(snapshot.required_ids) ? snapshot.required_ids : [];
@@ -83,6 +86,28 @@ function evaluateSnapshot(snapshot, config) {
   }
 
   return { ok: errors.length === 0, errors: errors, warnings: warnings };
+}
+
+function compareBaseline(baseline, snapshot) {
+  baseline = baseline || {};
+  snapshot = snapshot || {};
+  var errors = [];
+  if (baseline.package_name && snapshot.package_name && baseline.package_name !== snapshot.package_name) {
+    errors.push("package changed during batch: " + baseline.package_name + " -> " + snapshot.package_name);
+  }
+  if (baseline.orientation && snapshot.orientation && baseline.orientation !== snapshot.orientation) {
+    errors.push("orientation changed during batch: " + baseline.orientation + " -> " + snapshot.orientation);
+  }
+  if (baseline.width && baseline.height && snapshot.width && snapshot.height &&
+      (Number(baseline.width) !== Number(snapshot.width) || Number(baseline.height) !== Number(snapshot.height))) {
+    errors.push("display metrics changed during batch: " + baseline.width + "x" + baseline.height +
+      " -> " + snapshot.width + "x" + snapshot.height);
+  }
+  if (baseline.app_version_name && snapshot.app_version_name &&
+      String(baseline.app_version_name) !== String(snapshot.app_version_name)) {
+    errors.push("THS version changed during batch: " + baseline.app_version_name + " -> " + snapshot.app_version_name);
+  }
+  return { ok: errors.length === 0, errors: errors };
 }
 
 function getPackageVersion(packageName) {
@@ -183,6 +208,7 @@ module.exports = {
   DEFAULT_BLOCKERS: DEFAULT_BLOCKERS,
   normalizeOrientation: normalizeOrientation,
   evaluateSnapshot: evaluateSnapshot,
+  compareBaseline: compareBaseline,
   captureSnapshot: captureSnapshot,
   check: check,
   assertReady: assertReady
