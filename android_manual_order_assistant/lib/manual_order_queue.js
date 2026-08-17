@@ -187,6 +187,8 @@ function findNextIndex(state, orders, phase, startIndex) {
   for (var i = start; i < orders.length; i++) {
     if ((state.status[orders[i].id] || "pending") === wanted) return i;
   }
+  // Skipped-item review is one-way: never wrap to an earlier skipped order.
+  if (phase === "skipped") return -1;
   for (var j = 0; j < start; j++) {
     if ((state.status[orders[j].id] || "pending") === wanted) return j;
   }
