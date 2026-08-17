@@ -5,6 +5,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from scripts import run_as1455_live_nine_strategy_planner_entry as entry
 from scripts import run_as1455_live_production_strategy_planner_entry as production
 
 
@@ -41,3 +42,57 @@ def test_best_prediction_loader_requires_model_zero(tmp_path: Path) -> None:
 
 def test_default_production_experiment_is_r21_best() -> None:
     assert production.DEFAULT_PRODUCTION_EXPERIMENT == "r21_best_reb21_fold0_4_forward"
+
+
+def test_production_tracking_start_is_fail_closed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(entry, "tracking_start_date", lambda matrix_root: None)
+    production.install_fail_closed_tracking_start()
+    with pytest.raises(RuntimeError, match="legacy strict-forward account fallback is forbidden"):
+        entry.tracking_start_date(tmp_path)
+
+
+def test_execution_batch_is_committed_after_manifest_writes(monkeypatch, tmp_path: Path) -> None:
+    experiment = production.DEFAULT_PRODUCTION_EXPERIMENT
+    strategy = tmp_path / "strategies" / experiment
+    strategy.mkdir(parents=True)
+    batch_path = strategy / "execution_batch.json"
+    manifest_path = strategy / "strategy_manifest.json"
+    events: list[str] = []
+
+    def fake_atomic(path: Path, payload: dict) -> None:
+        events.append(Path(path).name)
+
+    def fake_publish() -> None:
+        entry._atomic_write_json(batch_path, {"experiment": experiment, "status": "ready"})
+        entry._atomic_write_json(manifest_path, {"status": "ok"})
+
+    monkeypatch.setattr(entry, "_atomic_write_json", fake_atomic)
+    monkeypatch.setattr(entry, "publish_execution_batches", fake_publish)
+
+    actual = production.publish_execution_batch_as_final_commit(experiment)
+    assert actual == batch_path
+    assert events == ["strategy_manifest.json", "execution_batch.json"]
+
+
+def test_execution_batch_not_committed_if_precommit_publication_fails(
+    monkeypatch, tmp_path: Path
+) -> None:
+    experiment = production.DEFAULT_PRODUCTION_EXPERIMENT
+    strategy = tmp_path / "strategies" / experiment
+    strategy.mkdir(parents=True)
+    batch_path = strategy / "execution_batch.json"
+    events: list[str] = []
+
+    def fake_atomic(path: Path, payload: dict) -> None:
+        events.append(Path(path).name)
+
+    def fake_publish() -> None:
+        entry._atomic_write_json(batch_path, {"experiment": experiment, "status": "ready"})
+        raise RuntimeError("manifest update failed")
+
+    monkeypatch.setattr(entry, "_atomic_write_json", fake_atomic)
+    monkeypatch.setattr(entry, "publish_execution_batches", fake_publish)
+
+    with pytest.raises(RuntimeError, match="manifest update failed"):
+        production.publish_execution_batch_as_final_commit(experiment)
+    assert events == []
