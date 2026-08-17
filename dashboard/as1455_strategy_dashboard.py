@@ -40,6 +40,7 @@ from dashboard.as1455_live_data import (  # noqa: E402
     load_strategy,
 )
 from dashboard.as1455_plan_preview import preview_nine_strategy_day  # noqa: E402
+from dashboard.as1455_tracking_status import tracking_status_view  # noqa: E402
 from utils.as1455_tracking import TRACKING_SEMANTICS_VERSION  # noqa: E402
 
 DEFAULT_MATRIX_ROOT = (
@@ -536,11 +537,22 @@ tracking_summary, tracking_manifest = load_tracking_matrix_summary(matrix_root)
 tracking_ready = tracking_ready_for_start(
     tracking_summary, tracking_manifest, selected_start
 )
+tracking_ui = tracking_status_view(
+    tracking_summary,
+    tracking_manifest,
+    selected_start,
+    TRACKING_SEMANTICS_VERSION,
+    refresh_state,
+)
 active_summary = tracking_summary if tracking_ready else canonical_summary
 
 st.sidebar.divider()
 st.sidebar.subheader("后台任务")
 st.sidebar.caption(f"20:20市场数据 + 增量账户刷新：{refresh_state}")
+st.sidebar.caption(
+    f"账户状态：{tracking_ui['headline']} "
+    f"（{tracking_ui['completed']}/{tracking_ui['expected']}）"
+)
 if start_rebuild_message is not None:
     ok, msg = start_rebuild_message
     (st.sidebar.success if ok else st.sidebar.error)(
@@ -610,7 +622,7 @@ if st.sidebar.button("重新读取页面", use_container_width=True):
 
 latest_end = (
     active_summary["forward_end"].dropna().astype(str).max()
-    if "forward_end" in active_summary and not active_summary.empty
+    if tracking_ready and "forward_end" in active_summary and not active_summary.empty
     else "—"
 )
 best_sharpe = None
@@ -622,28 +634,27 @@ if tracking_ready and "sharpe" in active_summary:
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("策略数", f"{len(canonical_summary)}/9")
 m2.metric("开始持仓", selected_start_text)
-m3.metric("跟踪最新日期", latest_end if tracking_ready else "重建中/未就绪")
+m3.metric("跟踪最新日期", latest_end if tracking_ready else tracking_ui["headline"])
 m4.metric(
     "跟踪最高Sharpe",
     number(best_sharpe.get("sharpe")) if best_sharpe is not None else "—",
     best_sharpe.get("display_name") if best_sharpe is not None else None,
 )
 
-if refresh_state == "running":
+if tracking_ui["state"] == "running":
     st.markdown(
         '<div class="status-running">当前起算日的9组收益账户和已有14:55盯盘计划正在后台统一刷新；完成后页面只读缓存，不再现场重放。</div>',
         unsafe_allow_html=True,
     )
-elif refresh_state in {"failed", "stale"}:
+elif tracking_ui["state"] == "waiting_market_day":
+    st.info(tracking_ui["detail"])
+elif tracking_ui["state"] == "failed":
     st.markdown(
         '<div class="status-failed">最近一次账户刷新未正常完成；请查看任务日志。冻结历史Grid不会被后台任务改写。</div>',
         unsafe_allow_html=True,
     )
-if not tracking_ready:
-    st.warning(
-        "当前起算日的9个跟踪收益账户和盯盘缓存尚未全部就绪；请等待一次后台统一重建完成。"
-        "页面查看本身不会再现场重放9个策略。"
-    )
+elif tracking_ui["state"] in {"partial", "not_ready"}:
+    st.warning(tracking_ui["detail"] + " 页面查看本身不会再现场重放9个策略。")
 
 curve_tab, overview_tab, detail_tab, live_tab, task_tab = st.tabs(
     ["9策略收益曲线", "回测总览", "单策略详情", "每日14:55盯盘", "自动任务与日志"]
@@ -667,7 +678,7 @@ with curve_tab:
         default=list(SIGNAL_LABELS.values()),
     )
     if not tracking_ready:
-        st.info("等待当前起算日账户重建完成。")
+        st.info(tracking_ui["detail"])
     else:
         selected_names = active_summary.loc[
             active_summary["target_label"].isin(target_filter)
@@ -783,9 +794,7 @@ with overview_tab:
                 use_container_width=True,
             )
     else:
-        st.info(
-            "等待当前起算日账户重建完成；历史Fold/Grid仍保持冻结，可在单策略详情中查看。"
-        )
+        st.info(tracking_ui["detail"] + " 历史Fold/Grid仍保持冻结，可在单策略详情中查看。")
 
 with detail_tab:
     label_to_name = {labels[name]: name for name in experiment_names}
@@ -821,7 +830,7 @@ with detail_tab:
             f"首次实际建仓={item['tracking_manifest'].get('first_entry_date') or '尚未建仓'}。"
         )
     else:
-        st.info("该策略当前起算日跟踪账户尚未就绪。")
+        st.info(tracking_ui["detail"] if tracking_ui["state"] == "waiting_market_day" else "该策略当前起算日跟踪账户尚未就绪。")
 
     sub_actions, sub_positions, sub_fold, sub_grid = st.tabs(
         ["每日买卖动作", "调仓持仓", "历史Fold", "历史Grid Top20"]
