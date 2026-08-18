@@ -2,6 +2,8 @@
   "api_base_url": "https://YOUR_SERVER/stock-exec-api",
   "api_token": "REPLACE_WITH_READ_ONLY_TOKEN",
   "production_experiment": "r21_best_reb21_fold0_4_forward",
+  "fetch_test_api_base_url": "",
+  "fetch_test_experiment": "r01_best_reb1_fold0_5_forward",
   "ths_package": "com.hexin.plat.android",
   "mode": "dry_run",
   "require_manual_confirm": true,
