@@ -3,99 +3,27 @@
 auto.waitFor();
 
 var ths = require("./lib/ths_adapter.js");
+var batch = require("./lib/batch_state.js");
+var mobileGuard = require("./lib/mobile_ui_guard.js");
+var mobileGuardRunner = require("./lib/mobile_guard_runner.js");
 var CSV_NAME = "smoke_orders.csv";
 
 function loadConfig() {
   var path = files.join(files.cwd(), "config.json");
   if (!files.exists(path)) throw new Error("missing config.json");
   var cfg = JSON.parse(files.read(path));
-  return {
-    ths_package: String(cfg.ths_package || "com.hexin.plat.android"),
-    ui_timeout_ms: Number(cfg.ui_timeout_ms || 5000),
-    smoke_csv_row: Number(cfg.smoke_csv_row || 1),
-    smoke_mode: String(cfg.smoke_mode || "fill_only")
-  };
-}
-
-function parseCsvLine(line) {
-  var fields = [];
-  var current = "";
-  var quoted = false;
-  for (var i = 0; i < line.length; i++) {
-    var ch = line.charAt(i);
-    if (ch === '"') {
-      if (quoted && i + 1 < line.length && line.charAt(i + 1) === '"') {
-        current += '"';
-        i++;
-      } else {
-        quoted = !quoted;
-      }
-    } else if (ch === "," && !quoted) {
-      fields.push(current);
-      current = "";
-    } else {
-      current += ch;
-    }
-  }
-  fields.push(current);
-  return fields;
-}
-
-function readCsv(path) {
-  var text = files.read(path).replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  var lines = text.split("\n").filter(function (line) { return line.trim().length > 0; });
-  if (lines.length < 2) throw new Error("smoke CSV has no data rows: " + path);
-
-  var headers = parseCsvLine(lines[0]).map(function (x) { return x.trim(); });
-  var required = ["symbol", "side", "shares", "raw_exec_price"];
-  required.forEach(function (name) {
-    if (headers.indexOf(name) < 0) throw new Error("smoke CSV missing column: " + name);
-  });
-
-  var rows = [];
-  for (var i = 1; i < lines.length; i++) {
-    var values = parseCsvLine(lines[i]);
-    var row = {};
-    for (var j = 0; j < headers.length; j++) row[headers[j]] = values[j] === undefined ? "" : values[j];
-    rows.push(row);
-  }
-  return rows;
-}
-
-function normalizeOrder(row, rowNumber) {
-  var symbol = String(row.symbol || "").trim();
-  var match = symbol.match(/^(\d{6})(?:\.(?:SZ|SH))?$/i);
-  if (!match) throw new Error("CSV row " + rowNumber + " invalid symbol: " + symbol);
-
-  var side = String(row.side || "").trim().toLowerCase();
-  if (side !== "buy" && side !== "sell") throw new Error("CSV row " + rowNumber + " invalid side: " + side);
-
-  var qty = Number(row.shares);
-  if (!isFinite(qty) || qty <= 0 || Math.floor(qty) !== qty) {
-    throw new Error("CSV row " + rowNumber + " invalid shares: " + row.shares);
-  }
-  if (side === "buy" && qty % 100 !== 0) {
-    throw new Error("CSV row " + rowNumber + " BUY shares must be multiple of 100: " + qty);
-  }
-
-  var price = Number(row.raw_exec_price);
-  if (!isFinite(price) || price <= 0) {
-    throw new Error("CSV row " + rowNumber + " invalid raw_exec_price: " + row.raw_exec_price);
-  }
-
-  return {
-    code: match[1],
-    symbol: symbol,
-    side: side,
-    qty: qty,
-    submit_price: price,
-    sequence: rowNumber
-  };
+  cfg.ths_package = String(cfg.ths_package || "com.hexin.plat.android");
+  cfg.ui_timeout_ms = Number(cfg.ui_timeout_ms || 5000);
+  cfg.fill_timeout_ms = Number(cfg.fill_timeout_ms || 1800);
+  cfg.field_verify_timeout_ms = Number(cfg.field_verify_timeout_ms || 700);
+  cfg.mobile_return_timeout_ms = Number(cfg.mobile_return_timeout_ms || 3500);
+  cfg.smoke_csv_row = Number(cfg.smoke_csv_row || 1);
+  cfg.smoke_mode = String(cfg.smoke_mode || "fill_only");
+  return cfg;
 }
 
 function summary(order, rowNumber, total, mode) {
-  var modeText = mode === "live_submit" ? "真实提交一笔" :
-    (mode === "confirm_cancel" ? "到确认框后自动取消" : "仅填写，不提交");
+  var modeText = mode === "confirm_cancel" ? "到确认框、复核三字段后自动取消" : "仅填写，不点击委托按钮";
   return [
     modeText,
     "CSV行: " + rowNumber + "/" + total,
@@ -126,42 +54,34 @@ function run() {
   }
 
   var config = loadConfig();
-  if (["fill_only", "confirm_cancel", "live_submit"].indexOf(config.smoke_mode) < 0) {
-    throw new Error("config.smoke_mode must be fill_only, confirm_cancel, or live_submit");
+  if (["fill_only", "confirm_cancel"].indexOf(config.smoke_mode) < 0) {
+    throw new Error("config.smoke_mode must be fill_only or confirm_cancel; live submission is only supported by the guarded batch/main runner");
   }
 
-  var rows = readCsv(csvPath);
+  var doc = batch.readCsvText(files.read(csvPath));
   var rowNumber = config.smoke_csv_row;
-  if (!isFinite(rowNumber) || Math.floor(rowNumber) !== rowNumber || rowNumber < 1 || rowNumber > rows.length) {
-    throw new Error("config.smoke_csv_row must be an integer from 1 to " + rows.length + ": " + rowNumber);
+  if (!isFinite(rowNumber) || Math.floor(rowNumber) !== rowNumber || rowNumber < 1 || rowNumber > doc.rows.length) {
+    throw new Error("config.smoke_csv_row must be an integer from 1 to " + doc.rows.length + ": " + rowNumber);
   }
 
-  var order = normalizeOrder(rows[rowNumber - 1], rowNumber);
-  var text = summary(order, rowNumber, rows.length, config.smoke_mode);
-
+  var order = batch.normalizeOrder(doc.rows[rowNumber - 1], rowNumber);
+  var text = summary(order, rowNumber, doc.rows.length, config.smoke_mode);
   if (!dialogs.confirm("AS1455 SMOKE TEST", text)) return;
+
+  mobileGuard.waitForTargetPackage(config, config.mobile_return_timeout_ms, true);
+  mobileGuardRunner.waitUntilReady(config, Math.min(config.ui_timeout_ms, 1800));
 
   var result;
   if (config.smoke_mode === "fill_only") {
     result = ths.fillOrderFields(order, config);
     writeResult("fill_only", rowNumber, order, result);
-    toast("FILL-ONLY完成：请人工核对同花顺代码/价格/数量；未点击委托按钮");
+    toast("FILL-ONLY完成：请人工核对代码/数量/价格；脚本没有点击委托按钮");
     return;
   }
 
-  if (config.smoke_mode === "confirm_cancel") {
-    result = ths.preview(order, config);
-    writeResult("confirm_cancel", rowNumber, order, result);
-    toast("CONFIRM-CANCEL完成：已到确认框并自动取消");
-    return;
-  }
-
-  result = ths.submit(order, config);
-  var resultPath = writeResult("live_submit", rowNumber, order, result);
-  dialogs.alert(
-    "真实委托已提交",
-    "脚本已完成真实委托提交。\n请立即到同花顺“撤单”页面人工撤销该笔测试委托。\n\n结果文件：\n" + resultPath
-  );
+  result = ths.preview(order, config);
+  writeResult("confirm_cancel", rowNumber, order, result);
+  toast("CONFIRM-CANCEL完成：确认框代码/数量/价格已复核并自动取消；未提交委托");
 }
 
 try {
