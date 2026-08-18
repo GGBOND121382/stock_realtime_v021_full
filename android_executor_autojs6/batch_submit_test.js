@@ -3,6 +3,7 @@
 auto.waitFor();
 
 var ths = require("./lib/ths_adapter.js");
+var mobileGuard = require("./lib/mobile_ui_guard.js");
 var CSV_NAME = "smoke_orders.csv";
 var RESULT_NAME = "batch_submit_test_result.json";
 
@@ -10,13 +11,16 @@ function loadConfig() {
   var path = files.join(files.cwd(), "config.json");
   if (!files.exists(path)) throw new Error("missing config.json");
   var cfg = JSON.parse(files.read(path));
-  return {
-    ths_package: String(cfg.ths_package || "com.hexin.plat.android"),
-    ui_timeout_ms: Number(cfg.ui_timeout_ms || 5000),
-    between_orders_ms: Number(cfg.between_orders_ms || 800),
-    allow_batch_live_test: cfg.allow_batch_live_test === true,
-    batch_test_continue_on_error: cfg.batch_test_continue_on_error === true
-  };
+  cfg.ths_package = String(cfg.ths_package || "com.hexin.plat.android");
+  cfg.ui_timeout_ms = Number(cfg.ui_timeout_ms || 5000);
+  cfg.fill_timeout_ms = Number(cfg.fill_timeout_ms || 1800);
+  cfg.field_verify_timeout_ms = Number(cfg.field_verify_timeout_ms || 700);
+  cfg.manual_confirm_timeout_ms = Number(cfg.manual_confirm_timeout_ms || 5500);
+  cfg.manual_result_grace_ms = Number(cfg.manual_result_grace_ms || 1000);
+  cfg.between_orders_ms = Number(cfg.between_orders_ms || 800);
+  cfg.allow_batch_live_test = cfg.allow_batch_live_test === true;
+  cfg.batch_test_continue_on_error = cfg.batch_test_continue_on_error === true;
+  return cfg;
 }
 
 function parseCsvLine(line) {
@@ -105,15 +109,32 @@ function requireBatchAck(orders, totalNotional) {
   var sells = orders.length - buys;
   var notionalText = Number(totalNotional).toFixed(2);
   var summary = [
-    "即将真实提交 CSV 中全部订单",
+    "即将进入 CSV 批量下单测试",
     "订单数: " + orders.length,
     "买入: " + buys + " / 卖出: " + sells,
     "计划金额合计: " + notionalText + " 元",
     "",
-    "确认后立即按 CSV 顺序批量提交。",
-    "提交后请人工到同花顺撤单页面处理测试委托。"
+    "程序会逐笔自动填写代码、数量、价格并打开确认框；",
+    "最终确认仍由你逐笔人工点击。"
   ].join("\n");
-  return dialogs.confirm("AS1455 批量真实下单测试", summary);
+  return dialogs.confirm("AS1455 批量下单测试", summary);
+}
+
+function checkGuard(config, baseline, label, includeMetadata) {
+  if (config.mobile_preflight_enabled === false) return baseline;
+  var result = mobileGuard.assertReady(config, { include_metadata: includeMetadata === true });
+  if (baseline) {
+    var stable = mobileGuard.compareBaseline(baseline, result.snapshot);
+    if (!stable.ok) {
+      var err = new Error("THS mobile layout changed during batch: " + stable.errors.join("; "));
+      err.stage = "mobile_layout_changed";
+      err.ambiguous = false;
+      err.fatal_ui_state = true;
+      throw err;
+    }
+  }
+  if (result.warnings.length) console.warn("[MOBILE_GUARD_WARN] " + label + " " + result.warnings.join(" | "));
+  return baseline || result.snapshot;
 }
 
 function run() {
@@ -137,6 +158,9 @@ function run() {
 
   if (!requireBatchAck(orders, totalNotional)) return;
 
+  // Read-only Android/THS validation before any order field is touched.
+  var guardBaseline = checkGuard(config, null, "batch_start", true);
+
   var resultPath = files.join(files.cwd(), RESULT_NAME);
   var state = {
     status: "running",
@@ -150,6 +174,10 @@ function run() {
 
   for (var j = 0; j < orders.length; j++) {
     var current = orders[j];
+
+    // Ensure package/orientation/display/known blockers did not change between orders.
+    checkGuard(config, guardBaseline, "before_order_" + (j + 1), false);
+
     var item = {
       row: j + 1,
       order: current,
@@ -160,25 +188,30 @@ function run() {
     writeState(resultPath, state);
 
     try {
-      toast("提交 " + (j + 1) + "/" + orders.length + " " + current.code);
+      toast("处理 " + (j + 1) + "/" + orders.length + " " + current.code);
       var brokerResult = ths.submit(current, config);
       item.status = "submitted";
       item.broker_result = brokerResult;
       item.finished_at = new Date().toISOString();
       writeState(resultPath, state);
     } catch (e) {
-      item.status = "failed";
+      item.status = e && e.ambiguous === true ? "unknown" : "failed";
+      item.stage = e && e.stage ? String(e.stage) : "unknown";
       item.error = String(e);
       item.finished_at = new Date().toISOString();
       state.status = "failed";
       writeState(resultPath, state);
+
+      // Topology/cross-write/unknown UI must stop immediately. Never continue a
+      // batch when the mapping or submission state is uncertain.
+      if (e && (e.fatal_ui_state === true || e.ambiguous === true)) throw e;
       if (!config.batch_test_continue_on_error) throw e;
     }
 
     if (j + 1 < orders.length) sleep(config.between_orders_ms);
   }
 
-  var failed = state.results.filter(function (x) { return x.status === "failed"; }).length;
+  var failed = state.results.filter(function (x) { return x.status === "failed" || x.status === "unknown"; }).length;
   var submitted = state.results.filter(function (x) { return x.status === "submitted"; }).length;
   state.status = failed ? "completed_with_errors" : "completed";
   state.finished_at = new Date().toISOString();
@@ -187,8 +220,7 @@ function run() {
   dialogs.alert(
     "批量下单测试完成",
     "已提交: " + submitted + "/" + orders.length +
-    "\n失败: " + failed +
-    "\n\n请现在到同花顺撤单页面人工处理测试委托。" +
+    "\n失败/未知: " + failed +
     "\n\n结果文件：\n" + resultPath
   );
 }
