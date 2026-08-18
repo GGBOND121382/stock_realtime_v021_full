@@ -14,7 +14,7 @@
   "ui_timeout_ms": 5000,
   "fill_timeout_ms": 1800,
   "field_verify_timeout_ms": 700,
-  "manual_confirm_timeout_ms": 5500,
+  "manual_confirm_timeout_ms": 20000,
   "manual_result_grace_ms": 1000,
   "between_orders_ms": 150,
   "failure_skip_ms": 100,
