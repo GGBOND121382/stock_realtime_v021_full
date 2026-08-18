@@ -82,17 +82,64 @@ function safeNodeText(node) {
   }
 }
 
-function clearAndSet(node, value) {
-  var v = String(value);
+function safeNodeClass(node) {
   try {
-    node.setText(v);
+    return node ? String(node.className() || "") : "";
   } catch (e) {
-    // Fall through to focused setText below.
+    return "";
   }
+}
+
+function safeNodeId(node) {
+  try {
+    return node ? String(node.id() || "") : "";
+  } catch (e) {
+    return "";
+  }
+}
+
+function nodeBoundsKey(node) {
+  try {
+    var b = node.bounds();
+    return [b.left, b.top, b.right, b.bottom].join(":");
+  } catch (e) {
+    return "";
+  }
+}
+
+function topologyError(message) {
+  var err = new Error("THS field topology invalid: " + message);
+  err.stage = "field_topology_invalid";
+  err.ambiguous = false;
+  err.fatal_ui_state = true;
+  return err;
+}
+
+function crossWriteError(message) {
+  var err = new Error("THS cross-field write detected: " + message);
+  err.stage = "field_cross_write_detected";
+  err.ambiguous = false;
+  err.fatal_ui_state = true;
+  return err;
+}
+
+function setExactNodeText(node, value, label) {
+  var v = String(value);
+  if (!node || safeNodeClass(node) !== EDIT_TEXT) {
+    throw topologyError(label + " is not an EditText");
+  }
+
+  // Never use global setText(value): it writes to whichever input currently owns
+  // focus and can therefore put price/quantity into the stock-code field.
+  try { node.setText(v); } catch (e) {}
   if (safeNodeText(node) === v) return;
-  if (!clickNode(node)) throw new Error("THS input focus failed");
+
+  if (!clickNode(node)) throw new Error("THS exact input focus failed: " + label);
   sleep(90);
-  if (!setText(v)) throw new Error("THS setText failed: " + v);
+  try { node.setText(v); } catch (e2) {}
+  if (safeNodeText(node) !== v) {
+    throw new Error("THS exact node setText failed: " + label + " expected=" + v + " actual=" + safeNodeText(node));
+  }
 }
 
 function findInside(container, selector, timeoutMs) {
@@ -106,13 +153,40 @@ function findInside(container, selector, timeoutMs) {
   return null;
 }
 
-function waitDescendantEdit(containerId, hint, timeoutMs) {
+function waitExactEditable(resourceId, label, timeoutMs) {
   var t = Number(timeoutMs || 5000);
-  var container = waitId(containerId, t);
+  var container = waitId(resourceId, t);
+  if (safeNodeClass(container) === EDIT_TEXT) return container;
+
   var edit = findInside(container, className(EDIT_TEXT), t);
-  if (!edit && hint) edit = className(EDIT_TEXT).text(String(hint)).findOne(300);
-  if (!edit) throw new Error("THS descendant EditText not found: " + containerId);
+  if (!edit) {
+    // Deliberately no global className(...).text(hint) fallback. If the expected
+    // field cannot be resolved inside its own resource-id container, stop.
+    throw topologyError(label + " EditText not found under " + resourceId);
+  }
   return edit;
+}
+
+function assertDistinctFields(codeEdit, volumeEdit, priceEdit) {
+  var fields = [
+    { label: "code", node: codeEdit },
+    { label: "volume", node: volumeEdit },
+    { label: "price", node: priceEdit }
+  ];
+  var seenBounds = {};
+
+  for (var i = 0; i < fields.length; i++) {
+    var item = fields[i];
+    if (!item.node || safeNodeClass(item.node) !== EDIT_TEXT) {
+      throw topologyError(item.label + " node is missing or not EditText");
+    }
+    var bounds = nodeBoundsKey(item.node);
+    if (!bounds) throw topologyError(item.label + " has no readable bounds");
+    if (seenBounds[bounds]) {
+      throw topologyError(item.label + " resolves to same bounds as " + seenBounds[bounds] + " (" + bounds + ")");
+    }
+    seenBounds[bounds] = item.label;
+  }
 }
 
 function normalizeNumericText(value) {
@@ -130,18 +204,10 @@ function fieldMatches(actual, expected, numeric) {
   return a !== null && e !== null && Math.abs(a - e) < 0.000001;
 }
 
-function waitFieldValue(containerId, expected, timeoutMs, numeric) {
+function waitNodeValue(node, expected, timeoutMs, numeric) {
   var deadline = Date.now() + Number(timeoutMs || 700);
   while (Date.now() <= deadline) {
-    try {
-      var container = id(containerId).findOnce();
-      if (container) {
-        var edit = container.findOne(className(EDIT_TEXT));
-        if (edit && fieldMatches(safeNodeText(edit), expected, numeric === true)) return true;
-      }
-    } catch (e) {
-      // Retry until deadline.
-    }
+    if (fieldMatches(safeNodeText(node), expected, numeric === true)) return true;
     sleep(60);
   }
   return false;
@@ -174,9 +240,7 @@ function recoverToTradingPage(side, config) {
       back();
       sleep(120);
     }
-  } catch (e) {
-    // Continue with deterministic navigation below.
-  }
+  } catch (e) {}
   ensureTradingPage(side, config);
   clickTradeTab(side === "sell" ? "卖出" : "买入", timeout(config));
   sleep(140);
@@ -221,8 +285,8 @@ function fillCode(code, config) {
 
   var searchContainer = waitId(IDS.searchContainer, t);
   var searchEdit = findInside(searchContainer, id(IDS.stockCode).className(EDIT_TEXT), t);
-  if (!searchEdit) throw new Error("THS stock search EditText not found");
-  clearAndSet(searchEdit, expected);
+  if (!searchEdit) throw topologyError("stock-code search EditText not found inside search container");
+  setExactNodeText(searchEdit, expected, "stock-code search");
 
   var deadline = Date.now() + t;
   while (Date.now() <= deadline) {
@@ -263,16 +327,31 @@ function fillOrderFieldsOnce(order, config) {
   var priceText = Number(order.submit_price).toFixed(2);
   var verifyMs = fieldVerifyTimeout(config);
 
-  var volumeEdit = waitDescendantEdit(IDS.stockVolume, "数量", fillTimeout(config));
-  clearAndSet(volumeEdit, qtyText);
-  if (!waitFieldValue(IDS.stockVolume, qtyText, verifyMs, true)) {
-    throw new Error("THS quantity verification failed expected=" + qtyText);
+  // Resolve all three fields before writing anything and prove they are distinct.
+  var codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(fillTimeout(config));
+  var volumeEdit = waitExactEditable(IDS.stockVolume, "quantity", fillTimeout(config));
+  var priceEdit = waitExactEditable(IDS.stockPrice, "price", fillTimeout(config));
+  assertDistinctFields(codeEdit, volumeEdit, priceEdit);
+
+  setExactNodeText(volumeEdit, qtyText, "quantity");
+  if (!waitNodeValue(volumeEdit, qtyText, verifyMs, true)) {
+    throw new Error("THS quantity verification failed expected=" + qtyText + " actual=" + safeNodeText(volumeEdit));
+  }
+  if (safeNodeText(codeEdit) !== String(order.code)) {
+    throw crossWriteError("quantity write changed code expected=" + order.code + " actual=" + safeNodeText(codeEdit));
   }
 
-  var priceEdit = waitDescendantEdit(IDS.stockPrice, "价格", fillTimeout(config));
-  clearAndSet(priceEdit, priceText);
-  if (!waitFieldValue(IDS.stockPrice, priceText, verifyMs, true)) {
-    throw new Error("THS price verification failed expected=" + priceText);
+  setExactNodeText(priceEdit, priceText, "price");
+  if (!waitNodeValue(priceEdit, priceText, verifyMs, true)) {
+    throw new Error("THS price verification failed expected=" + priceText + " actual=" + safeNodeText(priceEdit));
+  }
+
+  // Critical invariant: writing price must not alter code or quantity.
+  if (safeNodeText(codeEdit) !== String(order.code)) {
+    throw crossWriteError("price write changed code expected=" + order.code + " actual=" + safeNodeText(codeEdit));
+  }
+  if (!fieldMatches(safeNodeText(volumeEdit), qtyText, true)) {
+    throw crossWriteError("price write changed quantity expected=" + qtyText + " actual=" + safeNodeText(volumeEdit));
   }
 
   return {
@@ -281,7 +360,12 @@ function fillOrderFieldsOnce(order, config) {
     code: String(order.code),
     side: String(order.side),
     qty: Number(order.qty),
-    submit_price: Number(order.submit_price)
+    submit_price: Number(order.submit_price),
+    field_bounds: {
+      code: nodeBoundsKey(codeEdit),
+      quantity: nodeBoundsKey(volumeEdit),
+      price: nodeBoundsKey(priceEdit)
+    }
   };
 }
 
@@ -293,6 +377,10 @@ function fillOrderFields(order, config) {
       result.fill_attempts = attempt;
       return result;
     } catch (e) {
+      // A topology/cross-write error means the UI mapping itself is unsafe. Do not
+      // repeat the same write sequence on a possibly corrupted form.
+      if (e && e.fatal_ui_state === true) throw e;
+
       if (attempt === 1) {
         firstError = String(e);
         try { recoverToTradingPage(order.side, config); } catch (recoverError) {
