@@ -115,62 +115,6 @@ function writeState(path, state) {
   files.write(path, JSON.stringify(state, null, 2));
 }
 
-function clickNode(node) {
-  if (!node) return false;
-  try {
-    if (node.click()) return true;
-  } catch (e) {}
-  try {
-    var b = node.bounds();
-    return click(b.centerX(), b.centerY());
-  } catch (e2) {
-    return false;
-  }
-}
-
-function findSubmittedDialog() {
-  var messageNode = textContains("委托已提交").findOnce();
-  var okNode = text("确定").findOnce();
-  if (!messageNode || !okNode) return null;
-  return {
-    message: String(messageNode.text() || ""),
-    ok: okNode
-  };
-}
-
-function waitManualTakeoverSubmission(order, config) {
-  var timeoutMs = Number(config.manual_takeover_timeout_ms || 60000);
-  if (!isFinite(timeoutMs) || timeoutMs < 5000) timeoutMs = 60000;
-
-  toast(
-    "已取消自动确认：请手动修改并提交 " + order.code +
-    "；脚本等待结果后继续下一笔"
-  );
-
-  var deadline = Date.now() + timeoutMs;
-  while (Date.now() <= deadline) {
-    var submitted = findSubmittedDialog();
-    if (submitted) {
-      clickNode(submitted.ok);
-      sleep(150);
-      return {
-        success: true,
-        mode: "live",
-        stage: "submitted_after_manual_takeover",
-        prompt: { title: "系统信息", content: submitted.message }
-      };
-    }
-    sleep(100);
-  }
-
-  var err = new Error(
-    "manual takeover timed out without a recognized submission result for " + order.code
-  );
-  err.stage = "manual_takeover_timeout";
-  err.ambiguous = true;
-  throw err;
-}
-
 function requireBatchAck(orders, totalNotional) {
   var buys = orders.filter(function (o) { return o.side === "buy"; }).length;
   var sells = orders.length - buys;
@@ -181,7 +125,7 @@ function requireBatchAck(orders, totalNotional) {
     "计划金额合计: " + Number(totalNotional).toFixed(2) + " 元",
     "",
     "程序逐笔填写并打开确认框；最终确认由你手动点击。",
-    "如果发现自动填充有误，可点取消并手动修改当前单；脚本会等待你手动提交后再继续。",
+    "发现自动填充有误时，可点取消并手动修改当前单；脚本会等待提交结果再继续。",
     "单笔普通失败会跳过，不会重新填写同一笔。"
   ].join("\n");
   return dialogs.confirm("AS1455 批量下单测试", summary);
@@ -239,26 +183,6 @@ function run() {
       item.finished_at = new Date().toISOString();
       writeState(resultPath, state);
     } catch (e) {
-      if (e && e.stage === "manual_confirmation_result_unrecognized") {
-        item.status = "manual_takeover";
-        item.stage = "manual_takeover";
-        item.error = "";
-        writeState(resultPath, state);
-
-        try {
-          var manualResult = waitManualTakeoverSubmission(current, config);
-          item.status = "submitted";
-          item.stage = manualResult.stage;
-          item.broker_result = manualResult;
-          item.finished_at = new Date().toISOString();
-          writeState(resultPath, state);
-          if (j + 1 < orders.length) sleep(config.between_orders_ms);
-          continue;
-        } catch (manualError) {
-          e = manualError;
-        }
-      }
-
       item.status = e && e.ambiguous === true ? "unknown" : "failed";
       item.stage = e && e.stage ? String(e.stage) : "unknown";
       item.error = String(e);
