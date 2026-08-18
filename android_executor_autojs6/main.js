@@ -5,7 +5,7 @@ auto.waitFor();
 var safety = require("./lib/safety.js");
 var ledger = require("./lib/ledger.js");
 var client = require("./lib/plan_client.js");
-var ths = require("./lib/ths_adapter.js");
+var runner = require("./lib/order_runner.js");
 var mobileGuard = require("./lib/mobile_ui_guard.js");
 var mobileBaseline = null;
 
@@ -39,10 +39,10 @@ function failureSkipMs(config) {
   return Math.max(0, Number(config.failure_skip_ms));
 }
 
-function runMobileGuard(config, label, includeMetadata) {
+function runMobileGuard(config, label, captureBaseline) {
   if (config.mobile_preflight_enabled === false) return null;
-  var result = mobileGuard.assertReady(config, { include_metadata: includeMetadata === true });
-  if (includeMetadata === true) {
+  var result = mobileGuard.assertReady(config);
+  if (captureBaseline === true) {
     mobileBaseline = result.snapshot;
   } else if (mobileBaseline) {
     var stable = mobileGuard.compareBaseline(mobileBaseline, result.snapshot);
@@ -62,21 +62,38 @@ function runMobileGuard(config, label, includeMetadata) {
     " package=" + result.snapshot.package_name +
     " activity=" + result.snapshot.activity_name +
     " orientation=" + result.snapshot.orientation +
-    (result.snapshot.app_version_name ? " version=" + result.snapshot.app_version_name : "")
+    " version=" + result.snapshot.app_version_name
   );
   return result;
 }
 
-function queueItem(order, error) {
+function queueItem(order, kind, detail) {
+  var error = detail && detail.error ? detail.error : detail;
   return {
     sequence: order.sequence,
     signal_id: order.signal_id,
     code: order.code,
     side: order.side,
     qty: order.qty,
-    stage: error && error.stage ? String(error.stage) : "unknown",
+    kind: kind,
+    stage: detail && detail.stage ? String(detail.stage) :
+      (error && error.stage ? String(error.stage) : kind),
     ambiguous: !!(error && error.ambiguous === true),
-    error: String(error)
+    error: error ? String(error) : ""
+  };
+}
+
+function ledgerStore() {
+  return {
+    markStarted: function (order) { ledger.markStarted(order); },
+    markConfirmationPending: function (order, detail) { ledger.markConfirmationPending(order, detail); },
+    markConfirmationOpen: function (order, detail) { ledger.markConfirmationOpen(order, detail); },
+    markResult: function (order, result, dryRun) { ledger.markResult(order, result, dryRun); },
+    markRejected: function (order, result) { ledger.markRejected(order, result); },
+    markError: function (order, error, dryRun) {
+      if (dryRun) ledger.markFailed(order, error);
+      else ledger.markManualRequired(order, error);
+    }
   };
 }
 
@@ -86,56 +103,56 @@ function executeOne(order, config, manualQueue) {
     return "skipped";
   }
 
-  ledger.markStarted(order);
+  var outcome;
   try {
-    var result = config.mode === "live" ? ths.submit(order, config) : ths.preview(order, config);
-    ledger.markResult(order, result, config.mode !== "live");
+    outcome = runner.execute(order, config, ledgerStore());
+  } catch (e) {
+    manualQueue.push(queueItem(order, e && e.ambiguous === true ? "UNKNOWN" : "FATAL", e));
+    console.error(
+      "[STOP] " + order.sequence + " " + order.code +
+      " stage=" + (e && e.stage ? e.stage : "unknown") +
+      " ambiguous=" + !!(e && e.ambiguous === true) +
+      " error=" + String(e)
+    );
+    throw e;
+  }
+
+  if (outcome.status === "completed") {
     console.log("[OK] " + order.sequence + " " + order.side + " " + order.code + " x" + order.qty);
     sleep(betweenOrdersMs(config));
     return "completed";
-  } catch (e) {
-    if (config.mode === "live") {
-      ledger.markManualRequired(order, e);
-      manualQueue.push(queueItem(order, e));
-      console.error(
-        "[MANUAL_REQUIRED] " + order.sequence + " " + order.code +
-        " stage=" + (e && e.stage ? e.stage : "unknown") +
-        " ambiguous=" + !!(e && e.ambiguous === true) +
-        " error=" + String(e)
-      );
-      toast("已跳过 " + order.code + "，加入人工处理队列");
-
-      if (e && e.fatal_ui_state === true) {
-        throw e;
-      }
-
-      try { ths.recoverToTradingPage(order.side, config); } catch (recoverError) {
-        var fatal = new Error(
-          "THS failed to recover trading page after skipped order " + order.code +
-          ": " + String(recoverError)
-        );
-        fatal.stage = "post_skip_recovery_failed";
-        fatal.ambiguous = false;
-        fatal.fatal_ui_state = true;
-        throw fatal;
-      }
-      sleep(failureSkipMs(config));
-      return "manual_required";
-    }
-
-    ledger.markFailed(order, e);
-    manualQueue.push(queueItem(order, e));
-    console.error("[DRY_RUN_FAILED] " + order.sequence + " " + order.code + " " + String(e));
-    sleep(failureSkipMs(config));
-    return "failed";
   }
+
+  if (outcome.status === "rejected") {
+    manualQueue.push(queueItem(order, "REJECTED", {
+      stage: outcome.result.stage || "broker_rejected",
+      error: outcome.result.prompt && outcome.result.prompt.content ? outcome.result.prompt.content : "broker rejected order"
+    }));
+    console.error("[REJECTED] " + order.sequence + " " + order.code + " " + JSON.stringify(outcome.result.prompt || {}));
+    sleep(failureSkipMs(config));
+    return "rejected";
+  }
+
+  if (outcome.status === "manual_required" || outcome.status === "failed") {
+    manualQueue.push(queueItem(order, "MANUAL", outcome.error));
+    console.error(
+      "[MANUAL_REQUIRED] " + order.sequence + " " + order.code +
+      " stage=" + (outcome.error && outcome.error.stage ? outcome.error.stage : "unknown") +
+      " error=" + String(outcome.error)
+    );
+    sleep(failureSkipMs(config));
+    return outcome.status;
+  }
+
+  return outcome.status;
 }
 
 function manualQueueText(queue) {
   if (!queue.length) return "";
   return queue.map(function (item) {
     return "#" + item.sequence + " " + item.code + " x" + item.qty +
-      " [" + (item.ambiguous ? "UNKNOWN" : "MANUAL") + "] " + item.stage;
+      " [" + item.kind + "] " + item.stage +
+      (item.error ? " - " + item.error : "");
   }).join("\n");
 }
 
@@ -159,8 +176,8 @@ function runOnce() {
 
   var pending = batch.orders.filter(function (o) { return !ledger.isTerminal(o.signal_id); });
   if (pending.length === 0) {
-    toast("AS1455: 今日订单均已提交或处于 UNKNOWN 人工核验状态");
-    console.log("[DONE] all signal_ids are submitted or unknown-terminal");
+    toast("AS1455: 今日订单均处于自动化终态/人工核验态");
+    console.log("[DONE] all signal_ids are terminal or unresolved-confirmation states");
     return;
   }
 
@@ -172,9 +189,9 @@ function runOnce() {
     }
   }
 
-  // Full mobile-environment check once per batch: package, version pin (if configured),
-  // orientation, required Accessibility nodes, and known blocking dialogs. This check
-  // is read-only and never clicks or dismisses anything.
+  // AutoJs dialogs may briefly leave AutoJs as the foreground package. Wait for
+  // THS to return, then launch it only if needed, before evaluating the guard.
+  mobileGuard.waitForTargetPackage(config, Number(config.mobile_return_timeout_ms || 3500), true);
   runMobileGuard(config, "batch_start", true);
 
   console.log("[RUN] trade_date=" + batch.trade_date + " orders=" + pending.length + " mode=" + config.mode);
@@ -182,27 +199,28 @@ function runOnce() {
   var manualQueue = [];
   var completed = 0;
   var skipped = 0;
+  var rejected = 0;
   for (var i = 0; i < pending.length; i++) {
-    // Lightweight guard before every order catches stale confirmation/result dialogs,
-    // login/captcha/risk/network blockers, package switches, and missing key nodes.
-    // Unknown UI state stops the batch before the next order is touched.
     runMobileGuard(config, "before_order_" + pending[i].sequence, false);
     var status = executeOne(pending[i], config, manualQueue);
     if (status === "completed") completed++;
+    else if (status === "rejected") rejected++;
     else if (status === "manual_required" || status === "failed") skipped++;
   }
 
-  var msg = "自动流程完成: " + completed + "/" + pending.length;
+  var msg = "自动流程完成: " + completed + "/" + pending.length +
+    "\n明确拒单: " + rejected +
+    "\n待人工处理: " + manualQueue.length;
   if (manualQueue.length) {
-    msg += "\n待人工处理: " + manualQueue.length +
-      "\n\n" + manualQueueText(manualQueue);
-    dialogs.alert("AS1455 待人工处理", msg);
+    msg += "\n\n" + manualQueueText(manualQueue);
+    dialogs.alert("AS1455 执行结果", msg);
   } else {
     toast("AS1455: 本次订单处理完成 " + completed + " 笔");
   }
 
   console.log(
     "[DONE] completed=" + completed +
+    " rejected=" + rejected +
     " manual_or_failed=" + skipped +
     " queue=" + manualQueue.length
   );
