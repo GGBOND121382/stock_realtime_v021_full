@@ -15,7 +15,7 @@ function loadConfig() {
     ui_timeout_ms: Number(cfg.ui_timeout_ms || 5000),
     fill_timeout_ms: Number(cfg.fill_timeout_ms || 1800),
     field_verify_timeout_ms: Number(cfg.field_verify_timeout_ms || 700),
-    manual_confirm_timeout_ms: Number(cfg.manual_confirm_timeout_ms || 5500),
+    manual_confirm_timeout_ms: Number(cfg.manual_confirm_timeout_ms || 20000),
     manual_result_grace_ms: Number(cfg.manual_result_grace_ms || 1000),
     manual_takeover_timeout_ms: Number(cfg.manual_takeover_timeout_ms || 60000),
     between_orders_ms: Number(cfg.between_orders_ms || 150),
