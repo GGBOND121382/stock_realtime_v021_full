@@ -30,8 +30,6 @@ assert.throws(function () {
   batch.validateUniqueOrders([orders[0], orders[0]]);
 }, /duplicate CSV order/);
 
-// Opposite sides for the same code are not rejected by the UI-safety layer. That is
-// a strategy/order-contract decision, not a phone automation invariant.
 assert.strictEqual(batch.validateUniqueOrders([
   orders[0],
   { code: "000001", symbol: "000001.SZ", side: "sell", qty: 100, submit_price: 10, sequence: 2 }
@@ -100,25 +98,37 @@ batch.persistDurable(statePath, fresh.state, io);
 assert.strictEqual(batch.parseStateText(io.data[statePath]).results[0].status, "submitted");
 assert.strictEqual(batch.parseStateText(io.data[statePath]).write_generation, 1);
 
-// A second durable write preserves the previous complete primary as backup.
 fresh.state.results.push({ row: 2, status: "confirmation_open" });
 batch.persistDurable(statePath, fresh.state, io);
 assert.strictEqual(batch.parseStateText(io.data[statePath]).write_generation, 2);
 assert.strictEqual(batch.parseStateText(io.data[statePath + ".bak"]).write_generation, 1);
 
-// Corrupt primary must recover only from an in-scope valid backup, never reset.
+// Corrupt primary recovers from current-session backup.
 io.data[statePath] = "{broken";
 var recovered = batch.loadDurable(statePath, fp, orders, 1111.5, "smoke_orders.csv", sessionDate, io);
 assert.strictEqual(recovered.source, "backup");
 assert.strictEqual(recovered.state.results[0].status, "submitted");
 
-// Corrupt both primary and backup => fail closed.
+// Crash window after primary removal but before tmp installation: backup-only must
+// also recover, never reset to a fresh batch.
+var ioBackupOnly = memoryIo();
+ioBackupOnly.data[statePath + ".bak"] = JSON.stringify(recovered.state);
+var backupOnly = batch.loadDurable(statePath, fp, orders, 1111.5, "smoke_orders.csv", sessionDate, ioBackupOnly);
+assert.strictEqual(backupOnly.source, "backup");
+assert.strictEqual(backupOnly.state.results[0].status, "submitted");
+
+// Missing primary + corrupt backup fails closed.
+ioBackupOnly.data[statePath + ".bak"] = "{broken-backup";
+assert.throws(function () {
+  batch.loadDurable(statePath, fp, orders, 1111.5, "smoke_orders.csv", sessionDate, ioBackupOnly);
+}, /refusing automatic replay/);
+
+// Corrupt both primary and backup fails closed.
 io.data[statePath + ".bak"] = "{also-broken";
 assert.throws(function () {
   batch.loadDurable(statePath, fp, orders, 1111.5, "smoke_orders.csv", sessionDate, io);
 }, /refusing automatic replay/);
 
-// A valid prior-day state is a separate session and does not suppress today's rows.
 var prior = batch.newState(fp, orders, 1111.5, "smoke_orders.csv", "2026-08-17");
 prior.results.push({ row: 1, status: "submitted" });
 var ioPrior = memoryIo((function () {
@@ -130,7 +140,6 @@ var newDay = batch.loadDurable(statePath, fp, orders, 1111.5, "smoke_orders.csv"
 assert.strictEqual(newDay.source, "new_scope");
 assert.strictEqual(newDay.state.results.length, 0);
 
-// Legacy same-CSV state without session_date fails closed once.
 var legacy = batch.newState(fp, orders, 1111.5, "smoke_orders.csv", "");
 delete legacy.session_date;
 var ioLegacy = memoryIo((function () {
