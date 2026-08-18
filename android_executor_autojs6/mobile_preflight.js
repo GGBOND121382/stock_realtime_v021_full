@@ -50,7 +50,10 @@ function formatResult(result) {
 
 try {
   var config = loadConfig();
-  var result = guard.check(config, { include_metadata: true });
+  toast("正在切回同花顺，请停留在买入或卖出页面");
+  guard.waitForTargetPackage(config, Number(config.mobile_return_timeout_ms || 10000), true);
+  sleep(500);
+  var result = guard.check(config);
   var text = formatResult(result);
   var outputPath = files.join(files.cwd(), "ths_mobile_preflight_" + timestampToken() + ".txt");
   files.write(outputPath, text);
