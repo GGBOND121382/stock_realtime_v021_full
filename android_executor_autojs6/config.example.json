@@ -6,6 +6,7 @@
   "mode": "dry_run",
   "require_manual_confirm": true,
   "mobile_preflight_enabled": true,
+  "mobile_return_timeout_ms": 3500,
   "expected_orientation": "",
   "expected_ths_version_name": "",
   "poll_interval_ms": 2000,
@@ -19,5 +20,5 @@
   "failure_skip_ms": 100,
   "max_orders": 60,
   "allow_batch_live_test": false,
-  "batch_test_continue_on_error": false
+  "batch_test_continue_on_error": true
 }
