@@ -2,10 +2,7 @@
 
 auto.waitFor();
 
-var runner = require("./lib/order_runner.js");
-var mobileGuard = require("./lib/mobile_ui_guard.js");
-var mobileGuardRunner = require("./lib/mobile_guard_runner.js");
-var batchState = require("./lib/batch_state.js");
+var ths = require("./lib/ths_adapter.js");
 var CSV_NAME = "smoke_orders.csv";
 var RESULT_NAME = "batch_submit_test_result.json";
 
@@ -13,111 +10,123 @@ function loadConfig() {
   var path = files.join(files.cwd(), "config.json");
   if (!files.exists(path)) throw new Error("missing config.json");
   var cfg = JSON.parse(files.read(path));
-  cfg.mode = "live";
-  cfg.ths_package = String(cfg.ths_package || "com.hexin.plat.android");
-  cfg.ui_timeout_ms = Number(cfg.ui_timeout_ms || 5000);
-  cfg.fill_timeout_ms = Number(cfg.fill_timeout_ms || 1800);
-  cfg.field_verify_timeout_ms = Number(cfg.field_verify_timeout_ms || 700);
-  cfg.manual_confirm_timeout_ms = Number(cfg.manual_confirm_timeout_ms || 5500);
-  cfg.manual_result_grace_ms = Number(cfg.manual_result_grace_ms || 1000);
-  cfg.between_orders_ms = Number(cfg.between_orders_ms || 150);
-  cfg.failure_skip_ms = Number(cfg.failure_skip_ms || 100);
-  cfg.mobile_return_timeout_ms = Number(cfg.mobile_return_timeout_ms || 3500);
-  cfg.allow_batch_live_test = cfg.allow_batch_live_test === true;
-  cfg.batch_test_continue_on_error = cfg.batch_test_continue_on_error !== false;
-  return cfg;
-}
-
-function sessionDate() {
-  return new java.text.SimpleDateFormat("yyyy-MM-dd").format(new java.util.Date());
-}
-
-function requireBatchAck(orders, totalNotional, state, stateSource) {
-  var buys = orders.filter(function (o) { return o.side === "buy"; }).length;
-  var sells = orders.length - buys;
-  var completed = state.results.filter(function (x) { return batchState.isSafeTerminal(x.status); }).length;
-  var summary = [
-    "即将进入 CSV 批量下单测试",
-    "订单数: " + orders.length,
-    "已安全终态: " + completed,
-    "买入: " + buys + " / 卖出: " + sells,
-    "计划金额合计: " + Number(totalNotional).toFixed(2) + " 元",
-    "状态来源: " + stateSource,
-    "",
-    "程序逐笔填写并核验确认框；最终确认由你手动点击。",
-    "同一交易日、同一 CSV 下，已提交/明确拒单的行不会自动重放。"
-  ].join("\n");
-  return dialogs.confirm("AS1455 批量下单测试", summary);
-}
-
-function makeStore(state, item, resultPath) {
-  function persist(status, extra) {
-    item.status = status;
-    item.updated_at = new Date().toISOString();
-    if (extra) {
-      Object.keys(extra).forEach(function (key) { item[key] = extra[key]; });
-    }
-    batchState.persistDurable(resultPath, state);
-  }
-
   return {
-    markStarted: function () {
-      item.attempts = Number(item.attempts || 0) + 1;
-      item.started_at = new Date().toISOString();
-      item.error = "";
-      item.stage = "started";
-      persist("started");
-    },
-    markConfirmationPending: function (order, detail) {
-      persist("confirmation_pending", { stage: "confirmation_phase_started", confirmation: detail || null });
-    },
-    markConfirmationOpen: function (order, detail) {
-      persist("confirmation_open", { stage: "confirmation_open", confirmation: detail || null });
-    },
-    markResult: function (order, result) {
-      persist("submitted", {
-        stage: result && result.stage ? result.stage : "submitted",
-        broker_result: result || null,
-        finished_at: new Date().toISOString()
-      });
-    },
-    markRejected: function (order, result) {
-      persist("rejected", {
-        stage: result && result.stage ? result.stage : "rejected",
-        broker_result: result || null,
-        finished_at: new Date().toISOString()
-      });
-    },
-    markError: function (order, error) {
-      var ambiguous = !!(error && error.ambiguous === true);
-      var fatal = !!(error && error.fatal_ui_state === true);
-      persist(ambiguous ? "unknown" : (fatal ? "blocked" : "manual_required"), {
-        stage: error && error.stage ? String(error.stage) : "unknown",
-        ambiguous: ambiguous,
-        fatal_ui_state: fatal,
-        error: String(error),
-        finished_at: new Date().toISOString()
-      });
-    }
+    ths_package: String(cfg.ths_package || "com.hexin.plat.android"),
+    ui_timeout_ms: Number(cfg.ui_timeout_ms || 5000),
+    fill_timeout_ms: Number(cfg.fill_timeout_ms || 1800),
+    field_verify_timeout_ms: Number(cfg.field_verify_timeout_ms || 700),
+    manual_confirm_timeout_ms: Number(cfg.manual_confirm_timeout_ms || 5500),
+    manual_result_grace_ms: Number(cfg.manual_result_grace_ms || 1000),
+    between_orders_ms: Number(cfg.between_orders_ms || 150),
+    failure_skip_ms: Number(cfg.failure_skip_ms || 100),
+    allow_batch_live_test: cfg.allow_batch_live_test === true,
+    batch_test_continue_on_error: cfg.batch_test_continue_on_error !== false
   };
 }
 
-function checkGuard(config, baseline, label) {
-  if (config.mobile_preflight_enabled === false) return baseline;
-  var settleMs = baseline ? 500 : Math.min(config.ui_timeout_ms, 1800);
-  var result = mobileGuardRunner.waitUntilReady(config, settleMs);
-  if (baseline) {
-    var stable = mobileGuard.compareBaseline(baseline, result.snapshot);
-    if (!stable.ok) {
-      var err = new Error("THS mobile layout changed during batch: " + stable.errors.join("; "));
-      err.stage = "mobile_layout_changed";
-      err.ambiguous = false;
-      err.fatal_ui_state = true;
-      throw err;
+function parseCsvLine(line) {
+  var fields = [];
+  var current = "";
+  var quoted = false;
+  for (var i = 0; i < line.length; i++) {
+    var ch = line.charAt(i);
+    if (ch === '"') {
+      if (quoted && i + 1 < line.length && line.charAt(i + 1) === '"') {
+        current += '"';
+        i++;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (ch === "," && !quoted) {
+      fields.push(current);
+      current = "";
+    } else {
+      current += ch;
     }
   }
-  if (result.warnings.length) console.warn("[MOBILE_GUARD_WARN] " + label + " " + result.warnings.join(" | "));
-  return baseline || result.snapshot;
+  fields.push(current);
+  return fields;
+}
+
+function readCsv(path) {
+  var text = files.read(path).replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  var lines = text.split("\n").filter(function (line) { return line.trim().length > 0; });
+  if (lines.length < 2) throw new Error("batch CSV has no data rows: " + path);
+
+  var headers = parseCsvLine(lines[0]).map(function (x) { return x.trim(); });
+  var required = ["symbol", "side", "shares", "raw_exec_price"];
+  required.forEach(function (name) {
+    if (headers.indexOf(name) < 0) throw new Error("batch CSV missing column: " + name);
+  });
+
+  var rows = [];
+  for (var i = 1; i < lines.length; i++) {
+    var values = parseCsvLine(lines[i]);
+    var row = {};
+    for (var j = 0; j < headers.length; j++) row[headers[j]] = values[j] === undefined ? "" : values[j];
+    rows.push(row);
+  }
+  return rows;
+}
+
+function normalizeOrder(row, rowNumber) {
+  var symbol = String(row.symbol || "").trim();
+  var match = symbol.match(/^(\d{6})(?:\.(?:SZ|SH))?$/i);
+  if (!match) throw new Error("CSV row " + rowNumber + " invalid symbol: " + symbol);
+
+  var side = String(row.side || "").trim().toLowerCase();
+  if (side !== "buy" && side !== "sell") throw new Error("CSV row " + rowNumber + " invalid side: " + side);
+
+  var qty = Number(row.shares);
+  if (!isFinite(qty) || qty <= 0 || Math.floor(qty) !== qty) {
+    throw new Error("CSV row " + rowNumber + " invalid shares: " + row.shares);
+  }
+  if (side === "buy" && qty % 100 !== 0) {
+    throw new Error("CSV row " + rowNumber + " BUY shares must be multiple of 100: " + qty);
+  }
+
+  var price = Number(row.raw_exec_price);
+  if (!isFinite(price) || price <= 0) {
+    throw new Error("CSV row " + rowNumber + " invalid raw_exec_price: " + row.raw_exec_price);
+  }
+
+  return {
+    code: match[1],
+    symbol: symbol,
+    side: side,
+    qty: qty,
+    submit_price: price,
+    sequence: rowNumber
+  };
+}
+
+function validateUniqueOrders(orders) {
+  var seen = {};
+  for (var i = 0; i < orders.length; i++) {
+    var key = orders[i].side + ":" + orders[i].code;
+    if (seen[key]) throw new Error("duplicate CSV order: " + key);
+    seen[key] = true;
+  }
+}
+
+function writeState(path, state) {
+  state.updated_at = new Date().toISOString();
+  files.write(path, JSON.stringify(state, null, 2));
+}
+
+function requireBatchAck(orders, totalNotional) {
+  var buys = orders.filter(function (o) { return o.side === "buy"; }).length;
+  var sells = orders.length - buys;
+  var summary = [
+    "即将进入 CSV 批量下单测试",
+    "订单数: " + orders.length,
+    "买入: " + buys + " / 卖出: " + sells,
+    "计划金额合计: " + Number(totalNotional).toFixed(2) + " 元",
+    "",
+    "程序逐笔填写并打开确认框；最终确认由你手动点击。",
+    "单笔普通失败会跳过，不会重新填写同一笔。"
+  ].join("\n");
+  return dialogs.confirm("AS1455 批量下单测试", summary);
 }
 
 function run() {
@@ -129,107 +138,94 @@ function run() {
   var csvPath = files.join(files.cwd(), CSV_NAME);
   if (!files.exists(csvPath)) throw new Error("missing " + CSV_NAME);
 
-  var doc = batchState.readCsvText(files.read(csvPath));
+  var rows = readCsv(csvPath);
   var orders = [];
   var totalNotional = 0;
-  for (var i = 0; i < doc.rows.length; i++) {
-    var order = batchState.normalizeOrder(doc.rows[i], i + 1);
+  for (var i = 0; i < rows.length; i++) {
+    var order = normalizeOrder(rows[i], i + 1);
     orders.push(order);
     totalNotional += order.qty * order.submit_price;
   }
   if (!orders.length) throw new Error("no orders in CSV");
-  batchState.validateUniqueOrders(orders);
+  validateUniqueOrders(orders);
 
-  var fingerprint = batchState.fingerprintText(doc.text);
+  if (!requireBatchAck(orders, totalNotional)) return;
+
   var resultPath = files.join(files.cwd(), RESULT_NAME);
-  var loaded = batchState.loadDurable(
-    resultPath,
-    fingerprint,
-    orders,
-    totalNotional,
-    CSV_NAME,
-    sessionDate()
-  );
-  var state = loaded.state;
-
-  // If the primary file was corrupt but a valid backup was recovered, restore a
-  // verified primary before touching broker UI.
-  if (loaded.source === "backup") {
-    batchState.persistDurable(resultPath, state);
-  }
-
-  var unresolved = batchState.unresolvedRows(state);
-  if (unresolved.length) {
-    throw new Error(
-      "previous run has unresolved broker-confirmation state at rows: " +
-      unresolved.map(function (x) { return x.row + "(" + x.status + ")"; }).join(", ") +
-      ". Verify these orders manually before resetting the batch state."
-    );
-  }
-
-  if (!requireBatchAck(orders, totalNotional, state, loaded.source)) return;
-
-  mobileGuard.waitForTargetPackage(config, config.mobile_return_timeout_ms, true);
-  var guardBaseline = checkGuard(config, null, "batch_start");
-
-  state.status = "running";
-  if (!state.started_at) state.started_at = new Date().toISOString();
-  batchState.persistDurable(resultPath, state);
+  var state = {
+    status: "running",
+    csv_file: CSV_NAME,
+    order_count: orders.length,
+    total_notional: totalNotional,
+    started_at: new Date().toISOString(),
+    results: []
+  };
+  writeState(resultPath, state);
 
   for (var j = 0; j < orders.length; j++) {
     var current = orders[j];
-    var item = batchState.itemForRow(state, j + 1, current);
-    if (batchState.isSafeTerminal(item.status)) {
-      console.log("[SKIP_TERMINAL] row=" + (j + 1) + " status=" + item.status + " code=" + current.code);
-      continue;
-    }
+    var item = {
+      row: j + 1,
+      order: current,
+      started_at: new Date().toISOString(),
+      status: "started"
+    };
+    state.results.push(item);
+    writeState(resultPath, state);
 
-    checkGuard(config, guardBaseline, "before_order_" + (j + 1));
-    toast("处理 " + (j + 1) + "/" + orders.length + " " + current.code);
-
-    var outcome;
     try {
-      outcome = runner.execute(current, config, makeStore(state, item, resultPath));
+      toast("处理 " + (j + 1) + "/" + orders.length + " " + current.code);
+      var brokerResult = ths.submit(current, config);
+      item.status = "submitted";
+      item.broker_result = brokerResult;
+      item.finished_at = new Date().toISOString();
+      writeState(resultPath, state);
     } catch (e) {
-      state.status = "blocked";
-      try { batchState.persistDurable(resultPath, state); } catch (persistStopError) {
-        console.error("[STATE_PERSIST_FAIL] " + String(persistStopError));
-      }
-      throw e;
-    }
+      item.status = e && e.ambiguous === true ? "unknown" : "failed";
+      item.stage = e && e.stage ? String(e.stage) : "unknown";
+      item.error = String(e);
+      item.finished_at = new Date().toISOString();
+      writeState(resultPath, state);
 
-    if (outcome.status === "manual_required") {
-      console.error("[MANUAL_REQUIRED] row=" + (j + 1) + " code=" + current.code + " " + String(outcome.error));
+      if (e && (e.ambiguous === true || e.fatal_ui_state === true)) {
+        state.status = "blocked";
+        writeState(resultPath, state);
+        throw e;
+      }
+
       if (!config.batch_test_continue_on_error) {
-        state.status = "stopped_on_nonfatal_error";
-        batchState.persistDurable(resultPath, state);
-        throw outcome.error;
+        state.status = "stopped_on_error";
+        writeState(resultPath, state);
+        throw e;
+      }
+
+      try {
+        ths.recoverToTradingPage(current.side, config);
+      } catch (recoverError) {
+        state.status = "blocked";
+        writeState(resultPath, state);
+        throw new Error(
+          "THS failed to recover after row " + (j + 1) + " " + current.code + ": " + String(recoverError)
+        );
       }
       sleep(config.failure_skip_ms);
-      continue;
-    }
-
-    if (outcome.status === "rejected") {
-      console.error("[REJECTED] row=" + (j + 1) + " code=" + current.code + " " + JSON.stringify(outcome.result.prompt || {}));
-      sleep(config.failure_skip_ms);
-      continue;
     }
 
     if (j + 1 < orders.length) sleep(config.between_orders_ms);
   }
 
+  var failed = state.results.filter(function (x) { return x.status === "failed"; }).length;
   var submitted = state.results.filter(function (x) { return x.status === "submitted"; }).length;
-  var rejected = state.results.filter(function (x) { return x.status === "rejected"; }).length;
-  var manual = state.results.filter(function (x) { return x.status === "manual_required"; }).length;
-  state.status = manual ? "completed_with_manual_items" : "completed";
+  var unknown = state.results.filter(function (x) { return x.status === "unknown"; }).length;
+  state.status = failed ? "completed_with_errors" : "completed";
   state.finished_at = new Date().toISOString();
-  batchState.persistDurable(resultPath, state);
+  writeState(resultPath, state);
 
   dialogs.alert(
     "批量下单测试完成",
     "已提交: " + submitted + "/" + orders.length +
-    "\n明确拒单: " + rejected +
-    "\n待人工处理: " + manual +
+    "\n失败并跳过: " + failed +
+    "\nUNKNOWN: " + unknown +
     "\n\n结果文件：\n" + resultPath
   );
 }
