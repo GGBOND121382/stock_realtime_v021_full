@@ -12,36 +12,14 @@ function get(signalId) {
 
 function isTerminal(signalId) {
   var item = get(signalId);
-  if (!item) return false;
-  return [
-    "submitted",
-    "rejected",
-    "unknown",
-    "blocked",
-    "confirmation_pending",
-    "confirmation_open"
-  ].indexOf(String(item.status || "")) >= 0;
+  return !!(item && (item.status === "submitted" || item.status === "unknown"));
 }
 
 function mark(signalId, payload) {
   var item = payload || {};
   item.signal_id = String(signalId);
   item.updated_at = new Date().toISOString();
-
-  // Never fall back to asynchronous Storage#put here. If the installed AutoJs6
-  // does not expose putSync(), stop before the caller can touch broker UI.
-  if (typeof storage.putSync !== "function") {
-    var unsupported = new Error("AutoJs6 Storage.putSync() is required for crash-safe execution ledger");
-    unsupported.stage = "sync_ledger_unsupported";
-    unsupported.ambiguous = false;
-    unsupported.fatal_ui_state = true;
-    throw unsupported;
-  }
-
-  // AutoJs6 Storage#put uses SharedPreferences.apply() (async); putSync() uses
-  // commit() (sync). Critical execution state must be durable before the next
-  // broker-side action is allowed to run.
-  storage.putSync(key(signalId), item);
+  storage.put(key(signalId), item);
   return item;
 }
 
@@ -61,20 +39,6 @@ function markStarted(order) {
   return mark(order.signal_id, item);
 }
 
-function markConfirmationPending(order, detail) {
-  var item = baseOrder(order);
-  item.status = "confirmation_pending";
-  item.confirmation = detail || null;
-  return mark(order.signal_id, item);
-}
-
-function markConfirmationOpen(order, detail) {
-  var item = baseOrder(order);
-  item.status = "confirmation_open";
-  item.confirmation = detail || null;
-  return mark(order.signal_id, item);
-}
-
 function markResult(order, result, dryRun) {
   var item = baseOrder(order);
   item.status = dryRun ? "dry_run" : "submitted";
@@ -82,21 +46,12 @@ function markResult(order, result, dryRun) {
   return mark(order.signal_id, item);
 }
 
-function markRejected(order, result) {
-  var item = baseOrder(order);
-  item.status = "rejected";
-  item.broker_result = result || null;
-  return mark(order.signal_id, item);
-}
-
 function markManualRequired(order, error) {
   var item = baseOrder(order);
   var ambiguous = !!(error && error.ambiguous === true);
-  var fatal = !!(error && error.fatal_ui_state === true);
-  item.status = ambiguous ? "unknown" : (fatal ? "blocked" : "manual_required");
+  item.status = ambiguous ? "unknown" : "manual_required";
   item.stage = error && error.stage ? String(error.stage) : "manual_required";
   item.ambiguous = ambiguous;
-  item.fatal_ui_state = fatal;
   item.error = String(error);
   return mark(order.signal_id, item);
 }
@@ -112,10 +67,7 @@ module.exports = {
   get: get,
   isTerminal: isTerminal,
   markStarted: markStarted,
-  markConfirmationPending: markConfirmationPending,
-  markConfirmationOpen: markConfirmationOpen,
   markResult: markResult,
-  markRejected: markRejected,
   markManualRequired: markManualRequired,
   markFailed: markFailed
 };
