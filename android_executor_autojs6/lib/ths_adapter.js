@@ -1,5 +1,7 @@
 "use strict";
 
+var orderContract = require("./order_contract.js");
+
 var IDS = {
   navButton: "com.hexin.plat.android:id/btn",
   stockCode: "com.hexin.plat.android:id/auto_stockcode",
@@ -7,14 +9,20 @@ var IDS = {
   stockSuggestionCode: "com.hexin.plat.android:id/stockcode_tv",
   stockVolume: "com.hexin.plat.android:id/stockvolume",
   stockPrice: "com.hexin.plat.android:id/stockprice",
-  transaction: "com.hexin.plat.android:id/btn_transaction"
+  transaction: "com.hexin.plat.android:id/btn_transaction",
+  dialogLayout: "com.hexin.plat.android:id/dialog_layout",
+  dialogTitle: "com.hexin.plat.android:id/dialog_title",
+  promptContent: "com.hexin.plat.android:id/prompt_content",
+  okButton: "com.hexin.plat.android:id/ok_btn",
+  cancelButton: "com.hexin.plat.android:id/cancel_btn"
 };
 
 var EDIT_TEXT = "android.widget.EditText";
+var TEXT_VIEW = "android.widget.TextView";
 var THS_PACKAGE = "com.hexin.plat.android";
 var TAP_ATTEMPTS = 3;
 var PROBE_MAX_NODES = 400;
-var FILL_ATTEMPTS = 2; // first attempt + exactly one fast retry
+var FILL_ATTEMPTS = 2;
 
 function timeout(config) {
   return Number((config && config.ui_timeout_ms) || 5000);
@@ -49,9 +57,15 @@ function waitId(resourceId, timeoutMs) {
 
 function clickNode(node) {
   if (!node) return false;
-  if (node.click()) return true;
-  var b = node.bounds();
-  return click(b.centerX(), b.centerY());
+  try {
+    if (node.click()) return true;
+  } catch (e) {}
+  try {
+    var b = node.bounds();
+    return click(b.centerX(), b.centerY());
+  } catch (e2) {
+    return false;
+  }
 }
 
 function tapTarget(node) {
@@ -70,8 +84,12 @@ function tapTarget(node) {
 function tapCenter(node) {
   var target = tapTarget(node);
   if (!target) return false;
-  var b = target.bounds();
-  return click(b.centerX(), b.centerY());
+  try {
+    var b = target.bounds();
+    return click(b.centerX(), b.centerY());
+  } catch (e) {
+    return false;
+  }
 }
 
 function safeNodeText(node) {
@@ -85,14 +103,6 @@ function safeNodeText(node) {
 function safeNodeClass(node) {
   try {
     return node ? String(node.className() || "") : "";
-  } catch (e) {
-    return "";
-  }
-}
-
-function safeNodeId(node) {
-  try {
-    return node ? String(node.id() || "") : "";
   } catch (e) {
     return "";
   }
@@ -123,14 +133,30 @@ function crossWriteError(message) {
   return err;
 }
 
+function dialogContractError(message, stage) {
+  var err = new Error("THS confirmation contract invalid: " + message);
+  err.stage = stage || "confirmation_contract_invalid";
+  err.ambiguous = false;
+  err.fatal_ui_state = true;
+  return err;
+}
+
+function unknownUiError(message, stage) {
+  var err = new Error(message);
+  err.stage = stage || "unknown_ui_state";
+  err.ambiguous = true;
+  err.fatal_ui_state = true;
+  return err;
+}
+
 function setExactNodeText(node, value, label) {
   var v = String(value);
   if (!node || safeNodeClass(node) !== EDIT_TEXT) {
     throw topologyError(label + " is not an EditText");
   }
 
-  // Never use global setText(value): it writes to whichever input currently owns
-  // focus and can therefore put price/quantity into the stock-code field.
+  // Intentionally never use global setText(value): that API targets the current
+  // focus owner and can cross-write price/quantity into another field.
   try { node.setText(v); } catch (e) {}
   if (safeNodeText(node) === v) return;
 
@@ -138,7 +164,10 @@ function setExactNodeText(node, value, label) {
   sleep(90);
   try { node.setText(v); } catch (e2) {}
   if (safeNodeText(node) !== v) {
-    throw new Error("THS exact node setText failed: " + label + " expected=" + v + " actual=" + safeNodeText(node));
+    throw new Error(
+      "THS exact node setText failed: " + label +
+      " expected=" + v + " actual=" + safeNodeText(node)
+    );
   }
 }
 
@@ -153,6 +182,10 @@ function findInside(container, selector, timeoutMs) {
   return null;
 }
 
+function findInsideOnce(container, selector) {
+  try { return container ? container.findOne(selector) : null; } catch (e) { return null; }
+}
+
 function waitExactEditable(resourceId, label, timeoutMs) {
   var t = Number(timeoutMs || 5000);
   var container = waitId(resourceId, t);
@@ -160,8 +193,6 @@ function waitExactEditable(resourceId, label, timeoutMs) {
 
   var edit = findInside(container, className(EDIT_TEXT), t);
   if (!edit) {
-    // Deliberately no global className(...).text(hint) fallback. If the expected
-    // field cannot be resolved inside its own resource-id container, stop.
     throw topologyError(label + " EditText not found under " + resourceId);
   }
   return edit;
@@ -183,7 +214,9 @@ function assertDistinctFields(codeEdit, volumeEdit, priceEdit) {
     var bounds = nodeBoundsKey(item.node);
     if (!bounds) throw topologyError(item.label + " has no readable bounds");
     if (seenBounds[bounds]) {
-      throw topologyError(item.label + " resolves to same bounds as " + seenBounds[bounds] + " (" + bounds + ")");
+      throw topologyError(
+        item.label + " resolves to same bounds as " + seenBounds[bounds] + " (" + bounds + ")"
+      );
     }
     seenBounds[bounds] = item.label;
   }
@@ -251,7 +284,7 @@ function findSuggestionOnce(searchContainer, code) {
   var node = id(IDS.stockSuggestionCode).text(String(code)).findOnce();
   if (node) return node;
   try {
-    return searchContainer.findOne(className("android.widget.TextView").text(String(code)));
+    return searchContainer.findOne(className(TEXT_VIEW).text(String(code)));
   } catch (e) {
     return null;
   }
@@ -327,7 +360,6 @@ function fillOrderFieldsOnce(order, config) {
   var priceText = Number(order.submit_price).toFixed(2);
   var verifyMs = fieldVerifyTimeout(config);
 
-  // Resolve all three fields before writing anything and prove they are distinct.
   var codeEdit = id(IDS.stockCode).className(EDIT_TEXT).findOne(fillTimeout(config));
   var volumeEdit = waitExactEditable(IDS.stockVolume, "quantity", fillTimeout(config));
   var priceEdit = waitExactEditable(IDS.stockPrice, "price", fillTimeout(config));
@@ -346,7 +378,6 @@ function fillOrderFieldsOnce(order, config) {
     throw new Error("THS price verification failed expected=" + priceText + " actual=" + safeNodeText(priceEdit));
   }
 
-  // Critical invariant: writing price must not alter code or quantity.
   if (safeNodeText(codeEdit) !== String(order.code)) {
     throw crossWriteError("price write changed code expected=" + order.code + " actual=" + safeNodeText(codeEdit));
   }
@@ -377,8 +408,6 @@ function fillOrderFields(order, config) {
       result.fill_attempts = attempt;
       return result;
     } catch (e) {
-      // A topology/cross-write error means the UI mapping itself is unsafe. Do not
-      // repeat the same write sequence on a possibly corrupted form.
       if (e && e.fatal_ui_state === true) throw e;
 
       if (attempt === 1) {
@@ -408,25 +437,104 @@ function fillOrderFields(order, config) {
   throw new Error("unreachable fillOrderFields state");
 }
 
+function safeCollectionTexts(container) {
+  var texts = [];
+  if (!container) return texts;
+  try {
+    var nodes = container.find(className(TEXT_VIEW));
+    for (var i = 0; i < nodes.size(); i++) {
+      var value = safeNodeText(nodes.get(i));
+      if (value) texts.push(value);
+    }
+  } catch (e) {}
+  return texts;
+}
+
+function dialogSnapshot() {
+  var dialog = id(IDS.dialogLayout).findOnce();
+  if (!dialog) return null;
+
+  var titleNode = findInsideOnce(dialog, id(IDS.dialogTitle)) || id(IDS.dialogTitle).findOnce();
+  var promptNode = findInsideOnce(dialog, id(IDS.promptContent)) || id(IDS.promptContent).findOnce();
+  var okNode = findInsideOnce(dialog, id(IDS.okButton)) || id(IDS.okButton).findOnce();
+  var cancelNode = findInsideOnce(dialog, id(IDS.cancelButton)) || id(IDS.cancelButton).findOnce();
+  var texts = safeCollectionTexts(dialog);
+
+  return {
+    dialog: dialog,
+    title: safeNodeText(titleNode),
+    message: safeNodeText(promptNode),
+    ok: okNode,
+    cancel: cancelNode,
+    texts: texts
+  };
+}
+
 function confirmationLabels(side) {
   return side === "sell" ? { title: "委托卖出确认", action: "确认卖出" } :
     { title: "委托买入确认", action: "确认买入" };
 }
 
 function findConfirmation(order) {
-  var labels = confirmationLabels(order.side);
-  var titleNode = text(labels.title).findOnce();
-  var actionNode = text(labels.action).findOnce();
-  var cancelNode = text("取消").findOnce();
-  if (!titleNode || !actionNode || !cancelNode) return null;
-  return { title: titleNode, action: actionNode, cancel: cancelNode, labels: labels };
+  var snap = dialogSnapshot();
+  if (!snap) return null;
+  var parsed = orderContract.parseConfirmationTexts(snap.texts);
+  var expectedTitle = confirmationLabels(order.side).title;
+  if (String(parsed.title || "").indexOf(expectedTitle) < 0) return null;
+  return {
+    dialog: snap.dialog,
+    parsed: parsed,
+    ok: snap.ok,
+    cancel: snap.cancel,
+    labels: confirmationLabels(order.side)
+  };
 }
 
-function waitConfirmation(order, timeoutMs) {
-  var deadline = Date.now() + Number(timeoutMs || 5000);
+function findResultDialog() {
+  var snap = dialogSnapshot();
+  if (!snap || !snap.message) return null;
+  var parsedConfirmation = orderContract.parseConfirmationTexts(snap.texts);
+  if (parsedConfirmation.title) return null;
+  var classified = orderContract.classifyResultMessage(snap.message);
+  return {
+    dialog: snap.dialog,
+    title: snap.title || "系统信息",
+    message: snap.message,
+    outcome: classified.outcome,
+    ok: snap.ok
+  };
+}
+
+function findUnknownDialog(order) {
+  var snap = dialogSnapshot();
+  if (!snap) return null;
+  if (findConfirmation(order) || findResultDialog()) return null;
+  return snap;
+}
+
+function validateConfirmationOrCancel(order, confirmation) {
+  var check = orderContract.validateConfirmation(order, confirmation.parsed);
+  if (check.ok) return confirmation;
+
+  var cancelled = cancelOpenConfirmation(order, confirmation);
+  var err = dialogContractError(check.errors.join("; "), "confirmation_contract_mismatch");
+  if (!cancelled) {
+    err.message += "; confirmation could not be cancelled";
+  }
+  throw err;
+}
+
+function waitTransactionOutcome(order, timeoutMs) {
+  var deadline = Date.now() + Number(timeoutMs || 1500);
   while (Date.now() <= deadline) {
-    var c = findConfirmation(order);
-    if (c) return c;
+    var confirmation = findConfirmation(order);
+    if (confirmation) return { kind: "confirmation", confirmation: confirmation };
+
+    var result = findResultDialog();
+    if (result) return { kind: "result", result: result };
+
+    var unknownDialog = findUnknownDialog(order);
+    if (unknownDialog) return { kind: "unknown_dialog", dialog: unknownDialog };
     sleep(70);
   }
   return null;
@@ -437,28 +545,41 @@ function extractContractNumber(message) {
   return m ? String(m[1]).replace(/\s/g, "") : "";
 }
 
-function findSuccessDialog() {
-  var messageNode = textContains("委托已提交").findOnce();
-  var okNode = text("确定").findOnce();
-  if (!messageNode || !okNode) return null;
-  var titleNode = text("系统信息").findOnce();
-  var message = String(messageNode.text() || "");
-  return {
-    title: titleNode ? String(titleNode.text() || "") : "系统信息",
-    message: message,
-    contract_no: extractContractNumber(message),
-    ok: okNode
-  };
+function dismissResultDialog(order, result) {
+  if (!result || !result.ok) {
+    throw unknownUiError("THS result dialog has no exact OK button", "result_dialog_missing_ok");
+  }
+  for (var attempt = 1; attempt <= TAP_ATTEMPTS; attempt++) {
+    if (!id(IDS.dialogLayout).findOnce()) return;
+    if (!tapCenter(result.ok)) break;
+    sleep(220);
+    if (!id(IDS.dialogLayout).findOnce()) return;
+    result = findResultDialog() || result;
+  }
+  var probe = dumpProbe(order, "result_dialog_not_dismissed_after_retries");
+  throw unknownUiError(
+    "THS result dialog did not dismiss after retries; probe=" + probe,
+    "result_dialog_stuck"
+  );
 }
 
-function waitSuccessDialog(timeoutMs) {
-  var deadline = Date.now() + Number(timeoutMs || 5000);
-  while (Date.now() <= deadline) {
-    var s = findSuccessDialog();
-    if (s) return s;
-    sleep(70);
+function cancelOpenConfirmation(order, supplied) {
+  var current = supplied || findConfirmation(order);
+  if (!current) return true;
+  if (!current.cancel) return false;
+  for (var attempt = 1; attempt <= 2; attempt++) {
+    if (!tapCenter(current.cancel)) break;
+    sleep(180);
+    if (!findConfirmation(order)) return true;
+    current = findConfirmation(order);
+    if (!current || !current.cancel) return !current;
   }
-  return null;
+  return !findConfirmation(order);
+}
+
+function fireHook(hooks, name, payload) {
+  if (!hooks || typeof hooks[name] !== "function") return;
+  hooks[name](payload);
 }
 
 function safeValue(fn, fallback) {
@@ -514,63 +635,104 @@ function dumpProbe(order, stage) {
   return path;
 }
 
-function openOrderConfirmation(order, config) {
+function openOrderConfirmation(order, config, hooks) {
   var fillResult = fillOrderFields(order, config);
-  var waitMs = Math.max(700, Math.min(1300, Math.floor(timeout(config) / 3)));
+  var waitMs = Math.max(700, Math.min(1500, Math.floor(timeout(config) / 3)));
+  var phaseMarked = false;
 
+  function markPhase() {
+    if (phaseMarked) return;
+    phaseMarked = true;
+    fireHook(hooks, "onConfirmationPhaseStarted", {
+      stage: "confirmation_phase_started",
+      fill: fillResult
+    });
+  }
+
+  var existing = findConfirmation(order);
+  if (existing) {
+    markPhase();
+    existing = validateConfirmationOrCancel(order, existing);
+    fireHook(hooks, "onConfirmationReady", existing.parsed);
+    return { kind: "confirmation", confirmation: existing, fill: fillResult };
+  }
+
+  markPhase();
   for (var attempt = 1; attempt <= TAP_ATTEMPTS; attempt++) {
-    var existing = findConfirmation(order);
-    if (existing) return { confirmation: existing, fill: fillResult };
-
     var submitNode = waitId(IDS.transaction, Math.min(timeout(config), 1200));
     if (!tapCenter(submitNode)) throw new Error("THS transaction button tap failed");
 
-    var confirmation = waitConfirmation(order, waitMs);
-    if (confirmation) return { confirmation: confirmation, fill: fillResult };
+    var outcome = waitTransactionOutcome(order, waitMs);
+    if (outcome && outcome.kind === "confirmation") {
+      var checked = validateConfirmationOrCancel(order, outcome.confirmation);
+      fireHook(hooks, "onConfirmationReady", checked.parsed);
+      return { kind: "confirmation", confirmation: checked, fill: fillResult };
+    }
+    if (outcome && outcome.kind === "result") {
+      if (outcome.result.outcome === "rejected") {
+        dismissResultDialog(order, outcome.result);
+        return { kind: "rejected", result: outcome.result, fill: fillResult };
+      }
+      throw unknownUiError(
+        "THS returned an unrecognized result before manual confirmation: " + outcome.result.message,
+        "pre_confirmation_result_unknown"
+      );
+    }
+    if (outcome && outcome.kind === "unknown_dialog") {
+      var probeUnknown = dumpProbe(order, "unknown_dialog_after_transaction_tap");
+      throw dialogContractError(
+        "unrecognized dialog opened after transaction tap; probe=" + probeUnknown,
+        "transaction_unknown_dialog"
+      );
+    }
     sleep(100);
   }
 
   var probe = dumpProbe(order, "transaction_no_confirmation_after_retries");
   var err = new Error(
-    "THS transaction tap did not open " + confirmationLabels(order.side).title + "; probe=" + probe
+    "THS transaction tap did not open a recognized confirmation/result dialog; probe=" + probe
   );
   err.stage = "transaction_no_confirmation";
   err.ambiguous = false;
-  throw err;
-}
-
-function dismissSuccessDialog(order, dialog) {
-  for (var attempt = 1; attempt <= TAP_ATTEMPTS; attempt++) {
-    if (!textContains("委托已提交").findOnce()) return;
-    var current = findSuccessDialog() || dialog;
-    if (!current || !current.ok || !tapCenter(current.ok)) break;
-    sleep(220);
-    if (!textContains("委托已提交").findOnce()) return;
-  }
-  var probe = dumpProbe(order, "success_dialog_not_dismissed_after_retries");
-  var err = new Error("THS success dialog did not dismiss after retries; probe=" + probe);
-  err.stage = "success_dialog_stuck";
-  err.ambiguous = true;
   err.fatal_ui_state = true;
   throw err;
 }
 
-function cancelOpenConfirmation(order) {
-  var current = findConfirmation(order);
-  if (!current) return true;
-  for (var attempt = 1; attempt <= 2; attempt++) {
-    if (!tapCenter(current.cancel)) break;
-    sleep(180);
-    if (!findConfirmation(order)) return true;
-    current = findConfirmation(order);
-    if (!current) return true;
+function resultReturn(order, result, opened) {
+  if (result.outcome === "unknown") {
+    throw unknownUiError(
+      "THS returned an unrecognized post-confirmation result: " + result.message,
+      "manual_confirmation_result_unknown"
+    );
   }
-  return !findConfirmation(order);
+
+  var returnValue = {
+    success: result.outcome === "submitted",
+    outcome: result.outcome,
+    mode: "live",
+    prompt: { title: result.title, content: result.message },
+    contract_no: result.outcome === "submitted" ? extractContractNumber(result.message) : "",
+    stage: result.outcome === "submitted" ? "submitted_after_manual_confirmation" : "rejected_after_manual_confirmation",
+    fill_attempts: opened.fill.fill_attempts
+  };
+  dismissResultDialog(order, result);
+  sleep(120);
+  return returnValue;
 }
 
 function preview(order, config) {
-  openOrderConfirmation(order, config);
-  if (!cancelOpenConfirmation(order)) {
+  var opened = openOrderConfirmation(order, config, null);
+  if (opened.kind === "rejected") {
+    return {
+      success: false,
+      outcome: "rejected",
+      mode: "dry_run",
+      prompt: { title: opened.result.title, content: opened.result.message },
+      stage: "rejected_before_confirmation"
+    };
+  }
+
+  if (!cancelOpenConfirmation(order, opened.confirmation)) {
     var probe = dumpProbe(order, "cancel_confirmation_not_dismissed");
     var err = new Error("THS confirmation cancel did not dismiss; probe=" + probe);
     err.stage = "dry_run_cancel_failed";
@@ -578,93 +740,82 @@ function preview(order, config) {
     err.fatal_ui_state = true;
     throw err;
   }
-  return { success: true, mode: "dry_run", stage: "confirmation_reached_and_cancelled" };
+  return {
+    success: true,
+    outcome: "preview_cancelled",
+    mode: "dry_run",
+    stage: "confirmation_contract_verified_and_cancelled",
+    confirmation: opened.confirmation.parsed
+  };
 }
 
-function submit(order, config) {
-  var opened = openOrderConfirmation(order, config);
+function submit(order, config, hooks) {
+  var opened = openOrderConfirmation(order, config, hooks || null);
+  if (opened.kind === "rejected") {
+    return {
+      success: false,
+      outcome: "rejected",
+      mode: "live",
+      prompt: { title: opened.result.title, content: opened.result.message },
+      stage: "rejected_before_manual_confirmation",
+      fill_attempts: opened.fill.fill_attempts
+    };
+  }
+
   var labels = confirmationLabels(order.side);
   toast("核对后手动点击" + labels.action + "：" + order.code + " x" + order.qty);
 
   var deadline = Date.now() + manualConfirmTimeout(config);
   while (Date.now() <= deadline) {
-    var success = findSuccessDialog();
-    if (success) {
-      dismissSuccessDialog(order, success);
-      sleep(120);
-      return {
-        success: true,
-        mode: "live",
-        prompt: { title: success.title, content: success.message },
-        contract_no: success.contract_no,
-        stage: "submitted_after_manual_confirmation",
-        fill_attempts: opened.fill.fill_attempts
-      };
+    var confirmation = findConfirmation(order);
+    if (confirmation) {
+      sleep(70);
+      continue;
     }
 
-    if (!findConfirmation(order)) {
-      success = waitSuccessDialog(manualResultGrace(config));
-      if (success) {
-        dismissSuccessDialog(order, success);
-        sleep(120);
-        return {
-          success: true,
-          mode: "live",
-          prompt: { title: success.title, content: success.message },
-          contract_no: success.contract_no,
-          stage: "submitted_after_manual_confirmation",
-          fill_attempts: opened.fill.fill_attempts
-        };
+    var result = null;
+    var graceDeadline = Date.now() + manualResultGrace(config);
+    while (Date.now() <= graceDeadline) {
+      result = findResultDialog();
+      if (result) break;
+      if (findUnknownDialog(order)) {
+        var probeUnknown = dumpProbe(order, "unknown_dialog_after_manual_confirmation");
+        throw unknownUiError(
+          "unrecognized dialog after manual confirmation; probe=" + probeUnknown,
+          "manual_confirmation_unknown_dialog"
+        );
       }
-
-      var ambiguous = new Error(
-        "THS manual confirmation dialog disappeared but no recognized submission result was found"
-      );
-      ambiguous.stage = "manual_confirmation_result_unrecognized";
-      ambiguous.ambiguous = true;
-      throw ambiguous;
+      sleep(70);
     }
+    if (result) return resultReturn(order, result, opened);
+
+    throw unknownUiError(
+      "THS manual confirmation dialog disappeared but no recognized result was found",
+      "manual_confirmation_result_unrecognized"
+    );
+  }
+
+  var stillOpen = findConfirmation(order);
+  if (stillOpen) {
+    // Do not race the user by clicking Cancel at the timeout boundary. The order is
+    // now unresolved until the user manually inspects the still-open dialog/broker.
+    throw unknownUiError(
+      "THS manual confirmation timed out while confirmation dialog is still open; manual takeover required",
+      "manual_confirmation_timeout_open_dialog"
+    );
+  }
+
+  var lateDeadline = Date.now() + manualResultGrace(config);
+  while (Date.now() <= lateDeadline) {
+    var lateResult = findResultDialog();
+    if (lateResult) return resultReturn(order, lateResult, opened);
     sleep(70);
   }
 
-  var confirmation = findConfirmation(order);
-  if (confirmation) {
-    if (!cancelOpenConfirmation(order)) {
-      var stuckProbe = dumpProbe(order, "manual_confirmation_timeout_cancel_failed");
-      var stuck = new Error(
-        "THS manual confirmation timed out and confirmation dialog could not be cancelled; probe=" + stuckProbe
-      );
-      stuck.stage = "manual_confirmation_timeout_cancel_failed";
-      stuck.ambiguous = false;
-      stuck.fatal_ui_state = true;
-      throw stuck;
-    }
-
-    var timeoutError = new Error(
-      "THS manual confirmation timed out; order was not submitted and was returned to manual queue"
-    );
-    timeoutError.stage = "manual_confirmation_timeout";
-    timeoutError.ambiguous = false;
-    throw timeoutError;
-  }
-
-  var lateSuccess = waitSuccessDialog(manualResultGrace(config));
-  if (lateSuccess) {
-    dismissSuccessDialog(order, lateSuccess);
-    return {
-      success: true,
-      mode: "live",
-      prompt: { title: lateSuccess.title, content: lateSuccess.message },
-      contract_no: lateSuccess.contract_no,
-      stage: "submitted_after_manual_confirmation",
-      fill_attempts: opened.fill.fill_attempts
-    };
-  }
-
-  var unknown = new Error("THS manual confirmation ended in an unrecognized state");
-  unknown.stage = "manual_confirmation_state_unknown";
-  unknown.ambiguous = true;
-  throw unknown;
+  throw unknownUiError(
+    "THS manual confirmation ended in an unrecognized state",
+    "manual_confirmation_state_unknown"
+  );
 }
 
 module.exports = {
