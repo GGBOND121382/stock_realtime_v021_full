@@ -1,80 +1,143 @@
 # AS1455 Android Executor MVP (AutoJs6)
 
-目标：让 Android 手机直接从 AS1455 服务器读取已经提交为 READY 的 `r21_best` 交易计划，并在同花顺 Android 客户端中完成**自动填单 + 人工最终确认**。
+目标：让 Android 手机读取已经 READY 的 AS1455 执行计划，在同花顺 Android 客户端中完成**自动填单 + 人工最终确认**。
 
 ## 当前边界
 
-这是 **MVP / 真机验证版**，不是无人值守交易程序。
+这是 MVP / 真机验证版，不是无人值守交易程序。
 
-- 服务器不把模型、行情、选股或 sizing 下放到手机；手机只执行 `execution_batch`。
-- `dry_run`：自动填写代码、数量和价格，验证实际界面值后打开委托确认框，再自动取消，不会最终提交。
-- `live`：自动填写并读回验证，程序可以打开同花顺委托确认框，但**不会点击“确认买入/确认卖出”**；最终确认必须由用户逐笔手动完成。
-- 自动填充采用 **初次尝试 + 1 次快速重试**。两次仍失败时，该笔立即跳过并进入人工处理队列，不阻塞后续可安全执行的订单。
-- 如果最终确认后的状态无法确定，账本记为 `unknown`。`unknown` 与 `submitted` 一样禁止自动重试，避免重复委托，必须先人工核验。
-- 如果同花顺出现无法安全恢复的未知 UI 状态，整批停止，而不是继续盲填。
-- BUY 强制 `qty % 100 == 0`；SELL 只要求正整数，以兼容合法零股卖出。
+- 手机只执行已经生成好的订单，不在手机侧计算模型、行情、选股或 sizing。
+- `dry_run`：填写代码、数量、价格，验证交易表单和委托确认框后自动取消，不提交。
+- `live`：填写并读回验证，打开同花顺委托确认框；**最终“确认买入/确认卖出”由用户逐笔手动点击**。
+- 登录、验证码、人脸、指纹、安全键盘、未知弹窗不自动处理。
+- 不读取券商账户状态作为高速下单前置条件。
 
-## 快速路径
+## 单笔执行契约
 
-正常一笔订单的 live 路径为：
+一笔订单只有满足下面三段一致性才允许进入人工最终确认：
 
-1. 进入正确的买入/卖出页。
-2. 自动填写证券代码。
-3. 确认搜索浮层已经关闭，最终交易页的代码与计划一致。
-4. 自动填写数量并从实际 `EditText` 读回校验。
-5. 自动填写价格并从实际 `EditText` 读回校验。
-6. 自动打开同花顺委托确认框。
-7. 用户人工核对并点击最终“确认买入/确认卖出”。
-8. 程序识别“委托已提交”，记录合同号（如可识别）、关闭结果框并进入下一笔。
+```text
+订单计划 == 同花顺交易表单 == 同花顺委托确认框
+```
 
-程序不会把 `setText()` 没报错当成“填单成功”；只有界面实际值与计划一致才允许进入下一阶段。
+具体流程：
 
-## 失败处理
+1. 进入正确买入/卖出页。
+2. 填写股票代码并确认搜索浮层关闭，最终交易页代码正确。
+3. 精确定位数量和价格各自 resource-id 下的 `EditText`。
+4. 验证代码/数量/价格三个输入框不是同一节点/同一 bounds。
+5. 只通过目标 `UiObject.setText()` 写数量和价格；**禁止全局 `setText()` 焦点回退**。
+6. 写数量后复核代码；写价格后再次复核代码、数量和价格。
+7. 在点击交易按钮前同步持久化 `confirmation_pending` 防重放状态。
+8. 打开委托确认框，解析并再次核对方向、代码、数量、价格。
+9. 确认框契约正确后同步持久化 `confirmation_open`。
+10. 用户人工点击最终确认。
+11. 程序区分 `submitted / rejected / unknown`，关闭已识别结果框并进入下一笔。
 
-自动填充失败时：
+确认框字段缺失、代码/数量/价格不一致、输入框串写或未知 UI 都会停止，而不是继续提交。
 
-- 第一次失败：返回交易页并重新定位控件，快速重试 1 次。
-- 第二次仍失败：记录 `manual_required`，跳过该笔，继续下一笔。
-- 人工确认超时且确认框仍存在：程序取消该确认框，把订单放回人工队列。
-- 确认框已经消失但没有识别到明确“委托已提交”：记录 `unknown`，禁止自动重试，避免重复委托。
-- 无法关闭卡住的确认/结果弹窗或无法恢复交易页：停止整批，要求人工接管。
+## 防重复与崩溃恢复
 
-## 目录
+正式 `main.js` 使用同步 ledger。AutoJs6 普通 Storage `put()` 是异步 `apply()`；当前关键状态使用 `putSync()`，确保状态落盘完成后才继续下一次券商侧动作。
 
-- `main.js`：入口，拉计划、校验、防重复、逐笔执行、异常队列。
-- `lib/plan_client.js`：HTTPS/HTTP 读取只读执行 API。
-- `lib/safety.js`：READY、日期、策略、顺序、整手等确定性校验。
-- `lib/ledger.js`：本地 `signal_id` 执行账本；`submitted` / `unknown` 为自动化终态。
-- `lib/ths_adapter.js`：同花顺 Android UI adapter；负责填充、读回、一次重试和人工确认等待。
-- `dump_ths_ui.js`：在目标手机快速检查关键 resource-id 是否存在。
-- `config.example.json`：配置模板。
+以下状态禁止自动重放：
+
+- `submitted`
+- `rejected`
+- `confirmation_pending`
+- `confirmation_open`
+- `unknown`
+- `blocked`
+
+如果上一轮存在 `confirmation_pending / confirmation_open / unknown / blocked`，**整个 live 批次停止**，必须先人工核对券商状态，不能跳过未决订单继续后面的自动下单。
+
+`batch_submit_test.js` 另有当天 + CSV 指纹作用域的持久化状态文件：
+
+```text
+batch_submit_test_result.json
+batch_submit_test_result.json.bak
+batch_submit_test_result.json.tmp
+```
+
+写入采用“临时文件完整写入并回读验证 → 保存上一完整主文件为备份 → 替换主文件 → 再回读验证”。主文件损坏或写入中断时只从有效备份恢复；主备都无法证明状态时直接停止，**不会按第一次运行从头重放**。
+
+旧版 `batch_submit_test_result.json` 若没有 `session_date`，同一 CSV 会 fail closed。确认历史测试委托后再人工清理旧状态文件即可开始新的当天测试。
+
+## 异常分类
+
+- 普通、明确发生在确认阶段之前的填单失败：最多一次快速重试；仍失败后恢复交易页并进入 `manual_required`，后续订单可以继续。
+- 明确券商拒单（例如价格/数量非法、资金或股票余额不足等）：记录 `rejected`，不当作 UNKNOWN。
+- 确认框消失但无法识别结果、未知结果文案、未知弹窗：`unknown`，整批停止。
+- 输入框拓扑错误、字段串写、确认框字段不一致、无法关闭结果框、布局发生变化：`blocked/unknown`，整批停止。
+- 人工确认超时但确认框仍开着：**不会自动点取消**，避免和用户刚好点击最终确认形成竞态；改为人工接管并阻止自动重放。
+
+## 手机端 Guard
+
+批次开始和每笔开始前检查：
+
+- 当前 package 为同花顺；
+- 关键 Accessibility 节点存在；
+- 可选锁定同花顺版本和横竖屏；
+- 执行中分辨率、方向、版本不变化；
+- 没有验证码、登录异常、风险/网络异常等已知 blocker；
+- **不存在任何残留 `dialog_layout`**；
+- **不存在股票搜索浮层 `dialogplus_view_container`**。
+
+Guard 会等待页面短暂稳定，而不是某个节点一瞬间没出现就立刻判失败。
+
+## 主要入口
+
+- `main.js`：正式 READY execution batch 入口，带同步 ledger、防重放、统一 runner。
+- `batch_submit_test.js`：读取本地 `smoke_orders.csv` 的批量真机测试入口；复用与 `main.js` 相同的单笔 runner。
+- `batch_validate.js`：只校验 CSV 和历史批量状态，不访问同花顺 UI、不执行委托。
+- `dry_run_smoke.js`：只支持 `fill_only` / `confirm_cancel`；**不再提供 live_submit 旁路**。
+- `mobile_preflight.js`：切回同花顺并等待普通交易页稳定后做手机环境预检。
+- `dump_ths_ui.js`：导出实际 Accessibility/UI tree 供版本验收。
+
+核心模块：
+
+- `lib/ths_adapter.js`：同花顺字段、确认框和结果框适配。
+- `lib/order_contract.js`：确认框三字段契约和结果分类。
+- `lib/order_runner.js`：唯一单笔执行状态机。
+- `lib/ledger.js`：正式执行同步 ledger。
+- `lib/batch_state.js`：CSV 校验和批量测试 crash-safe 状态。
+- `lib/mobile_ui_guard.js` / `lib/mobile_guard_runner.js`：只读运行环境 Guard。
 
 ## 关键配置
-
-建议从 `config.example.json` 开始：
 
 ```json
 {
   "mode": "dry_run",
   "require_manual_confirm": true,
+  "mobile_preflight_enabled": true,
+  "mobile_return_timeout_ms": 3500,
+  "expected_orientation": "",
+  "expected_ths_version_name": "",
   "ui_timeout_ms": 5000,
   "fill_timeout_ms": 1800,
   "field_verify_timeout_ms": 700,
   "manual_confirm_timeout_ms": 5500,
   "manual_result_grace_ms": 1000,
   "between_orders_ms": 150,
-  "failure_skip_ms": 100
+  "failure_skip_ms": 100,
+  "allow_batch_live_test": false,
+  "batch_test_continue_on_error": true
 }
 ```
 
-其中：
+不要通过把 timeout 压到极低来追求速度；节点条件满足会立即继续，timeout 只是失败上限。
 
-- `fill_timeout_ms`：单次找控件/代码解析的快速超时。
-- `field_verify_timeout_ms`：数量、价格读回校验等待时间。
-- `manual_confirm_timeout_ms`：每笔等待用户最终确认的最长时间。
-- `manual_result_grace_ms`：确认框消失后等待成功结果框的短暂宽限。
-- `between_orders_ms`：正常订单之间的间隔；为两分钟目标默认压缩到 150 ms。
-- `failure_skip_ms`：安全跳过失败订单后的短暂停顿。
+## 第一次真机验收顺序
+
+不要直接上 25 笔。按下面顺序验证：
+
+1. `batch_validate.js`：先验证 CSV、重复订单和历史未决状态。
+2. `mobile_preflight.js`：确认当前同花顺版本、方向、分辨率、关键 resource-id。
+3. `dry_run_smoke.js` + `smoke_mode=fill_only`：只填一笔，人工观察代码/数量/价格是否完全正确，不点交易按钮。
+4. `dry_run_smoke.js` + `smoke_mode=confirm_cancel`：验证委托确认框能解析出正确方向/代码/数量/价格，并自动取消。
+5. `batch_submit_test.js`：先用 2–3 笔测试人工最终确认、结果分类、下一笔衔接和状态文件。
+6. 验证重启场景：在未提交、确认框打开、明确拒单等不同阶段退出，确认不会误重放。
+7. 上述全部通过后再扩到完整 20–25 笔。
 
 ## 同花顺控件依据
 
@@ -86,40 +149,15 @@
 - `com.hexin.plat.android:id/stockvolume`
 - `com.hexin.plat.android:id/stockprice`
 - `com.hexin.plat.android:id/btn_transaction`
+- `com.hexin.plat.android:id/dialog_layout`
+- `com.hexin.plat.android:id/prompt_content`
+- `com.hexin.plat.android:id/ok_btn`
+- `com.hexin.plat.android:id/cancel_btn`
 
-这些 ID **必须以目标手机当前同花顺版本实际 UI tree 为准核验**。
+这些 ID 必须以目标手机当前同花顺版本实际 UI tree 为准。换手机、升级同花顺或调整显示设置后，应重新运行 `mobile_preflight.js` 和 `dump_ths_ui.js`。
 
-## 第一次真机测试
+## 尚未完成的验证
 
-1. 安装 AutoJs6 并开启无障碍权限。
-2. 安装/登录同花顺，进入交易页面。
-3. 把整个 `android_executor_autojs6/` 目录放到手机 AutoJs6 工作目录。
-4. 将 `config.example.json` 复制为 `config.json`，保持 `mode=dry_run`。
-5. 运行 `dump_ths_ui.js`，确认关键控件存在。
-6. 使用测试 batch 运行 `main.js`。
-7. 验收每笔代码、数量、价格均正确，确认框能够打开且 dry-run 会取消。
-8. 专门构造一次数量/价格填充失败，验证只重试一次，随后跳过并进入人工队列。
-9. 专门测试人工确认超时，确认程序会取消确认框并继续。
-10. 多轮模拟盘稳定后，再切换 `mode=live`；live 中最终确认仍由用户逐笔点击。
-
-## 服务器 API
-
-`scripts/serve_as1455_execution_api.py` 只读取已经存在的 `execution_batch.json`：
-
-```text
-GET /health
-GET /api/v1/execution/latest
-GET /api/v1/execution/YYYY-MM-DD
-```
-
-没有 READY 时返回 `204 No Content`。API 不会生成订单，也不会把非 READY 文件暴露给手机。
-
-## 尚未做
-
-- 没有在你的真实 Android 设备/同花顺版本上完成最终控件验收。
-- 没有自动处理登录、验证码、人脸/指纹、安全键盘。
-- 没有自动读取券商账户；仍使用服务器侧的实盘账户手动校准。
-- 没有无人值守定时唤醒。
-- 没有上传成交回报到服务器。
-
-保留这些边界是刻意的：目标是把 14:55 后的人工操作压缩为“核对 + 最终确认”，而不是把最终交易确认交给脚本。
+- 当前代码已经做了静态/纯逻辑测试，但**还没有在你的真实 Android 手机和当前同花顺版本上完成最终端到端验收**。
+- 真机 UI tree、券商定制界面、结果文案和弹窗形态仍需按上面的分阶段测试验证。
+- 没有自动处理验证码/生物认证/安全键盘，也没有无人值守定时唤醒。
