@@ -66,7 +66,13 @@ function parseConfirmationTexts(values) {
 function validateConfirmation(order, parsed) {
   parsed = parsed || {};
   var errors = [];
-  var expectedTitle = String(order.side) === "sell" ? "委托卖出确认" : "委托买入确认";
+  var side = String(order && order.side || "").toLowerCase();
+  if (side !== "buy" && side !== "sell") {
+    errors.push("invalid expected side=" + String(order && order.side));
+    return { ok: false, errors: errors };
+  }
+
+  var expectedTitle = side === "sell" ? "委托卖出确认" : "委托买入确认";
   if (String(parsed.title || "").indexOf(expectedTitle) < 0) {
     errors.push("title expected=" + expectedTitle + " actual=" + String(parsed.title || "<missing>"));
   }
@@ -103,9 +109,27 @@ var REJECT_PATTERNS = [
   /不支持.*交易/
 ];
 
+var NEGATED_SUBMIT_PATTERNS = [
+  /委托未提交/,
+  /委托提交失败/,
+  /提交委托失败/,
+  /委托已提交失败/,
+  /委托未成功/,
+  /提交未成功/,
+  /未能提交/
+];
+
 function classifyResultMessage(message) {
   var text = cleanText(message);
   if (!text) return { outcome: "unknown", message: text };
+
+  // Never let the positive substring "委托已提交" override an explicit failure/
+  // negation in the same message. Such wording is treated as unknown so the caller
+  // cannot convert an ambiguous broker result into a submitted terminal state.
+  for (var n = 0; n < NEGATED_SUBMIT_PATTERNS.length; n++) {
+    if (NEGATED_SUBMIT_PATTERNS[n].test(text)) return { outcome: "unknown", message: text };
+  }
+
   if (/委托已提交/.test(text)) return { outcome: "submitted", message: text };
   for (var i = 0; i < REJECT_PATTERNS.length; i++) {
     if (REJECT_PATTERNS[i].test(text)) return { outcome: "rejected", message: text };
