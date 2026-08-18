@@ -11,7 +11,7 @@ function loadLedger(storage) {
   return require("../lib/ledger.js");
 }
 
-(function testUsesPutSyncOnly() {
+(function testSimpleTerminalStatesUsePutSync() {
   var values = {};
   var asyncCalls = 0;
   var syncCalls = 0;
@@ -40,14 +40,42 @@ function loadLedger(storage) {
   };
 
   ledger.markStarted(order);
-  ledger.markConfirmationPending(order, { stage: "pending" });
-  ledger.markConfirmationOpen(order, { code: "600521", qty: 300, price: 16.06 });
-  ledger.markResult(order, { outcome: "submitted" }, false);
+  assert.strictEqual(ledger.isTerminal(order.signal_id), false);
 
-  assert.strictEqual(asyncCalls, 0);
-  assert.strictEqual(syncCalls, 4);
+  ledger.markResult(order, { success: true }, false);
   assert.strictEqual(ledger.get(order.signal_id).status, "submitted");
   assert.strictEqual(ledger.isTerminal(order.signal_id), true);
+
+  var unknown = new Error("unknown broker result");
+  unknown.ambiguous = true;
+  ledger.markManualRequired(order, unknown);
+  assert.strictEqual(ledger.get(order.signal_id).status, "unknown");
+  assert.strictEqual(ledger.isTerminal(order.signal_id), true);
+
+  assert.strictEqual(asyncCalls, 0);
+  assert.strictEqual(syncCalls, 3);
+})();
+
+(function testOrdinaryFailureIsRetryable() {
+  var values = {};
+  var storage = {
+    get: function (key, fallback) {
+      return Object.prototype.hasOwnProperty.call(values, key) ? values[key] : fallback;
+    },
+    putSync: function (key, value) { values[key] = value; }
+  };
+  var ledger = loadLedger(storage);
+  var order = {
+    signal_id: "signal-retryable-0001",
+    code: "000032",
+    side: "buy",
+    qty: 300,
+    submit_price: 16.06,
+    sequence: 1
+  };
+  ledger.markManualRequired(order, new Error("fill failed"));
+  assert.strictEqual(ledger.get(order.signal_id).status, "manual_required");
+  assert.strictEqual(ledger.isTerminal(order.signal_id), false);
 })();
 
 (function testMissingPutSyncFailsClosed() {
