@@ -3,6 +3,7 @@
 auto.waitFor();
 
 var guard = require("./lib/mobile_ui_guard.js");
+var guardRunner = require("./lib/mobile_guard_runner.js");
 
 function loadConfig() {
   var path = files.join(files.cwd(), "config.json");
@@ -52,19 +53,22 @@ try {
   var config = loadConfig();
   toast("正在切回同花顺，请停留在买入或卖出页面");
   guard.waitForTargetPackage(config, Number(config.mobile_return_timeout_ms || 10000), true);
-  sleep(500);
-  var result = guard.check(config);
+  var result = guardRunner.waitUntilReady(config, 10000);
   var text = formatResult(result);
   var outputPath = files.join(files.cwd(), "ths_mobile_preflight_" + timestampToken() + ".txt");
   files.write(outputPath, text);
   console.show();
   console.log(text);
-  if (result.ok) {
-    dialogs.alert("同花顺手机端预检通过", "关键 UI 节点和运行环境检查通过。\n\n日志: " + outputPath);
-  } else {
-    dialogs.alert("同花顺手机端预检失败", result.errors.join("\n") + "\n\n日志: " + outputPath);
-  }
+  dialogs.alert("同花顺手机端预检通过", "关键 UI 节点和运行环境检查通过。\n\n日志: " + outputPath);
 } catch (e) {
   console.error(e && e.stack ? e.stack : String(e));
-  dialogs.alert("同花顺手机端预检异常", String(e));
+  var result = e && e.preflight ? e.preflight : null;
+  if (result) {
+    var text = formatResult(result);
+    var outputPath = files.join(files.cwd(), "ths_mobile_preflight_" + timestampToken() + ".txt");
+    files.write(outputPath, text);
+    dialogs.alert("同花顺手机端预检失败", result.errors.join("\n") + "\n\n日志: " + outputPath);
+  } else {
+    dialogs.alert("同花顺手机端预检异常", String(e));
+  }
 }
