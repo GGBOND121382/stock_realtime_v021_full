@@ -15,6 +15,7 @@ function loadConfig() {
   if (!cfg.production_experiment) throw new Error("config.production_experiment is required");
   cfg.mode = String(cfg.mode || "dry_run");
   if (cfg.mode !== "dry_run" && cfg.mode !== "live") throw new Error("mode must be dry_run or live");
+  cfg.manual_confirm_timeout_ms = Number(cfg.manual_confirm_timeout_ms || 20000);
   return cfg;
 }
 
