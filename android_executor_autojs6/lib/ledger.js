@@ -13,13 +13,11 @@ function get(signalId) {
 function isTerminal(signalId) {
   var item = get(signalId);
   if (!item) return false;
-  // These states must never be replayed automatically. confirmation_* means the
-  // previous process entered the broker-confirmation phase but did not persist a
-  // final outcome before it ended.
   return [
     "submitted",
     "rejected",
     "unknown",
+    "blocked",
     "confirmation_pending",
     "confirmation_open"
   ].indexOf(String(item.status || "")) >= 0;
@@ -80,9 +78,11 @@ function markRejected(order, result) {
 function markManualRequired(order, error) {
   var item = baseOrder(order);
   var ambiguous = !!(error && error.ambiguous === true);
-  item.status = ambiguous ? "unknown" : "manual_required";
+  var fatal = !!(error && error.fatal_ui_state === true);
+  item.status = ambiguous ? "unknown" : (fatal ? "blocked" : "manual_required");
   item.stage = error && error.stage ? String(error.stage) : "manual_required";
   item.ambiguous = ambiguous;
+  item.fatal_ui_state = fatal;
   item.error = String(error);
   return mark(order.signal_id, item);
 }
