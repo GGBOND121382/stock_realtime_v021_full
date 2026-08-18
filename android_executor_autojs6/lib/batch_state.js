@@ -85,15 +85,10 @@ function normalizeOrder(row, rowNumber) {
 
 function validateUniqueOrders(orders) {
   var seenSideCode = {};
-  var seenCode = {};
   orders.forEach(function (order) {
     var sideCode = order.side + ":" + order.code;
     if (seenSideCode[sideCode]) throw new Error("duplicate CSV order: " + sideCode);
-    if (seenCode[order.code] && seenCode[order.code] !== order.side) {
-      throw new Error("same code appears on both buy and sell sides: " + order.code);
-    }
     seenSideCode[sideCode] = true;
-    seenCode[order.code] = order.side;
   });
   return true;
 }
@@ -108,24 +103,33 @@ function fingerprintText(text) {
   return (hash >>> 0).toString(16);
 }
 
-function newState(fingerprint, orders, totalNotional, csvName) {
+function newState(fingerprint, orders, totalNotional, csvName, sessionDate) {
   return {
     status: "ready",
+    session_date: String(sessionDate || ""),
     csv_file: String(csvName || "smoke_orders.csv"),
-    csv_fingerprint: fingerprint,
+    csv_fingerprint: String(fingerprint),
     order_count: orders.length,
-    total_notional: totalNotional,
+    total_notional: Number(totalNotional),
     created_at: new Date().toISOString(),
+    write_generation: 0,
     results: []
   };
 }
 
-function restoreState(rawState, fingerprint, orders, totalNotional, csvName) {
-  if (rawState && rawState.csv_fingerprint === fingerprint &&
-      Number(rawState.order_count) === orders.length && Array.isArray(rawState.results)) {
-    return rawState;
-  }
-  return newState(fingerprint, orders, totalNotional, csvName);
+function sameScope(state, fingerprint, orders, sessionDate) {
+  return !!(
+    state &&
+    String(state.session_date || "") === String(sessionDate || "") &&
+    String(state.csv_fingerprint || "") === String(fingerprint) &&
+    Number(state.order_count) === orders.length &&
+    Array.isArray(state.results)
+  );
+}
+
+function restoreState(rawState, fingerprint, orders, totalNotional, csvName, sessionDate) {
+  if (sameScope(rawState, fingerprint, orders, sessionDate)) return rawState;
+  return newState(fingerprint, orders, totalNotional, csvName, sessionDate);
 }
 
 function itemForRow(state, row, order) {
@@ -149,6 +153,134 @@ function unresolvedRows(state) {
   return state.results.filter(function (item) { return isUnresolved(item.status); });
 }
 
+function defaultIo() {
+  return {
+    exists: function (path) { return files.exists(path); },
+    read: function (path) { return files.read(path); },
+    write: function (path, text) { files.write(path, text); },
+    copy: function (from, to) { return files.copy(from, to); },
+    remove: function (path) { return !files.exists(path) || files.remove(path); },
+    move: function (from, to) { return files.move(from, to); }
+  };
+}
+
+function parseStateText(text) {
+  var state = JSON.parse(String(text || ""));
+  if (!state || typeof state !== "object" || Array.isArray(state)) {
+    throw new Error("batch state is not an object");
+  }
+  if (!Array.isArray(state.results)) throw new Error("batch state results is not an array");
+  return state;
+}
+
+function readParsed(path, io) {
+  if (!io.exists(path)) return { exists: false, valid: false, state: null, error: null };
+  try {
+    return { exists: true, valid: true, state: parseStateText(io.read(path)), error: null };
+  } catch (e) {
+    return { exists: true, valid: false, state: null, error: e };
+  }
+}
+
+function loadDurable(path, fingerprint, orders, totalNotional, csvName, sessionDate, suppliedIo) {
+  var io = suppliedIo || defaultIo();
+  var backupPath = path + ".bak";
+  var primary = readParsed(path, io);
+  var backup = readParsed(backupPath, io);
+
+  if (!primary.exists && !backup.exists) {
+    return {
+      state: newState(fingerprint, orders, totalNotional, csvName, sessionDate),
+      source: "new"
+    };
+  }
+
+  if (primary.valid && sameScope(primary.state, fingerprint, orders, sessionDate)) {
+    return { state: primary.state, source: "primary" };
+  }
+
+  if (!primary.valid && primary.exists) {
+    if (backup.valid && sameScope(backup.state, fingerprint, orders, sessionDate)) {
+      return { state: backup.state, source: "backup" };
+    }
+    throw new Error(
+      "batch state primary is corrupt and no valid in-scope backup exists; refusing automatic replay: " + path
+    );
+  }
+
+  // A valid legacy state for the same CSV but without session_date may contain
+  // already-submitted rows. Fail closed once rather than silently treating it as a
+  // fresh run and replaying those rows.
+  if (primary.valid && !primary.state.session_date &&
+      String(primary.state.csv_fingerprint || "") === String(fingerprint) &&
+      Number(primary.state.order_count) === orders.length) {
+    throw new Error(
+      "legacy batch state lacks session_date; verify previous orders manually before resetting state: " + path
+    );
+  }
+
+  // A valid state from another date or another CSV belongs to another test session.
+  return {
+    state: newState(fingerprint, orders, totalNotional, csvName, sessionDate),
+    source: "new_scope"
+  };
+}
+
+function verifyWritten(path, expectedGeneration, io) {
+  var parsed = readParsed(path, io);
+  if (!parsed.valid) throw new Error("failed to verify written batch state: " + path);
+  if (Number(parsed.state.write_generation) !== Number(expectedGeneration)) {
+    throw new Error(
+      "batch state generation mismatch after write: expected=" + expectedGeneration +
+      " actual=" + parsed.state.write_generation
+    );
+  }
+  return parsed.state;
+}
+
+function persistDurable(path, state, suppliedIo) {
+  var io = suppliedIo || defaultIo();
+  var tmpPath = path + ".tmp";
+  var backupPath = path + ".bak";
+  var nextGeneration = Number(state.write_generation || 0) + 1;
+  state.write_generation = nextGeneration;
+  state.updated_at = new Date().toISOString();
+  var text = JSON.stringify(state, null, 2);
+
+  // Build and verify a complete replacement before touching the primary file.
+  io.write(tmpPath, text);
+  verifyWritten(tmpPath, nextGeneration, io);
+
+  // Never overwrite a good backup with a corrupt primary.
+  var oldPrimary = readParsed(path, io);
+  if (oldPrimary.valid) {
+    if (!io.copy(path, backupPath)) {
+      io.remove(tmpPath);
+      throw new Error("failed to backup existing batch state: " + backupPath);
+    }
+    if (!readParsed(backupPath, io).valid) {
+      io.remove(tmpPath);
+      throw new Error("backup batch state verification failed: " + backupPath);
+    }
+  }
+
+  if (io.exists(path) && !io.remove(path)) {
+    io.remove(tmpPath);
+    throw new Error("failed to remove old batch state before replace: " + path);
+  }
+
+  var replaced = io.move(tmpPath, path);
+  if (!replaced) {
+    if (!io.copy(tmpPath, path)) {
+      throw new Error("failed to install new batch state: " + path);
+    }
+    io.remove(tmpPath);
+  }
+
+  verifyWritten(path, nextGeneration, io);
+  return state;
+}
+
 module.exports = {
   parseCsvLine: parseCsvLine,
   readCsvText: readCsvText,
@@ -156,9 +288,13 @@ module.exports = {
   validateUniqueOrders: validateUniqueOrders,
   fingerprintText: fingerprintText,
   newState: newState,
+  sameScope: sameScope,
   restoreState: restoreState,
   itemForRow: itemForRow,
   isSafeTerminal: isSafeTerminal,
   isUnresolved: isUnresolved,
-  unresolvedRows: unresolvedRows
+  unresolvedRows: unresolvedRows,
+  parseStateText: parseStateText,
+  loadDurable: loadDurable,
+  persistDurable: persistDurable
 };
