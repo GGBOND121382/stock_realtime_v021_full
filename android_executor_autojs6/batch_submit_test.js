@@ -2,7 +2,7 @@
 
 auto.waitFor();
 
-var ths = require("./lib/ths_adapter.js");
+var runner = require("./lib/order_runner.js");
 var mobileGuard = require("./lib/mobile_ui_guard.js");
 var CSV_NAME = "smoke_orders.csv";
 var RESULT_NAME = "batch_submit_test_result.json";
@@ -11,15 +11,18 @@ function loadConfig() {
   var path = files.join(files.cwd(), "config.json");
   if (!files.exists(path)) throw new Error("missing config.json");
   var cfg = JSON.parse(files.read(path));
+  cfg.mode = "live";
   cfg.ths_package = String(cfg.ths_package || "com.hexin.plat.android");
   cfg.ui_timeout_ms = Number(cfg.ui_timeout_ms || 5000);
   cfg.fill_timeout_ms = Number(cfg.fill_timeout_ms || 1800);
   cfg.field_verify_timeout_ms = Number(cfg.field_verify_timeout_ms || 700);
   cfg.manual_confirm_timeout_ms = Number(cfg.manual_confirm_timeout_ms || 5500);
   cfg.manual_result_grace_ms = Number(cfg.manual_result_grace_ms || 1000);
-  cfg.between_orders_ms = Number(cfg.between_orders_ms || 800);
+  cfg.between_orders_ms = Number(cfg.between_orders_ms || 150);
+  cfg.failure_skip_ms = Number(cfg.failure_skip_ms || 100);
+  cfg.mobile_return_timeout_ms = Number(cfg.mobile_return_timeout_ms || 3500);
   cfg.allow_batch_live_test = cfg.allow_batch_live_test === true;
-  cfg.batch_test_continue_on_error = cfg.batch_test_continue_on_error === true;
+  cfg.batch_test_continue_on_error = cfg.batch_test_continue_on_error !== false;
   return cfg;
 }
 
@@ -47,7 +50,7 @@ function parseCsvLine(line) {
   return fields;
 }
 
-function readCsv(path) {
+function readCsvDocument(path) {
   var text = files.read(path).replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   var lines = text.split("\n").filter(function (line) { return line.trim().length > 0; });
   if (lines.length < 2) throw new Error("batch CSV has no data rows: " + path);
@@ -65,7 +68,7 @@ function readCsv(path) {
     for (var j = 0; j < headers.length; j++) row[headers[j]] = values[j] === undefined ? "" : values[j];
     rows.push(row);
   }
-  return rows;
+  return { text: text, rows: rows };
 }
 
 function normalizeOrder(row, rowNumber) {
@@ -99,30 +102,136 @@ function normalizeOrder(row, rowNumber) {
   };
 }
 
+function fingerprintText(text) {
+  var hash = 2166136261;
+  for (var i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  return (hash >>> 0).toString(16);
+}
+
 function writeState(path, state) {
   state.updated_at = new Date().toISOString();
   files.write(path, JSON.stringify(state, null, 2));
 }
 
-function requireBatchAck(orders, totalNotional) {
+function newState(fingerprint, orders, totalNotional) {
+  return {
+    status: "ready",
+    csv_file: CSV_NAME,
+    csv_fingerprint: fingerprint,
+    order_count: orders.length,
+    total_notional: totalNotional,
+    created_at: new Date().toISOString(),
+    results: []
+  };
+}
+
+function loadState(path, fingerprint, orders, totalNotional) {
+  if (!files.exists(path)) return newState(fingerprint, orders, totalNotional);
+  try {
+    var state = JSON.parse(files.read(path));
+    if (state.csv_fingerprint === fingerprint && Number(state.order_count) === orders.length && Array.isArray(state.results)) {
+      return state;
+    }
+  } catch (e) {}
+  return newState(fingerprint, orders, totalNotional);
+}
+
+function itemForRow(state, row, order) {
+  for (var i = 0; i < state.results.length; i++) {
+    if (Number(state.results[i].row) === Number(row)) return state.results[i];
+  }
+  var item = { row: row, order: order, status: "pending", attempts: 0 };
+  state.results.push(item);
+  return item;
+}
+
+function isSafeTerminal(status) {
+  return status === "submitted" || status === "rejected";
+}
+
+function isUnresolved(status) {
+  return ["confirmation_pending", "confirmation_open", "unknown", "blocked"].indexOf(String(status || "")) >= 0;
+}
+
+function unresolvedRows(state) {
+  return state.results.filter(function (item) { return isUnresolved(item.status); });
+}
+
+function requireBatchAck(orders, totalNotional, state) {
   var buys = orders.filter(function (o) { return o.side === "buy"; }).length;
   var sells = orders.length - buys;
-  var notionalText = Number(totalNotional).toFixed(2);
+  var completed = state.results.filter(function (x) { return isSafeTerminal(x.status); }).length;
   var summary = [
     "即将进入 CSV 批量下单测试",
     "订单数: " + orders.length,
+    "已安全终态: " + completed,
     "买入: " + buys + " / 卖出: " + sells,
-    "计划金额合计: " + notionalText + " 元",
+    "计划金额合计: " + Number(totalNotional).toFixed(2) + " 元",
     "",
-    "程序会逐笔自动填写代码、数量、价格并打开确认框；",
-    "最终确认仍由你逐笔人工点击。"
+    "程序逐笔填写并核验确认框；最终确认由你手动点击。",
+    "已提交/明确拒单的行不会在同一 CSV 指纹下自动重放。"
   ].join("\n");
   return dialogs.confirm("AS1455 批量下单测试", summary);
 }
 
-function checkGuard(config, baseline, label, includeMetadata) {
+function makeStore(state, item, resultPath) {
+  function persist(status, extra) {
+    item.status = status;
+    item.updated_at = new Date().toISOString();
+    if (extra) {
+      Object.keys(extra).forEach(function (key) { item[key] = extra[key]; });
+    }
+    writeState(resultPath, state);
+  }
+
+  return {
+    markStarted: function () {
+      item.attempts = Number(item.attempts || 0) + 1;
+      item.started_at = new Date().toISOString();
+      item.error = "";
+      item.stage = "started";
+      persist("started");
+    },
+    markConfirmationPending: function (order, detail) {
+      persist("confirmation_pending", { stage: "confirmation_phase_started", confirmation: detail || null });
+    },
+    markConfirmationOpen: function (order, detail) {
+      persist("confirmation_open", { stage: "confirmation_open", confirmation: detail || null });
+    },
+    markResult: function (order, result) {
+      persist("submitted", {
+        stage: result && result.stage ? result.stage : "submitted",
+        broker_result: result || null,
+        finished_at: new Date().toISOString()
+      });
+    },
+    markRejected: function (order, result) {
+      persist("rejected", {
+        stage: result && result.stage ? result.stage : "rejected",
+        broker_result: result || null,
+        finished_at: new Date().toISOString()
+      });
+    },
+    markError: function (order, error) {
+      var ambiguous = !!(error && error.ambiguous === true);
+      var fatal = !!(error && error.fatal_ui_state === true);
+      persist(ambiguous ? "unknown" : (fatal ? "blocked" : "manual_required"), {
+        stage: error && error.stage ? String(error.stage) : "unknown",
+        ambiguous: ambiguous,
+        fatal_ui_state: fatal,
+        error: String(error),
+        finished_at: new Date().toISOString()
+      });
+    }
+  };
+}
+
+function checkGuard(config, baseline, label) {
   if (config.mobile_preflight_enabled === false) return baseline;
-  var result = mobileGuard.assertReady(config, { include_metadata: includeMetadata === true });
+  var result = mobileGuard.assertReady(config);
   if (baseline) {
     var stable = mobileGuard.compareBaseline(baseline, result.snapshot);
     if (!stable.ok) {
@@ -146,81 +255,89 @@ function run() {
   var csvPath = files.join(files.cwd(), CSV_NAME);
   if (!files.exists(csvPath)) throw new Error("missing " + CSV_NAME);
 
-  var rows = readCsv(csvPath);
+  var doc = readCsvDocument(csvPath);
   var orders = [];
   var totalNotional = 0;
-  for (var i = 0; i < rows.length; i++) {
-    var order = normalizeOrder(rows[i], i + 1);
+  for (var i = 0; i < doc.rows.length; i++) {
+    var order = normalizeOrder(doc.rows[i], i + 1);
     orders.push(order);
     totalNotional += order.qty * order.submit_price;
   }
   if (!orders.length) throw new Error("no orders in CSV");
 
-  if (!requireBatchAck(orders, totalNotional)) return;
-
-  // Read-only Android/THS validation before any order field is touched.
-  var guardBaseline = checkGuard(config, null, "batch_start", true);
-
+  var fingerprint = fingerprintText(doc.text);
   var resultPath = files.join(files.cwd(), RESULT_NAME);
-  var state = {
-    status: "running",
-    csv_file: CSV_NAME,
-    order_count: orders.length,
-    total_notional: totalNotional,
-    started_at: new Date().toISOString(),
-    results: []
-  };
+  var state = loadState(resultPath, fingerprint, orders, totalNotional);
+  var unresolved = unresolvedRows(state);
+  if (unresolved.length) {
+    throw new Error(
+      "previous run has unresolved broker-confirmation state at rows: " +
+      unresolved.map(function (x) { return x.row + "(" + x.status + ")"; }).join(", ") +
+      ". Verify these orders manually before clearing/resetting the batch result state."
+    );
+  }
+
+  if (!requireBatchAck(orders, totalNotional, state)) return;
+
+  mobileGuard.waitForTargetPackage(config, config.mobile_return_timeout_ms, true);
+  var guardBaseline = checkGuard(config, null, "batch_start");
+
+  state.status = "running";
+  if (!state.started_at) state.started_at = new Date().toISOString();
   writeState(resultPath, state);
 
   for (var j = 0; j < orders.length; j++) {
     var current = orders[j];
+    var item = itemForRow(state, j + 1, current);
+    if (isSafeTerminal(item.status)) {
+      console.log("[SKIP_TERMINAL] row=" + (j + 1) + " status=" + item.status + " code=" + current.code);
+      continue;
+    }
 
-    // Ensure package/orientation/display/known blockers did not change between orders.
-    checkGuard(config, guardBaseline, "before_order_" + (j + 1), false);
+    checkGuard(config, guardBaseline, "before_order_" + (j + 1));
+    toast("处理 " + (j + 1) + "/" + orders.length + " " + current.code);
 
-    var item = {
-      row: j + 1,
-      order: current,
-      started_at: new Date().toISOString(),
-      status: "started"
-    };
-    state.results.push(item);
-    writeState(resultPath, state);
-
+    var outcome;
     try {
-      toast("处理 " + (j + 1) + "/" + orders.length + " " + current.code);
-      var brokerResult = ths.submit(current, config);
-      item.status = "submitted";
-      item.broker_result = brokerResult;
-      item.finished_at = new Date().toISOString();
-      writeState(resultPath, state);
+      outcome = runner.execute(current, config, makeStore(state, item, resultPath));
     } catch (e) {
-      item.status = e && e.ambiguous === true ? "unknown" : "failed";
-      item.stage = e && e.stage ? String(e.stage) : "unknown";
-      item.error = String(e);
-      item.finished_at = new Date().toISOString();
-      state.status = "failed";
+      state.status = "blocked";
       writeState(resultPath, state);
+      throw e;
+    }
 
-      // Topology/cross-write/unknown UI must stop immediately. Never continue a
-      // batch when the mapping or submission state is uncertain.
-      if (e && (e.fatal_ui_state === true || e.ambiguous === true)) throw e;
-      if (!config.batch_test_continue_on_error) throw e;
+    if (outcome.status === "manual_required") {
+      console.error("[MANUAL_REQUIRED] row=" + (j + 1) + " code=" + current.code + " " + String(outcome.error));
+      if (!config.batch_test_continue_on_error) {
+        state.status = "stopped_on_nonfatal_error";
+        writeState(resultPath, state);
+        throw outcome.error;
+      }
+      sleep(config.failure_skip_ms);
+      continue;
+    }
+
+    if (outcome.status === "rejected") {
+      console.error("[REJECTED] row=" + (j + 1) + " code=" + current.code + " " + JSON.stringify(outcome.result.prompt || {}));
+      sleep(config.failure_skip_ms);
+      continue;
     }
 
     if (j + 1 < orders.length) sleep(config.between_orders_ms);
   }
 
-  var failed = state.results.filter(function (x) { return x.status === "failed" || x.status === "unknown"; }).length;
   var submitted = state.results.filter(function (x) { return x.status === "submitted"; }).length;
-  state.status = failed ? "completed_with_errors" : "completed";
+  var rejected = state.results.filter(function (x) { return x.status === "rejected"; }).length;
+  var manual = state.results.filter(function (x) { return x.status === "manual_required"; }).length;
+  state.status = manual ? "completed_with_manual_items" : "completed";
   state.finished_at = new Date().toISOString();
   writeState(resultPath, state);
 
   dialogs.alert(
     "批量下单测试完成",
     "已提交: " + submitted + "/" + orders.length +
-    "\n失败/未知: " + failed +
+    "\n明确拒单: " + rejected +
+    "\n待人工处理: " + manual +
     "\n\n结果文件：\n" + resultPath
   );
 }
