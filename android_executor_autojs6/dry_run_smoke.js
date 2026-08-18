@@ -4,8 +4,6 @@ auto.waitFor();
 
 var ths = require("./lib/ths_adapter.js");
 var batch = require("./lib/batch_state.js");
-var mobileGuard = require("./lib/mobile_ui_guard.js");
-var mobileGuardRunner = require("./lib/mobile_guard_runner.js");
 var CSV_NAME = "smoke_orders.csv";
 
 function loadConfig() {
@@ -16,14 +14,13 @@ function loadConfig() {
   cfg.ui_timeout_ms = Number(cfg.ui_timeout_ms || 5000);
   cfg.fill_timeout_ms = Number(cfg.fill_timeout_ms || 1800);
   cfg.field_verify_timeout_ms = Number(cfg.field_verify_timeout_ms || 700);
-  cfg.mobile_return_timeout_ms = Number(cfg.mobile_return_timeout_ms || 3500);
   cfg.smoke_csv_row = Number(cfg.smoke_csv_row || 1);
   cfg.smoke_mode = String(cfg.smoke_mode || "fill_only");
   return cfg;
 }
 
 function summary(order, rowNumber, total, mode) {
-  var modeText = mode === "confirm_cancel" ? "到确认框、复核三字段后自动取消" : "仅填写，不点击委托按钮";
+  var modeText = mode === "confirm_cancel" ? "填写后打开确认框并自动取消" : "仅填写，不点击委托按钮";
   return [
     modeText,
     "CSV行: " + rowNumber + "/" + total,
@@ -55,7 +52,7 @@ function run() {
 
   var config = loadConfig();
   if (["fill_only", "confirm_cancel"].indexOf(config.smoke_mode) < 0) {
-    throw new Error("config.smoke_mode must be fill_only or confirm_cancel; live submission is only supported by the guarded batch/main runner");
+    throw new Error("config.smoke_mode must be fill_only or confirm_cancel");
   }
 
   var doc = batch.readCsvText(files.read(csvPath));
@@ -65,11 +62,7 @@ function run() {
   }
 
   var order = batch.normalizeOrder(doc.rows[rowNumber - 1], rowNumber);
-  var text = summary(order, rowNumber, doc.rows.length, config.smoke_mode);
-  if (!dialogs.confirm("AS1455 SMOKE TEST", text)) return;
-
-  mobileGuard.waitForTargetPackage(config, config.mobile_return_timeout_ms, true);
-  mobileGuardRunner.waitUntilReady(config, Math.min(config.ui_timeout_ms, 1800));
+  if (!dialogs.confirm("AS1455 SMOKE TEST", summary(order, rowNumber, doc.rows.length, config.smoke_mode))) return;
 
   var result;
   if (config.smoke_mode === "fill_only") {
@@ -81,7 +74,7 @@ function run() {
 
   result = ths.preview(order, config);
   writeResult("confirm_cancel", rowNumber, order, result);
-  toast("CONFIRM-CANCEL完成：确认框代码/数量/价格已复核并自动取消；未提交委托");
+  toast("CONFIRM-CANCEL完成：已到确认框并自动取消；未提交委托");
 }
 
 try {
