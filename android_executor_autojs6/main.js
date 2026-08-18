@@ -6,6 +6,7 @@ var safety = require("./lib/safety.js");
 var ledger = require("./lib/ledger.js");
 var client = require("./lib/plan_client.js");
 var ths = require("./lib/ths_adapter.js");
+var retryQueue = require("./lib/retry_queue.js");
 
 function loadConfig() {
   var path = files.join(files.cwd(), "config.json");
@@ -45,6 +46,7 @@ function queueItem(order, error) {
     code: order.code,
     side: order.side,
     qty: order.qty,
+    submit_price: order.submit_price,
     stage: error && error.stage ? String(error.stage) : "unknown",
     ambiguous: !!(error && error.ambiguous === true),
     error: String(error)
@@ -62,12 +64,14 @@ function executeOne(order, config, manualQueue) {
   try {
     var result = config.mode === "live" ? ths.submit(order, config) : ths.preview(order, config);
     ledger.markResult(order, result, config.mode !== "live");
+    if (config.mode === "live") retryQueue.remove(order.signal_id);
     console.log("[OK] " + order.sequence + " " + order.side + " " + order.code + " x" + order.qty);
     sleep(betweenOrdersMs(config));
     return "completed";
   } catch (e) {
     if (config.mode === "live") {
       ledger.markManualRequired(order, e);
+      retryQueue.recordFailure(order, e, "main");
     } else {
       ledger.markFailed(order, e);
     }
@@ -93,6 +97,7 @@ function executeOne(order, config, manualQueue) {
       fatal.stage = "post_skip_recovery_failed";
       fatal.ambiguous = false;
       fatal.fatal_ui_state = true;
+      if (config.mode === "live") retryQueue.recordFailure(order, fatal, "main_recovery");
       throw fatal;
     }
 
@@ -104,8 +109,8 @@ function executeOne(order, config, manualQueue) {
 function manualQueueText(queue) {
   if (!queue.length) return "";
   return queue.map(function (item) {
-    return "#" + item.sequence + " " + item.code + " x" + item.qty +
-      " [" + (item.ambiguous ? "UNKNOWN" : "MANUAL") + "] " + item.stage;
+    return "#" + item.sequence + " " + item.code + " x" + item.qty + " @" + Number(item.submit_price).toFixed(2) +
+      " [" + (item.ambiguous ? "UNKNOWN" : "RETRY") + "] " + item.stage;
   }).join("\n");
 }
 
@@ -156,9 +161,10 @@ function runOnce() {
   }
 
   var msg = "自动流程完成: " + completed + "/" + pending.length +
-    "\n待人工处理: " + manualQueue.length;
+    "\n待重试/人工处理: " + manualQueue.length;
   if (manualQueue.length) {
-    msg += "\n\n" + manualQueueText(manualQueue);
+    msg += "\n\n" + manualQueueText(manualQueue) +
+      "\n\n已写入: " + retryQueue.path();
     dialogs.alert("AS1455 执行结果", msg);
   } else {
     toast("AS1455: 本次订单处理完成 " + completed + " 笔");
@@ -166,7 +172,7 @@ function runOnce() {
 
   console.log(
     "[DONE] completed=" + completed +
-    " manual_or_failed=" + skipped +
+    " retry_or_manual=" + skipped +
     " queue=" + manualQueue.length
   );
 }
@@ -176,5 +182,5 @@ try {
 } catch (e) {
   console.error(e && e.stack ? e.stack : String(e));
   toast("AS1455执行停止: " + e);
-  dialogs.alert("AS1455 执行停止", String(e));
+  dialogs.alert("AS1455 执行停止", String(e) + "\n\n异常订单已保留在 retry_orders.json");
 }
