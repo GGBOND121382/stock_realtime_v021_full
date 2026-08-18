@@ -116,7 +116,7 @@ function ledgerStore() {
   };
 }
 
-function executeOne(order, config, manualQueue) {
+function executeOne(order, config, resultQueue) {
   if (ledger.isTerminal(order.signal_id)) {
     console.log("[SKIP] terminal " + order.signal_id + " " + order.code);
     return "skipped";
@@ -126,7 +126,7 @@ function executeOne(order, config, manualQueue) {
   try {
     outcome = runner.execute(order, config, ledgerStore());
   } catch (e) {
-    manualQueue.push(queueItem(order, e && e.ambiguous === true ? "UNKNOWN" : "FATAL", e));
+    resultQueue.push(queueItem(order, e && e.ambiguous === true ? "UNKNOWN" : "FATAL", e));
     console.error(
       "[STOP] " + order.sequence + " " + order.code +
       " stage=" + (e && e.stage ? e.stage : "unknown") +
@@ -143,7 +143,7 @@ function executeOne(order, config, manualQueue) {
   }
 
   if (outcome.status === "rejected") {
-    manualQueue.push(queueItem(order, "REJECTED", {
+    resultQueue.push(queueItem(order, "REJECTED", {
       stage: outcome.result.stage || "broker_rejected",
       error: outcome.result.prompt && outcome.result.prompt.content ? outcome.result.prompt.content : "broker rejected order"
     }));
@@ -153,7 +153,7 @@ function executeOne(order, config, manualQueue) {
   }
 
   if (outcome.status === "manual_required" || outcome.status === "failed") {
-    manualQueue.push(queueItem(order, "MANUAL", outcome.error));
+    resultQueue.push(queueItem(order, "MANUAL", outcome.error));
     console.error(
       "[MANUAL_REQUIRED] " + order.sequence + " " + order.code +
       " stage=" + (outcome.error && outcome.error.stage ? outcome.error.stage : "unknown") +
@@ -166,13 +166,17 @@ function executeOne(order, config, manualQueue) {
   return outcome.status;
 }
 
-function manualQueueText(queue) {
+function resultQueueText(queue) {
   if (!queue.length) return "";
   return queue.map(function (item) {
     return "#" + item.sequence + " " + item.code + " x" + item.qty +
       " [" + item.kind + "] " + item.stage +
       (item.error ? " - " + item.error : "");
   }).join("\n");
+}
+
+function requiresManualAttention(item) {
+  return item.kind === "MANUAL" || item.kind === "UNKNOWN" || item.kind === "FATAL";
 }
 
 function runOnce() {
@@ -226,23 +230,24 @@ function runOnce() {
 
   console.log("[RUN] trade_date=" + batch.trade_date + " orders=" + pending.length + " mode=" + config.mode);
 
-  var manualQueue = [];
+  var resultQueue = [];
   var completed = 0;
   var skipped = 0;
   var rejected = 0;
   for (var i = 0; i < pending.length; i++) {
     runMobileGuard(config, "before_order_" + pending[i].sequence, false);
-    var status = executeOne(pending[i], config, manualQueue);
+    var status = executeOne(pending[i], config, resultQueue);
     if (status === "completed") completed++;
     else if (status === "rejected") rejected++;
     else if (status === "manual_required" || status === "failed") skipped++;
   }
 
+  var manualCount = resultQueue.filter(requiresManualAttention).length;
   var msg = "自动流程完成: " + completed + "/" + pending.length +
     "\n明确拒单: " + rejected +
-    "\n待人工处理: " + manualQueue.length;
-  if (manualQueue.length) {
-    msg += "\n\n" + manualQueueText(manualQueue);
+    "\n待人工处理: " + manualCount;
+  if (resultQueue.length) {
+    msg += "\n\n" + resultQueueText(resultQueue);
     dialogs.alert("AS1455 执行结果", msg);
   } else {
     toast("AS1455: 本次订单处理完成 " + completed + " 笔");
@@ -252,7 +257,8 @@ function runOnce() {
     "[DONE] completed=" + completed +
     " rejected=" + rejected +
     " manual_or_failed=" + skipped +
-    " queue=" + manualQueue.length
+    " manual_attention=" + manualCount +
+    " result_items=" + resultQueue.length
   );
 }
 
