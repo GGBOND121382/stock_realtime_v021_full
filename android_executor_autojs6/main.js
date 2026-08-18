@@ -7,6 +7,7 @@ var ledger = require("./lib/ledger.js");
 var client = require("./lib/plan_client.js");
 var runner = require("./lib/order_runner.js");
 var mobileGuard = require("./lib/mobile_ui_guard.js");
+var mobileGuardRunner = require("./lib/mobile_guard_runner.js");
 var mobileBaseline = null;
 
 function loadConfig() {
@@ -39,9 +40,27 @@ function failureSkipMs(config) {
   return Math.max(0, Number(config.failure_skip_ms));
 }
 
+function unresolvedLedgerItems(batch) {
+  var unresolvedStatuses = {
+    unknown: true,
+    blocked: true,
+    confirmation_pending: true,
+    confirmation_open: true
+  };
+  var items = [];
+  batch.orders.forEach(function (order) {
+    var item = ledger.get(order.signal_id);
+    if (item && unresolvedStatuses[String(item.status || "")]) {
+      items.push({ order: order, ledger: item });
+    }
+  });
+  return items;
+}
+
 function runMobileGuard(config, label, captureBaseline) {
   if (config.mobile_preflight_enabled === false) return null;
-  var result = mobileGuard.assertReady(config);
+  var settleMs = captureBaseline === true ? Math.min(Number(config.ui_timeout_ms || 1500), 1800) : 500;
+  var result = mobileGuardRunner.waitUntilReady(config, settleMs);
   if (captureBaseline === true) {
     mobileBaseline = result.snapshot;
   } else if (mobileBaseline) {
@@ -174,10 +193,23 @@ function runOnce() {
     return;
   }
 
+  if (config.mode === "live") {
+    var unresolved = unresolvedLedgerItems(batch);
+    if (unresolved.length) {
+      throw new Error(
+        "unresolved previous broker-confirmation state: " +
+        unresolved.map(function (x) {
+          return "#" + x.order.sequence + " " + x.order.code + "(" + x.ledger.status + ")";
+        }).join(", ") +
+        ". Verify these orders manually before clearing/resolving the local ledger."
+      );
+    }
+  }
+
   var pending = batch.orders.filter(function (o) { return !ledger.isTerminal(o.signal_id); });
   if (pending.length === 0) {
-    toast("AS1455: 今日订单均处于自动化终态/人工核验态");
-    console.log("[DONE] all signal_ids are terminal or unresolved-confirmation states");
+    toast("AS1455: 今日订单均处于安全终态");
+    console.log("[DONE] all signal_ids are safe terminal states");
     return;
   }
 
@@ -189,8 +221,6 @@ function runOnce() {
     }
   }
 
-  // AutoJs dialogs may briefly leave AutoJs as the foreground package. Wait for
-  // THS to return, then launch it only if needed, before evaluating the guard.
   mobileGuard.waitForTargetPackage(config, Number(config.mobile_return_timeout_ms || 3500), true);
   runMobileGuard(config, "batch_start", true);
 
