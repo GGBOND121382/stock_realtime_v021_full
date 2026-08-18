@@ -19,7 +19,16 @@ function mark(signalId, payload) {
   var item = payload || {};
   item.signal_id = String(signalId);
   item.updated_at = new Date().toISOString();
-  storage.put(key(signalId), item);
+
+  if (typeof storage.putSync !== "function") {
+    var unsupported = new Error("AutoJs6 Storage.putSync() is required for execution ledger");
+    unsupported.stage = "sync_ledger_unsupported";
+    unsupported.ambiguous = false;
+    unsupported.fatal_ui_state = true;
+    throw unsupported;
+  }
+
+  storage.putSync(key(signalId), item);
   return item;
 }
 
