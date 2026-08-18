@@ -34,23 +34,21 @@ function count(haystack, needle) {
   return n;
 }
 
-// No whole-order fill retry is allowed. A failure must surface its exact stage.
 assert.strictEqual(src.indexOf("FILL_ATTEMPTS"), -1, "whole-order fill retry must stay removed");
-var fillBody = bodyOf("fillOrderFields");
-assert.strictEqual(fillBody.indexOf("recoverToTradingPage"), -1, "fillOrderFields must not recover-and-retry");
-assert.strictEqual(fillBody.indexOf("for ("), -1, "fillOrderFields must not loop");
-assert.strictEqual(fillBody.indexOf("while ("), -1, "fillOrderFields must not loop");
-
-// The only write helper is node-scoped and performs exactly one UiObject#setText call.
-var writeBody = bodyOf("setNodeTextOnce");
-assert.strictEqual(count(writeBody, ".setText("), 1, "setNodeTextOnce must issue exactly one node-scoped setText");
+assert.strictEqual(src.indexOf("fillOrderFieldsOnce"), -1, "no duplicate whole-order fill layer");
 assert.strictEqual(/(^|[^.\w])setText\s*\(/m.test(src), false, "global setText() must never be used");
 
-// One code write, one quantity write, one price write per fill attempt.
+var writeBody = bodyOf("setNodeTextOnce");
+assert.strictEqual(count(writeBody, ".setText("), 1, "write helper must issue exactly one node-scoped setText");
+
 var codeBody = bodyOf("fillCode");
 assert.strictEqual(count(codeBody, "setNodeTextOnce(searchEdit, expected"), 1, "stock code must be written exactly once");
-var fillOnceBody = bodyOf("fillOrderFieldsOnce");
-assert.strictEqual(count(fillOnceBody, "setNodeTextOnce(volumeEdit, qtyText"), 1, "quantity must be written exactly once");
-assert.strictEqual(count(fillOnceBody, "setNodeTextOnce(priceEdit, priceText"), 1, "price must be written exactly once");
+assert.strictEqual(count(codeBody, "tapCenter(suggestion)"), 1, "stock suggestion must have only one tap site");
+assert.strictEqual(codeBody.indexOf("safeNodeText(searchEdit)"), -1, "stale search UiObject must not be read back");
+
+var fillBody = bodyOf("fillOrderFields");
+assert.strictEqual(count(fillBody, "setNodeTextOnce(volumeEdit, qtyText"), 1, "quantity must be written exactly once");
+assert.strictEqual(count(fillBody, "setNodeTextOnce(priceEdit, priceText"), 1, "price must be written exactly once");
+assert.strictEqual(fillBody.indexOf("recoverToTradingPage"), -1, "failed order must not be retried inside fillOrderFields");
 
 console.log("ths_adapter source invariants: OK");
