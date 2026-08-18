@@ -28,6 +28,13 @@ var missing = baseSnapshot();
 missing.required_ids[2].present = false;
 assert.strictEqual(guard.evaluateSnapshot(missing, {}).ok, false);
 
+var unobserved = baseSnapshot();
+unobserved.required_ids = unobserved.required_ids.slice(0, 3);
+assert.strictEqual(guard.evaluateSnapshot(unobserved, {}).ok, false);
+assert.ok(guard.evaluateSnapshot(unobserved, {}).errors.some(function (x) {
+  return x.indexOf("was not observed") >= 0;
+}));
+
 var blocked = baseSnapshot();
 blocked.blockers = ["验证码"];
 assert.strictEqual(guard.evaluateSnapshot(blocked, {}).ok, false);
@@ -51,10 +58,24 @@ rotated.orientation = "landscape";
 rotated.width = 2400;
 rotated.height = 1080;
 assert.strictEqual(guard.compareBaseline(baseline, rotated).ok, false);
+
 var resized = baseSnapshot();
 resized.width = 900;
 assert.strictEqual(guard.compareBaseline(baseline, resized).ok, false);
 assert.strictEqual(guard.compareBaseline(baseline, baseSnapshot()).ok, true);
+
+var missingVersionObservation = baseSnapshot();
+missingVersionObservation.app_version_name = "";
+assert.strictEqual(guard.compareBaseline(baseline, missingVersionObservation).ok, false);
+
+var missingMetricsObservation = baseSnapshot();
+missingMetricsObservation.width = 0;
+missingMetricsObservation.height = 0;
+assert.strictEqual(guard.compareBaseline(baseline, missingMetricsObservation).ok, false);
+
+var missingPackageObservation = baseSnapshot();
+missingPackageObservation.package_name = "";
+assert.strictEqual(guard.compareBaseline(baseline, missingPackageObservation).ok, false);
 
 var warning = guard.evaluateSnapshot(baseSnapshot(), { ui_timeout_ms: 200, field_verify_timeout_ms: 100 });
 assert.strictEqual(warning.ok, true);
