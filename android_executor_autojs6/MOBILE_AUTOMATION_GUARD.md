@@ -1,60 +1,78 @@
-# Android 同花顺自动化防坑说明
+# Android 同花顺手机端 Guard
 
-这轮只增加**只读防护**，不扩展真实交易页面的自动填写/点击能力。
+本 Guard 的职责是**在触碰下一笔订单之前证明手机 UI 仍处于可预期状态**。它不处理验证码、登录、人脸/指纹、安全键盘，也不会自动关闭未知弹窗。
 
-## 新增防护
+## 每批 / 每笔检查
 
-`main.js` 默认在整批开始前做一次完整预检，并在每笔开始前做一次轻量预检。发现异常时会在触碰下一笔之前停止，不会自动关闭未知弹窗或处理验证码。
+- 当前前台 package 必须是同花顺；AutoJs6 自己的确认对话框关闭后会先等待同花顺重新成为前台，必要时再启动同花顺。
+- `auto_stockcode`、`stockvolume`、`stockprice`、`btn_transaction` 等关键 Accessibility 节点必须可观察。
+- 可选锁定同花顺 `version_name`；版本号读不到或版本变化都失败。
+- 可选锁定横竖屏。
+- 批次开始后冻结版本、方向和显示尺寸；中途旋转屏幕、进入分屏或显示尺寸变化会停止。
+- 已知验证码、重新登录、登录超时、风险提示、系统维护、网络异常、人脸、指纹、安全键盘会停止。
+- **任何残留 `dialog_layout` 都会停止**，不依赖弹窗文案是否已收录。
+- **股票搜索浮层 `dialogplus_view_container` 残留也会停止**。
+- 页面刚切换时允许短暂等待关键节点出现，不用极短固定 sleep 判断成功/失败。
 
-检查内容：
+## 和订单状态机的关系
 
-- 当前 package 必须仍是同花顺；
-- 代码、数量、价格、交易按钮对应的关键 Accessibility 节点必须存在；
-- 可选锁定同花顺 `version_name`；配置了版本锁但版本号读不到也会失败；
-- 可选锁定横竖屏；
-- 整批启动后自动冻结当时的分辨率和方向，中途旋转屏幕、进入分屏或显示尺寸变化会熔断；
-- 检测验证码、重新登录、登录超时、风险提示、系统维护、网络异常、人脸、指纹、安全键盘；
-- 检测上一笔残留的“委托买入/卖出确认”或“委托已提交”结果框；
-- `ui_timeout_ms < 1000` 或 `field_verify_timeout_ms < 300` 会给出过于激进的等待参数告警。
+Guard 只负责“下一笔能不能开始”。真正的单笔安全契约在 `ths_adapter.js + order_runner.js`：
+
+```text
+订单计划 == 交易表单 == 委托确认框
+```
+
+确认框会重新解析并核对方向、代码、数量和价格；不一致时不会进入人工最终确认。
+
+正式 live 模式还会在点击交易按钮前同步落盘 `confirmation_pending`，确认框契约通过后同步落盘 `confirmation_open`。这两个状态以及 `unknown/blocked` 都禁止自动重放。
 
 ## 真机预检
 
-第一次换手机、升级同花顺或调整显示设置后，手动进入正常买入/卖出页，再运行：
+第一次换手机、升级同花顺或调整显示设置后运行：
 
 ```text
 mobile_preflight.js
 ```
 
-它会保存 `ths_mobile_preflight_*.txt`，包含 package、Activity、版本号、分辨率、density DPI、横竖屏、关键节点及 blocker 检查结果。
+脚本会先切回同花顺并等待普通买入/卖出页稳定，再保存：
 
-建议第一次验收通过后，把报告里的版本号写入：
-
-```json
-"expected_ths_version_name": "已验收版本号"
+```text
+ths_mobile_preflight_*.txt
 ```
 
-方向也可以锁定：
+内容包括 package、Activity、版本、分辨率、density DPI、横竖屏、关键节点和 blocker。
 
-```json
-"expected_orientation": "portrait"
-```
-
-默认配置新增：
+验收后建议配置：
 
 ```json
 "mobile_preflight_enabled": true,
-"expected_orientation": "",
-"expected_ths_version_name": ""
+"mobile_return_timeout_ms": 3500,
+"expected_ths_version_name": "已验收版本号",
+"expected_orientation": "portrait"
 ```
 
 ## 测试
 
 纯规则测试：
 
-```bash
+```text
 node android_executor_autojs6/tests/mobile_ui_guard_test.js
 ```
 
-覆盖关键节点缺失、blocker、包名错误、版本错误/不可读、方向变化、分辨率变化和等待参数告警。
+还应配合：
 
-这些检查不依赖 OCR/截图，也不使用固定坐标。每次同花顺升级或换手机后仍需重新跑 `mobile_preflight.js` 和 `dump_ths_ui.js` 做真机验收。
+```text
+node android_executor_autojs6/tests/order_contract_test.js
+node android_executor_autojs6/tests/batch_state_test.js
+node android_executor_autojs6/tests/order_runner_test.js
+```
+
+真机仍必须跑：
+
+1. `mobile_preflight.js`
+2. `dry_run_smoke.js` / `fill_only`
+3. `dry_run_smoke.js` / `confirm_cancel`
+4. 2–3 笔 `batch_submit_test.js`
+5. 再扩到完整批次
+
+这些检查不依赖 OCR/截图，也不使用固定坐标作为输入字段主定位。每次同花顺升级或换手机后都应重新验收 UI tree。
