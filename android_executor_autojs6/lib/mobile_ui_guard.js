@@ -42,6 +42,13 @@ function normalizeOrientation(value) {
   return "";
 }
 
+function expectedRequiredIds(config) {
+  if (config && Array.isArray(config.mobile_preflight_required_ids) && config.mobile_preflight_required_ids.length) {
+    return config.mobile_preflight_required_ids.map(function (x) { return String(x); });
+  }
+  return DEFAULT_REQUIRED_IDS.slice();
+}
+
 function evaluateSnapshot(snapshot, config) {
   config = config || {};
   snapshot = snapshot || {};
@@ -66,9 +73,19 @@ function evaluateSnapshot(snapshot, config) {
     }
   }
 
+  var observedRequired = {};
   var required = Array.isArray(snapshot.required_ids) ? snapshot.required_ids : [];
   for (var i = 0; i < required.length; i++) {
-    if (!required[i].present) errors.push("required accessibility node missing: " + required[i].id);
+    var rid = String(required[i].id || "");
+    if (rid) observedRequired[rid] = required[i].present === true;
+  }
+  var expectedIds = expectedRequiredIds(config);
+  for (var r = 0; r < expectedIds.length; r++) {
+    if (!Object.prototype.hasOwnProperty.call(observedRequired, expectedIds[r])) {
+      errors.push("required accessibility node was not observed: " + expectedIds[r]);
+    } else if (!observedRequired[expectedIds[r]]) {
+      errors.push("required accessibility node missing: " + expectedIds[r]);
+    }
   }
 
   var blockers = Array.isArray(snapshot.blockers) ? snapshot.blockers : [];
@@ -92,21 +109,39 @@ function compareBaseline(baseline, snapshot) {
   baseline = baseline || {};
   snapshot = snapshot || {};
   var errors = [];
-  if (baseline.package_name && snapshot.package_name && baseline.package_name !== snapshot.package_name) {
-    errors.push("package changed during batch: " + baseline.package_name + " -> " + snapshot.package_name);
+
+  if (baseline.package_name) {
+    if (!snapshot.package_name) errors.push("package observation missing during batch");
+    else if (baseline.package_name !== snapshot.package_name) {
+      errors.push("package changed during batch: " + baseline.package_name + " -> " + snapshot.package_name);
+    }
   }
-  if (baseline.orientation && snapshot.orientation && baseline.orientation !== snapshot.orientation) {
-    errors.push("orientation changed during batch: " + baseline.orientation + " -> " + snapshot.orientation);
+
+  if (baseline.orientation) {
+    if (!snapshot.orientation || snapshot.orientation === "unknown") {
+      errors.push("orientation observation missing during batch");
+    } else if (baseline.orientation !== snapshot.orientation) {
+      errors.push("orientation changed during batch: " + baseline.orientation + " -> " + snapshot.orientation);
+    }
   }
-  if (baseline.width && baseline.height && snapshot.width && snapshot.height &&
-      (Number(baseline.width) !== Number(snapshot.width) || Number(baseline.height) !== Number(snapshot.height))) {
-    errors.push("display metrics changed during batch: " + baseline.width + "x" + baseline.height +
-      " -> " + snapshot.width + "x" + snapshot.height);
+
+  if (baseline.width && baseline.height) {
+    if (!snapshot.width || !snapshot.height) {
+      errors.push("display metrics observation missing during batch");
+    } else if (Number(baseline.width) !== Number(snapshot.width) || Number(baseline.height) !== Number(snapshot.height)) {
+      errors.push("display metrics changed during batch: " + baseline.width + "x" + baseline.height +
+        " -> " + snapshot.width + "x" + snapshot.height);
+    }
   }
-  if (baseline.app_version_name && snapshot.app_version_name &&
-      String(baseline.app_version_name) !== String(snapshot.app_version_name)) {
-    errors.push("THS version changed during batch: " + baseline.app_version_name + " -> " + snapshot.app_version_name);
+
+  if (baseline.app_version_name) {
+    if (!snapshot.app_version_name) {
+      errors.push("THS version observation missing during batch");
+    } else if (String(baseline.app_version_name) !== String(snapshot.app_version_name)) {
+      errors.push("THS version changed during batch: " + baseline.app_version_name + " -> " + snapshot.app_version_name);
+    }
   }
+
   return { ok: errors.length === 0, errors: errors };
 }
 
@@ -176,8 +211,7 @@ function waitForTargetPackage(config, timeoutMs, launchIfNeeded) {
 function captureSnapshot(config) {
   config = config || {};
   var expectedPackage = String(config.ths_package || "com.hexin.plat.android");
-  var requiredIds = Array.isArray(config.mobile_preflight_required_ids) && config.mobile_preflight_required_ids.length ?
-    config.mobile_preflight_required_ids : DEFAULT_REQUIRED_IDS;
+  var requiredIds = expectedRequiredIds(config);
   var blockerTerms = Array.isArray(config.mobile_preflight_blockers) ? config.mobile_preflight_blockers : DEFAULT_BLOCKERS;
   var pkg = safeValue(function () { return currentPackage(); }, "");
   var required = [];
@@ -199,8 +233,6 @@ function captureSnapshot(config) {
   }
 
   var metrics = displayMetrics();
-  // Always read version metadata. The previous "lightweight" path returned an empty
-  // version and made a pinned expected_ths_version_name fail on every per-order guard.
   var version = getPackageVersion(expectedPackage);
   return {
     captured_at: new Date().toISOString(),
