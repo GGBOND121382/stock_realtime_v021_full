@@ -30,18 +30,19 @@ assert.throws(function () {
   batch.validateUniqueOrders([orders[0], orders[0]]);
 }, /duplicate CSV order/);
 
-assert.throws(function () {
-  batch.validateUniqueOrders([
-    orders[0],
-    { code: "000001", symbol: "000001.SZ", side: "sell", qty: 100, submit_price: 10, sequence: 2 }
-  ]);
-}, /both buy and sell sides/);
+// Opposite sides for the same code are not rejected by the UI-safety layer. That is
+// a strategy/order-contract decision, not a phone automation invariant.
+assert.strictEqual(batch.validateUniqueOrders([
+  orders[0],
+  { code: "000001", symbol: "000001.SZ", side: "sell", qty: 100, submit_price: 10, sequence: 2 }
+]), true);
 
 var fp = batch.fingerprintText(doc.text);
 assert.strictEqual(fp, batch.fingerprintText(doc.text));
 assert.notStrictEqual(fp, batch.fingerprintText(doc.text + "\n"));
 
-var state = batch.newState(fp, orders, 1111.5, "smoke_orders.csv");
+var sessionDate = "2026-08-18";
+var state = batch.newState(fp, orders, 1111.5, "smoke_orders.csv", sessionDate);
 var item1 = batch.itemForRow(state, 1, orders[0]);
 assert.strictEqual(item1.status, "pending");
 item1.status = "submitted";
@@ -55,10 +56,90 @@ item2.status = "confirmation_open";
 assert.strictEqual(batch.isUnresolved(item2.status), true);
 assert.deepStrictEqual(batch.unresolvedRows(state).map(function (x) { return x.row; }), [2]);
 
-var restored = batch.restoreState(state, fp, orders, 1111.5, "smoke_orders.csv");
+var restored = batch.restoreState(state, fp, orders, 1111.5, "smoke_orders.csv", sessionDate);
 assert.strictEqual(restored, state);
-var reset = batch.restoreState(state, "different", orders, 1111.5, "smoke_orders.csv");
+var reset = batch.restoreState(state, fp, orders, 1111.5, "smoke_orders.csv", "2026-08-19");
 assert.notStrictEqual(reset, state);
 assert.strictEqual(reset.results.length, 0);
+
+function memoryIo(initial) {
+  var data = Object.assign({}, initial || {});
+  return {
+    data: data,
+    exists: function (path) { return Object.prototype.hasOwnProperty.call(data, path); },
+    read: function (path) {
+      if (!Object.prototype.hasOwnProperty.call(data, path)) throw new Error("missing " + path);
+      return data[path];
+    },
+    write: function (path, text) { data[path] = String(text); },
+    copy: function (from, to) {
+      if (!Object.prototype.hasOwnProperty.call(data, from)) return false;
+      data[to] = data[from];
+      return true;
+    },
+    remove: function (path) {
+      if (!Object.prototype.hasOwnProperty.call(data, path)) return true;
+      delete data[path];
+      return true;
+    },
+    move: function (from, to) {
+      if (!Object.prototype.hasOwnProperty.call(data, from)) return false;
+      data[to] = data[from];
+      delete data[from];
+      return true;
+    }
+  };
+}
+
+var statePath = "/batch.json";
+var io = memoryIo();
+var fresh = batch.loadDurable(statePath, fp, orders, 1111.5, "smoke_orders.csv", sessionDate, io);
+assert.strictEqual(fresh.source, "new");
+fresh.state.results.push({ row: 1, status: "submitted" });
+batch.persistDurable(statePath, fresh.state, io);
+assert.strictEqual(batch.parseStateText(io.data[statePath]).results[0].status, "submitted");
+assert.strictEqual(batch.parseStateText(io.data[statePath]).write_generation, 1);
+
+// A second durable write preserves the previous complete primary as backup.
+fresh.state.results.push({ row: 2, status: "confirmation_open" });
+batch.persistDurable(statePath, fresh.state, io);
+assert.strictEqual(batch.parseStateText(io.data[statePath]).write_generation, 2);
+assert.strictEqual(batch.parseStateText(io.data[statePath + ".bak"]).write_generation, 1);
+
+// Corrupt primary must recover only from an in-scope valid backup, never reset.
+io.data[statePath] = "{broken";
+var recovered = batch.loadDurable(statePath, fp, orders, 1111.5, "smoke_orders.csv", sessionDate, io);
+assert.strictEqual(recovered.source, "backup");
+assert.strictEqual(recovered.state.results[0].status, "submitted");
+
+// Corrupt both primary and backup => fail closed.
+io.data[statePath + ".bak"] = "{also-broken";
+assert.throws(function () {
+  batch.loadDurable(statePath, fp, orders, 1111.5, "smoke_orders.csv", sessionDate, io);
+}, /refusing automatic replay/);
+
+// A valid prior-day state is a separate session and does not suppress today's rows.
+var prior = batch.newState(fp, orders, 1111.5, "smoke_orders.csv", "2026-08-17");
+prior.results.push({ row: 1, status: "submitted" });
+var ioPrior = memoryIo((function () {
+  var x = {};
+  x[statePath] = JSON.stringify(prior);
+  return x;
+})());
+var newDay = batch.loadDurable(statePath, fp, orders, 1111.5, "smoke_orders.csv", sessionDate, ioPrior);
+assert.strictEqual(newDay.source, "new_scope");
+assert.strictEqual(newDay.state.results.length, 0);
+
+// Legacy same-CSV state without session_date fails closed once.
+var legacy = batch.newState(fp, orders, 1111.5, "smoke_orders.csv", "");
+delete legacy.session_date;
+var ioLegacy = memoryIo((function () {
+  var x = {};
+  x[statePath] = JSON.stringify(legacy);
+  return x;
+})());
+assert.throws(function () {
+  batch.loadDurable(statePath, fp, orders, 1111.5, "smoke_orders.csv", sessionDate, ioLegacy);
+}, /legacy batch state lacks session_date/);
 
 console.log("batch_state tests: OK");
