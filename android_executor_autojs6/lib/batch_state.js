@@ -182,6 +182,15 @@ function readParsed(path, io) {
   }
 }
 
+function isLegacySameCsv(state, fingerprint, orders) {
+  return !!(
+    state &&
+    !state.session_date &&
+    String(state.csv_fingerprint || "") === String(fingerprint) &&
+    Number(state.order_count) === orders.length
+  );
+}
+
 function loadDurable(path, fingerprint, orders, totalNotional, csvName, sessionDate, suppliedIo) {
   var io = suppliedIo || defaultIo();
   var backupPath = path + ".bak";
@@ -199,7 +208,25 @@ function loadDurable(path, fingerprint, orders, totalNotional, csvName, sessionD
     return { state: primary.state, source: "primary" };
   }
 
-  if (!primary.valid && primary.exists) {
+  if (!primary.exists) {
+    if (backup.valid && sameScope(backup.state, fingerprint, orders, sessionDate)) {
+      return { state: backup.state, source: "backup" };
+    }
+    if (backup.exists && !backup.valid) {
+      throw new Error("batch state primary is missing and backup is corrupt; refusing automatic replay: " + path);
+    }
+    if (backup.valid && isLegacySameCsv(backup.state, fingerprint, orders)) {
+      throw new Error(
+        "legacy batch backup lacks session_date; verify previous orders manually before resetting state: " + backupPath
+      );
+    }
+    return {
+      state: newState(fingerprint, orders, totalNotional, csvName, sessionDate),
+      source: "new_scope"
+    };
+  }
+
+  if (!primary.valid) {
     if (backup.valid && sameScope(backup.state, fingerprint, orders, sessionDate)) {
       return { state: backup.state, source: "backup" };
     }
@@ -208,12 +235,7 @@ function loadDurable(path, fingerprint, orders, totalNotional, csvName, sessionD
     );
   }
 
-  // A valid legacy state for the same CSV but without session_date may contain
-  // already-submitted rows. Fail closed once rather than silently treating it as a
-  // fresh run and replaying those rows.
-  if (primary.valid && !primary.state.session_date &&
-      String(primary.state.csv_fingerprint || "") === String(fingerprint) &&
-      Number(primary.state.order_count) === orders.length) {
+  if (isLegacySameCsv(primary.state, fingerprint, orders)) {
     throw new Error(
       "legacy batch state lacks session_date; verify previous orders manually before resetting state: " + path
     );
