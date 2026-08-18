@@ -143,9 +143,38 @@ function buildBlockerRegex(blockers) {
   return new RegExp(".*(?:" + items.join("|") + ").*");
 }
 
-function captureSnapshot(config, options) {
+function waitForTargetPackage(config, timeoutMs, launchIfNeeded) {
   config = config || {};
-  options = options || {};
+  var expected = String(config.ths_package || "com.hexin.plat.android");
+  var total = Number(timeoutMs || config.mobile_return_timeout_ms || 3500);
+  if (!isFinite(total) || total < 500) total = 3500;
+
+  var start = Date.now();
+  var passiveUntil = start + Math.min(1200, total);
+  while (Date.now() <= passiveUntil) {
+    if (safeValue(function () { return currentPackage(); }, "") === expected) return true;
+    sleep(80);
+  }
+
+  if (launchIfNeeded !== false) {
+    safeValue(function () { app.launchPackage(expected); return true; }, false);
+  }
+
+  var deadline = start + total;
+  while (Date.now() <= deadline) {
+    if (safeValue(function () { return currentPackage(); }, "") === expected) return true;
+    sleep(100);
+  }
+
+  var err = new Error("THS package did not become foreground: expected=" + expected);
+  err.stage = "mobile_target_package_unavailable";
+  err.ambiguous = false;
+  err.fatal_ui_state = true;
+  throw err;
+}
+
+function captureSnapshot(config) {
+  config = config || {};
   var expectedPackage = String(config.ths_package || "com.hexin.plat.android");
   var requiredIds = Array.isArray(config.mobile_preflight_required_ids) && config.mobile_preflight_required_ids.length ?
     config.mobile_preflight_required_ids : DEFAULT_REQUIRED_IDS;
@@ -170,7 +199,9 @@ function captureSnapshot(config, options) {
   }
 
   var metrics = displayMetrics();
-  var version = options.include_metadata === false ? { name: "", code: "" } : getPackageVersion(expectedPackage);
+  // Always read version metadata. The previous "lightweight" path returned an empty
+  // version and made a pinned expected_ths_version_name fail on every per-order guard.
+  var version = getPackageVersion(expectedPackage);
   return {
     captured_at: new Date().toISOString(),
     package_name: pkg,
@@ -186,14 +217,14 @@ function captureSnapshot(config, options) {
   };
 }
 
-function check(config, options) {
-  var snapshot = captureSnapshot(config, options);
+function check(config) {
+  var snapshot = captureSnapshot(config);
   var evaluation = evaluateSnapshot(snapshot, config);
   return { ok: evaluation.ok, errors: evaluation.errors, warnings: evaluation.warnings, snapshot: snapshot };
 }
 
-function assertReady(config, options) {
-  var result = check(config, options);
+function assertReady(config) {
+  var result = check(config);
   if (result.ok) return result;
   var err = new Error("THS mobile preflight failed: " + result.errors.join("; "));
   err.stage = "mobile_preflight_failed";
@@ -209,6 +240,7 @@ module.exports = {
   normalizeOrientation: normalizeOrientation,
   evaluateSnapshot: evaluateSnapshot,
   compareBaseline: compareBaseline,
+  waitForTargetPackage: waitForTargetPackage,
   captureSnapshot: captureSnapshot,
   check: check,
   assertReady: assertReady
