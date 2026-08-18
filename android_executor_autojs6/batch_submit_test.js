@@ -4,6 +4,7 @@ auto.waitFor();
 
 var runner = require("./lib/order_runner.js");
 var mobileGuard = require("./lib/mobile_ui_guard.js");
+var mobileGuardRunner = require("./lib/mobile_guard_runner.js");
 var CSV_NAME = "smoke_orders.csv";
 var RESULT_NAME = "batch_submit_test_result.json";
 
@@ -100,6 +101,20 @@ function normalizeOrder(row, rowNumber) {
     submit_price: price,
     sequence: rowNumber
   };
+}
+
+function validateUniqueOrders(orders) {
+  var seenSideCode = {};
+  var seenCode = {};
+  orders.forEach(function (order) {
+    var sideCode = order.side + ":" + order.code;
+    if (seenSideCode[sideCode]) throw new Error("duplicate CSV order: " + sideCode);
+    if (seenCode[order.code] && seenCode[order.code] !== order.side) {
+      throw new Error("same code appears on both buy and sell sides: " + order.code);
+    }
+    seenSideCode[sideCode] = true;
+    seenCode[order.code] = order.side;
+  });
 }
 
 function fingerprintText(text) {
@@ -231,7 +246,7 @@ function makeStore(state, item, resultPath) {
 
 function checkGuard(config, baseline, label) {
   if (config.mobile_preflight_enabled === false) return baseline;
-  var result = mobileGuard.assertReady(config);
+  var result = mobileGuardRunner.waitUntilReady(config, baseline ? 500 : Math.min(config.ui_timeout_ms, 1800));
   if (baseline) {
     var stable = mobileGuard.compareBaseline(baseline, result.snapshot);
     if (!stable.ok) {
@@ -264,6 +279,7 @@ function run() {
     totalNotional += order.qty * order.submit_price;
   }
   if (!orders.length) throw new Error("no orders in CSV");
+  validateUniqueOrders(orders);
 
   var fingerprint = fingerprintText(doc.text);
   var resultPath = files.join(files.cwd(), RESULT_NAME);
