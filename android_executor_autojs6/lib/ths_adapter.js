@@ -33,7 +33,7 @@ function fieldVerifyTimeout(config) {
 
 function manualConfirmTimeout(config) {
   var configured = Number(config && config.manual_confirm_timeout_ms);
-  return isFinite(configured) && configured > 0 ? configured : 5500;
+  return isFinite(configured) && configured > 0 ? configured : 20000;
 }
 
 function manualResultGrace(config) {
@@ -251,7 +251,11 @@ function fillCode(code, config) {
       var suggestion = findSuggestionOnce(activeSearch, expected);
       if (suggestion) {
         clickedSuggestion = true;
-        if (!tapCenter(suggestion)) {
+        // Do not climb to a clickable parent here. In THS the parent may cover a
+        // much larger search/keyboard area; tapping its center can hit a keypad
+        // digit and append it to the six-digit stock code. Click the exact
+        // suggestion node, falling back only to that node's own bounds.
+        if (!clickNode(suggestion)) {
           var tapErr = new Error("THS stock suggestion tap failed code=" + expected);
           tapErr.stage = "stock_suggestion_tap_failed";
           tapErr.ambiguous = false;
