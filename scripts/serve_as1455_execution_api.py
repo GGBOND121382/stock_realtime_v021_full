@@ -16,20 +16,43 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 from zoneinfo import ZoneInfo
 
 DEFAULT_LIVE_ROOT = Path("saved_data/ashare_ml4t/live_as1455")
 DEFAULT_EXPERIMENT = "r21_best_reb21_fold0_4_forward"
 PROTOCOL = "as1455_execution_batch_v1"
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+EXPERIMENT_RE = re.compile(
+    r"^r\d{2}_(?:all5|first3|best)_reb\d+_fold0_[45]_forward$"
+)
 
 
 def shanghai_today() -> str:
     return datetime.now(ZoneInfo("Asia/Shanghai")).strftime("%Y-%m-%d")
 
 
+def validate_experiment_name(value: str) -> str:
+    experiment = str(value).strip()
+    if not EXPERIMENT_RE.fullmatch(experiment):
+        raise ValueError(f"invalid experiment: {value}")
+    return experiment
+
+
+def select_request_experiment(query: str, default_experiment: str) -> str:
+    params = parse_qs(query, keep_blank_values=True)
+    values = params.get("experiment")
+    if values is None:
+        return validate_experiment_name(default_experiment)
+    if len(values) != 1 or not values[0].strip():
+        raise ValueError(
+            "experiment query parameter must appear exactly once and be non-empty"
+        )
+    return validate_experiment_name(values[0])
+
+
 def batch_path(live_root: Path, trade_date: str, experiment: str) -> Path:
+    experiment = validate_experiment_name(experiment)
     token = trade_date.replace("-", "")
     return (
         live_root
@@ -44,6 +67,7 @@ def batch_path(live_root: Path, trade_date: str, experiment: str) -> Path:
 def load_ready_batch(live_root: Path, trade_date: str, experiment: str) -> dict[str, Any] | None:
     if not DATE_RE.fullmatch(trade_date):
         raise ValueError(f"invalid trade date: {trade_date}")
+    experiment = validate_experiment_name(experiment)
     path = batch_path(live_root, trade_date, experiment)
     if not path.is_file():
         return None
@@ -88,7 +112,9 @@ class ExecutionAPIHandler(BaseHTTPRequestHandler):
         if not self._authorized():
             self._json(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
             return
-        path = urlparse(self.path).path.rstrip("/")
+
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/")
         if path == "/health":
             self._json(HTTPStatus.OK, {"status": "ok", "service": "as1455_execution_api"})
             return
@@ -99,11 +125,16 @@ class ExecutionAPIHandler(BaseHTTPRequestHandler):
         else:
             self._json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
             return
+
         try:
+            experiment = select_request_experiment(
+                parsed.query,
+                self.server.experiment,  # type: ignore[attr-defined]
+            )
             batch = load_ready_batch(
                 self.server.live_root,  # type: ignore[attr-defined]
                 trade_date,
-                self.server.experiment,  # type: ignore[attr-defined]
+                experiment,
             )
         except ValueError as exc:
             self._json(HTTPStatus.BAD_REQUEST, {"error": str(exc)})
@@ -136,7 +167,7 @@ def main() -> None:
     args = parse_args()
     server = ThreadingHTTPServer((args.host, args.port), ExecutionAPIHandler)
     server.live_root = Path(args.live_root).expanduser().resolve()  # type: ignore[attr-defined]
-    server.experiment = str(args.experiment)  # type: ignore[attr-defined]
+    server.experiment = validate_experiment_name(str(args.experiment))  # type: ignore[attr-defined]
     server.api_token = str(args.token)  # type: ignore[attr-defined]
     print(
         json.dumps(
@@ -147,6 +178,7 @@ def main() -> None:
                 "live_root": str(server.live_root),  # type: ignore[attr-defined]
                 "experiment": server.experiment,  # type: ignore[attr-defined]
                 "token_required": bool(server.api_token),  # type: ignore[attr-defined]
+                "experiment_query_override": True,
             },
             ensure_ascii=False,
         )
