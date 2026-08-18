@@ -41,6 +41,11 @@ function manualResultGrace(config) {
   return isFinite(configured) && configured > 0 ? configured : 1000;
 }
 
+function manualTakeoverTimeout(config) {
+  var configured = Number(config && config.manual_takeover_timeout_ms);
+  return isFinite(configured) && configured >= 5000 ? configured : 60000;
+}
+
 function waitId(resourceId, timeoutMs) {
   var node = id(resourceId).findOne(Number(timeoutMs || 5000));
   if (!node) throw new Error("THS UI node not found: " + resourceId);
@@ -485,6 +490,42 @@ function preview(order, config) {
   return { success: true, mode: "dry_run", stage: "confirmation_reached_and_cancelled" };
 }
 
+function submittedResult(order, opened, success, stage) {
+  dismissSuccessDialog(order, success);
+  sleep(120);
+  return {
+    success: true,
+    mode: "live",
+    prompt: { title: success.title, content: success.message },
+    contract_no: success.contract_no,
+    stage: stage,
+    fill_attempts: opened.fill.fill_attempts
+  };
+}
+
+function waitManualTakeoverSubmission(order, opened, config) {
+  toast(
+    "检测到取消：请手动修改并提交 " + order.code +
+    "；脚本等待提交结果后继续下一笔"
+  );
+
+  var deadline = Date.now() + manualTakeoverTimeout(config);
+  while (Date.now() <= deadline) {
+    var success = findSuccessDialog();
+    if (success) {
+      return submittedResult(order, opened, success, "submitted_after_manual_takeover");
+    }
+    sleep(100);
+  }
+
+  var err = new Error(
+    "THS manual takeover timed out without a recognized submission result for " + order.code
+  );
+  err.stage = "manual_takeover_timeout";
+  err.ambiguous = true;
+  throw err;
+}
+
 function submit(order, config) {
   var opened = openOrderConfirmation(order, config);
   var labels = confirmationLabels(order.side);
@@ -494,39 +535,20 @@ function submit(order, config) {
   while (Date.now() <= deadline) {
     var success = findSuccessDialog();
     if (success) {
-      dismissSuccessDialog(order, success);
-      sleep(120);
-      return {
-        success: true,
-        mode: "live",
-        prompt: { title: success.title, content: success.message },
-        contract_no: success.contract_no,
-        stage: "submitted_after_manual_confirmation",
-        fill_attempts: opened.fill.fill_attempts
-      };
+      return submittedResult(order, opened, success, "submitted_after_manual_confirmation");
     }
 
     if (!findConfirmation(order)) {
       success = waitSuccessDialog(manualResultGrace(config));
       if (success) {
-        dismissSuccessDialog(order, success);
-        sleep(120);
-        return {
-          success: true,
-          mode: "live",
-          prompt: { title: success.title, content: success.message },
-          contract_no: success.contract_no,
-          stage: "submitted_after_manual_confirmation",
-          fill_attempts: opened.fill.fill_attempts
-        };
+        return submittedResult(order, opened, success, "submitted_after_manual_confirmation");
       }
 
-      var ambiguous = new Error(
-        "THS manual confirmation dialog disappeared but no recognized submission result was found"
-      );
-      ambiguous.stage = "manual_confirmation_result_unrecognized";
-      ambiguous.ambiguous = true;
-      throw ambiguous;
+      // The user may deliberately cancel the confirmation dialog because one of the
+      // automatically filled fields needs correction. Treat that as manual takeover,
+      // not as an immediate UNKNOWN/error. The user can edit and submit the current
+      // order manually while the script only waits for the normal success dialog.
+      return waitManualTakeoverSubmission(order, opened, config);
     }
     sleep(70);
   }
@@ -544,21 +566,10 @@ function submit(order, config) {
 
   var lateSuccess = waitSuccessDialog(manualResultGrace(config));
   if (lateSuccess) {
-    dismissSuccessDialog(order, lateSuccess);
-    return {
-      success: true,
-      mode: "live",
-      prompt: { title: lateSuccess.title, content: lateSuccess.message },
-      contract_no: lateSuccess.contract_no,
-      stage: "submitted_after_manual_confirmation",
-      fill_attempts: opened.fill.fill_attempts
-    };
+    return submittedResult(order, opened, lateSuccess, "submitted_after_manual_confirmation");
   }
 
-  var unknown = new Error("THS manual confirmation ended in an unrecognized state");
-  unknown.stage = "manual_confirmation_state_unknown";
-  unknown.ambiguous = true;
-  throw unknown;
+  return waitManualTakeoverSubmission(order, opened, config);
 }
 
 module.exports = {
