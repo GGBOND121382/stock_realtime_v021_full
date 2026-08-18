@@ -12,9 +12,17 @@ function get(signalId) {
 
 function isTerminal(signalId) {
   var item = get(signalId);
-  // "unknown" is terminal for automation because the broker may already have
-  // accepted the order. It must be resolved manually before any retry.
-  return !!(item && (item.status === "submitted" || item.status === "unknown"));
+  if (!item) return false;
+  // These states must never be replayed automatically. confirmation_* means the
+  // previous process entered the broker-confirmation phase but did not persist a
+  // final outcome before it ended.
+  return [
+    "submitted",
+    "rejected",
+    "unknown",
+    "confirmation_pending",
+    "confirmation_open"
+  ].indexOf(String(item.status || "")) >= 0;
 }
 
 function mark(signalId, payload) {
@@ -41,9 +49,30 @@ function markStarted(order) {
   return mark(order.signal_id, item);
 }
 
+function markConfirmationPending(order, detail) {
+  var item = baseOrder(order);
+  item.status = "confirmation_pending";
+  item.confirmation = detail || null;
+  return mark(order.signal_id, item);
+}
+
+function markConfirmationOpen(order, detail) {
+  var item = baseOrder(order);
+  item.status = "confirmation_open";
+  item.confirmation = detail || null;
+  return mark(order.signal_id, item);
+}
+
 function markResult(order, result, dryRun) {
   var item = baseOrder(order);
   item.status = dryRun ? "dry_run" : "submitted";
+  item.broker_result = result || null;
+  return mark(order.signal_id, item);
+}
+
+function markRejected(order, result) {
+  var item = baseOrder(order);
+  item.status = "rejected";
   item.broker_result = result || null;
   return mark(order.signal_id, item);
 }
@@ -69,7 +98,10 @@ module.exports = {
   get: get,
   isTerminal: isTerminal,
   markStarted: markStarted,
+  markConfirmationPending: markConfirmationPending,
+  markConfirmationOpen: markConfirmationOpen,
   markResult: markResult,
+  markRejected: markRejected,
   markManualRequired: markManualRequired,
   markFailed: markFailed
 };
