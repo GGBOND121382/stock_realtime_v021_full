@@ -11,8 +11,8 @@ function loadTestConfig() {
   if (!files.exists(path)) throw new Error("missing config.json");
   var cfg = JSON.parse(files.read(path));
 
-  var baseUrl = String(cfg.fetch_test_api_base_url || cfg.api_base_url || "").trim();
-  if (!baseUrl) throw new Error("config.fetch_test_api_base_url or config.api_base_url is required");
+  var baseUrl = String(cfg.api_base_url || "").trim();
+  if (!baseUrl) throw new Error("config.api_base_url is required");
 
   var experiment = String(cfg.fetch_test_experiment || DEFAULT_TEST_EXPERIMENT).trim();
   if (!experiment) throw new Error("config.fetch_test_experiment is required");
@@ -34,12 +34,12 @@ function orderLine(order) {
 function run() {
   var config = loadTestConfig();
   console.show();
-  console.log("[FETCH_TEST] url=" + config.api_base_url);
-  console.log("[FETCH_TEST] expected_experiment=" + config.production_experiment);
+  console.log("[FETCH_TEST] api=" + config.api_base_url);
+  console.log("[FETCH_TEST] experiment=" + config.production_experiment);
 
-  var raw = client.fetchLatest(config);
+  var raw = client.fetchLatest(config, config.production_experiment);
   if (!raw) {
-    var noPlan = "服务器返回 204：今天没有该测试端点可发布的 READY 计划。\n\n" +
+    var noPlan = "服务器返回 204：今天没有该测试策略的 READY 计划。\n\n" +
       "测试策略: " + config.production_experiment + "\n" +
       "API: " + config.api_base_url;
     console.log("[FETCH_TEST] no READY batch");
