@@ -22,7 +22,6 @@ var TEXT_VIEW = "android.widget.TextView";
 var THS_PACKAGE = "com.hexin.plat.android";
 var TAP_ATTEMPTS = 3;
 var PROBE_MAX_NODES = 400;
-var FILL_ATTEMPTS = 2;
 
 function timeout(config) {
   return Number((config && config.ui_timeout_ms) || 5000);
@@ -149,25 +148,22 @@ function unknownUiError(message, stage) {
   return err;
 }
 
-function setExactNodeText(node, value, label) {
+function setNodeTextOnce(node, value, label) {
   var v = String(value);
   if (!node || safeNodeClass(node) !== EDIT_TEXT) {
     throw topologyError(label + " is not an EditText");
   }
 
-  // Never use the global setText(value): it targets the current focus owner and can
-  // cross-write quantity/price into another field. UiObject#setText is node-scoped.
-  try { node.setText(v); } catch (e) {}
-  if (safeNodeText(node) === v) return;
-
-  if (!clickNode(node)) throw new Error("THS exact input focus failed: " + label);
-  sleep(90);
-  try { node.setText(v); } catch (e2) {}
-  if (safeNodeText(node) !== v) {
-    throw new Error(
-      "THS exact node setText failed: " + label +
-      " expected=" + v + " actual=" + safeNodeText(node)
-    );
+  // Exactly one write. Do not use global setText(), do not click-and-write again,
+  // and do not retry the whole order automatically. Android accessibility text
+  // updates can be asynchronous; callers verify the resulting state separately.
+  try {
+    node.setText(v);
+  } catch (e) {
+    var err = new Error("THS node-scoped setText failed: " + label + ": " + String(e));
+    err.stage = "field_write_failed";
+    err.ambiguous = false;
+    throw err;
   }
 }
 
@@ -319,7 +315,7 @@ function fillCode(code, config) {
   var searchContainer = waitId(IDS.searchContainer, t);
   var searchEdit = findInside(searchContainer, id(IDS.stockCode).className(EDIT_TEXT), t);
   if (!searchEdit) throw topologyError("stock-code search EditText not found inside search container");
-  setExactNodeText(searchEdit, expected, "stock-code search");
+  setNodeTextOnce(searchEdit, expected, "stock-code search");
 
   var deadline = Date.now() + t;
   while (Date.now() <= deadline) {
@@ -343,7 +339,10 @@ function fillCode(code, config) {
   }
 
   if (isMainTradeCodeResolved(expected)) return;
-  throw new Error("THS stock code not resolved on final trade form code=" + expected);
+  var err = new Error("THS stock code not resolved on final trade form code=" + expected);
+  err.stage = "stock_code_not_resolved";
+  err.ambiguous = false;
+  throw err;
 }
 
 function fillOrderFieldsOnce(order, config) {
@@ -353,7 +352,9 @@ function fillOrderFieldsOnce(order, config) {
   fillCode(order.code, config);
 
   if (!isMainTradeCodeResolved(String(order.code))) {
-    throw new Error("THS final code verification failed code=" + order.code);
+    var codeErr = new Error("THS final code verification failed code=" + order.code);
+    codeErr.stage = "stock_code_final_verify_failed";
+    throw codeErr;
   }
 
   var qtyText = String(order.qty);
@@ -365,17 +366,21 @@ function fillOrderFieldsOnce(order, config) {
   var priceEdit = waitExactEditable(IDS.stockPrice, "price", fillTimeout(config));
   assertDistinctFields(codeEdit, volumeEdit, priceEdit);
 
-  setExactNodeText(volumeEdit, qtyText, "quantity");
+  setNodeTextOnce(volumeEdit, qtyText, "quantity");
   if (!waitNodeValue(volumeEdit, qtyText, verifyMs, true)) {
-    throw new Error("THS quantity verification failed expected=" + qtyText + " actual=" + safeNodeText(volumeEdit));
+    var qtyErr = new Error("THS quantity verification failed expected=" + qtyText + " actual=" + safeNodeText(volumeEdit));
+    qtyErr.stage = "quantity_verify_failed";
+    throw qtyErr;
   }
   if (safeNodeText(codeEdit) !== String(order.code)) {
     throw crossWriteError("quantity write changed code expected=" + order.code + " actual=" + safeNodeText(codeEdit));
   }
 
-  setExactNodeText(priceEdit, priceText, "price");
+  setNodeTextOnce(priceEdit, priceText, "price");
   if (!waitNodeValue(priceEdit, priceText, verifyMs, true)) {
-    throw new Error("THS price verification failed expected=" + priceText + " actual=" + safeNodeText(priceEdit));
+    var priceErr = new Error("THS price verification failed expected=" + priceText + " actual=" + safeNodeText(priceEdit));
+    priceErr.stage = "price_verify_failed";
+    throw priceErr;
   }
 
   if (safeNodeText(codeEdit) !== String(order.code)) {
@@ -392,6 +397,7 @@ function fillOrderFieldsOnce(order, config) {
     side: String(order.side),
     qty: Number(order.qty),
     submit_price: Number(order.submit_price),
+    fill_attempts: 1,
     field_bounds: {
       code: nodeBoundsKey(codeEdit),
       quantity: nodeBoundsKey(volumeEdit),
@@ -401,40 +407,17 @@ function fillOrderFieldsOnce(order, config) {
 }
 
 function fillOrderFields(order, config) {
-  var firstError = null;
-  for (var attempt = 1; attempt <= FILL_ATTEMPTS; attempt++) {
+  try {
+    return fillOrderFieldsOnce(order, config);
+  } catch (e) {
+    if (!e.stage) e.stage = "fill_failed";
+    if (e.ambiguous !== true) e.ambiguous = false;
     try {
-      var result = fillOrderFieldsOnce(order, config);
-      result.fill_attempts = attempt;
-      return result;
-    } catch (e) {
-      if (e && e.fatal_ui_state === true) throw e;
-
-      if (attempt === 1) {
-        firstError = String(e);
-        try { recoverToTradingPage(order.side, config); } catch (recoverError) {
-          var recoveryFailure = new Error(
-            "THS fill retry recovery failed; first_error=" + firstError +
-            "; recovery_error=" + String(recoverError)
-          );
-          recoveryFailure.stage = "fill_retry_recovery_failed";
-          recoveryFailure.ambiguous = false;
-          recoveryFailure.fatal_ui_state = true;
-          throw recoveryFailure;
-        }
-        continue;
-      }
-
-      var finalError = new Error(
-        "THS fill failed after one retry; first_error=" + firstError +
-        "; second_error=" + String(e)
-      );
-      finalError.stage = "fill_failed_after_retry";
-      finalError.ambiguous = false;
-      throw finalError;
-    }
+      e.probe = dumpProbe(order, e.stage);
+      e.message += "; probe=" + e.probe;
+    } catch (probeError) {}
+    throw e;
   }
-  throw new Error("unreachable fillOrderFields state");
 }
 
 function safeCollectionTexts(container) {
@@ -475,58 +458,41 @@ function confirmationLabels(side) {
     { title: "委托买入确认", action: "确认买入" };
 }
 
-function classifyCurrentDialog(order) {
+function findConfirmation(order) {
   var snap = dialogSnapshot();
   if (!snap) return null;
-
   var parsed = orderContract.parseConfirmationTexts(snap.texts);
-  if (parsed.title) {
-    var expectedTitle = confirmationLabels(order.side).title;
-    if (String(parsed.title).indexOf(expectedTitle) >= 0) {
-      return {
-        kind: "confirmation",
-        confirmation: {
-          dialog: snap.dialog,
-          parsed: parsed,
-          ok: snap.ok,
-          cancel: snap.cancel,
-          labels: confirmationLabels(order.side)
-        }
-      };
-    }
-    return { kind: "unknown_dialog", dialog: snap };
-  }
-
-  if (snap.message) {
-    var classified = orderContract.classifyResultMessage(snap.message);
-    return {
-      kind: "result",
-      result: {
-        dialog: snap.dialog,
-        title: snap.title || "系统信息",
-        message: snap.message,
-        outcome: classified.outcome,
-        ok: snap.ok
-      }
-    };
-  }
-
-  return { kind: "unknown_dialog", dialog: snap };
+  var expectedTitle = confirmationLabels(order.side).title;
+  if (String(parsed.title || "").indexOf(expectedTitle) < 0) return null;
+  return {
+    dialog: snap.dialog,
+    parsed: parsed,
+    ok: snap.ok,
+    cancel: snap.cancel,
+    labels: confirmationLabels(order.side)
+  };
 }
 
-function findConfirmation(order) {
-  var outcome = classifyCurrentDialog(order);
-  return outcome && outcome.kind === "confirmation" ? outcome.confirmation : null;
-}
-
-function findResultDialog(order) {
-  var outcome = classifyCurrentDialog(order || { side: "buy" });
-  return outcome && outcome.kind === "result" ? outcome.result : null;
+function findResultDialog() {
+  var snap = dialogSnapshot();
+  if (!snap || !snap.message) return null;
+  var parsedConfirmation = orderContract.parseConfirmationTexts(snap.texts);
+  if (parsedConfirmation.title) return null;
+  var classified = orderContract.classifyResultMessage(snap.message);
+  return {
+    dialog: snap.dialog,
+    title: snap.title || "系统信息",
+    message: snap.message,
+    outcome: classified.outcome,
+    ok: snap.ok
+  };
 }
 
 function findUnknownDialog(order) {
-  var outcome = classifyCurrentDialog(order);
-  return outcome && outcome.kind === "unknown_dialog" ? outcome.dialog : null;
+  var snap = dialogSnapshot();
+  if (!snap) return null;
+  if (findConfirmation(order) || findResultDialog()) return null;
+  return snap;
 }
 
 function validateConfirmationOrCancel(order, confirmation) {
@@ -542,23 +508,19 @@ function validateConfirmationOrCancel(order, confirmation) {
 }
 
 function waitTransactionOutcome(order, timeoutMs) {
-  var duration = Number(timeoutMs);
-  if (!isFinite(duration) || duration < 0) duration = 1500;
-  var deadline = Date.now() + duration;
-  var lastUnknown = null;
+  var deadline = Date.now() + Number(timeoutMs || 1500);
+  while (Date.now() <= deadline) {
+    var confirmation = findConfirmation(order);
+    if (confirmation) return { kind: "confirmation", confirmation: confirmation };
 
-  do {
-    var outcome = classifyCurrentDialog(order);
-    if (outcome && outcome.kind !== "unknown_dialog") return outcome;
-    if (outcome && outcome.kind === "unknown_dialog") lastUnknown = outcome;
-    else lastUnknown = null;
-    if (Date.now() >= deadline) break;
+    var result = findResultDialog();
+    if (result) return { kind: "result", result: result };
+
+    var unknownDialog = findUnknownDialog(order);
+    if (unknownDialog) return { kind: "unknown_dialog", dialog: unknownDialog };
     sleep(70);
-  } while (true);
-
-  // A dialog skeleton may appear before its title/content. Only report it as unknown
-  // if it is still unclassifiable at the end of the settle window.
-  return lastUnknown;
+  }
+  return null;
 }
 
 function extractContractNumber(message) {
@@ -575,7 +537,7 @@ function dismissResultDialog(order, result) {
     if (!tapCenter(result.ok)) break;
     sleep(220);
     if (!id(IDS.dialogLayout).findOnce()) return;
-    result = findResultDialog(order) || result;
+    result = findResultDialog() || result;
   }
   var probe = dumpProbe(order, "result_dialog_not_dismissed_after_retries");
   throw unknownUiError(
@@ -656,37 +618,6 @@ function dumpProbe(order, stage) {
   return path;
 }
 
-function consumeTransactionOutcome(order, outcome, fillResult, hooks) {
-  if (!outcome) return null;
-
-  if (outcome.kind === "confirmation") {
-    var checked = validateConfirmationOrCancel(order, outcome.confirmation);
-    fireHook(hooks, "onConfirmationReady", checked.parsed);
-    return { kind: "confirmation", confirmation: checked, fill: fillResult };
-  }
-
-  if (outcome.kind === "result") {
-    if (outcome.result.outcome === "rejected") {
-      dismissResultDialog(order, outcome.result);
-      return { kind: "rejected", result: outcome.result, fill: fillResult };
-    }
-    throw unknownUiError(
-      "THS returned an unexpected result before validated manual confirmation: " + outcome.result.message,
-      "pre_confirmation_result_unknown"
-    );
-  }
-
-  if (outcome.kind === "unknown_dialog") {
-    var probeUnknown = dumpProbe(order, "unknown_dialog_after_transaction_tap");
-    throw dialogContractError(
-      "unrecognized dialog opened after transaction tap; probe=" + probeUnknown,
-      "transaction_unknown_dialog"
-    );
-  }
-
-  return null;
-}
-
 function openOrderConfirmation(order, config, hooks) {
   var fillResult = fillOrderFields(order, config);
   var waitMs = Math.max(700, Math.min(1500, Math.floor(timeout(config) / 3)));
@@ -701,26 +632,42 @@ function openOrderConfirmation(order, config, hooks) {
     });
   }
 
-  var existing = waitTransactionOutcome(order, 0);
+  var existing = findConfirmation(order);
   if (existing) {
     markPhase();
-    return consumeTransactionOutcome(order, existing, fillResult, hooks);
+    existing = validateConfirmationOrCancel(order, existing);
+    fireHook(hooks, "onConfirmationReady", existing.parsed);
+    return { kind: "confirmation", confirmation: existing, fill: fillResult };
   }
 
   markPhase();
   for (var attempt = 1; attempt <= TAP_ATTEMPTS; attempt++) {
-    // If a previous tap produced a late dialog, never tap the underlying transaction
-    // button again. Give that dialog a short settle window and consume it first.
-    if (attempt > 1) {
-      var late = waitTransactionOutcome(order, 350);
-      if (late) return consumeTransactionOutcome(order, late, fillResult, hooks);
-    }
-
     var submitNode = waitId(IDS.transaction, Math.min(timeout(config), 1200));
     if (!tapCenter(submitNode)) throw new Error("THS transaction button tap failed");
 
     var outcome = waitTransactionOutcome(order, waitMs);
-    if (outcome) return consumeTransactionOutcome(order, outcome, fillResult, hooks);
+    if (outcome && outcome.kind === "confirmation") {
+      var checked = validateConfirmationOrCancel(order, outcome.confirmation);
+      fireHook(hooks, "onConfirmationReady", checked.parsed);
+      return { kind: "confirmation", confirmation: checked, fill: fillResult };
+    }
+    if (outcome && outcome.kind === "result") {
+      if (outcome.result.outcome === "rejected") {
+        dismissResultDialog(order, outcome.result);
+        return { kind: "rejected", result: outcome.result, fill: fillResult };
+      }
+      throw unknownUiError(
+        "THS returned an unrecognized result before manual confirmation: " + outcome.result.message,
+        "pre_confirmation_result_unknown"
+      );
+    }
+    if (outcome && outcome.kind === "unknown_dialog") {
+      var probeUnknown = dumpProbe(order, "unknown_dialog_after_transaction_tap");
+      throw dialogContractError(
+        "unrecognized dialog opened after transaction tap; probe=" + probeUnknown,
+        "transaction_unknown_dialog"
+      );
+    }
     sleep(100);
   }
 
@@ -803,34 +750,27 @@ function submit(order, config, hooks) {
 
   var deadline = Date.now() + manualConfirmTimeout(config);
   while (Date.now() <= deadline) {
-    var current = classifyCurrentDialog(order);
-    if (current && current.kind === "confirmation") {
+    var confirmation = findConfirmation(order);
+    if (confirmation) {
       sleep(70);
       continue;
     }
 
     var result = null;
-    var lastUnknown = null;
     var graceDeadline = Date.now() + manualResultGrace(config);
     while (Date.now() <= graceDeadline) {
-      var outcome = classifyCurrentDialog(order);
-      if (outcome && outcome.kind === "result") {
-        result = outcome.result;
-        break;
+      result = findResultDialog();
+      if (result) break;
+      if (findUnknownDialog(order)) {
+        var probeUnknown = dumpProbe(order, "unknown_dialog_after_manual_confirmation");
+        throw unknownUiError(
+          "unrecognized dialog after manual confirmation; probe=" + probeUnknown,
+          "manual_confirmation_unknown_dialog"
+        );
       }
-      if (outcome && outcome.kind === "unknown_dialog") lastUnknown = outcome;
-      else lastUnknown = null;
       sleep(70);
     }
     if (result) return resultReturn(order, result, opened);
-
-    if (lastUnknown) {
-      var probeUnknown = dumpProbe(order, "unknown_dialog_after_manual_confirmation");
-      throw unknownUiError(
-        "unrecognized dialog after manual confirmation; probe=" + probeUnknown,
-        "manual_confirmation_unknown_dialog"
-      );
-    }
 
     throw unknownUiError(
       "THS manual confirmation dialog disappeared but no recognized result was found",
@@ -840,8 +780,6 @@ function submit(order, config, hooks) {
 
   var stillOpen = findConfirmation(order);
   if (stillOpen) {
-    // Never race the user by clicking Cancel at the timeout boundary. Leave the live
-    // confirmation dialog for manual takeover and block automatic replay.
     throw unknownUiError(
       "THS manual confirmation timed out while confirmation dialog is still open; manual takeover required",
       "manual_confirmation_timeout_open_dialog"
@@ -849,21 +787,10 @@ function submit(order, config, hooks) {
   }
 
   var lateDeadline = Date.now() + manualResultGrace(config);
-  var lateUnknown = null;
   while (Date.now() <= lateDeadline) {
-    var late = classifyCurrentDialog(order);
-    if (late && late.kind === "result") return resultReturn(order, late.result, opened);
-    if (late && late.kind === "unknown_dialog") lateUnknown = late;
-    else lateUnknown = null;
+    var lateResult = findResultDialog();
+    if (lateResult) return resultReturn(order, lateResult, opened);
     sleep(70);
-  }
-
-  if (lateUnknown) {
-    var probeLate = dumpProbe(order, "unknown_dialog_after_manual_timeout");
-    throw unknownUiError(
-      "unrecognized dialog after manual confirmation timeout; probe=" + probeLate,
-      "manual_confirmation_unknown_dialog"
-    );
   }
 
   throw unknownUiError(
