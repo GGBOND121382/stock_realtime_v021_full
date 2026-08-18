@@ -27,7 +27,11 @@ function mark(signalId, payload) {
   var item = payload || {};
   item.signal_id = String(signalId);
   item.updated_at = new Date().toISOString();
-  storage.put(key(signalId), item);
+
+  // Critical execution state must be durable before the caller is allowed to
+  // proceed to the next broker-side action. AutoJs6 Storage#put uses
+  // SharedPreferences.apply() (async); putSync() uses commit() (sync).
+  storage.putSync(key(signalId), item);
   return item;
 }
 
