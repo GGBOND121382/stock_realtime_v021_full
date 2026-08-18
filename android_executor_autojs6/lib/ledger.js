@@ -28,9 +28,19 @@ function mark(signalId, payload) {
   item.signal_id = String(signalId);
   item.updated_at = new Date().toISOString();
 
-  // Critical execution state must be durable before the caller is allowed to
-  // proceed to the next broker-side action. AutoJs6 Storage#put uses
-  // SharedPreferences.apply() (async); putSync() uses commit() (sync).
+  // Never fall back to asynchronous Storage#put here. If the installed AutoJs6
+  // does not expose putSync(), stop before the caller can touch broker UI.
+  if (typeof storage.putSync !== "function") {
+    var unsupported = new Error("AutoJs6 Storage.putSync() is required for crash-safe execution ledger");
+    unsupported.stage = "sync_ledger_unsupported";
+    unsupported.ambiguous = false;
+    unsupported.fatal_ui_state = true;
+    throw unsupported;
+  }
+
+  // AutoJs6 Storage#put uses SharedPreferences.apply() (async); putSync() uses
+  // commit() (sync). Critical execution state must be durable before the next
+  // broker-side action is allowed to run.
   storage.putSync(key(signalId), item);
   return item;
 }
