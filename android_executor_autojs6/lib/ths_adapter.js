@@ -11,7 +11,6 @@ var IDS = {
 };
 
 var EDIT_TEXT = "android.widget.EditText";
-var TEXT_VIEW = "android.widget.TextView";
 var THS_PACKAGE = "com.hexin.plat.android";
 var TAP_ATTEMPTS = 3;
 var PROBE_MAX_NODES = 400;
@@ -197,11 +196,26 @@ function recoverToTradingPage(side, config) {
   return true;
 }
 
+function currentSearchCode(searchContainer) {
+  try {
+    var edit = searchContainer.findOne(id(IDS.stockCode).className(EDIT_TEXT));
+    return edit ? safeNodeText(edit).trim() : "";
+  } catch (e) {
+    return "";
+  }
+}
+
+function searchResultsReady(searchContainer) {
+  try {
+    return !!searchContainer.findOne(text("搜索结果"));
+  } catch (e) {
+    return false;
+  }
+}
+
 function findSuggestionOnce(searchContainer, code) {
   try {
-    var node = searchContainer.findOne(id(IDS.stockSuggestionCode).text(String(code)));
-    if (node) return node;
-    return searchContainer.findOne(className(TEXT_VIEW).text(String(code)));
+    return searchContainer.findOne(id(IDS.stockSuggestionCode).text(String(code)));
   } catch (e) {
     return null;
   }
@@ -237,8 +251,8 @@ function fillCode(code, config) {
   var searchEdit = findInside(searchContainer, id(IDS.stockCode).className(EDIT_TEXT), t);
   if (!searchEdit) throw new Error("THS stock search EditText not found");
 
-  // Write exactly once. The search overlay may replace this UiObject immediately,
-  // so do not use the old node's text() as a success/failure signal.
+  // Write once. THS refreshes the overlay asynchronously from "最近搜索" to
+  // "搜索结果"; no suggestion click is allowed during that transition.
   setNodeTextOnce(searchEdit, expected, "stock_code");
 
   var deadline = Date.now() + t;
@@ -248,13 +262,39 @@ function fillCode(code, config) {
 
     var activeSearch = id(IDS.searchContainer).findOnce();
     if (activeSearch && !clickedSuggestion) {
+      var observed = currentSearchCode(activeSearch);
+      if (observed && observed !== expected) {
+        var mutated = new Error(
+          "THS stock code changed after write expected=" + expected + " actual=" + observed
+        );
+        mutated.stage = "stock_code_mutated_after_write";
+        mutated.ambiguous = false;
+        throw mutated;
+      }
+
+      // Video evidence shows THS can keep the old "最近搜索" tree for a short
+      // interval after setText(). Never select a node until the UI explicitly
+      // reports "搜索结果".
+      if (!searchResultsReady(activeSearch)) {
+        sleep(70);
+        continue;
+      }
+
+      // Re-read the active EditText immediately before selection. Only the exact
+      // six-digit value is accepted; generic TextView fallbacks are forbidden.
+      observed = currentSearchCode(activeSearch);
+      if (observed !== expected) {
+        var verifyErr = new Error(
+          "THS stock code changed before suggestion click expected=" + expected + " actual=" + observed
+        );
+        verifyErr.stage = "stock_code_preselect_verify_failed";
+        verifyErr.ambiguous = false;
+        throw verifyErr;
+      }
+
       var suggestion = findSuggestionOnce(activeSearch, expected);
       if (suggestion) {
         clickedSuggestion = true;
-        // Do not climb to a clickable parent here. In THS the parent may cover a
-        // much larger search/keyboard area; tapping its center can hit a keypad
-        // digit and append it to the six-digit stock code. Click the exact
-        // suggestion node, falling back only to that node's own bounds.
         if (!clickNode(suggestion)) {
           var tapErr = new Error("THS stock suggestion tap failed code=" + expected);
           tapErr.stage = "stock_suggestion_tap_failed";
