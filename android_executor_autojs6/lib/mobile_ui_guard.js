@@ -7,6 +7,9 @@ var DEFAULT_REQUIRED_IDS = [
   "com.hexin.plat.android:id/btn_transaction"
 ];
 
+var DIALOG_LAYOUT_ID = "com.hexin.plat.android:id/dialog_layout";
+var SEARCH_OVERLAY_ID = "com.hexin.plat.android:id/dialogplus_view_container";
+
 var DEFAULT_BLOCKERS = [
   "验证码",
   "重新登录",
@@ -230,6 +233,15 @@ function captureSnapshot(config) {
       var blockerText = safeValue(function () { return String(blockerNode.text() || blockerNode.desc() || ""); }, "");
       blockers.push(blockerText || "matched configured blocker text");
     }
+  }
+
+  // Structural blockers do not depend on broker wording. A fresh order must begin
+  // from the plain trade form with neither a modal dialog nor a stock-search overlay.
+  if (safeValue(function () { return !!id(DIALOG_LAYOUT_ID).findOnce(); }, false)) {
+    blockers.push("unexpected dialog_layout present");
+  }
+  if (safeValue(function () { return !!id(SEARCH_OVERLAY_ID).findOnce(); }, false)) {
+    blockers.push("unexpected stock-search overlay present");
   }
 
   var metrics = displayMetrics();
