@@ -1,9 +1,0 @@
-# stock_code,artifact_pattern,enabled,weight_multiplier,max_weight_override,max_add_weight_override,notes
-# This file is intentionally conservative by default.
-# Add rules after this header. Later matching rows override earlier rows.
-#
-# Examples:
-# 600312.SH,.*,1,0.60,,,recent backtest underperformed; reduce weight only
-# 601899.SH,.*zijin.*,0,0.00,,,temporarily disabled after review
-# 603308.SH,.*external_full.*extra_trees.*,1,0.50,,,observe only; lower weight
-stock_code,artifact_pattern,enabled,weight_multiplier,max_weight_override,max_add_weight_override,notes

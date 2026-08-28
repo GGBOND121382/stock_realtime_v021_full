@@ -8,7 +8,7 @@ RAW_DAILY_CACHE_DIR="${RAW_DAILY_CACHE_DIR:-saved_data/ashare_ml4t/ch12_as1455/b
 FEATURE_PRESETS="${FEATURE_PRESETS:-rotation_onehot rotation_addon_onehot}"
 TARGET_COL="${TARGET_COL:-r05_fwd}"
 CAPACITY_MODE="${CAPACITY_MODE:-none}"
-# Full parameter searches retain only per-run JSON summaries.  The best row is
+# Full parameter searches retain only per-run JSON summaries. The best row is
 # then re-run once in compact/full mode so plotting does not require thousands
 # of duplicate NAV and drawdown files.
 OUTPUT_MODE="${OUTPUT_MODE:-summary}"

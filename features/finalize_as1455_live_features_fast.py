@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Fast post-14:55 AS1455 live feature finalizer.
+"""Finalize only the current AS1455 row from a precomputed live feature state.
 
-Production goal: after 14:55, do NOT rebuild the 252-day feature panel. This
-script reads the precomputed ``06_live_feature_state_fast.npz`` plus today's
-``08_live_raw_row_as1455.csv`` and computes only the final T-day prediction
-feature rows.
+The output is the 31-column base feature contract used by the historical Ch12
+model data. The clean Chapter-17 layer subsequently adds sector rotation,
+compact addons and one-hot columns using its authoritative shared code.
 """
 from __future__ import annotations
 
 import argparse
 import json
-import math
 import sys
+import math
 import time
 from pathlib import Path
+
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
 
 import numpy as np
 import pandas as pd
 
-PROJECT_DIR = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_DIR))
-
-from features.as1455_live_common import (  # noqa: E402
+from features.as1455_live_common import (
     DEFAULT_LIVE_ROOT,
     EXPECTED_MODEL_COLUMNS,
     ensure_dir,
@@ -33,35 +33,30 @@ from features.as1455_live_common import (  # noqa: E402
     yyyymmdd_to_dash,
 )
 
-try:  # Prefer exact TA-Lib semantics when available on the server.
+try:
     import talib  # type: ignore
-except Exception:  # pragma: no cover - fallback is used in lightweight envs.
+except Exception:  # pragma: no cover
     talib = None
 
 T_WINDOWS = [1, 5, 10, 21, 42, 63]
-MONTH = 21
 
 
-def _safe_std(x: np.ndarray) -> float:
-    valid = x[np.isfinite(x)]
-    if len(valid) < 2:
+def _safe_std(values: np.ndarray) -> float:
+    x = np.asarray(values, dtype=float)
+    x = x[np.isfinite(x)]
+    return float(x.std(ddof=1)) if len(x) >= 2 else float("nan")
+
+
+def _last_zscore(values: np.ndarray) -> float:
+    x = np.asarray(values, dtype=float)
+    x = x[np.isfinite(x)]
+    if len(x) < 2:
         return float("nan")
-    return float(valid.std(ddof=1))
-
-
-def _last_zscore(arr: np.ndarray) -> float:
-    arr = np.asarray(arr, dtype=float)
-    valid = arr[np.isfinite(arr)]
-    if len(valid) < 2:
-        return float("nan")
-    std = valid.std(ddof=1)
-    if not np.isfinite(std) or std == 0:
-        return float("nan")
-    return float((valid[-1] - valid.mean()) / std)
+    sd = _safe_std(x)
+    return float((x[-1] - x.mean()) / sd) if np.isfinite(sd) and sd > 0 else float("nan")
 
 
 def _ema(values: np.ndarray, span: int) -> np.ndarray:
-    # Fallback approximation. Server should use TA-Lib where installed.
     return pd.Series(values, dtype="float64").ewm(span=span, adjust=False).mean().to_numpy()
 
 
@@ -70,7 +65,6 @@ def _rsi_fallback(close: np.ndarray, period: int = 14) -> np.ndarray:
     delta = s.diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
-    # Wilder-style smoothing approximation.
     avg_gain = gain.ewm(alpha=1 / period, adjust=False, min_periods=period).mean()
     avg_loss = loss.ewm(alpha=1 / period, adjust=False, min_periods=period).mean()
     rs = avg_gain / avg_loss
@@ -85,87 +79,56 @@ def _atr_fallback(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: 
     return tr.ewm(alpha=1 / period, adjust=False, min_periods=period).mean().to_numpy()
 
 
-def _last_indicators(high: np.ndarray, low: np.ndarray, close: np.ndarray) -> dict[str, float]:
-    """Compute only final-row TA indicators for one symbol."""
+def _last_indicators(high: np.ndarray, low: np.ndarray, close: np.ndarray, *, allow_fallback: bool) -> dict[str, float]:
     high = np.asarray(high, dtype=float)
     low = np.asarray(low, dtype=float)
     close = np.asarray(close, dtype=float)
     valid = np.isfinite(high) & np.isfinite(low) & np.isfinite(close) & (high > 0) & (low > 0) & (close > 0)
     if valid.sum() < 65:
         return {k: float("nan") for k in ["rsi", "bb_high", "bb_low", "NATR", "ATR", "PPO", "MACD"]}
-    # Keep the aligned valid suffix. Padding NaNs at the front are not useful.
     first = int(np.argmax(valid))
-    high = high[first:]
-    low = low[first:]
-    close = close[first:]
-    try:
-        if talib is not None:
-            rsi_arr = talib.RSI(close)
-            upper, _mid, lower = talib.BBANDS(close, timeperiod=20)
-            natr_arr = talib.NATR(high, low, close)
-            atr_arr = talib.ATR(high, low, close, timeperiod=14)
-            ppo_arr = talib.PPO(close)
-            macd_arr = talib.MACD(close)[0]
-        else:
-            rsi_arr = _rsi_fallback(close)
-            ma = pd.Series(close).rolling(20).mean().to_numpy()
-            sd = pd.Series(close).rolling(20).std(ddof=0).to_numpy()
-            upper = ma + 2 * sd
-            lower = ma - 2 * sd
-            atr_arr = _atr_fallback(high, low, close)
-            natr_arr = 100.0 * atr_arr / close
-            ema_fast = _ema(close, 12)
-            ema_slow = _ema(close, 26)
-            ppo_arr = (ema_fast - ema_slow) / ema_slow * 100.0
-            macd_arr = ema_fast - ema_slow
-        cl = close[-1]
-        up = upper[-1]
-        lo = lower[-1]
-        bb_high = float(np.log1p((up - cl) / up)) if np.isfinite(up) and up != 0 else float("nan")
-        bb_low = float(np.log1p((cl - lo) / cl)) if np.isfinite(lo) and cl != 0 else float("nan")
-        return {
-            "rsi": float(rsi_arr[-1]) if np.isfinite(rsi_arr[-1]) else float("nan"),
-            "bb_high": bb_high,
-            "bb_low": bb_low,
-            "NATR": float(natr_arr[-1]) if np.isfinite(natr_arr[-1]) else float("nan"),
-            "ATR": _last_zscore(atr_arr),
-            "PPO": float(ppo_arr[-1]) if np.isfinite(ppo_arr[-1]) else float("nan"),
-            "MACD": _last_zscore(macd_arr),
-        }
-    except Exception:
-        return {k: float("nan") for k in ["rsi", "bb_high", "bb_low", "NATR", "ATR", "PPO", "MACD"]}
+    high, low, close = high[first:], low[first:], close[first:]
+    if talib is None and not allow_fallback:
+        raise RuntimeError("TA-Lib is required for production live feature parity; install requirements.txt or pass --allow-indicator-fallback only for tests")
+    if talib is not None:
+        rsi_arr = talib.RSI(close)
+        upper, _mid, lower = talib.BBANDS(close, timeperiod=20)
+        natr_arr = talib.NATR(high, low, close)
+        atr_arr = talib.ATR(high, low, close, timeperiod=14)
+        ppo_arr = talib.PPO(close)
+        macd_arr = talib.MACD(close)[0]
+    else:
+        rsi_arr = _rsi_fallback(close)
+        ma = pd.Series(close).rolling(20).mean().to_numpy()
+        sd = pd.Series(close).rolling(20).std(ddof=0).to_numpy()
+        upper, lower = ma + 2 * sd, ma - 2 * sd
+        atr_arr = _atr_fallback(high, low, close)
+        natr_arr = 100.0 * atr_arr / close
+        ema_fast, ema_slow = _ema(close, 12), _ema(close, 26)
+        ppo_arr = (ema_fast - ema_slow) / ema_slow * 100.0
+        macd_arr = ema_fast - ema_slow
+    cl, up, lo = close[-1], upper[-1], lower[-1]
+    return {
+        "rsi": float(rsi_arr[-1]) if np.isfinite(rsi_arr[-1]) else float("nan"),
+        "bb_high": float(np.log1p((up - cl) / up)) if np.isfinite(up) and up != 0 else float("nan"),
+        "bb_low": float(np.log1p((cl - lo) / cl)) if np.isfinite(lo) and cl != 0 else float("nan"),
+        "NATR": float(natr_arr[-1]) if np.isfinite(natr_arr[-1]) else float("nan"),
+        "ATR": _last_zscore(atr_arr),
+        "PPO": float(ppo_arr[-1]) if np.isfinite(ppo_arr[-1]) else float("nan"),
+        "MACD": _last_zscore(macd_arr),
+    }
 
 
-def qcut_safe(x: pd.Series, q: int) -> pd.Series:
-    valid = x.dropna()
-    out = pd.Series(np.nan, index=x.index, dtype="float64")
+def qcut_safe(values: pd.Series, q: int) -> pd.Series:
+    out = pd.Series(np.nan, index=values.index, dtype="float64")
+    valid = values.dropna()
     if valid.nunique() < 2:
         return out
     try:
         out.loc[valid.index] = pd.qcut(valid.rank(method="first"), q=q, labels=False, duplicates="drop")
     except Exception:
-        out.loc[valid.index] = np.nan
+        pass
     return out
-
-
-def load_feature_columns(path: str | None, state_cols: list[str] | None = None) -> list[str]:
-    if path:
-        p = Path(path)
-        text = p.read_text(encoding="utf-8")
-        try:
-            obj = json.loads(text)
-            if isinstance(obj, list):
-                return [str(x) for x in obj]
-            if isinstance(obj, dict):
-                for k in ["feature_columns", "columns", "model_columns"]:
-                    if k in obj:
-                        return [str(x) for x in obj[k]]
-        except Exception:
-            pass
-        return [line.strip() for line in text.splitlines() if line.strip()]
-    if state_cols:
-        return list(state_cols)
-    return EXPECTED_MODEL_COLUMNS.copy()
 
 
 def live_raw_to_qfq_row(raw: pd.DataFrame, events: pd.DataFrame, trade_date: str) -> pd.DataFrame:
@@ -200,7 +163,7 @@ def live_raw_to_qfq_row(raw: pd.DataFrame, events: pd.DataFrame, trade_date: str
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Fast AS1455 post-14:55 prediction feature finalizer")
+    ap = argparse.ArgumentParser(description="Finalize AS1455 live base features after 14:55")
     ap.add_argument("--trade-date", default="today")
     ap.add_argument("--live-dir", default=None)
     ap.add_argument("--out-root", default=str(DEFAULT_LIVE_ROOT))
@@ -208,7 +171,8 @@ def main() -> None:
     ap.add_argument("--training-feature-columns", default=None)
     ap.add_argument("--min-feature-rows", type=int, default=980)
     ap.add_argument("--max-elapsed-seconds", type=float, default=40.0)
-    ap.add_argument("--warn-only-time", action="store_true", help="do not fail if elapsed exceeds max")
+    ap.add_argument("--warn-only-time", action="store_true")
+    ap.add_argument("--allow-indicator-fallback", action="store_true")
     args = ap.parse_args()
 
     started = time.time()
@@ -217,7 +181,7 @@ def main() -> None:
     ensure_dir(live_dir)
     state_path = Path(args.state_file) if args.state_file else live_dir / "06_live_feature_state_fast.npz"
     if not state_path.exists():
-        raise FileNotFoundError(f"missing fast feature state: {state_path}. Run prefast first.")
+        raise FileNotFoundError(f"missing fast state: {state_path}")
 
     state = np.load(state_path, allow_pickle=True)
     symbols = [str(x) for x in state["symbols"].tolist()]
@@ -226,148 +190,126 @@ def main() -> None:
     low_hist = state["low"].astype(float)
     close_hist = state["close"].astype(float)
     volume_hist = state["volume"].astype(float)
-    state_feature_cols = [str(x) for x in state.get("feature_columns", np.array(EXPECTED_MODEL_COLUMNS, dtype=object)).tolist()]
-    training_cols = load_feature_columns(args.training_feature_columns, state_feature_cols)
+    state_cols = [str(x) for x in state["feature_columns"].tolist()]
+    if state_cols != list(EXPECTED_MODEL_COLUMNS):
+        raise RuntimeError(f"state feature contract mismatch: {state_cols}")
 
-    raw_live = pd.read_csv(live_dir / "08_live_raw_row_as1455.csv", dtype={"symbol": str}, encoding="utf-8-sig")
+    raw_path = live_dir / "08_live_raw_row_as1455.csv"
+    if not raw_path.exists():
+        raise FileNotFoundError(raw_path)
+    raw_live = pd.read_csv(raw_path, dtype={"symbol": str}, encoding="utf-8-sig")
     events_path = live_dir / "03_adjustment_events.csv"
     events = pd.read_csv(events_path, dtype={"symbol": str}, encoding="utf-8-sig") if events_path.exists() else pd.DataFrame()
     live_qfq = live_raw_to_qfq_row(raw_live, events, trade_date)
     write_csv(live_dir / "09_live_qfq_row_as1455.csv", live_qfq)
+    live_map = live_qfq.drop_duplicates("symbol", keep="last").set_index("symbol")
 
-    live_map = live_qfq.set_index("symbol")
-    rows = []
-    missing_live = []
+    today_high = np.full(len(symbols), np.nan)
+    today_low = np.full(len(symbols), np.nan)
+    today_close = np.full(len(symbols), np.nan)
+    today_volume = np.full(len(symbols), np.nan)
+    missing_live: list[str] = []
     for i, sym in enumerate(symbols):
         if sym not in live_map.index:
             missing_live.append(sym)
             continue
-        lr = live_map.loc[sym]
-        today_open = float(lr["open"]) if pd.notna(lr["open"]) else np.nan
-        today_high = float(lr["high"]) if pd.notna(lr["high"]) else np.nan
-        today_low = float(lr["low"]) if pd.notna(lr["low"]) else np.nan
-        today_close = float(lr["close"]) if pd.notna(lr["close"]) else np.nan
-        today_volume = float(lr["volume"]) if pd.notna(lr["volume"]) else np.nan
-        h = np.concatenate([high_hist[i], [today_high]])
-        l = np.concatenate([low_hist[i], [today_low]])
-        c = np.concatenate([close_hist[i], [today_close]])
-        v = np.concatenate([volume_hist[i], [today_volume]])
-        ind = _last_indicators(h, l, c)
-        row = {
+        row = live_map.loc[sym]
+        today_high[i] = pd.to_numeric(row.get("high"), errors="coerce")
+        today_low[i] = pd.to_numeric(row.get("low"), errors="coerce")
+        today_close[i] = pd.to_numeric(row.get("close"), errors="coerce")
+        today_volume[i] = pd.to_numeric(row.get("volume"), errors="coerce")
+
+    hist_dollar_vol = close_hist * volume_hist / 1_000_000.0
+    today_dollar_vol = today_close * today_volume / 1_000_000.0
+    dv_21 = np.concatenate([hist_dollar_vol[:, -20:], today_dollar_vol[:, None]], axis=1)
+    dv_ma = np.nanmean(dv_21, axis=1)
+    dv_rank = pd.Series(dv_ma).rank(ascending=False, method="average").to_numpy()
+
+    rows: list[dict] = []
+    for i, sym in enumerate(symbols):
+        h = np.concatenate([high_hist[i], [today_high[i]]])
+        l = np.concatenate([low_hist[i], [today_low[i]]])
+        c = np.concatenate([close_hist[i], [today_close[i]]])
+        indicators = _last_indicators(h, l, c, allow_fallback=args.allow_indicator_fallback)
+        row: dict[str, object] = {
             "date": yyyymmdd_to_dash(trade_date),
             "symbol": sym,
+            "dollar_vol": today_dollar_vol[i],
+            "dollar_vol_rank": dv_rank[i],
+            **indicators,
             "sector": int(sectors[i]),
-            "dollar_vol": today_close * (today_volume / 1e3) / 1e3 if np.isfinite(today_close) and np.isfinite(today_volume) else np.nan,
-            **ind,
         }
-        # 21-day dollar_vol rolling mean for ranking, in the same units as training.
-        hist_dv = close_hist[i] * (volume_hist[i] / 1e3) / 1e3
-        prev20 = hist_dv[np.isfinite(hist_dv)][-20:]
-        row["_dollar_vol_ma21_today"] = np.nanmean(np.concatenate([prev20, [row["dollar_vol"]]])) if np.isfinite(row["dollar_vol"]) else np.nan
         for t in T_WINDOWS:
-            lag = c[-(t + 1)] if len(c) >= t + 1 else np.nan
-            row[f"r{t:02}"] = today_close / lag - 1.0 if np.isfinite(today_close) and np.isfinite(lag) and lag != 0 else np.nan
+            previous = c[-1 - t] if len(c) > t and np.isfinite(c[-1 - t]) else np.nan
+            row[f"r{t:02}"] = c[-1] / previous - 1.0 if np.isfinite(c[-1]) and np.isfinite(previous) and previous > 0 else np.nan
         rows.append(row)
 
-    full = pd.DataFrame(rows)
-    if full.empty:
-        raise RuntimeError("no live feature rows were produced")
-    # Cross-sectional ranks/quantiles are the only truly cross-symbol operations after 14:55.
-    full["dollar_vol_rank"] = full["_dollar_vol_ma21_today"].rank(ascending=False, method="average")
+    features = pd.DataFrame(rows)
     for t in T_WINDOWS:
-        full[f"r{t:02}dec"] = qcut_safe(full[f"r{t:02}"], 10)
-    for t in T_WINDOWS:
-        full[f"r{t:02}q_sector"] = full.groupby("sector", group_keys=False)[f"r{t:02}"].apply(lambda x: qcut_safe(x, 5))
-    dt = pd.Timestamp(yyyymmdd_to_dash(trade_date))
-    full["year"] = dt.year
-    full["month"] = dt.month
-    full["weekday"] = dt.weekday()
+        col = f"r{t:02}"
+        features[f"r{t:02}dec"] = qcut_safe(features[col], 10)
+        features[f"r{t:02}q_sector"] = features.groupby("sector", group_keys=False, dropna=False)[col].apply(lambda x: qcut_safe(x, 5))
+    date_ts = pd.Timestamp(yyyymmdd_to_dash(trade_date))
+    features["year"], features["month"], features["weekday"] = date_ts.year, date_ts.month, date_ts.weekday()
+    features = features[["date", "symbol", *EXPECTED_MODEL_COLUMNS]]
+    for col in EXPECTED_MODEL_COLUMNS:
+        features[col] = pd.to_numeric(features[col], errors="coerce")
+    features.replace([np.inf, -np.inf], np.nan, inplace=True)
 
-    missing_cols = [c for c in training_cols if c not in full.columns]
-    for c in missing_cols:
-        full[c] = np.nan
-    ordered = ["date", "symbol"] + training_cols
-    full_out = full[ordered].copy()
-    write_csv(live_dir / "11_live_model_features.csv", full_out)
+    outlier_mask = features["r01"].gt(1)
+    complete_mask = features[EXPECTED_MODEL_COLUMNS].notna().all(axis=1) & features["sector"].ge(0) & ~outlier_mask
+    usable = features.loc[complete_mask].copy()
+    dropped = features.loc[~complete_mask].copy()
+    if not dropped.empty:
+        dropped["drop_reason"] = ""
+        dropped.loc[dropped["sector"].lt(0), "drop_reason"] += "missing_sector;"
+        dropped.loc[outlier_mask, "drop_reason"] += "r01_gt_1;"
+        missing_counts = features[EXPECTED_MODEL_COLUMNS].isna().sum(axis=1)
+        dropped.loc[missing_counts.gt(0), "drop_reason"] += "missing_model_features;"
 
-    nan_mask = full_out[training_cols].isna().any(axis=1)
-    usable = full_out.loc[~nan_mask].copy()
-    dropped = full_out.loc[nan_mask, ["date", "symbol"]].copy()
-    if len(dropped):
-        reasons = []
-        for idx in full_out.index[nan_mask]:
-            cols = [c for c in training_cols if pd.isna(full_out.at[idx, c])]
-            reasons.append(",".join(cols))
-        dropped["missing_feature_columns"] = reasons
-    else:
-        dropped["missing_feature_columns"] = []
-    write_csv(live_dir / "11_live_model_features_usable.csv", usable)
+    write_csv(live_dir / "11_live_model_features.csv", features)
     write_csv(live_dir / "11_live_model_features_for_prediction.csv", usable)
     write_csv(live_dir / "11_live_model_features_dropped_rows.csv", dropped)
-
-    nan_by_column = {c: int(full_out[c].isna().sum()) for c in training_cols}
-    usable_nan_cols = [c for c in training_cols if len(usable) and usable[c].isna().any()]
-    elapsed = time.time() - started
+    elapsed = round(time.time() - started, 3)
+    feature_passed = bool(len(usable) >= args.min_feature_rows)
+    time_passed = bool(elapsed <= args.max_elapsed_seconds)
     report = {
+        "feature_passed": feature_passed,
         "trade_date": trade_date,
-        "live_dir": str(live_dir),
         "state_file": str(state_path),
-        "mode": "fast_finalize_final_row_only",
-        "talib_available": bool(talib is not None),
-        "live_raw_rows": int(len(raw_live)),
-        "live_qfq_rows": int(len(live_qfq)),
+        "raw_live_rows": int(len(raw_live)),
         "state_symbols": int(len(symbols)),
-        "missing_live_symbols": int(len(missing_live)),
-        "live_feature_rows": int(len(full_out)),
-        "usable_feature_rows": int(len(usable)),
-        "dropped_feature_rows": int(len(dropped)),
-        "training_feature_columns": training_cols,
-        "n_training_feature_columns": int(len(training_cols)),
-        "missing_training_columns": missing_cols,
-        "nan_by_column": nan_by_column,
-        "nan_columns": [c for c, n in nan_by_column.items() if n > 0],
-        "usable_nan_columns": usable_nan_cols,
-        "sector_unmapped_rows": int((full_out.get("sector", pd.Series(dtype=float)) < 0).sum()) if "sector" in full_out.columns else int(len(full_out)),
-        "sector_unique_count": int(full_out["sector"].nunique()) if "sector" in full_out.columns else 0,
-        "dollar_vol_rank_nonnull": int(full_out["dollar_vol_rank"].notna().sum()) if "dollar_vol_rank" in full_out.columns else 0,
-        "dollar_vol_rank_min": None if "dollar_vol_rank" not in full_out or full_out["dollar_vol_rank"].dropna().empty else float(full_out["dollar_vol_rank"].min()),
-        "dollar_vol_rank_max": None if "dollar_vol_rank" not in full_out or full_out["dollar_vol_rank"].dropna().empty else float(full_out["dollar_vol_rank"].max()),
-        "elapsed_seconds": round(elapsed, 3),
-        "max_elapsed_seconds": float(args.max_elapsed_seconds),
-        "time_passed": bool(elapsed <= args.max_elapsed_seconds),
-    }
-    report["feature_passed"] = bool(
-        len(usable) >= args.min_feature_rows
-        and not missing_cols
-        and not usable_nan_cols
-        and report["sector_unmapped_rows"] == 0
-        and report["dollar_vol_rank_nonnull"] >= args.min_feature_rows
-    )
-    write_json(live_dir / "12_feature_build_report.json", report)
-    # 13 is intentionally similar but named as strict validation for downstream checks.
-    validation = {
-        "passed": bool(report["feature_passed"] and (report["time_passed"] or args.warn_only_time)),
-        "feature_passed": bool(report["feature_passed"]),
-        "time_passed": bool(report["time_passed"]),
-        "elapsed_seconds": report["elapsed_seconds"],
-        "feature_rows_full": int(len(full_out)),
+        "missing_live_symbols": len(missing_live),
+        "missing_live_examples": missing_live[:20],
+        "feature_rows_all": int(len(features)),
         "feature_rows_usable": int(len(usable)),
-        "dropped_rows_from_full": int(len(dropped)),
+        "feature_rows_dropped": int(len(dropped)),
+        "min_feature_rows": int(args.min_feature_rows),
+        "feature_columns": list(EXPECTED_MODEL_COLUMNS),
+        "talib_used": talib is not None,
+        "indicator_fallback_allowed": bool(args.allow_indicator_fallback),
+        "elapsed_seconds": elapsed,
+        "max_elapsed_seconds": float(args.max_elapsed_seconds),
+        "time_passed": time_passed,
         "prediction_file": str(live_dir / "11_live_model_features_for_prediction.csv"),
-        "prediction_file_matches_usable": True,
-        "nan_columns": usable_nan_cols,
-        "missing_training_columns": missing_cols,
-        "dollar_vol_rank_bad_rows": 0 if report["dollar_vol_rank_nonnull"] == len(full_out) else int(len(full_out) - report["dollar_vol_rank_nonnull"]),
-        "sector_unmapped_rows": report["sector_unmapped_rows"],
-        "missing_live_symbols": int(len(missing_live)),
     }
-    write_json(live_dir / "13_live_feature_strict_validation_report.json", validation)
-    print(json.dumps(report, ensure_ascii=False, indent=2), flush=True)
-    print(json.dumps(validation, ensure_ascii=False, indent=2), flush=True)
-    if not report["feature_passed"]:
-        raise SystemExit("fast live feature finalize failed; see 12_feature_build_report.json")
-    if elapsed > args.max_elapsed_seconds and not args.warn_only_time:
-        raise SystemExit(f"fast live feature finalize exceeded time budget: {elapsed:.3f}s > {args.max_elapsed_seconds:.3f}s")
+    write_json(live_dir / "12_feature_build_report.json", report)
+    strict = {
+        "passed": bool(feature_passed and (time_passed or args.warn_only_time)),
+        "feature_rows_usable": int(len(usable)),
+        "feature_columns_exact": list(usable.columns[2:]) == list(EXPECTED_MODEL_COLUMNS),
+        "finite": bool(len(usable) and np.isfinite(usable[EXPECTED_MODEL_COLUMNS].to_numpy(dtype=float)).all()),
+        "prediction_file": str(live_dir / "11_live_model_features_for_prediction.csv"),
+        "elapsed_seconds": elapsed,
+        "time_passed": time_passed,
+        "warn_only_time": bool(args.warn_only_time),
+        "talib_used": talib is not None,
+    }
+    strict["passed"] = bool(strict["passed"] and strict["feature_columns_exact"] and strict["finite"])
+    write_json(live_dir / "13_live_feature_strict_validation_report.json", strict)
+    print(json.dumps({"feature_report": report, "strict_report": strict}, ensure_ascii=False, indent=2), flush=True)
+    if not strict["passed"]:
+        raise SystemExit("live feature strict validation failed")
 
 
 if __name__ == "__main__":
