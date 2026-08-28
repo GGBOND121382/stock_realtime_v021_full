@@ -23,10 +23,15 @@ RAW_DAILY_CACHE_DIR="${RAW_DAILY_CACHE_DIR:-saved_data/ashare_ml4t/ch12_as1455/b
 FEATURE_PRESET="${FEATURE_PRESET:-rotation_addon_onehot}"
 PARTICIPATION_RATE="${PARTICIPATION_RATE:-0.05}"
 PRODUCTION_EXPERIMENT="${PRODUCTION_EXPERIMENT:-r21_best_reb21_fold0_4_forward}"
+R01_SIMULATION_ENABLED="${R01_SIMULATION_ENABLED:-1}"
 HEAVY_LOCK_FILE="${AS1455_HEAVY_LOCK_FILE:-saved_data/ashare_ml4t/.as1455_heavy_compute.lock}"
 HEAVY_LOCK_WAIT_SECONDS="${AS1455_HEAVY_LOCK_WAIT_SECONDS:-900}"
 [[ "$HEAVY_LOCK_WAIT_SECONDS" =~ ^[0-9]+$ ]] || {
   echo "AS1455_HEAVY_LOCK_WAIT_SECONDS must be a non-negative integer" >&2
+  exit 2
+}
+[[ "$R01_SIMULATION_ENABLED" == "0" || "$R01_SIMULATION_ENABLED" == "1" ]] || {
+  echo "R01_SIMULATION_ENABLED must be 0 or 1" >&2
   exit 2
 }
 
@@ -222,6 +227,20 @@ else
       FEATURE_PRESET="$FEATURE_PRESET" PRODUCTION_EXPERIMENT="$PRODUCTION_EXPERIMENT" \
       bash scripts/run_as1455_live_r21_best_pipeline.sh post
     rc=$?
+  fi
+  if [[ "$rc" -eq 0 && "$R01_SIMULATION_ENABLED" == "1" ]]; then
+    echo "[SIMULATION] r21 production READY; starting isolated r01-best simulation"
+    env \
+      PYTHON_BIN="$PYTHON_BIN" TRADE_DATE="$trade_date" TIMEZONE="$TIMEZONE" \
+      OUT_ROOT="$OUT_ROOT" MATRIX_ROOT="$MATRIX_ROOT" FEATURE_PRESET="$FEATURE_PRESET" \
+      PARTICIPATION_RATE="$PARTICIPATION_RATE" AS1455_PARENT_HEAVY_LOCK_HELD=1 \
+      bash scripts/run_as1455_live_r01_best_simulation.sh
+    sim_rc=$?
+    if [[ "$sim_rc" -ne 0 ]]; then
+      echo "[WARN] r01-best simulation failed exit_code=$sim_rc; r21 production READY remains valid" >&2
+    else
+      echo "[PASS] r01-best simulation READY after r21 production"
+    fi
   fi
 fi
 set -e
