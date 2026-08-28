@@ -14,6 +14,10 @@ import json
 import sys
 from pathlib import Path
 
+PROJECT_DIR = Path(__file__).resolve().parents[1]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
 from scripts import run_as1455_live_nine_strategy_planner as planner
 from scripts import run_as1455_live_nine_strategy_planner_entry as entry
 from scripts import run_as1455_live_production_strategy_planner_entry as production
