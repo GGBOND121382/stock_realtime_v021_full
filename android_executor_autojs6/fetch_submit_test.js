@@ -89,6 +89,20 @@ function run() {
     return;
   }
 
+  // Ongoing r01 simulation must consume only the post-14:55 committed batch.
+  // The API's historical read-only fallback is useful for diagnostics, but it
+  // must never be treated as today's executable simulation signal.
+  if (raw.temporary_test_batch === true) {
+    dialogs.alert(
+      "AS1455 服务器策略下单测试",
+      "服务器尚未生成今天正式提交的模拟盘 READY。\n\n" +
+        "当前响应只是历史/临时计划回退，已拒绝执行。请稍后重新运行。\n\n策略: " +
+        config.production_experiment
+    );
+    console.log("[IDLE] rejected temporary_test_batch; waiting for committed READY");
+    return;
+  }
+
   var batch = safety.validateBatch(raw, config);
   if (!batch.orders.length) {
     dialogs.alert(
@@ -106,7 +120,7 @@ function run() {
   var resultPath = files.join(files.cwd(), RESULT_NAME);
   var state = {
     status: "running",
-    source: "execution_api_experiment_query",
+    source: "execution_api_experiment_query_committed_ready",
     api_base_url: config.api_base_url,
     experiment: batch.experiment,
     trade_date: batch.trade_date,
