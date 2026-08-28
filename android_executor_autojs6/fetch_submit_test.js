@@ -2,101 +2,148 @@
 
 auto.waitFor();
 
-var client = require("./lib/plan_client.js");
 var safety = require("./lib/safety.js");
+var ledger = require("./lib/ledger.js");
+var client = require("./lib/plan_client.js");
 var ths = require("./lib/ths_adapter.js");
+var retryQueue = require("./lib/retry_queue.js");
 
 var DEFAULT_TEST_EXPERIMENT = "r01_best_reb1_fold0_5_forward";
-var RESULT_NAME = "fetch_submit_test_result.json";
 
 function loadConfig() {
   var path = files.join(files.cwd(), "config.json");
-  if (!files.exists(path)) throw new Error("missing config.json");
+  if (!files.exists(path)) throw new Error("missing config.json; copy config.example.json first");
   var cfg = JSON.parse(files.read(path));
-
-  var baseUrl = String(cfg.api_base_url || "").trim();
-  if (!baseUrl) throw new Error("config.api_base_url is required");
+  if (!cfg.api_base_url) throw new Error("config.api_base_url is required");
 
   var experiment = String(cfg.fetch_test_experiment || DEFAULT_TEST_EXPERIMENT).trim();
   if (!experiment) throw new Error("config.fetch_test_experiment is required");
 
+  // From this point onward the execution path is intentionally the same as
+  // main.js.  The only strategy difference is that this script explicitly asks
+  // the server for fetch_test_experiment rather than the default production one.
+  cfg.production_experiment = experiment;
+  cfg.mode = String(cfg.mode || "dry_run");
+  if (cfg.mode !== "dry_run" && cfg.mode !== "live") throw new Error("mode must be dry_run or live");
+  cfg.manual_confirm_timeout_ms = Number(cfg.manual_confirm_timeout_ms || 20000);
+  return cfg;
+}
+
+function summary(batch, pending) {
+  var sells = pending.filter(function (o) { return o.side === "sell"; }).length;
+  var buys = pending.filter(function (o) { return o.side === "buy"; }).length;
+  return "AS1455 " + batch.trade_date + "\n" +
+    "策略: " + batch.experiment + "\n" +
+    "待执行: " + pending.length + " 笔 (卖 " + sells + " / 买 " + buys + ")\n" +
+    "模式: " + (batch.mode === "live" ? "实盘（逐笔人工最终确认）" : "DRY RUN");
+}
+
+function betweenOrdersMs(config) {
+  if (config.between_orders_ms === undefined || config.between_orders_ms === null) return 150;
+  return Math.max(0, Number(config.between_orders_ms));
+}
+
+function failureSkipMs(config) {
+  if (config.failure_skip_ms === undefined || config.failure_skip_ms === null) return 100;
+  return Math.max(0, Number(config.failure_skip_ms));
+}
+
+function queueItem(order, error) {
   return {
-    api_base_url: baseUrl,
-    api_token: String(cfg.api_token || ""),
-    request_timeout_ms: Number(cfg.request_timeout_ms || 5000),
-    production_experiment: experiment,
-    max_orders: Number(cfg.max_orders || 60),
-    ths_package: String(cfg.ths_package || "com.hexin.plat.android"),
-    ui_timeout_ms: Number(cfg.ui_timeout_ms || 5000),
-    fill_timeout_ms: Number(cfg.fill_timeout_ms || 1800),
-    field_verify_timeout_ms: Number(cfg.field_verify_timeout_ms || 700),
-    manual_confirm_timeout_ms: Number(cfg.manual_confirm_timeout_ms || 20000),
-    manual_result_grace_ms: Number(cfg.manual_result_grace_ms || 1000),
-    manual_takeover_timeout_ms: Number(cfg.manual_takeover_timeout_ms || 60000),
-    between_orders_ms: Number(cfg.between_orders_ms || 150),
-    failure_skip_ms: Number(cfg.failure_skip_ms || 100),
-    allow_batch_live_test: cfg.allow_batch_live_test === true,
-    batch_test_continue_on_error: cfg.batch_test_continue_on_error !== false
+    sequence: order.sequence,
+    signal_id: order.signal_id,
+    code: order.code,
+    side: order.side,
+    qty: order.qty,
+    submit_price: order.submit_price,
+    stage: error && error.stage ? String(error.stage) : "unknown",
+    ambiguous: !!(error && error.ambiguous === true),
+    error: String(error)
   };
 }
 
-function writeState(path, state) {
-  state.updated_at = new Date().toISOString();
-  files.write(path, JSON.stringify(state, null, 2));
-}
-
-function requireBatchAck(batch) {
-  var buys = batch.orders.filter(function (o) { return o.side === "buy"; }).length;
-  var sells = batch.orders.length - buys;
-  var totalNotional = 0;
-  batch.orders.forEach(function (o) {
-    totalNotional += Number(o.qty) * Number(o.submit_price);
-  });
-
-  var summary = [
-    "即将执行服务器策略批量下单测试",
-    "策略: " + batch.experiment,
-    "日期: " + batch.trade_date,
-    "订单数: " + batch.orders.length,
-    "买入: " + buys + " / 卖出: " + sells,
-    "提交价名义金额: " + totalNotional.toFixed(2) + " 元",
-    "",
-    "程序逐笔填写并打开同花顺确认框；最终确认由你手动点击。",
-    "发现自动填充有误时，可点取消并手动修改当前单；脚本等待提交结果后继续。",
-    "单笔普通失败会跳过，不会重新填写同一笔。",
-    "UNKNOWN/界面状态不确定时会立即停止，避免重复提交。"
-  ].join("\n");
-  return dialogs.confirm("AS1455 服务器策略下单测试", summary);
-}
-
-function run() {
-  var config = loadConfig();
-  if (!config.allow_batch_live_test) {
-    throw new Error("config.allow_batch_live_test must be true for server strategy real-order testing");
+function executeOne(order, config, manualQueue) {
+  if (ledger.isTerminal(order.signal_id)) {
+    console.log("[SKIP] terminal " + order.signal_id + " " + order.code);
+    return "skipped";
   }
 
-  console.show();
-  console.log("[FETCH_SUBMIT_TEST] api=" + config.api_base_url);
-  console.log("[FETCH_SUBMIT_TEST] experiment=" + config.production_experiment);
+  ledger.markStarted(order);
 
+  try {
+    var result = config.mode === "live" ? ths.submit(order, config) : ths.preview(order, config);
+    ledger.markResult(order, result, config.mode !== "live");
+    if (config.mode === "live") retryQueue.remove(order.signal_id);
+    console.log("[OK] " + order.sequence + " " + order.side + " " + order.code + " x" + order.qty);
+    sleep(betweenOrdersMs(config));
+    return "completed";
+  } catch (e) {
+    if (config.mode === "live") {
+      ledger.markManualRequired(order, e);
+      retryQueue.recordFailure(order, e, "r01_simulation");
+    } else {
+      ledger.markFailed(order, e);
+    }
+
+    manualQueue.push(queueItem(order, e));
+    console.error(
+      "[ORDER_FAILED] " + order.sequence + " " + order.code +
+      " stage=" + (e && e.stage ? e.stage : "unknown") +
+      " ambiguous=" + !!(e && e.ambiguous === true) +
+      " error=" + String(e)
+    );
+
+    if (e && (e.ambiguous === true || e.fatal_ui_state === true)) {
+      throw e;
+    }
+
+    try {
+      ths.recoverToTradingPage(order.side, config);
+    } catch (recoverError) {
+      var fatal = new Error(
+        "THS failed to recover after skipped order " + order.code + ": " + String(recoverError)
+      );
+      fatal.stage = "post_skip_recovery_failed";
+      fatal.ambiguous = false;
+      fatal.fatal_ui_state = true;
+      if (config.mode === "live") retryQueue.recordFailure(order, fatal, "r01_simulation_recovery");
+      throw fatal;
+    }
+
+    sleep(failureSkipMs(config));
+    return config.mode === "live" ? "manual_required" : "failed";
+  }
+}
+
+function manualQueueText(queue) {
+  if (!queue.length) return "";
+  return queue.map(function (item) {
+    return "#" + item.sequence + " " + item.code + " x" + item.qty + " @" + Number(item.submit_price).toFixed(2) +
+      " [" + (item.ambiguous ? "UNKNOWN" : "RETRY") + "] " + item.stage;
+  }).join("\n");
+}
+
+function runOnce() {
+  var config = loadConfig();
+  console.log("[FETCH] " + config.api_base_url);
+  console.log("[EXPERIMENT] " + config.production_experiment);
+
+  // This is the one intentional fetch difference from main.js: use an explicit
+  // experiment query so the default r21 production endpoint remains untouched.
   var raw = client.fetchLatest(config, config.production_experiment);
   if (!raw) {
-    dialogs.alert(
-      "AS1455 服务器策略下单测试",
-      "服务器返回 204：今天没有该测试策略的 READY 计划。\n\n策略: " +
-        config.production_experiment
-    );
+    toast("AS1455: 当前无 READY 计划");
+    console.log("[IDLE] no READY batch");
     return;
   }
 
   // Ongoing r01 simulation must consume only the post-14:55 committed batch.
-  // The API's historical read-only fallback is useful for diagnostics, but it
-  // must never be treated as today's executable simulation signal.
+  // Never execute the API's historical/read-only temporary fallback.
   if (raw.temporary_test_batch === true) {
     dialogs.alert(
-      "AS1455 服务器策略下单测试",
-      "服务器尚未生成今天正式提交的模拟盘 READY。\n\n" +
-        "当前响应只是历史/临时计划回退，已拒绝执行。请稍后重新运行。\n\n策略: " +
+      "AS1455 执行停止",
+      "服务器尚未生成今天正式提交的 r01 模拟盘 READY。\n\n" +
+        "当前响应只是临时计划回退，已拒绝执行。请稍后重新运行。\n\n策略: " +
         config.production_experiment
     );
     console.log("[IDLE] rejected temporary_test_batch; waiting for committed READY");
@@ -104,114 +151,62 @@ function run() {
   }
 
   var batch = safety.validateBatch(raw, config);
-  if (!batch.orders.length) {
-    dialogs.alert(
-      "AS1455 服务器策略下单测试",
-      "策略已成功拉取并通过 safety 校验，但今天没有订单。\n\n策略: " + batch.experiment
-    );
+  batch.mode = config.mode;
+
+  if (batch.orders.length === 0) {
+    toast("AS1455: r01_best 今日无调仓订单");
+    console.log("[IDLE] READY r01_best batch contains zero orders");
     return;
   }
 
-  if (!requireBatchAck(batch)) {
-    console.log("[CANCEL] user cancelled before first order");
+  var pending = batch.orders.filter(function (o) { return !ledger.isTerminal(o.signal_id); });
+  if (pending.length === 0) {
+    toast("AS1455: 今日订单均已提交或处于 UNKNOWN");
+    console.log("[DONE] all signal_ids are terminal");
     return;
   }
 
-  var resultPath = files.join(files.cwd(), RESULT_NAME);
-  var state = {
-    status: "running",
-    source: "execution_api_experiment_query_committed_ready",
-    api_base_url: config.api_base_url,
-    experiment: batch.experiment,
-    trade_date: batch.trade_date,
-    order_count: batch.orders.length,
-    started_at: new Date().toISOString(),
-    results: []
-  };
-  writeState(resultPath, state);
-
-  for (var i = 0; i < batch.orders.length; i++) {
-    var current = batch.orders[i];
-    var item = {
-      sequence: current.sequence,
-      signal_id: current.signal_id,
-      code: current.code,
-      side: current.side,
-      qty: current.qty,
-      submit_price: current.submit_price,
-      started_at: new Date().toISOString(),
-      status: "started"
-    };
-    state.results.push(item);
-    writeState(resultPath, state);
-
-    try {
-      toast("处理 " + (i + 1) + "/" + batch.orders.length + " " + current.code);
-      var brokerResult = ths.submit(current, config);
-      item.status = "submitted";
-      item.broker_result = brokerResult;
-      item.finished_at = new Date().toISOString();
-      writeState(resultPath, state);
-    } catch (e) {
-      item.status = e && e.ambiguous === true ? "unknown" : "failed";
-      item.stage = e && e.stage ? String(e.stage) : "unknown";
-      item.error = String(e);
-      item.finished_at = new Date().toISOString();
-      writeState(resultPath, state);
-
-      if (e && (e.ambiguous === true || e.fatal_ui_state === true)) {
-        state.status = "blocked";
-        writeState(resultPath, state);
-        throw e;
-      }
-
-      if (!config.batch_test_continue_on_error) {
-        state.status = "stopped_on_error";
-        writeState(resultPath, state);
-        throw e;
-      }
-
-      try {
-        ths.recoverToTradingPage(current.side, config);
-      } catch (recoverError) {
-        state.status = "blocked";
-        writeState(resultPath, state);
-        var fatal = new Error(
-          "THS failed to recover after order " + current.sequence + " " +
-          current.code + ": " + String(recoverError)
-        );
-        fatal.stage = "post_skip_recovery_failed";
-        fatal.fatal_ui_state = true;
-        throw fatal;
-      }
-      sleep(config.failure_skip_ms);
+  if (config.require_manual_confirm !== false) {
+    var ok = dialogs.confirm("AS1455 执行确认", summary(batch, pending));
+    if (!ok) {
+      console.log("[CANCEL] user cancelled");
+      return;
     }
-
-    if (i + 1 < batch.orders.length) sleep(config.between_orders_ms);
   }
 
-  var submitted = state.results.filter(function (x) { return x.status === "submitted"; }).length;
-  var failed = state.results.filter(function (x) { return x.status === "failed"; }).length;
-  var unknown = state.results.filter(function (x) { return x.status === "unknown"; }).length;
-  state.status = failed ? "completed_with_errors" : "completed";
-  state.finished_at = new Date().toISOString();
-  writeState(resultPath, state);
+  console.log("[RUN] trade_date=" + batch.trade_date + " orders=" + pending.length + " mode=" + config.mode);
 
-  dialogs.alert(
-    "服务器策略下单测试完成",
-    "策略: " + batch.experiment +
-    "\n已提交: " + submitted + "/" + batch.orders.length +
-    "\n失败并跳过: " + failed +
-    "\nUNKNOWN: " + unknown +
-    "\n\n结果文件：\n" + resultPath
+  var manualQueue = [];
+  var completed = 0;
+  var skipped = 0;
+
+  for (var i = 0; i < pending.length; i++) {
+    var status = executeOne(pending[i], config, manualQueue);
+    if (status === "completed") completed++;
+    else if (status === "manual_required" || status === "failed") skipped++;
+  }
+
+  var msg = "自动流程完成: " + completed + "/" + pending.length +
+    "\n待重试/人工处理: " + manualQueue.length;
+  if (manualQueue.length) {
+    msg += "\n\n" + manualQueueText(manualQueue) +
+      "\n\n已写入: " + retryQueue.path();
+    dialogs.alert("AS1455 执行结果", msg);
+  } else {
+    toast("AS1455: 本次订单处理完成 " + completed + " 笔");
+  }
+
+  console.log(
+    "[DONE] completed=" + completed +
+    " retry_or_manual=" + skipped +
+    " queue=" + manualQueue.length
   );
 }
 
 try {
-  run();
+  runOnce();
 } catch (e) {
-  var message = e && e.stack ? e.stack : String(e);
-  console.show();
-  console.error(message);
-  dialogs.alert("AS1455 服务器策略下单测试失败", String(e));
+  console.error(e && e.stack ? e.stack : String(e));
+  toast("AS1455执行停止: " + e);
+  dialogs.alert("AS1455 执行停止", String(e) + "\n\n异常订单已保留在 retry_orders.json");
 }
