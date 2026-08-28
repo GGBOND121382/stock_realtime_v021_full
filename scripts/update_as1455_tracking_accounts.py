@@ -50,6 +50,7 @@ from utils.as1455_tracking import (  # noqa: E402
 )
 
 DATE_RE = re.compile(r"^\d{8}$")
+WAITING_FOR_MARKET_DAY = "waiting_for_completed_market_day"
 DEFAULT_CACHE_BASE = PROJECT_DIR / "saved_data/ashare_ml4t/ch17_as1455_global_fixed_signal_prediction_cache"
 DEFAULT_LIVE_ROOT = PROJECT_DIR / "saved_data/ashare_ml4t/live_as1455"
 DEFAULT_RAW_DAILY = PROJECT_DIR / "saved_data/ashare_ml4t/ch12_as1455/baostock_raw_daily_cache"
@@ -354,6 +355,138 @@ def clear_old(paths: dict[str, Path]) -> None:
         paths[key].unlink(missing_ok=True)
 
 
+def raw_daily_has_completed_date(
+    raw_daily: Path,
+    start: pd.Timestamp,
+) -> tuple[bool, pd.Timestamp | None]:
+    """Return whether the local raw-daily cache contains a completed date >= start.
+
+    This probe is used only when no prediction source exists.  It distinguishes
+    the legitimate first-day state (market data after the new tracking start has
+    not closed yet, so predictions are not required) from a real missing-
+    prediction failure after a completed market day already exists.
+    """
+    raw_daily = Path(raw_daily)
+    if not raw_daily.is_dir():
+        raise FileNotFoundError(f"raw-daily cache directory missing: {raw_daily}")
+
+    latest: pd.Timestamp | None = None
+    readable = 0
+    for path in sorted(raw_daily.glob("*.csv")):
+        try:
+            frame = pd.read_csv(
+                path,
+                usecols=lambda column: str(column).strip().lower() in {"date", "trade_date"},
+                encoding="utf-8-sig",
+                low_memory=False,
+            )
+        except (UnicodeDecodeError, pd.errors.EmptyDataError, ValueError):
+            continue
+        columns = [
+            column
+            for column in frame.columns
+            if str(column).strip().lower() in {"date", "trade_date"}
+        ]
+        if not columns:
+            continue
+        readable += 1
+        raw = frame[columns[0]].astype(str).str.replace(r"\.0$", "", regex=True)
+        digits = raw.str.replace(r"\D", "", regex=True).str.slice(0, 8)
+        dates = pd.to_datetime(digits, format="%Y%m%d", errors="coerce").dropna()
+        if dates.empty:
+            continue
+        candidate = pd.Timestamp(dates.max()).normalize()
+        latest = candidate if latest is None else max(latest, candidate)
+        if candidate >= start:
+            return True, candidate
+
+    if readable == 0:
+        raise RuntimeError(f"no readable date column in raw-daily cache: {raw_daily}")
+    return False, latest
+
+
+def initialize_waiting_matrix(
+    experiments: list[dict[str, Any]],
+    matrix_root: Path,
+    start: pd.Timestamp,
+    mode: str,
+    prediction_error: Exception,
+    raw_latest: pd.Timestamp | None,
+) -> dict[str, Any]:
+    """Initialize all tracking accounts as empty while the first market day is incomplete."""
+    rows: list[dict[str, Any]] = []
+    start_text = start.strftime("%Y-%m-%d")
+    latest_text = raw_latest.strftime("%Y-%m-%d") if raw_latest is not None else None
+    source = {
+        "status": "not_required_until_completed_market_day",
+        "raw_daily_latest_date": latest_text,
+        "deferred_prediction_error": str(prediction_error),
+    }
+
+    for item in experiments:
+        experiment = item["experiment"]
+        root = matrix_root / experiment
+        paths = experiment_tracking_paths(root)
+        old_manifest = read_json(paths["manifest"], {}) or {}
+        old_state = read_json(paths["latest_state"], {}) or {}
+        if (
+            old_state
+            and old_manifest.get("tracking_start_date") == start_text
+            and int(old_manifest.get("tracking_semantics_version", 0) or 0)
+            == TRACKING_SEMANTICS_VERSION
+        ):
+            raise RuntimeError(
+                f"refuse to replace existing tracking state with waiting state: {experiment}"
+            )
+        clear_old(paths)
+        initial_cash = resolve_initial_cash(root)
+        waiting = {
+            "status": WAITING_FOR_MARKET_DAY,
+            "experiment": experiment,
+            "tracking_start_date": start_text,
+            "tracking_semantics_version": TRACKING_SEMANTICS_VERSION,
+            "initial_cash": initial_cash,
+            "prediction_source": source,
+        }
+        write_json(paths["manifest"], waiting)
+        rows.append(
+            {
+                "status": WAITING_FOR_MARKET_DAY,
+                "experiment": experiment,
+                "tracking_start_date": start_text,
+            }
+        )
+
+    summary = pd.DataFrame(rows)
+    summary_file = matrix_root / TRACKING_MATRIX_SUMMARY
+    atomic_csv(summary, summary_file)
+    manifest = {
+        "status": "partial",
+        "protocol": "as1455_tracking_matrix_v2_preserve_phase",
+        "tracking_semantics_version": TRACKING_SEMANTICS_VERSION,
+        "tracking_start_date": start_text,
+        "experiment_count": int(len(summary)),
+        "completed_experiment_count": 0,
+        "asof_dates": [],
+        "mode": mode,
+        "summary_file": str(summary_file),
+        "waiting_for_completed_market_day": True,
+        "raw_daily_latest_date": latest_text,
+        "historical_fold_grid_recomputed": False,
+        "canonical_strict_forward_recomputed": False,
+        "rebalance_phase_semantics": (
+            "tracking start does not reset historical offset; non-rebalance start "
+            "dates remain cash until the next frozen-schedule rebalance"
+        ),
+        "daily_update_semantics": (
+            "append only new completed market dates; rebuild only when tracking "
+            "start or tracking semantics changes"
+        ),
+    }
+    write_json(matrix_root / TRACKING_MATRIX_MANIFEST, manifest)
+    return manifest
+
+
 def process_experiment(
     item: dict[str, Any],
     matrix_root: Path,
@@ -459,7 +592,7 @@ def process_experiment(
         if rebuild:
             clear_old(paths)
         waiting = {
-            "status": "waiting_for_completed_market_day",
+            "status": WAITING_FOR_MARKET_DAY,
             "experiment": experiment,
             "tracking_start_date": start.strftime("%Y-%m-%d"),
             "tracking_semantics_version": TRACKING_SEMANTICS_VERSION,
@@ -581,10 +714,29 @@ def main() -> None:
     patch_summary(v7)
     target_predictions: dict[str, pd.DataFrame] = {}
     target_meta: dict[str, dict[str, Any]] = {}
-    for target in sorted({item["target"] for item in experiments}):
-        target_predictions[target], target_meta[target] = load_predictions(
-            cache_base, live_root, args.feature_preset, target, start
+    try:
+        for target in sorted({item["target"] for item in experiments}):
+            target_predictions[target], target_meta[target] = load_predictions(
+                cache_base, live_root, args.feature_preset, target, start
+            )
+    except FileNotFoundError as exc:
+        has_completed, raw_latest = raw_daily_has_completed_date(raw_daily, start)
+        if has_completed:
+            raise
+        print(
+            f"[WAIT] no completed raw-daily market date at/after {start:%Y-%m-%d}; "
+            "initialize empty tracking accounts without requiring predictions"
         )
+        manifest = initialize_waiting_matrix(
+            experiments,
+            matrix_root,
+            start,
+            args.mode,
+            exc,
+            raw_latest,
+        )
+        print(json.dumps(manifest, ensure_ascii=False, indent=2))
+        return
 
     # Execution data are target-independent; build once instead of reopening the
     # same raw-daily files separately for r01/r05/r21.
